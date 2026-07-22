@@ -1,0 +1,114 @@
+# Render Blueprint — NeoTalab API + queue worker
+# https://render.com/docs/blueprint-spec
+#
+# After deploy, set secrets in the Render dashboard (never commit .env):
+# APP_KEY, DB_*, WHATSAPP_*, etc. — see backend/.env.production.example
+
+services:
+  - type: web
+    name: neotalab-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /up
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: RUN_MIGRATIONS
+        value: "true"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_META_APP_ID
+        sync: false
+      - key: WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_PLATFORM_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_GRAPH_VERSION
+        value: v21.0
+      - key: WHATSAPP_VERIFY_SIGNATURE
+        value: "true"
+      - key: AI_DRIVER
+        value: fake
+
+  - type: worker
+    name: neotalab-queue
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    dockerCommand: php artisan queue:work --tries=3 --timeout=90
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: RUN_MIGRATIONS
+        value: "false"
+      - key: APP_KEY
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: APP_KEY
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: DB_HOST
+      - key: DB_PORT
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: DB_PORT
+      - key: DB_DATABASE
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: DB_DATABASE
+      - key: DB_USERNAME
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: DB_USERNAME
+      - key: DB_PASSWORD
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: DB_PASSWORD

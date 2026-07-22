@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeoTalab — Full product demo</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <div class="top">
+    <h1><span>NeoTalab</span> — Full product demo</h1>
+    <p>WhatsApp flow + MUST HAVE features from <a href="../../../docs/PRODUCT-SCOPE.md" class="top-link">PRODUCT-SCOPE</a></p>
+  </div>
+  <p class="flow-hint" id="hint">Choose how to start</p>
+
+  <div class="demo-layout">
+    <div class="demo-main">
+      <div class="phones">
+        <div class="phone-col active" id="col-customer">
+          <div class="phone-label"><span class="role">Customer</span> Ali <span id="badge-customer" class="action-needed" style="display:none">Your turn</span></div>
+          <div class="phone">
+            <div class="wa-header"><div class="avatar">JS</div><div class="info"><div class="name">Joe's Snacks</div><div class="status">Business</div></div></div>
+            <div id="chat-customer" class="chat"></div>
+          </div>
+        </div>
+        <div class="phone-col waiting" id="col-merchant">
+          <div class="phone-label"><span class="role">Merchant</span> Joe <span id="badge-merchant" class="action-needed" style="display:none">Your turn</span></div>
+          <div class="phone">
+            <div class="wa-header"><div class="avatar">NT</div><div class="info"><div class="name">NeoTalab</div><div class="status">Alerts</div></div></div>
+            <div id="chat-merchant" class="chat"></div>
+          </div>
+        </div>
+        <div class="phone-col waiting" id="col-driver">
+          <div class="phone-label"><span class="role">Staff driver</span> Rami @ Joe's <span id="badge-driver" class="action-needed" style="display:none">Your turn</span></div>
+          <div class="phone">
+            <div class="wa-header"><div class="avatar">JS</div><div class="info"><div class="name">Joe's Snacks</div><div class="status">Staff delivery</div></div></div>
+            <div id="chat-driver" class="chat"></div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button type="button" class="reset" id="reset">Restart demo</button>
+        <a class="backoffice-link" href="../backoffice/index.html">Backoffice →</a>
+        <a class="backoffice-link" href="../api/README.md">API →</a>
+      </div>
+    </div>
+
+    <aside class="feature-panel" id="feature-panel">
+      <h3>PRODUCT-SCOPE (#1–78)</h3>
+      <p class="feat-sub">✓ = shown in this run · — = not in this demo (see docs/PRODUCT-SCOPE.md)</p>
+      <p class="feat-count" id="feat-count">0 / 0 shown</p>
+      <div class="feature-list" id="feature-list"></div>
+    </aside>
+  </div>
+
+  <script src="demo-features.js"></script>
+  <script src="demo.js"></script>
+</body>
+</html>
