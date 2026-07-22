@@ -104,13 +104,11 @@ function calcPricing(monthly, yearly) {
   };
 }
 
-function PassInput({ value, onChange, placeholder, show, onToggle, hideToggle, autoComplete, id }) {
+function PassInput({ value, onChange, placeholder, show, onToggle, autoComplete, id }) {
   return (
     <div className="set-pass">
       <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
-      {!hideToggle && (
-        <button type="button" onClick={onToggle}>{show ? "Hide" : "Show"}</button>
-      )}
+      <button type="button" onClick={onToggle}>{show ? "Hide" : "Show"}</button>
     </div>
   );
 }
@@ -166,6 +164,7 @@ function OwnerSettingsContent() {
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showWaToken, setShowWaToken] = useState(false);
   const [waTokenConfigured, setWaTokenConfigured] = useState(false);
+  const [revealedWaToken, setRevealedWaToken] = useState("");
   const [s, setS] = useState({
     price: "29", yearlyPrice: "290", trialDays: "7", graceDays: "3",
     waPhoneId: "", waToken: "", waVerifyToken: "",
@@ -209,6 +208,7 @@ function OwnerSettingsContent() {
       };
       setS(next);
       setWaTokenConfigured(!!settings.waTokenConfigured);
+      setRevealedWaToken("");
       setShowWaToken(false);
       setPasswordChangedAt(settings.passwordChangedAt ?? null);
       syncNotificationLocal(next);
@@ -281,15 +281,53 @@ function OwnerSettingsContent() {
     await runSave("save", async () => {
       const payload = { waPhoneId: s.waPhoneId, waVerifyToken: s.waVerifyToken };
       const nextToken = s.waToken.trim();
-      if (nextToken) payload.waToken = nextToken;
+      // Don't persist a just-revealed token as a "change" unless the user edited it —
+      // empty field on save keeps the existing server token.
+      if (nextToken && !revealedWaToken) payload.waToken = nextToken;
+      if (nextToken && revealedWaToken && nextToken !== revealedWaToken) payload.waToken = nextToken;
       await api("PATCH", "/api/owner/settings", payload);
-      if (nextToken) {
+      if (payload.waToken) {
         setWaTokenConfigured(true);
-        setS((x) => ({ ...x, waToken: "" }));
-        setShowWaToken(false);
       }
+      setS((x) => ({ ...x, waToken: "" }));
+      setRevealedWaToken("");
+      setShowWaToken(false);
       toast("Saved!");
     }).catch((e) => toast(e.message, "error"));
+  }
+
+  async function toggleWaTokenVisibility() {
+    if (showWaToken) {
+      setShowWaToken(false);
+      setS((x) => ({ ...x, waToken: "" }));
+      setRevealedWaToken("");
+      return;
+    }
+
+    // Typing a new token — just flip input type.
+    if (s.waToken.trim() && !revealedWaToken) {
+      setShowWaToken(true);
+      return;
+    }
+
+    if (!waTokenConfigured) {
+      setShowWaToken(true);
+      return;
+    }
+
+    try {
+      const res = await api("GET", "/api/owner/settings/whatsapp-token");
+      const token = res?.waToken;
+      if (!token) {
+        toast(res?.message || "No access token stored", "error");
+        return;
+      }
+      setRevealedWaToken(token);
+      setS((x) => ({ ...x, waToken: token }));
+      setShowWaToken(true);
+    } catch (e) {
+      toast(e.message || "Could not reveal access token", "error");
+    }
   }
 
   async function saveNotifications() {
@@ -444,14 +482,16 @@ function OwnerSettingsContent() {
                   <SetField label="Phone number ID" className="span-full">
                     <input className="set-mono" value={s.waPhoneId} onChange={(e) => set("waPhoneId", e.target.value)} placeholder="From Meta Business Suite" />
                   </SetField>
-                  <SetField label="Access token" hint={waTokenConfigured && !s.waToken ? "Token saved on the server. Paste a new value here only when rotating it." : undefined}>
+                  <SetField label="Access token" hint={waTokenConfigured && !s.waToken ? "Click Show to reveal the saved token, or paste a new one to replace it." : undefined}>
                     <PassInput
                       value={s.waToken}
-                      onChange={(e) => set("waToken", e.target.value)}
-                      placeholder={waTokenConfigured && !s.waToken ? "Token saved — paste new value to replace" : "EAAxxxxxx…"}
+                      onChange={(e) => {
+                        setRevealedWaToken("");
+                        set("waToken", e.target.value);
+                      }}
+                      placeholder={waTokenConfigured && !s.waToken ? "Token saved — Show to reveal, or paste to replace" : "EAAxxxxxx…"}
                       show={showWaToken}
-                      hideToggle={waTokenConfigured && !s.waToken}
-                      onToggle={() => setShowWaToken((v) => !v)}
+                      onToggle={toggleWaTokenVisibility}
                     />
                   </SetField>
                   <SetField

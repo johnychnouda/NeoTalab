@@ -65,6 +65,30 @@ class PlatformSettingsTest extends TestCase
         $this->assertSame('EAAX_real_token', $settings['wa_access_token'] ?? null);
     }
 
+    public function test_platform_admin_can_reveal_whatsapp_access_token(): void
+    {
+        $admin = $this->platformAdmin();
+        $token = $this->tokenFor($admin);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/platform-settings', [
+            'wa_access_token' => 'EAAX_reveal_me',
+        ])->assertOk();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/admin/platform-settings/whatsapp-access-token')
+            ->assertOk()
+            ->assertJsonPath('wa_access_token', 'EAAX_reveal_me');
+    }
+
+    public function test_merchant_cannot_reveal_whatsapp_access_token(): void
+    {
+        [, $owner] = $this->merchantWithUser();
+
+        $this->withToken($this->tokenFor($owner))
+            ->getJson('/api/v1/admin/platform-settings/whatsapp-access-token')
+            ->assertForbidden();
+    }
+
     public function test_merchant_cannot_access_platform_settings(): void
     {
         [, $owner] = $this->merchantWithUser();

@@ -413,6 +413,10 @@ function mapRequest(method, path, body) {
     return { method: "GET", path: "/admin/platform-settings" };
   }
 
+  if (method === "GET" && path === "/api/owner/settings/whatsapp-token") {
+    return { method: "GET", path: "/admin/platform-settings/whatsapp-access-token" };
+  }
+
   if (method === "PATCH" && path === "/api/owner/settings") {
     return { method: "PATCH", path: "/admin/platform-settings", body: mapOwnerSettingsBody(body) };
   }
@@ -497,6 +501,13 @@ function normalizeResponse(method, originalPath, raw) {
   if (originalPath.startsWith("/api/owner/onboarding") || originalPath.startsWith("/admin/onboarding")) {
     const list = unwrapList(raw?.requests ?? data?.requests ?? data);
     return { requests: list };
+  }
+
+  if (originalPath === "/api/owner/settings/whatsapp-token") {
+    return {
+      waToken: raw?.wa_access_token ?? data?.wa_access_token ?? null,
+      message: raw?.message ?? data?.message,
+    };
   }
 
   if (originalPath.startsWith("/api/owner/settings")) {

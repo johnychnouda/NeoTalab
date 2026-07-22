@@ -151,6 +151,7 @@ Route::prefix('v1')->group(function () {
             Route::get('whatsapp/embedded-signup/config', [WhatsAppEmbeddedSignupController::class, 'config']);
             Route::post('merchants/{id}/whatsapp/embedded-signup', [WhatsAppEmbeddedSignupController::class, 'connect']);
             Route::get('platform-settings', [PlatformSettingsController::class, 'show']);
+            Route::get('platform-settings/whatsapp-access-token', [PlatformSettingsController::class, 'revealWhatsAppAccessToken']);
             Route::patch('platform-settings', [PlatformSettingsController::class, 'update']);
         });
     });
