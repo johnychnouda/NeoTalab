@@ -45,6 +45,26 @@ class PlatformSettingsTest extends TestCase
         ]);
     }
 
+    public function test_masked_whatsapp_token_is_not_overwritten_on_save(): void
+    {
+        $admin = $this->platformAdmin();
+        $token = $this->tokenFor($admin);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/platform-settings', [
+            'wa_access_token' => 'EAAX_real_token',
+        ])->assertOk();
+
+        $this->withToken($token)->patchJson('/api/v1/admin/platform-settings', [
+            'wa_access_token' => '••••••••',
+            'wa_phone_id' => '99999',
+        ])->assertOk()
+            ->assertJsonPath('data.waPhoneId', '99999')
+            ->assertJsonPath('data.waTokenConfigured', true);
+
+        $settings = \App\Models\PlatformSetting::singleton()->fresh()->settings ?? [];
+        $this->assertSame('EAAX_real_token', $settings['wa_access_token'] ?? null);
+    }
+
     public function test_merchant_cannot_access_platform_settings(): void
     {
         [, $owner] = $this->merchantWithUser();

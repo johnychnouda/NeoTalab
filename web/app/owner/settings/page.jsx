@@ -104,11 +104,13 @@ function calcPricing(monthly, yearly) {
   };
 }
 
-function PassInput({ value, onChange, placeholder, show, onToggle, autoComplete, id }) {
+function PassInput({ value, onChange, placeholder, show, onToggle, hideToggle, autoComplete, id }) {
   return (
     <div className="set-pass">
       <input id={id} type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
-      <button type="button" onClick={onToggle}>{show ? "Hide" : "Show"}</button>
+      {!hideToggle && (
+        <button type="button" onClick={onToggle}>{show ? "Hide" : "Show"}</button>
+      )}
     </div>
   );
 }
@@ -163,6 +165,7 @@ function OwnerSettingsContent() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showWaToken, setShowWaToken] = useState(false);
+  const [waTokenConfigured, setWaTokenConfigured] = useState(false);
   const [s, setS] = useState({
     price: "29", yearlyPrice: "290", trialDays: "7", graceDays: "3",
     waPhoneId: "", waToken: "", waVerifyToken: "",
@@ -176,7 +179,7 @@ function OwnerSettingsContent() {
 
   const set = (k, v) => setS((x) => ({ ...x, [k]: v }));
   const cur = CUR;
-  const waConfigured = !!(s.waPhoneId?.trim() && s.waToken?.trim());
+  const waConfigured = !!(s.waPhoneId?.trim() && (waTokenConfigured || s.waToken?.trim()));
   const strength = passwordStrength(newPass);
   const passMatch = confirmPass.length > 0 && newPass === confirmPass;
   const passMismatch = confirmPass.length > 0 && newPass !== confirmPass;
@@ -197,7 +200,7 @@ function OwnerSettingsContent() {
         trialDays: settings.trialDays != null ? String(settings.trialDays) : "7",
         graceDays: settings.gracePeriodDays != null ? String(settings.gracePeriodDays) : "3",
         waPhoneId: settings.waPhoneId ?? "",
-        waToken: settings.waToken ?? "",
+        waToken: "",
         waVerifyToken: settings.waVerifyToken ?? "",
         overdueDays: REMIND_OPTIONS.some((o) => o.value === String(settings.overdueDays))
           ? String(settings.overdueDays)
@@ -205,6 +208,8 @@ function OwnerSettingsContent() {
         overdueMsg: settings.overdueReminderMsg ?? DEFAULT_RENEWAL_MSG,
       };
       setS(next);
+      setWaTokenConfigured(!!settings.waTokenConfigured);
+      setShowWaToken(false);
       setPasswordChangedAt(settings.passwordChangedAt ?? null);
       syncNotificationLocal(next);
       localStorage.setItem("nt_platform_name", PLATFORM_NAME);
@@ -274,7 +279,15 @@ function OwnerSettingsContent() {
 
   async function saveWhatsApp() {
     await runSave("save", async () => {
-      await api("PATCH", "/api/owner/settings", { waPhoneId: s.waPhoneId, waToken: s.waToken, waVerifyToken: s.waVerifyToken });
+      const payload = { waPhoneId: s.waPhoneId, waVerifyToken: s.waVerifyToken };
+      const nextToken = s.waToken.trim();
+      if (nextToken) payload.waToken = nextToken;
+      await api("PATCH", "/api/owner/settings", payload);
+      if (nextToken) {
+        setWaTokenConfigured(true);
+        setS((x) => ({ ...x, waToken: "" }));
+        setShowWaToken(false);
+      }
       toast("Saved!");
     }).catch((e) => toast(e.message, "error"));
   }
@@ -424,18 +437,28 @@ function OwnerSettingsContent() {
                 }
               />
               <SetNote tone="wa">
-                Each merchant connects their own bot under Merchants → Bot. This number is only for platform-level messages.
+                You connect each shop&apos;s WhatsApp bot from Merchants → Bot (Embedded Signup). The credentials here are only for platform-level messages — payment reminders and welcomes.
               </SetNote>
               <div className="set-card-body">
                 <div className="set-grid">
                   <SetField label="Phone number ID" className="span-full">
                     <input className="set-mono" value={s.waPhoneId} onChange={(e) => set("waPhoneId", e.target.value)} placeholder="From Meta Business Suite" />
                   </SetField>
-                  <SetField label="Access token">
-                    <PassInput value={s.waToken} onChange={(e) => set("waToken", e.target.value)} placeholder="EAAxxxxxx…" show={showWaToken} onToggle={() => setShowWaToken((v) => !v)} />
+                  <SetField label="Access token" hint={waTokenConfigured && !s.waToken ? "Token saved on the server. Paste a new value here only when rotating it." : undefined}>
+                    <PassInput
+                      value={s.waToken}
+                      onChange={(e) => set("waToken", e.target.value)}
+                      placeholder={waTokenConfigured && !s.waToken ? "Token saved — paste new value to replace" : "EAAxxxxxx…"}
+                      show={showWaToken}
+                      hideToggle={waTokenConfigured && !s.waToken}
+                      onToggle={() => setShowWaToken((v) => !v)}
+                    />
                   </SetField>
-                  <SetField label="Webhook verify token">
-                    <input className="set-mono" value={s.waVerifyToken} onChange={(e) => set("waVerifyToken", e.target.value)} placeholder="Your secret token" />
+                  <SetField
+                    label="Webhook verify token"
+                    hint="Must exactly match the Verify Token in Meta → Webhooks. If empty here, the API uses WHATSAPP_VERIFY_TOKEN from backend .env."
+                  >
+                    <input className="set-mono" value={s.waVerifyToken} onChange={(e) => set("waVerifyToken", e.target.value)} placeholder="Same secret you entered in Meta webhook setup" />
                   </SetField>
                 </div>
               </div>

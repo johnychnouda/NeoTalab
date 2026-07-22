@@ -61,9 +61,18 @@ class UpdatePlatformSettingsRequest extends FormRequest
         ];
 
         foreach ($settingsMap as $input => $jsonKey) {
-            if (array_key_exists($input, $data)) {
-                $settings[$jsonKey] = $data[$input];
+            if (! array_key_exists($input, $data)) {
+                continue;
             }
+
+            $value = $data[$input];
+
+            // Frontend sends a mask when the token is unchanged — never persist it.
+            if ($input === 'wa_access_token' && in_array($value, ['••••••••', '********'], true)) {
+                continue;
+            }
+
+            $settings[$jsonKey] = $value;
         }
 
         $payload = $columns;
