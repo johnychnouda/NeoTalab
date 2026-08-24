@@ -3,6 +3,7 @@
 #
 # After deploy, set secrets in the Render dashboard (never commit .env):
 # APP_KEY, DB_*, WHATSAPP_*, etc. — see backend/.env.production.example
+# and deploy/secrets-for-render.env.example
 
 services:
   - type: web
@@ -47,6 +48,8 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        value: /etc/ssl/certs/tidb-ca.pem
       - key: WHATSAPP_APP_SECRET
         sync: false
       - key: WHATSAPP_META_APP_ID
@@ -112,3 +115,8 @@ services:
           name: neotalab-api
           type: web
           envVarKey: DB_PASSWORD
+      - key: MYSQL_ATTR_SSL_CA
+        fromService:
+          name: neotalab-api
+          type: web
+          envVarKey: MYSQL_ATTR_SSL_CA

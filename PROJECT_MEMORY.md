@@ -19,23 +19,22 @@ The authoritative product charter is the **Master Development Prompt** (pasted b
 
 ---
 
-## 2. Repository reality (as of 2026-07-05)
+## 2. Repository reality (release — 2026-08)
 
 | Path | What it is | Status |
 |------|-----------|--------|
-| `backend/` | Laravel 12 production API | **Active build target** — M1–M3 complete |
-| `web/` | Next.js 15 / React dashboard (owner portal + merchant backoffice, EN/AR/FR, demo-mode fallback) | **Kept & extended** — will consume Laravel `/api/v1` |
-| `reference/api/` | Node.js/Express reference implementation of the original restaurant-scoped domain logic | **Reference only** — superseded by Laravel |
-| `reference/database/` | Original hand-written Postgres schema + SQL migrations | **Reference only** — Laravel migrations in `backend/database/` are source of truth |
-| `reference/static/` | Legacy static HTML (`demo/`, `owner/`, `backoffice/`, `join/`) | **Reference / previews only** — superseded by `web/` |
-| `docs/` | Original locked scope #1–78 + product spec | **Historical** — superseded by the Master Prompt for scope |
-| `assets/` | Shared brand logos | Used by legacy static pages; copy to `web/public/` when needed |
-| `CLAUDE.md` | Guidance for Claude Code in this repo | Living doc |
+| `backend/` | Laravel 12 production API | **Production** — Render Docker + TiDB Cloud |
+| `web/` | Next.js 15 dashboards (owner + backoffice, EN/AR/FR) | **Production** — Vercel |
+| `deploy/` | Release runbook + Render secrets template | **Production ops** |
+| `docs/` | Release guides (hosting, WhatsApp, optional local testing) | **Production ops** |
+| `render.yaml` | Render blueprint (API web service + queue worker) | **Production** |
+| `PROJECT_MEMORY.md` | Architecture charter | Living doc |
 
-Local toolchain (2026-07-05): started with only **Node v24** + Homebrew. **No Docker** (approach
-dropped). Chosen dev toolchain: **native** — Homebrew **PHP 8.4 + Composer** run Laravel via
-`php artisan serve`; **MAMP** provides **MySQL + phpMyAdmin** as the database. Laravel connects to
-MAMP MySQL (default `127.0.0.1:8889`, user `root`, pass `root`).
+**Production stack:** Vercel (`web/`) · Render (`backend/` via `render.yaml`) · TiDB Cloud Serverless (MySQL).
+Deploy: [`deploy/STEP-BY-STEP.md`](deploy/STEP-BY-STEP.md).
+
+**Local dev (optional):** Homebrew PHP + Composer · MAMP MySQL · `php artisan serve` + `queue:work`.
+Legacy Node/Postgres/static reference code **removed** from repo (2026-08 release cleanup).
 
 ---
 
@@ -60,7 +59,8 @@ MAMP MySQL (default `127.0.0.1:8889`, user `root`, pass `root`).
 | D11 | **Drivers stay a tenant-scoped domain entity; driver auth is WhatsApp-first, built in the dispatch milestone** | Not part of the M1 identity foundation. |
 | D12 | **AI = provider-agnostic `ChatProvider` interface; structured JSON output only** | Fake driver for tests/local (`AI_DRIVER=fake`); production via OpenAI-compatible API (`AI_DRIVER=openai`, JSON schema mode). Never parse free-form model text. Anthropic can be a third driver later. |
 | D13 | **Conversation simulation via HTTP; WhatsApp transport deferred to M4** | M3 endpoints let merchant staff drive turns for testing; M4 webhook will call `ConversationService` directly. |
-| D14 | **Repo cleanup (2026-07-05): legacy stack under `reference/`** | Removed Docker/`docker-compose.yml`. Moved Node `api/`, Postgres `database/`, and static previews (`demo/`, `owner/`, `backoffice/`, `join/`) into `reference/`. Root README + `.gitignore` added. |
+| D14 | **Repo cleanup (2026-07-05): legacy stack under `reference/`** | Removed Docker/`docker-compose.yml`. Moved Node `api/`, Postgres `database/`, and static previews into `reference/`. |
+| D15 | **Release cleanup (2026-08): production-only repo** | Removed `reference/`, tunnel scripts, historical product docs, agent config. Production = Vercel + Render + TiDB. `backend/Dockerfile` + `render.yaml` are the deploy path. |
 
 ### Roles (spatie, team = merchant_id)
 `platform-super-admin` (merchant_id null) · `merchant-owner` · `merchant-admin` · `merchant-staff` · `driver` (reserved).
@@ -71,11 +71,11 @@ MAMP MySQL (default `127.0.0.1:8889`, user `root`, pass `root`).
 
 - **Primary keys:** UUID (continuity with existing schema; use Laravel `HasUuids` → `char(36)` in MySQL).
 - **Tenant key:** `merchant_id` on every tenant-scoped table; enforced by the `BelongsToTenant` trait's global scope. Platform-admin requests bypass the scope via role.
-- **Database:** MySQL (via MAMP). Laravel migrations in `backend/database/` are the source of truth; `reference/database/schema.sql` (Postgres) is reference only. Keep migrations DB-agnostic (`$table->json()`, `$table->uuid()`).
+- **Database:** MySQL. Production = TiDB Cloud; local dev = MAMP. Laravel migrations in `backend/database/` are the source of truth. Keep migrations DB-agnostic (`$table->json()`, `$table->uuid()`).
 - **Backend layering:** `Controller (Api\V1)` → `FormRequest` (validate) → `Service` (logic, DI) → `Model` → `API Resource` (response). Authorization via `Policy` + middleware. No business logic in controllers.
 - **API responses:** consistent JSON envelope via API Resources.
 - **Localized fields:** keep `*_ar` / `*_fr` pattern already used in the schema where relevant, or move to a `settings`/translations JSONB — decide per table (M2+).
-- **Docs:** update this file + `CLAUDE.md` when structure/decisions change.
+- **Docs:** update this file when structure/decisions change.
 
 ---
 
@@ -138,7 +138,7 @@ _(Later milestones append orders, whatsapp webhooks, dispatch, analytics endpoin
 
 ## 8. Environment (resolved)
 
-- **PHP 8.5** + **Composer 2.10** (Homebrew). Docker removed (2026-07-05 repo cleanup); legacy stack archived under `reference/`.
+- **PHP 8.4+** + **Composer 2**. Production API runs in Docker on Render (`backend/Dockerfile`).
 - **MAMP** installed; **MySQL 8.0.44** running. Laravel `.env` points at it
   (`127.0.0.1:3306`, db `neotalab`, root/root, socket `/Applications/MAMP/tmp/mysql/mysql.sock`).
 - Tests run on in-memory SQLite via `phpunit.xml` (no MAMP needed to test).

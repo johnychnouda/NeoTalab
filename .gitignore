@@ -6,6 +6,10 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!**/.env.production.example
+
+# Agent / IDE local
+.claude/
 
 # Node / Next.js
 node_modules/

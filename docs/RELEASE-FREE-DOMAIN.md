@@ -129,23 +129,11 @@ Same env vars as the web service.
 
 ---
 
-## Alternative: DuckDNS (if you prefer tunneling local MAMP)
-
-Only use this if you cannot deploy yet:
-
-1. [duckdns.org](https://www.duckdns.org) → create `neotalab.duckdns.org` (free `.org` domain).
-2. [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) → expose ports 3001 (web) and 8001 (api) with HTTPS.
-3. Meta **App domains:** `neotalab.duckdns.org`.
-
-Tunneling local dev is fine for testing Meta; **Vercel + Render** is the proper release path above.
-
----
-
 ## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
-| Meta “App domains” rejects localhost | Use Vercel `.vercel.app` or DuckDNS `.org` |
+| Meta “App domains” rejects localhost | Use Vercel `.vercel.app` URL |
 | CORS error on login | Add Vercel URL to `CORS_ALLOWED_ORIGINS` on API |
 | Embedded Signup stuck on Connecting | Complete all Meta screens; use HTTPS Vercel URL |
 | Webhook verify fails | Callback URL must be public HTTPS API; token must match |

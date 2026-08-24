@@ -1,6 +1,8 @@
-# NeoTalab Release Setup — IDE Checklist
+# NeoTalab — Local integration testing (optional)
 
-Follow these steps locally in Cursor/your IDE. No agent windows required.
+> **Not for production deploy.** Production uses Vercel + Render — see [`deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
+
+Follow these steps when testing Meta/WhatsApp integration against a **local** API before or alongside production.
 
 ---
 

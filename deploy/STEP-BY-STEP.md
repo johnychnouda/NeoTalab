@@ -1,132 +1,113 @@
-# Deploy NeoTalab now — follow in order
+# Deploy NeoTalab — production release
 
-Do each step before moving on. Total time ~45 minutes.
+Follow in order. Stack: **TiDB Cloud** (DB) → **Render** (API + queue) → **Vercel** (web) → **Meta** (WhatsApp).
 
 ---
 
-## Step 1 — GitHub (5 min)
+## Step 1 — TiDB database (~10 min)
 
-1. Open https://github.com/new
-2. Repository name: `NeoTalab`
-3. **Private** recommended
-4. Do **not** add README (repo already has files)
-5. Create repository
-
-In Terminal (replace `YOUR_GITHUB_USER`):
+1. [tidbcloud.com](https://tidbcloud.com) → **Serverless** cluster
+2. Create database: `neotalab`
+3. **Connect → General** → copy host, port (`4000`), user, password
+4. On your Mac:
 
 ```bash
-cd /Users/johnychnouda/Desktop/NeoTalab
-git init
-git add .
-git commit -m "Initial commit — NeoTalab SaaS"
-git branch -M main
-git remote add origin https://github.com/YOUR_GITHUB_USER/NeoTalab.git
-git push -u origin main
+cp deploy/secrets-for-render.env.example deploy/secrets-for-render.env
 ```
 
----
-
-## Step 2 — TiDB free database (10 min)
-
-1. Open https://tidbcloud.com → Sign up (free)
-2. **Create Cluster** → **Serverless** → region closest to you
-3. Create database: `neotalab`
-4. **Connect** → choose **General** → copy:
-   - Host
-   - Port (usually `4000`)
-   - User
-   - Password
-5. Open `deploy/secrets-for-render.env` on your Mac and replace:
-   - `YOUR_TIDB_HOST`
-   - `YOUR_TIDB_USER`
-   - `YOUR_TIDB_PASSWORD`
+5. Edit `deploy/secrets-for-render.env` — fill `DB_*`, `APP_KEY` (`php artisan key:generate --show`), and all WhatsApp keys from Meta
 
 ---
 
-## Step 3 — Render API (15 min)
+## Step 2 — Render API (~15 min)
 
-1. Open https://dashboard.render.com → Sign up (GitHub login)
-2. **New → Blueprint**
-3. Connect your `NeoTalab` GitHub repo
-4. Render detects `render.yaml` → **Apply**
-5. Before deploy finishes, open service **neotalab-api** → **Environment**
-6. Click **Add from .env** or paste all lines from `deploy/secrets-for-render.env`
-7. Save → wait for deploy (first build ~5 min)
-8. Copy your API URL (e.g. `https://neotalab-api.onrender.com`)
-9. In Render **Shell** (or after deploy), run once:
+1. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint**
+2. Connect GitHub repo **`NeoTalab`**
+3. Apply **`render.yaml`** → creates **neotalab-api** + **neotalab-queue**
+4. **neotalab-api → Environment** → paste contents of `deploy/secrets-for-render.env`
+5. Wait for deploy → confirm `https://YOUR-SERVICE.onrender.com/up` returns 200
+6. If migrations did not run automatically:
 
 ```bash
 php artisan migrate --force --seed
 ```
 
-(Seeds owner login: `johnychnouda@gmail.com` / `neotalab2025`)
+(First deploy only — seeds platform owner; change password after login.)
 
-10. Re-save platform WhatsApp in owner portal after deploy, OR run locally against production API once logged in.
-
----
-
-## Step 4 — Vercel web (10 min)
-
-1. Open https://vercel.com → Sign up (GitHub login)
-2. **Add New → Project** → import `NeoTalab`
-3. **Root Directory:** click Edit → set to `web`
-4. **Environment Variables:**
-   ```
-   NEXT_PUBLIC_API_URL=https://neotalab-api.onrender.com/api/v1
-   ```
-   (use your actual Render URL from step 3)
-5. **Deploy**
-6. Copy Vercel URL (e.g. `https://neotalab.vercel.app`)
-
-7. Go back to **Render → neotalab-api → Environment** and update:
-   ```
-   FRONTEND_URL=https://neotalab.vercel.app
-   CORS_ALLOWED_ORIGINS=https://neotalab.vercel.app
-   ```
-   Redeploy API.
+7. Copy Render URL (e.g. `https://neotalab-api.onrender.com`)
 
 ---
 
-## Step 5 — Meta app (5 min)
+## Step 3 — Vercel web (~10 min)
 
-In https://developers.facebook.com → NeoTalab:
+1. [vercel.com](https://vercel.com) → import **`NeoTalab`**
+2. **Root directory:** `web`
+3. **Environment variable** (value = URL only):
+
+```env
+NEXT_PUBLIC_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api/v1
+```
+
+4. Deploy → note URL (e.g. `https://neo-talab.vercel.app`)
+
+5. **Render → neotalab-api → Environment** — update and redeploy:
+
+```env
+APP_URL=https://YOUR-RENDER-SERVICE.onrender.com
+FRONTEND_URL=https://YOUR-VERCEL-PROJECT.vercel.app
+CORS_ALLOWED_ORIGINS=https://YOUR-VERCEL-PROJECT.vercel.app
+```
+
+---
+
+## Step 4 — Meta app (~5 min)
+
+[developers.facebook.com](https://developers.facebook.com) → your app:
 
 **App settings → Basic**
 
 | Field | Value |
 |-------|--------|
-| App domains | `neotalab.vercel.app` |
-| Privacy policy URL | `https://neotalab.vercel.app/privacy` |
-| Terms of Service URL | `https://neotalab.vercel.app/terms` |
+| App domains | `YOUR-VERCEL-PROJECT.vercel.app` |
+| Privacy policy | `https://YOUR-VERCEL-PROJECT.vercel.app/privacy` |
+| Terms | `https://YOUR-VERCEL-PROJECT.vercel.app/terms` |
 
 **Facebook Login for Business → Settings**
 
 | Valid OAuth Redirect URIs |
 |---|
-| `https://neotalab.vercel.app/` |
+| `https://YOUR-VERCEL-PROJECT.vercel.app/` |
 
 **WhatsApp → Configuration**
 
 | Callback URL |
 |---|
-| `https://neotalab-api.onrender.com/api/v1/webhooks/whatsapp` |
+| `https://YOUR-RENDER-SERVICE.onrender.com/api/v1/webhooks/whatsapp` |
 
-Verify token = same as `WHATSAPP_VERIFY_TOKEN` in Render env.
+Verify token = `WHATSAPP_VERIFY_TOKEN` in Render env. Subscribe to **messages**. Save.
 
-Subscribe to **messages**. Save.
-
----
-
-## Step 6 — Test
-
-1. Open `https://neotalab.vercel.app/owner`
-2. Log in: `johnychnouda@gmail.com` / `neotalab2025`
-3. **Settings → WhatsApp** → paste Phone Number ID + token → Save
-4. **Merchants → foren al hara → Bot → Connect WhatsApp**
-5. Complete Meta popup → should show **Connected**
+See also: [`docs/RELEASE-WHATSAPP.md`](../docs/RELEASE-WHATSAPP.md)
 
 ---
 
-## If Render URL or Vercel name differs
+## Step 5 — Smoke test
 
-Replace `neotalab-api.onrender.com` and `neotalab.vercel.app` everywhere with your actual URLs.
+1. `https://YOUR-VERCEL-PROJECT.vercel.app/owner` → log in
+2. Merchants list loads (no API connection error)
+3. **Settings → WhatsApp** → save Phone Number ID + access token
+4. **Merchants → Bot → Connect WhatsApp** → complete Meta popup
+5. Send a test WhatsApp message → check Render logs for webhook + queue job
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Vercel “Cannot reach API” | Check `NEXT_PUBLIC_API_URL`, redeploy Vercel, confirm Render `/up` is 200 |
+| CORS on login | Add Vercel URL to `CORS_ALLOWED_ORIGINS` on Render |
+| Webhook verify fails | Callback must be Render HTTPS URL; token must match env |
+| First API request slow | Render free tier sleeps ~15 min idle; upgrade for always-on |
+| DB connection error | Confirm TiDB creds + `MYSQL_ATTR_SSL_CA=/etc/ssl/certs/tidb-ca.pem` |
+
+More detail: [`docs/RELEASE-FREE-DOMAIN.md`](../docs/RELEASE-FREE-DOMAIN.md)

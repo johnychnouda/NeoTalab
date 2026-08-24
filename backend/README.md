@@ -1,85 +1,84 @@
 # NeoTalab Backend (Laravel 12)
 
 Multi-tenant WhatsApp Commerce OS API. Generic across business types (restaurant, pharmacy,
-retail, services, …). This is the production backend that supersedes the legacy Node reference
-(`../reference/api`). See [`../PROJECT_MEMORY.md`](../PROJECT_MEMORY.md) for architecture decisions and the
-milestone roadmap — **read it before starting new work.**
+retail, services, …). See [`../PROJECT_MEMORY.md`](../PROJECT_MEMORY.md) for architecture and
+the API map.
+
+## Production (Render + TiDB)
+
+Production runs as Docker on [Render](https://render.com) via root [`render.yaml`](../render.yaml).
+
+1. Copy [`../deploy/secrets-for-render.env.example`](../deploy/secrets-for-render.env.example) to
+   `../deploy/secrets-for-render.env` (gitignored) and fill all values.
+2. Follow [`../deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
+3. Env reference: [`.env.production.example`](.env.production.example).
+
+The Docker image bakes in the TiDB SSL CA (`backend/Dockerfile`). Migrations run on boot when
+`RUN_MIGRATIONS=true`.
+
+**Health check:** `GET /up`
+
+**Meta webhook:** `POST /api/v1/webhooks/whatsapp`
 
 ## Stack
 
-- **Laravel 12** / PHP 8.4+ (built & tested on Homebrew PHP)
-- **MySQL** via **MAMP** (phpMyAdmin for DB admin) — tests run on in-memory SQLite
-- **Sanctum** bearer tokens · **spatie/laravel-permission** (RBAC) · **spatie/laravel-activitylog**
+- **Laravel 12** / PHP 8.4+
+- **MySQL** (TiDB Cloud in production; MAMP locally)
+- **Sanctum** bearer tokens · **spatie/laravel-permission** · **spatie/laravel-activitylog**
+- **Queue:** database driver (`queue:work` on Render worker service)
 
-## Local setup
+## Local development
 
-Prerequisites: Homebrew `php` + `composer`, and **MAMP** running with a `neotalab` database created
-in phpMyAdmin (user/pass `root`/`root`).
+Prerequisites: Homebrew `php` + `composer`, **MAMP** with a `neotalab` database (`root`/`root`).
 
 ```bash
 cd backend
-cp .env.example .env          # DB block is already set for MAMP MySQL
+cp .env.example .env
 php artisan key:generate
 composer install
-php artisan migrate --seed    # or migrate:fresh --seed to rebuild
+php artisan migrate --seed
 php artisan serve             # http://127.0.0.1:8000
+php artisan queue:work        # separate terminal — required for WhatsApp jobs
+php artisan test              # SQLite in-memory
+./vendor/bin/pint
 ```
 
-Run the test suite (isolated, in-memory SQLite — MAMP not required):
-
-```bash
-php artisan test
-./vendor/bin/pint             # code style
-```
-
-## Seeded accounts
+## Seeded accounts (dev / first deploy only)
 
 | Role | Email | Password |
 |------|-------|----------|
 | Platform super-admin | `johnychnouda@gmail.com` | `neotalab2025` |
 
-Merchants are created via the owner portal or `/join` onboarding — no demo merchant is seeded.
+Merchants are created via the owner portal or `/join` onboarding.
 
 ## API (v1)
 
-Base path `/api/v1`. Auth is a Sanctum bearer token in `Authorization: Bearer <token>`.
+Base path `/api/v1`. Auth: `Authorization: Bearer <sanctum-token>`.
 
 | Method | Path | Access |
 |--------|------|--------|
-| POST | `/auth/register` | public — creates a merchant + owner, returns a token |
+| POST | `/auth/register` | public |
 | POST | `/auth/login` | public |
-| POST | `/auth/logout` | any authenticated user |
-| GET | `/auth/me` | any authenticated user |
-| GET | `/merchant` | merchant owner / admin / staff (own tenant) |
-| PATCH | `/merchant` | merchant owner / admin |
-| GET · POST | `/users` | merchant owner / admin (tenant-scoped) |
-| PATCH · DELETE | `/users/{user}` | merchant owner / admin (tenant-scoped) |
-| GET · POST | `/admin/merchants` | platform super-admin (cross-tenant) |
-| GET | `/categories` · `/products` · `/products/{id}` | any merchant role (tenant-scoped) |
-| POST · PATCH · DELETE | `/categories…` · `/products…` | merchant owner / admin |
-| POST | `/products/{id}/variants` · `/products/{id}/modifier-groups` · `/modifier-groups/{id}/modifiers` | merchant owner / admin |
-| PATCH · DELETE | `/variants/{id}` · `/modifier-groups/{id}` · `/modifiers/{id}` | merchant owner / admin |
-| POST | `/conversations` | merchant owner / admin / staff (start or resume by phone) |
-| GET | `/conversations/{id}` | merchant owner / admin / staff |
-| POST | `/conversations/{id}/turns` | merchant owner / admin / staff — body: `{ "message": "…" }` |
+| POST | `/auth/logout` | authenticated |
+| GET | `/auth/me` | authenticated |
+| GET · PATCH | `/merchant` | merchant roles |
+| GET · POST · PATCH · DELETE | `/users…` | merchant owner / admin |
+| GET · POST | `/admin/merchants…` | platform super-admin |
+| GET · POST · PATCH · DELETE | `/categories…` · `/products…` | merchant owner / admin |
+| POST · GET | `/conversations…` | merchant owner / admin / staff |
+| POST | `/webhooks/whatsapp` | Meta (unsigned; verify token / signature) |
 
-`GET /products` is paginated and supports `q` (name/SKU search), `category_id`, `is_active`,
-`is_available`, and `per_page` (max 100).
+`GET /products` supports `q`, `category_id`, `is_active`, `is_available`, `per_page` (max 100).
 
-### AI conversation simulation (M3)
+### AI conversation
 
-Set `AI_DRIVER=fake` (default, no API key) or `AI_DRIVER=openai` with `OPENAI_API_KEY` for live
-structured output. Turn responses include `ai` (intent, confidence, entities, cart_actions,
-recommended_action) and an updated `cart` with recalculated subtotal.
+`AI_DRIVER=fake` (default) or `AI_DRIVER=openai` with `OPENAI_API_KEY`.
 
-## Multi-tenancy (how isolation works)
+## Multi-tenancy
 
-- The tenant is the **`merchants`** row; every tenant-scoped table carries `merchant_id`.
-- A `User` belongs to one merchant (or none, for platform admins). Roles are global
-  (spatie *teams* intentionally unused).
-- `ResolveTenant` middleware binds the caller's merchant into the `CurrentTenant` singleton;
-  the `BelongsToTenant` trait's global `TenantScope` then constrains every query and auto-fills
-  `merchant_id` on create. Platform admins bind no tenant and see across all merchants.
+- Tenant = **`merchants`** row; tenant-scoped tables carry `merchant_id`.
+- `ResolveTenant` middleware + `BelongsToTenant` global scope enforce isolation.
+- Platform admins bypass tenant scope.
 
 See `app/Support/CurrentTenant.php`, `app/Models/Concerns/BelongsToTenant.php`,
-`app/Models/Scopes/TenantScope.php`, and `app/Http/Middleware/ResolveTenant.php`.
+`app/Http/Middleware/ResolveTenant.php`.

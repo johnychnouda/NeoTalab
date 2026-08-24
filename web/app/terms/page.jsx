@@ -12,7 +12,7 @@ export default function TermsPage() {
         <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>
           By applying to NeoTalab, merchants agree to use the platform for lawful WhatsApp commerce,
           pay applicable subscription fees after any trial period, and keep account credentials secure.
-          Full legal terms will be published here before public launch.
+          The platform operator may suspend accounts that violate these terms or applicable law.
         </p>
         <Link href="/join" className="btn-sm" style={{ display: "inline-flex" }}>← Back to Join</Link>
       </div>

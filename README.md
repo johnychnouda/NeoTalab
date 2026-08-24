@@ -3,26 +3,34 @@
 **AI WhatsApp Commerce OS** — a generic, multi-business, multi-tenant SaaS. WhatsApp is the
 storefront, an AI agent handles sales, and dashboards manage the business.
 
-> **Start here:** [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) — architecture, API map, milestone roadmap.
+---
+
+## Production release
+
+| Layer | Host | Path |
+|-------|------|------|
+| **Web** | [Vercel](https://vercel.com) | `web/` → `https://neo-talab.vercel.app` |
+| **API + queue** | [Render](https://render.com) | `render.yaml` + `backend/Dockerfile` |
+| **Database** | [TiDB Cloud Serverless](https://tidbcloud.com) | MySQL-compatible |
+
+**Deploy checklist:** [`deploy/STEP-BY-STEP.md`](deploy/STEP-BY-STEP.md)
+
+**Docs:** [`docs/README.md`](docs/README.md) · architecture: [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md)
+
+### One-time Vercel env
+
+```env
+NEXT_PUBLIC_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api/v1
+```
+
+Set Render secrets from [`deploy/secrets-for-render.env.example`](deploy/secrets-for-render.env.example)
+(copy to `deploy/secrets-for-render.env` locally — gitignored).
 
 ---
 
-## What's active
+## Local development (optional)
 
-| Layer | Path | Stack | Status |
-|-------|------|-------|--------|
-| **Backend** | [`backend/`](backend/) | Laravel 12 · MySQL (MAMP) · Sanctum · spatie RBAC | M1–M3 complete (`/api/v1`) |
-| **Frontend** | [`web/`](web/) | Next.js 15 · EN/AR/FR | Owner portal + merchant backoffice (wired to Laravel `/api/v1`) |
-
-Legacy Node/Postgres code and static HTML previews live under [`reference/`](reference/) — **not**
-the build target.
-
----
-
-## Quick start (native — no Docker)
-
-**Prerequisites:** Homebrew PHP + Composer, Node.js, **MAMP** running with a `neotalab` MySQL database
-(`root` / `root`).
+**Prerequisites:** Homebrew PHP + Composer, Node.js, **MAMP** with a `neotalab` MySQL database.
 
 ### Backend
 
@@ -32,18 +40,18 @@ cp .env.example .env
 composer install
 php artisan key:generate
 php artisan migrate --seed
-php artisan serve          # http://127.0.0.1:8000
-php artisan test           # SQLite in-memory — MAMP not required
+php artisan serve              # http://127.0.0.1:8000
+php artisan queue:work         # separate terminal
+php artisan test               # SQLite in-memory
 ```
-
-Details: [`backend/README.md`](backend/README.md)
 
 ### Frontend
 
 ```bash
 cd web
+cp .env.example .env.local
 npm install
-npm run dev                # http://localhost:3000
+npm run dev                    # http://localhost:3000
 ```
 
 | URL | What |
@@ -51,17 +59,18 @@ npm run dev                # http://localhost:3000
 | http://localhost:3000/owner | Platform owner portal |
 | http://localhost:3000/backoffice | Merchant backoffice |
 
-Point `web/lib/api.js` at `http://127.0.0.1:8000/api/v1` as Laravel endpoints land (ongoing).
+Details: [`backend/README.md`](backend/README.md)
 
 ---
 
-## Seeded accounts (backend)
+## Seeded owner (first deploy / local dev only)
 
-| Role | Email | Password |
-|------|-------|----------|
-| Platform super-admin | `johnychnouda@gmail.com` | `neotalab2025` |
+| Email | Password |
+|-------|----------|
+| `johnychnouda@gmail.com` | `neotalab2025` |
 
-Create merchants via the owner portal or the public `/join` page — no demo data is seeded.
+Change the owner password after production login. Set `OWNER_EMAIL` / `OWNER_PASSWORD` in Render env
+before seeding if you prefer different credentials.
 
 ---
 
@@ -69,19 +78,10 @@ Create merchants via the owner portal or the public `/join` page — no demo dat
 
 ```
 NeoTalab/
-├── backend/           # Laravel API (production)
-├── web/               # Next.js dashboards (production)
-├── assets/            # Shared brand logos
-├── docs/              # Historical product spec (#1–78)
-├── reference/         # Legacy Node API, Postgres schema, static previews
-├── PROJECT_MEMORY.md  # Live charter — read before any work
-└── CLAUDE.md          # Agent/dev orientation
+├── backend/                 # Laravel 12 API (production)
+├── web/                     # Next.js 15 dashboards (production)
+├── deploy/                  # Release runbook + Render secrets template
+├── docs/                    # Release guides (WhatsApp, Meta, hosting)
+├── render.yaml              # Render blueprint (API + queue worker)
+└── PROJECT_MEMORY.md        # Architecture charter
 ```
-
----
-
-## API (current — Laravel `/api/v1`)
-
-See the full map in [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) and [`backend/README.md`](backend/README.md).
-
-Highlights: auth · tenant profile · users · admin merchants · catalog · AI conversation simulation.

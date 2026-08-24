@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <p style={{ color: "var(--text-muted)", fontSize: 13, lineHeight: 1.65, marginBottom: 16 }}>
           NeoTalab collects shop and contact details submitted on the join form to review applications
           and operate your merchant account. We do not sell your data. WhatsApp numbers are used for
-          onboarding communication and platform operations. Full privacy policy will be published here before public launch.
+          onboarding communication and platform operations. Contact the platform operator for data access or deletion requests.
         </p>
         <Link href="/join" className="btn-sm" style={{ display: "inline-flex" }}>← Back to Join</Link>
       </div>
