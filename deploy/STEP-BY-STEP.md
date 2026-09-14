@@ -1,102 +1,141 @@
-# Deploy NeoTalab — production release
+# Deploy NeoTalab — Railway (production)
 
-Follow in order. Stack: **TiDB Cloud** (DB) → **Render** (API + queue) → **Vercel** (web) → **Meta** (WhatsApp).
+**Chosen stack:** one [Railway](https://railway.app) project.
+
+| Service | Folder / type | Job |
+|---------|-----------------|-----|
+| **mysql** | Railway MySQL | Database |
+| **neotalab-api** | `backend/` | Laravel API + WhatsApp webhook |
+| **neotalab-queue** | `backend/` | `php artisan queue:work` |
+| **neotalab-web** | `web/` | Next.js dashboards |
+
+Do **not** use Vercel, TiDB, AWS, or Render free (sleep). Local MAMP stays for coding on your Mac.
+
+Keep API and worker **always on** (paid). Sleeping API misses WhatsApp.
 
 ---
 
-## Step 1 — TiDB database (~10 min)
+## Step 1 — Railway project + MySQL
 
-1. [tidbcloud.com](https://tidbcloud.com) → **Serverless** cluster
-2. Create database: `neotalab`
-3. **Connect → General** → copy host, port (`4000`), user, password
-4. On your Mac:
+1. Open [railway.app](https://railway.app) and sign in (GitHub login is fine).
+2. **New project** → **Empty project**. Name it `NeoTalab`.
+3. **Add service** → **Database** → **MySQL**.
+4. Wait until it is running.
 
-```bash
-cp deploy/secrets-for-render.env.example deploy/secrets-for-render.env
+---
+
+## Step 2 — Laravel API (`backend/`)
+
+1. **Add service** → **GitHub repo** → `NeoTalab`.
+2. **Settings → Root directory:** `backend`
+3. Railway will use `backend/Dockerfile`.
+4. **Variables** → add everything from [`secrets-for-railway.env.example`](secrets-for-railway.env.example).
+
+Link MySQL instead of typing host/password by hand:
+
+- In the API service, **Variables → Add variable → Reference** (or “connect” MySQL).
+- Map Railway MySQL vars to Laravel names, for example:
+  - `DB_CONNECTION=mysql`
+  - `DB_HOST` ← MySQL `MYSQLHOST` (or `MYSQL_HOST`)
+  - `DB_PORT` ← `MYSQLPORT` (usually `3306`)
+  - `DB_DATABASE` ← `MYSQLDATABASE`
+  - `DB_USERNAME` ← `MYSQLUSER`
+  - `DB_PASSWORD` ← `MYSQLPASSWORD`
+
+Also set:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+LOG_CHANNEL=stderr
+QUEUE_CONNECTION=database
+SESSION_DRIVER=database
+CACHE_STORE=database
+RUN_MIGRATIONS=true
 ```
 
-5. Edit `deploy/secrets-for-render.env` — fill `DB_*`, `APP_KEY` (`php artisan key:generate --show`), and all WhatsApp keys from Meta
+Generate `APP_KEY` on your Mac: `cd backend && php artisan key:generate --show`
 
----
+5. **Settings → Networking → Generate domain** (e.g. `neotalab-api.up.railway.app`).
+6. Set `APP_URL=https://THAT-API-DOMAIN` (no trailing slash).
+7. Deploy. Open `https://THAT-API-DOMAIN/up` — should return OK / 200.
 
-## Step 2 — Render API (~15 min)
-
-1. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint**
-2. Connect GitHub repo **`NeoTalab`**
-3. Apply **`render.yaml`** → creates **neotalab-api** + **neotalab-queue**
-4. **neotalab-api → Environment** → paste contents of `deploy/secrets-for-render.env`
-5. Wait for deploy → confirm `https://YOUR-SERVICE.onrender.com/up` returns 200
-6. If migrations did not run automatically:
+If tables are empty, Railway → API → **one-off command** (or shell):
 
 ```bash
 php artisan migrate --force --seed
 ```
 
-(First deploy only — seeds platform owner; change password after login.)
-
-7. Copy Render URL (e.g. `https://neotalab-api.onrender.com`)
+Then **change the owner password** after first login. Do not keep the README password in production.
 
 ---
 
-## Step 3 — Vercel web (~10 min)
+## Step 3 — Queue worker (same `backend/`)
 
-1. [vercel.com](https://vercel.com) → import **`NeoTalab`**
+1. **Add service** → same GitHub repo, root directory **`backend`** again.
+2. Name it `neotalab-queue`.
+3. **Copy variables from the API service** (or share the same variable set).
+4. Set `RUN_MIGRATIONS=false`.
+5. **Custom start command:**
+
+```bash
+php artisan queue:work --tries=3 --timeout=90
+```
+
+If the service uses Docker, set the start command in Railway to:
+
+```bash
+php artisan queue:work --tries=3 --timeout=90
+```
+
+(Do not run `php artisan serve` on this service.)
+
+---
+
+## Step 4 — Next.js dashboards (`web/`)
+
+1. **Add service** → same GitHub repo.
 2. **Root directory:** `web`
-3. **Environment variable** (value = URL only):
+3. **Variables:**
 
 ```env
-NEXT_PUBLIC_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api/v1
+NEXT_PUBLIC_API_URL=https://YOUR-API-DOMAIN/api/v1
 ```
 
-4. Deploy → note URL (e.g. `https://neo-talab.vercel.app`)
+Use the real API Railway domain. Then **redeploy web** (this value is baked in at build).
 
-5. **Render → neotalab-api → Environment** — update and redeploy:
+4. **Generate domain** for web (e.g. `neotalab-web.up.railway.app`).
+5. On the **API** service, set and redeploy:
 
 ```env
-APP_URL=https://YOUR-RENDER-SERVICE.onrender.com
-FRONTEND_URL=https://YOUR-VERCEL-PROJECT.vercel.app
-CORS_ALLOWED_ORIGINS=https://YOUR-VERCEL-PROJECT.vercel.app
+FRONTEND_URL=https://YOUR-WEB-DOMAIN
+CORS_ALLOWED_ORIGINS=https://YOUR-WEB-DOMAIN
 ```
 
 ---
 
-## Step 4 — Meta app (~5 min)
+## Step 5 — Meta WhatsApp
 
 [developers.facebook.com](https://developers.facebook.com) → your app:
 
-**App settings → Basic**
-
 | Field | Value |
 |-------|--------|
-| App domains | `YOUR-VERCEL-PROJECT.vercel.app` |
-| Privacy policy | `https://YOUR-VERCEL-PROJECT.vercel.app/privacy` |
-| Terms | `https://YOUR-VERCEL-PROJECT.vercel.app/terms` |
+| App domains | `YOUR-WEB-DOMAIN` (no `https://`) |
+| Privacy policy | `https://YOUR-WEB-DOMAIN/privacy` |
+| Terms | `https://YOUR-WEB-DOMAIN/terms` |
+| OAuth redirect | `https://YOUR-WEB-DOMAIN/` |
+| WhatsApp callback | `https://YOUR-API-DOMAIN/api/v1/webhooks/whatsapp` |
 
-**Facebook Login for Business → Settings**
-
-| Valid OAuth Redirect URIs |
-|---|
-| `https://YOUR-VERCEL-PROJECT.vercel.app/` |
-
-**WhatsApp → Configuration**
-
-| Callback URL |
-|---|
-| `https://YOUR-RENDER-SERVICE.onrender.com/api/v1/webhooks/whatsapp` |
-
-Verify token = `WHATSAPP_VERIFY_TOKEN` in Render env. Subscribe to **messages**. Save.
-
-See also: [`docs/RELEASE-WHATSAPP.md`](../docs/RELEASE-WHATSAPP.md)
+Verify token = `WHATSAPP_VERIFY_TOKEN` on the API. Subscribe to **messages**.
 
 ---
 
-## Step 5 — Smoke test
+## Step 6 — Smoke test
 
-1. `https://YOUR-VERCEL-PROJECT.vercel.app/owner` → log in
-2. Merchants list loads (no API connection error)
-3. **Settings → WhatsApp** → save Phone Number ID + access token
-4. **Merchants → Bot → Connect WhatsApp** → complete Meta popup
-5. Send a test WhatsApp message → check Render logs for webhook + queue job
+1. `https://YOUR-WEB-DOMAIN/owner` → log in (then change password).
+2. Merchants list loads.
+3. Connect WhatsApp on a merchant → send a test message.
+4. Check **API** and **queue** logs on Railway.
 
 ---
 
@@ -104,10 +143,10 @@ See also: [`docs/RELEASE-WHATSAPP.md`](../docs/RELEASE-WHATSAPP.md)
 
 | Issue | Fix |
 |-------|-----|
-| Vercel “Cannot reach API” | Check `NEXT_PUBLIC_API_URL`, redeploy Vercel, confirm Render `/up` is 200 |
-| CORS on login | Add Vercel URL to `CORS_ALLOWED_ORIGINS` on Render |
-| Webhook verify fails | Callback must be Render HTTPS URL; token must match env |
-| First API request slow | Render free tier sleeps ~15 min idle; upgrade for always-on |
-| DB connection error | Confirm TiDB creds + `MYSQL_ATTR_SSL_CA=/etc/ssl/certs/tidb-ca.pem` |
+| Dashboard cannot reach API | Fix `NEXT_PUBLIC_API_URL`, **rebuild** web |
+| CORS on login | Web URL in `CORS_ALLOWED_ORIGINS` on API |
+| Webhook fails | Callback is the **API** URL; token matches |
+| DB errors | API and queue both reference the same MySQL |
+| No WhatsApp replies | Queue service must be running; API must not sleep |
 
-More detail: [`docs/RELEASE-FREE-DOMAIN.md`](../docs/RELEASE-FREE-DOMAIN.md)
+WhatsApp guide: [`docs/RELEASE-WHATSAPP.md`](../docs/RELEASE-WHATSAPP.md)

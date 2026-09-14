@@ -23,14 +23,14 @@ The authoritative product charter is the **Master Development Prompt** (pasted b
 
 | Path | What it is | Status |
 |------|-----------|--------|
-| `backend/` | Laravel 12 production API | **Production** — Render Docker + TiDB Cloud |
-| `web/` | Next.js 15 dashboards (owner + backoffice, EN/AR/FR) | **Production** — Vercel |
-| `deploy/` | Release runbook + Render secrets template | **Production ops** |
+| `backend/` | Laravel 12 production API | **Production** — Railway |
+| `web/` | Next.js 15 dashboards (owner + backoffice, EN/AR/FR) | **Production** — Railway |
+| `deploy/` | Railway runbook + secrets template | **Production ops** |
 | `docs/` | Release guides (hosting, WhatsApp, optional local testing) | **Production ops** |
-| `render.yaml` | Render blueprint (API web service + queue worker) | **Production** |
+| `render.yaml` | Legacy Render blueprint (unused) | Not the release path |
 | `PROJECT_MEMORY.md` | Architecture charter | Living doc |
 
-**Production stack:** Vercel (`web/`) · Render (`backend/` via `render.yaml`) · TiDB Cloud Serverless (MySQL).
+**Production stack:** Railway (`web/` + `backend/` API + queue + MySQL). Not Vercel. Not TiDB. Not AWS console.
 Deploy: [`deploy/STEP-BY-STEP.md`](deploy/STEP-BY-STEP.md).
 
 **Local dev (optional):** Homebrew PHP + Composer · MAMP MySQL · `php artisan serve` + `queue:work`.
@@ -60,7 +60,7 @@ Legacy Node/Postgres/static reference code **removed** from repo (2026-08 releas
 | D12 | **AI = provider-agnostic `ChatProvider` interface; structured JSON output only** | Fake driver for tests/local (`AI_DRIVER=fake`); production via OpenAI-compatible API (`AI_DRIVER=openai`, JSON schema mode). Never parse free-form model text. Anthropic can be a third driver later. |
 | D13 | **Conversation simulation via HTTP; WhatsApp transport deferred to M4** | M3 endpoints let merchant staff drive turns for testing; M4 webhook will call `ConversationService` directly. |
 | D14 | **Repo cleanup (2026-07-05): legacy stack under `reference/`** | Removed Docker/`docker-compose.yml`. Moved Node `api/`, Postgres `database/`, and static previews into `reference/`. |
-| D15 | **Release cleanup (2026-08): production-only repo** | Removed `reference/`, tunnel scripts, historical product docs, agent config. Production = Vercel + Render + TiDB. `backend/Dockerfile` + `render.yaml` are the deploy path. |
+| D15 | **Release cleanup (2026-08) + host lock (2026-09)** | Production-only repo. Host = **Railway** (web + API + queue + MySQL). Not Vercel, TiDB, or AWS. |
 
 ### Roles (spatie, team = merchant_id)
 `platform-super-admin` (merchant_id null) · `merchant-owner` · `merchant-admin` · `merchant-staff` · `driver` (reserved).
@@ -71,7 +71,7 @@ Legacy Node/Postgres/static reference code **removed** from repo (2026-08 releas
 
 - **Primary keys:** UUID (continuity with existing schema; use Laravel `HasUuids` → `char(36)` in MySQL).
 - **Tenant key:** `merchant_id` on every tenant-scoped table; enforced by the `BelongsToTenant` trait's global scope. Platform-admin requests bypass the scope via role.
-- **Database:** MySQL. Production = TiDB Cloud; local dev = MAMP. Laravel migrations in `backend/database/` are the source of truth. Keep migrations DB-agnostic (`$table->json()`, `$table->uuid()`).
+- **Database:** MySQL. Production = Railway MySQL; local dev = MAMP. Laravel migrations in `backend/database/` are the source of truth. Keep migrations DB-agnostic (`$table->json()`, `$table->uuid()`).
 - **Backend layering:** `Controller (Api\V1)` → `FormRequest` (validate) → `Service` (logic, DI) → `Model` → `API Resource` (response). Authorization via `Policy` + middleware. No business logic in controllers.
 - **API responses:** consistent JSON envelope via API Resources.
 - **Localized fields:** keep `*_ar` / `*_fr` pattern already used in the schema where relevant, or move to a `settings`/translations JSONB — decide per table (M2+).

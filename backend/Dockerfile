@@ -24,8 +24,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY . .
-RUN curl -fsSL -o /etc/ssl/certs/tidb-ca.pem https://autonomous.cloud.tidbcloud.com/certs/root-certificate.pem \
-    && composer dump-autoload --optimize \
+RUN composer dump-autoload --optimize \
     && php artisan package:discover --ansi
 
 RUN chmod +x docker/entrypoint.sh

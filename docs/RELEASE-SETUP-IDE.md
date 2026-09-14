@@ -1,6 +1,6 @@
 # NeoTalab — Local integration testing (optional)
 
-> **Not for production deploy.** Production uses Vercel + Render — see [`deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
+> **Not for production deploy.** Production uses Railway — see [`deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
 
 Follow these steps when testing Meta/WhatsApp integration against a **local** API before or alongside production.
 

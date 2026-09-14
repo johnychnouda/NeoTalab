@@ -7,24 +7,14 @@ storefront, an AI agent handles sales, and dashboards manage the business.
 
 ## Production release
 
-| Layer | Host | Path |
-|-------|------|------|
-| **Web** | [Vercel](https://vercel.com) | `web/` → `https://neo-talab.vercel.app` |
-| **API + queue** | [Render](https://render.com) | `render.yaml` + `backend/Dockerfile` |
-| **Database** | [TiDB Cloud Serverless](https://tidbcloud.com) | MySQL-compatible |
+**Host:** [Railway](https://railway.app) (one project — web + API + queue + MySQL).
 
 **Deploy checklist:** [`deploy/STEP-BY-STEP.md`](deploy/STEP-BY-STEP.md)
 
 **Docs:** [`docs/README.md`](docs/README.md) · architecture: [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md)
 
-### One-time Vercel env
-
-```env
-NEXT_PUBLIC_API_URL=https://YOUR-RENDER-SERVICE.onrender.com/api/v1
-```
-
-Set Render secrets from [`deploy/secrets-for-render.env.example`](deploy/secrets-for-render.env.example)
-(copy to `deploy/secrets-for-render.env` locally — gitignored).
+Set API secrets from [`deploy/secrets-for-railway.env.example`](deploy/secrets-for-railway.env.example)
+(copy to `deploy/secrets-for-railway.env` locally — gitignored).
 
 ---
 
@@ -69,8 +59,8 @@ Details: [`backend/README.md`](backend/README.md)
 |-------|----------|
 | `johnychnouda@gmail.com` | `neotalab2025` |
 
-Change the owner password after production login. Set `OWNER_EMAIL` / `OWNER_PASSWORD` in Render env
-before seeding if you prefer different credentials.
+Change the owner password after production login. Set `OWNER_EMAIL` / `OWNER_PASSWORD` in Railway
+API env before seeding if you prefer different credentials.
 
 ---
 
@@ -80,8 +70,7 @@ before seeding if you prefer different credentials.
 NeoTalab/
 ├── backend/                 # Laravel 12 API (production)
 ├── web/                     # Next.js 15 dashboards (production)
-├── deploy/                  # Release runbook + Render secrets template
+├── deploy/                  # Railway runbook + secrets template
 ├── docs/                    # Release guides (WhatsApp, Meta, hosting)
-├── render.yaml              # Render blueprint (API + queue worker)
 └── PROJECT_MEMORY.md        # Architecture charter
 ```

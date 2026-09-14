@@ -4,17 +4,15 @@ Multi-tenant WhatsApp Commerce OS API. Generic across business types (restaurant
 retail, services, …). See [`../PROJECT_MEMORY.md`](../PROJECT_MEMORY.md) for architecture and
 the API map.
 
-## Production (Render + TiDB)
+## Production (Railway)
 
-Production runs as Docker on [Render](https://render.com) via root [`render.yaml`](../render.yaml).
+Production runs on [Railway](https://railway.app). See [`../deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
 
-1. Copy [`../deploy/secrets-for-render.env.example`](../deploy/secrets-for-render.env.example) to
-   `../deploy/secrets-for-render.env` (gitignored) and fill all values.
-2. Follow [`../deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
-3. Env reference: [`.env.production.example`](.env.production.example).
+1. Copy [`../deploy/secrets-for-railway.env.example`](../deploy/secrets-for-railway.env.example) to
+   `../deploy/secrets-for-railway.env` (gitignored) and fill values (or reference Railway MySQL).
+2. API root directory: `backend`. Queue: same image/folder, start `php artisan queue:work`.
 
-The Docker image bakes in the TiDB SSL CA (`backend/Dockerfile`). Migrations run on boot when
-`RUN_MIGRATIONS=true`.
+Migrations run on boot when `RUN_MIGRATIONS=true`.
 
 **Health check:** `GET /up`
 
@@ -23,9 +21,9 @@ The Docker image bakes in the TiDB SSL CA (`backend/Dockerfile`). Migrations run
 ## Stack
 
 - **Laravel 12** / PHP 8.4+
-- **MySQL** (TiDB Cloud in production; MAMP locally)
+- **MySQL** (Railway in production; MAMP locally)
 - **Sanctum** bearer tokens · **spatie/laravel-permission** · **spatie/laravel-activitylog**
-- **Queue:** database driver (`queue:work` on Render worker service)
+- **Queue:** database driver (`queue:work` as a second Railway service)
 
 ## Local development
 

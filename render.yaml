@@ -1,11 +1,24 @@
-# Render Blueprint — NeoTalab API + queue worker
+# Render Blueprint — NeoTalab web + API + queue worker
 # https://render.com/docs/blueprint-spec
 #
 # After deploy, set secrets in the Render dashboard (never commit .env):
-# APP_KEY, DB_*, WHATSAPP_*, etc. — see backend/.env.production.example
-# and deploy/secrets-for-render.env.example
+# APP_KEY, DB_*, WHATSAPP_*, NEXT_PUBLIC_API_URL, etc.
+# See backend/.env.production.example and deploy/secrets-for-render.env.example
 
 services:
+  - type: web
+    name: neotalab-web
+    runtime: node
+    rootDir: web
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://neotalab-api.onrender.com/api/v1
+
   - type: web
     name: neotalab-api
     runtime: docker
@@ -48,8 +61,6 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
-      - key: MYSQL_ATTR_SSL_CA
-        value: /etc/ssl/certs/tidb-ca.pem
       - key: WHATSAPP_APP_SECRET
         sync: false
       - key: WHATSAPP_META_APP_ID
@@ -115,8 +126,3 @@ services:
           name: neotalab-api
           type: web
           envVarKey: DB_PASSWORD
-      - key: MYSQL_ATTR_SSL_CA
-        fromService:
-          name: neotalab-api
-          type: web
-          envVarKey: MYSQL_ATTR_SSL_CA
