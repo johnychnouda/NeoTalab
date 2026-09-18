@@ -167,11 +167,8 @@ export default function JoinPage() {
     setError("");
     setFieldErrors({});
 
-    // Honeypot — bots only; show fake success without hitting the API
-    if (vals.companyWebsite.trim()) {
-      setSubmitted(true);
-      return;
-    }
+    // Honeypot field is not submitted. Do not fake-success on autofill — browsers
+    // often fill hidden "website" inputs and that hid real applications from the owner portal.
 
     const whatsapp = buildWhatsappNumber(vals.phoneCountry, vals.phoneLocal);
     const businessType = vals.businessType === JOIN_BUSINESS_TYPE_OTHER

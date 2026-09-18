@@ -60,8 +60,9 @@ export default function MerchantsPage() {
     try {
       const { requests: r = [] } = await api("GET", "/api/owner/onboarding");
       setRequests(r);
-    } catch {
+    } catch (e) {
       setRequests([]);
+      if (!loadError) loadError = e.message;
     }
 
     setError(loadError);
