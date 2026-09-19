@@ -305,7 +305,7 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="login-wrap">
+    <div className="join-wrap">
       <div className={`login-card join-form-card${submitted ? " join-form-card--success" : ""}`}>
         <JoinLangSwitcher />
 
