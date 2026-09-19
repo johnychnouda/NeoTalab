@@ -186,11 +186,16 @@ export default function JoinPage() {
     value: item.value,
     label: t(item.labelKey),
   }));
+  const phoneMismatch =
+    vals.phoneLocal.trim() !== ""
+    && vals.confirmPhoneLocal.trim() !== ""
+    && vals.phoneLocal.trim() !== vals.confirmPhoneLocal.trim();
+
   const canSubmit =
     vals.contactName.trim() !== ""
     && vals.phoneLocal.trim() !== ""
     && vals.confirmPhoneLocal.trim() !== ""
-    && vals.phoneLocal.trim() === vals.confirmPhoneLocal.trim()
+    && !phoneMismatch
     && vals.whatsappBusinessOk
     && vals.acceptedTerms
     && !busy;
@@ -489,7 +494,7 @@ export default function JoinPage() {
                       />
                     </div>
                   </div>
-                  <div id="join-field-confirmPhoneLocal" className={fieldClass("confirmPhoneLocal")}>
+                  <div id="join-field-confirmPhoneLocal" className={fieldClass("confirmPhoneLocal") + (phoneMismatch ? " field-invalid" : "")}>
                     <label>{t("join.confirmWa")}</label>
                     <div className="join-phone-input">
                       <span className="join-phone-dial">{phoneCountry.dial}</span>
@@ -500,8 +505,14 @@ export default function JoinPage() {
                         placeholder={t("join.ph.confirmPhone")}
                         inputMode="tel"
                         autoComplete="off"
+                        aria-invalid={phoneMismatch || !!fieldErrors.confirmPhoneLocal}
                       />
                     </div>
+                    {phoneMismatch && (
+                      <p className="join-field-error" role="alert">
+                        {t("join.err.waMatch")}
+                      </p>
+                    )}
                   </div>
 
                   <label id="join-field-whatsappBusinessOk" className={`join-consent${fieldErrors.whatsappBusinessOk ? " field-invalid" : ""}`}>
