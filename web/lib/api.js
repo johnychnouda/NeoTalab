@@ -494,6 +494,18 @@ function normalizeResponse(method, originalPath, raw) {
     }
   }
 
+  if (originalPath === "/api/owner/whatsapp/embedded-signup/config" || originalPath === "/admin/whatsapp/embedded-signup/config") {
+    return {
+      enabled: !!(raw?.enabled ?? data?.enabled),
+      appId: raw?.appId ?? raw?.app_id ?? data?.appId ?? data?.app_id ?? null,
+      app_id: raw?.appId ?? raw?.app_id ?? data?.appId ?? data?.app_id ?? null,
+      configId: raw?.configId ?? raw?.config_id ?? data?.configId ?? data?.config_id ?? null,
+      config_id: raw?.configId ?? raw?.config_id ?? data?.configId ?? data?.config_id ?? null,
+      graphVersion: raw?.graphVersion ?? raw?.graph_version ?? data?.graphVersion ?? data?.graph_version ?? "v21.0",
+      graph_version: raw?.graphVersion ?? raw?.graph_version ?? data?.graphVersion ?? data?.graph_version ?? "v21.0",
+    };
+  }
+
   if (originalPath === "/api/owner/broadcast") {
     return raw;
   }

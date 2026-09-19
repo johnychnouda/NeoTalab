@@ -185,7 +185,10 @@ export default function WhatsAppEmbeddedSignup({
     const configId = String(config.configId || config.config_id || "").trim();
     const appId = String(config.appId || config.app_id || "").trim();
     if (!configId || !appId) {
-      toast("Embedded Signup Config ID is missing. Check Railway WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID.", "error");
+      toast(
+        "Meta Config ID is missing from the API. On Railway (API service) set WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID to your Facebook Login for Business Configuration ID, then redeploy.",
+        "error",
+      );
       return;
     }
 
@@ -252,46 +255,57 @@ export default function WhatsAppEmbeddedSignup({
 
     window.addEventListener("message", listenerRef.current);
 
-    try {
-      window.FB.login(
-        (response) => {
-          openedPopupRef.current = true;
-          if (response.authResponse?.code) {
-            signupRef.current.code = response.authResponse.code;
-            maybeFinish();
-            if (!signupRef.current.phoneNumberId || !signupRef.current.wabaId) {
-              setWaitingForWhatsapp(true);
-              toast("Facebook OK — keep going in the Meta popup until WhatsApp setup finishes and it closes.", "info");
-            }
-            return;
-          }
+    // Exact Meta Embedded Signup options — config_id must be present or Facebook shows
+    // "Invalid parameter: config_id is required".
+    const loginOptions = {
+      config_id: configId,
+      response_type: "code",
+      override_default_response_type: true,
+      extras: {
+        setup: {},
+        sessionInfoVersion: "3",
+      },
+    };
 
-          if (response.status === "not_authorized") {
-            toast("WhatsApp signup cancelled — approve all permissions in the popup.", "info");
-          } else if (response.authResponse?.accessToken && !response.authResponse?.code) {
-            toast(
-              "Meta returned a token instead of a code. Use an Embedded Signup config with System-user access token.",
-              "error",
-            );
-          } else {
-            toast(
-              "Meta closed without an auth code. Stay on the NeoTalab Admin Facebook account and finish every WhatsApp step until the popup closes.",
-              "error",
-            );
+    if (typeof window !== "undefined") {
+      // Help diagnose production Railway misconfig in DevTools.
+      console.info("[NeoTalab] Starting Embedded Signup", { appId, configId });
+    }
+
+    try {
+      window.FB.login((response) => {
+        openedPopupRef.current = true;
+        if (response.authResponse?.code) {
+          signupRef.current.code = response.authResponse.code;
+          maybeFinish();
+          if (!signupRef.current.phoneNumberId || !signupRef.current.wabaId) {
+            setWaitingForWhatsapp(true);
+            toast("Facebook OK — keep going in the Meta popup until WhatsApp setup finishes and it closes.", "info");
           }
-          resetSignup();
-        },
-        {
-          config_id: configId,
-          response_type: "code",
-          override_default_response_type: true,
-          extras: {
-            setup: {},
-            featureType: "",
-            sessionInfoVersion: "3",
-          },
-        },
-      );
+          return;
+        }
+
+        const errMsg = response?.error?.message || "";
+        if (/config_id/i.test(errMsg)) {
+          toast(
+            "Meta says config_id is required. Set WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID on the Railway API service to your Login for Business Configuration ID, then redeploy.",
+            "error",
+          );
+        } else if (response.status === "not_authorized") {
+          toast("WhatsApp signup cancelled — approve all permissions in the popup.", "info");
+        } else if (response.authResponse?.accessToken && !response.authResponse?.code) {
+          toast(
+            "Meta returned a token instead of a code. In Meta, create a Login for Business configuration with System-user access token / code response.",
+            "error",
+          );
+        } else {
+          toast(
+            "Meta closed without an auth code. If Facebook said “config_id is required”, fix WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID on Railway. Otherwise finish every WhatsApp step until the popup closes.",
+            "error",
+          );
+        }
+        resetSignup();
+      }, loginOptions);
     } catch (e) {
       toast(e?.message || "Could not open Meta signup. Allow popups and try again.", "error");
       resetSignup();
@@ -317,6 +331,7 @@ export default function WhatsAppEmbeddedSignup({
 
   const btnLabel = loading ? "Connecting…" : connected ? reconnectLabel : label;
   const readyHint = !sdkReady ? "Preparing Meta…" : null;
+  const configIdPreview = String(config.configId || config.config_id || "").trim();
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
@@ -350,7 +365,9 @@ export default function WhatsAppEmbeddedSignup({
       )}
       {!loading && sdkReady && (
         <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.45, margin: 0 }}>
-          A Facebook popup must open. If nothing appears, allow popups for this site in Chrome, then try again.
+          {configIdPreview
+            ? `Meta config ready (…${configIdPreview.slice(-4)}). A Facebook popup must open with WhatsApp steps — not only a Facebook profile page.`
+            : "Meta Config ID missing on server. Set WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID on Railway API, then redeploy."}
         </p>
       )}
     </div>
