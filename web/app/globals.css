@@ -1367,6 +1367,104 @@ code.approve-login-value {
   font-weight: 700;
 }
 .join-form-error-bottom { margin-top: 12px; margin-bottom: 0; }
+.join-pipeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+}
+.join-pipeline-step {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  min-width: 0;
+}
+.join-pipeline-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  z-index: 1;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.join-pipeline-step.is-active .join-pipeline-dot {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  box-shadow: 0 0 0 4px #25d36622;
+}
+.join-pipeline-step.is-done .join-pipeline-dot {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+.join-pipeline-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.3;
+  max-width: 7.5rem;
+}
+.join-pipeline-step.is-active .join-pipeline-label { color: var(--text); }
+.join-pipeline-step.is-done .join-pipeline-label { color: var(--green); }
+.join-pipeline-line {
+  position: absolute;
+  top: 14px;
+  inset-inline-start: calc(50% + 18px);
+  width: calc(100% - 36px);
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.join-pipeline-step.is-done .join-pipeline-line { background: var(--green); }
+.join-step-panel { animation: fadeInUp 0.28s var(--ease-out) both; }
+.join-step-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 16px;
+  letter-spacing: -0.2px;
+}
+.join-field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: -6px 0 10px;
+}
+.join-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.join-btn-secondary {
+  padding: 11px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.join-btn-secondary:hover { border-color: #ffffff30; color: var(--text); }
+.join-btn-next { flex: 1; max-width: 220px; margin-inline-start: auto; }
 .join-section-title {
   font-size: 11px;
   font-weight: 700;
@@ -1556,6 +1654,8 @@ code.approve-login-value {
   .join-form-card { padding: 28px 22px 24px; }
   .join-field-row { grid-template-columns: 1fr; gap: 0; }
   .join-field-row .field { margin-bottom: 16px; }
+  .join-pipeline-label { font-size: 10px; max-width: 4.8rem; }
+  .join-btn-next { max-width: none; }
 }
 
 /* ── INBOX DRAWER ────────────────── */
