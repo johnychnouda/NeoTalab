@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const FB_SDK_URL = "https://connect.facebook.net/en_US/sdk.js";
 const SIGNUP_TIMEOUT_MS = 180000;
+const POPUP_WATCH_MS = 4000;
 
 let sdkPromise = null;
 
@@ -27,6 +28,8 @@ function loadFacebookSdk(appId, graphVersion) {
     const existing = document.getElementById("facebook-jssdk");
     if (existing) {
       existing.addEventListener("load", () => resolve(!!window.FB));
+      // If script already loaded before listener, FB.init may have run
+      if (window.FB) resolve(true);
       return;
     }
 
@@ -39,7 +42,10 @@ function loadFacebookSdk(appId, graphVersion) {
     script.onload = () => {
       if (window.FB) resolve(true);
     };
-    script.onerror = () => resolve(false);
+    script.onerror = () => {
+      sdkPromise = null;
+      resolve(false);
+    };
     document.body.appendChild(script);
   });
 
@@ -60,7 +66,9 @@ function parseEmbeddedSignupMessage(event) {
 }
 
 /**
- * Meta WhatsApp Embedded Signup button — replaces manual Phone Number ID entry.
+ * Meta WhatsApp Embedded Signup.
+ * FB.login MUST run synchronously from the click handler (no await before it),
+ * or browsers block the popup and the UI stays on "Connecting…".
  */
 export default function WhatsAppEmbeddedSignup({
   merchantId,
@@ -75,23 +83,31 @@ export default function WhatsAppEmbeddedSignup({
   buttonId,
 }) {
   const [config, setConfig] = useState(null);
+  const [sdkReady, setSdkReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [waitingForWhatsapp, setWaitingForWhatsapp] = useState(false);
   const signupRef = useRef({ code: null, phoneNumberId: null, wabaId: null });
   const listenerRef = useRef(null);
   const timeoutRef = useRef(null);
+  const popupWatchRef = useRef(null);
   const finishSignupRef = useRef(null);
+  const openedPopupRef = useRef(false);
 
   const clearSignupTimeout = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (popupWatchRef.current) {
+      clearTimeout(popupWatchRef.current);
+      popupWatchRef.current = null;
+    }
   }, []);
 
   const resetSignup = useCallback(() => {
     clearSignupTimeout();
     signupRef.current = { code: null, phoneNumberId: null, wabaId: null };
+    openedPopupRef.current = false;
     if (listenerRef.current) {
       window.removeEventListener("message", listenerRef.current);
       listenerRef.current = null;
@@ -105,9 +121,11 @@ export default function WhatsAppEmbeddedSignup({
     (async () => {
       try {
         const data = await api("GET", "/api/owner/whatsapp/embedded-signup/config");
-        if (!cancelled) setConfig(data);
+        if (cancelled) return;
+        setConfig(data);
         if (data?.enabled && data?.appId) {
-          await loadFacebookSdk(data.appId, data.graphVersion);
+          const ready = await loadFacebookSdk(data.appId, data.graphVersion || data.graph_version);
+          if (!cancelled) setSdkReady(!!ready);
         }
       } catch {
         if (!cancelled) setConfig({ enabled: false });
@@ -158,40 +176,50 @@ export default function WhatsAppEmbeddedSignup({
     }
   }, []);
 
-  async function startSignup() {
+  function startSignup() {
     if (!config?.enabled) {
-      toast("Embedded Signup is not configured. Set WHATSAPP_META_APP_ID and WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID on the server.", "error");
+      toast("Embedded Signup is not configured on the server.", "error");
       return;
     }
 
     const configId = String(config.configId || config.config_id || "").trim();
     const appId = String(config.appId || config.app_id || "").trim();
     if (!configId || !appId) {
-      toast(
-        "Embedded Signup Config ID is missing from the API. On Railway API set WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=1410549307656959 and redeploy.",
-        "error",
-      );
+      toast("Embedded Signup Config ID is missing. Check Railway WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID.", "error");
       return;
     }
 
-    const ready = await loadFacebookSdk(appId, config.graphVersion || config.graph_version);
-    if (!ready || !window.FB) {
-      toast("Could not load Meta SDK. Check your connection or ad blockers.", "error");
+    // Critical: do NOT await before FB.login — that loses the user gesture and blocks popups.
+    if (!window.FB || !sdkReady) {
+      toast("Meta SDK is still loading. Wait 2 seconds, then click Connect WhatsApp again.", "error");
+      loadFacebookSdk(appId, config.graphVersion || config.graph_version).then((ok) => setSdkReady(!!ok));
       return;
     }
 
     clearSignupTimeout();
     signupRef.current = { code: null, phoneNumberId: null, wabaId: null };
+    openedPopupRef.current = false;
     setWaitingForWhatsapp(false);
     setLoading(true);
 
     timeoutRef.current = setTimeout(() => {
       toast(
-        "Meta signup timed out. Allow popups for this site, complete the WhatsApp Business steps in the popup until it closes, then try again.",
+        "Meta signup timed out. Allow popups for this site, complete every WhatsApp step until the popup closes, then try again.",
         "error",
       );
       resetSignup();
     }, SIGNUP_TIMEOUT_MS);
+
+    // If no popup activity soon, browser almost certainly blocked it.
+    popupWatchRef.current = setTimeout(() => {
+      if (!openedPopupRef.current && !signupRef.current.code) {
+        toast(
+          "No Meta popup opened. In Chrome: address bar → Pop-ups and redirects → Allow for this site, then click Connect again.",
+          "error",
+        );
+        resetSignup();
+      }
+    }, POPUP_WATCH_MS);
 
     if (listenerRef.current) {
       window.removeEventListener("message", listenerRef.current);
@@ -200,6 +228,7 @@ export default function WhatsAppEmbeddedSignup({
     listenerRef.current = (event) => {
       const data = parseEmbeddedSignupMessage(event);
       if (!data) return;
+      openedPopupRef.current = true;
 
       if (data.event === "FINISH" || data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
         const payload = data.data || {};
@@ -223,44 +252,50 @@ export default function WhatsAppEmbeddedSignup({
 
     window.addEventListener("message", listenerRef.current);
 
-    window.FB.login(
-      (response) => {
-        if (response.authResponse?.code) {
-          signupRef.current.code = response.authResponse.code;
-          maybeFinish();
-          if (!signupRef.current.phoneNumberId || !signupRef.current.wabaId) {
-            setWaitingForWhatsapp(true);
-            toast("Facebook OK — keep going in the popup: create/select WhatsApp Business Account and phone number until it closes.", "info");
+    try {
+      window.FB.login(
+        (response) => {
+          openedPopupRef.current = true;
+          if (response.authResponse?.code) {
+            signupRef.current.code = response.authResponse.code;
+            maybeFinish();
+            if (!signupRef.current.phoneNumberId || !signupRef.current.wabaId) {
+              setWaitingForWhatsapp(true);
+              toast("Facebook OK — keep going in the Meta popup until WhatsApp setup finishes and it closes.", "info");
+            }
+            return;
           }
-          return;
-        }
 
-        if (response.status === "not_authorized") {
-          toast("WhatsApp signup cancelled — approve all permissions in the popup.", "info");
-        } else if (response.authResponse?.accessToken && !response.authResponse?.code) {
-          toast(
-            "Meta returned a token instead of a code. Use an Embedded Signup config with System-user access token.",
-            "error",
-          );
-        } else {
-          toast(
-            "Meta closed without an auth code. Use the NeoTalab app Admin Facebook account, allow popups, and finish every WhatsApp step until the popup closes.",
-            "error",
-          );
-        }
-        resetSignup();
-      },
-      {
-        config_id: configId,
-        response_type: "code",
-        override_default_response_type: true,
-        extras: {
-          setup: {},
-          featureType: "",
-          sessionInfoVersion: "3",
+          if (response.status === "not_authorized") {
+            toast("WhatsApp signup cancelled — approve all permissions in the popup.", "info");
+          } else if (response.authResponse?.accessToken && !response.authResponse?.code) {
+            toast(
+              "Meta returned a token instead of a code. Use an Embedded Signup config with System-user access token.",
+              "error",
+            );
+          } else {
+            toast(
+              "Meta closed without an auth code. Stay on the NeoTalab Admin Facebook account and finish every WhatsApp step until the popup closes.",
+              "error",
+            );
+          }
+          resetSignup();
         },
-      },
-    );
+        {
+          config_id: configId,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: {
+            setup: {},
+            featureType: "",
+            sessionInfoVersion: "3",
+          },
+        },
+      );
+    } catch (e) {
+      toast(e?.message || "Could not open Meta signup. Allow popups and try again.", "error");
+      resetSignup();
+    }
   }
 
   if (!config) {
@@ -281,6 +316,7 @@ export default function WhatsAppEmbeddedSignup({
   }
 
   const btnLabel = loading ? "Connecting…" : connected ? reconnectLabel : label;
+  const readyHint = !sdkReady ? "Preparing Meta…" : null;
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
@@ -290,9 +326,9 @@ export default function WhatsAppEmbeddedSignup({
         className={compact ? "btn-primary" : "paction-btn paction-primary"}
         style={{ justifyContent: "center", marginBottom: compact ? 0 : undefined, width: compact ? undefined : "100%" }}
         onClick={startSignup}
-        disabled={disabled || loading}
+        disabled={disabled || loading || !sdkReady}
       >
-        {connected ? "🔄 " : "📱 "}{btnLabel}
+        {connected ? "🔄 " : "📱 "}{readyHint || btnLabel}
       </button>
       {loading && (
         <button
@@ -310,6 +346,11 @@ export default function WhatsAppEmbeddedSignup({
       {waitingForWhatsapp && (
         <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
           Waiting for WhatsApp setup in the Meta popup (Business account + phone number). Facebook login alone is not enough.
+        </p>
+      )}
+      {!loading && sdkReady && (
+        <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.45, margin: 0 }}>
+          A Facebook popup must open. If nothing appears, allow popups for this site in Chrome, then try again.
         </p>
       )}
     </div>
