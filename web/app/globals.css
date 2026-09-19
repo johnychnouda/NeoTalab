@@ -1586,7 +1586,12 @@ code.approve-login-value {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .form-select-trigger.is-placeholder { color: var(--text-muted); }
+.form-select.is-disabled .form-select-trigger {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .form-select-trigger:hover { border-color: #ffffff28; }
+.form-select.is-disabled .form-select-trigger:hover { border-color: var(--border); }
 .form-select.open .form-select-trigger,
 .form-select-trigger:focus-visible {
   border-color: var(--green);

@@ -5,7 +5,7 @@ import Link from "next/link";
 import FormSelect from "@/components/FormSelect";
 import { submitOnboardingApplication } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
-import { JOIN_BUSINESS_TYPES, JOIN_BUSINESS_TYPE_OTHER, JOIN_LEBANON_REGIONS } from "@/lib/joinFormOptions";
+import { JOIN_BUSINESS_TYPES, JOIN_BUSINESS_TYPE_OTHER, JOIN_CITY_OTHER, JOIN_LEBANON_REGIONS, getLebanonCitiesForRegion } from "@/lib/joinFormOptions";
 import { DEFAULT_PHONE_COUNTRY, getPhoneCountry, PHONE_COUNTRIES } from "@/lib/phoneCountries";
 import { buildWhatsappNumber, validateLocalPhone, validateWhatsappNumber } from "@/lib/phone";
 
@@ -17,7 +17,7 @@ const LANGS = [
 
 const STEPS = [
   { id: 0, labelKey: "join.step.shop", fields: ["shopName", "businessType", "businessTypeOther"] },
-  { id: 1, labelKey: "join.step.location", fields: ["city", "region", "street"] },
+  { id: 1, labelKey: "join.step.location", fields: ["region", "city", "cityOther", "street"] },
   { id: 2, labelKey: "join.step.whatsapp", fields: ["contactName", "phoneLocal", "confirmPhoneLocal", "whatsappBusinessOk", "acceptedTerms"] },
 ];
 
@@ -27,6 +27,7 @@ const INITIAL = {
   businessTypeOther: "",
   businessCountry: DEFAULT_PHONE_COUNTRY,
   city: "",
+  cityOther: "",
   region: "",
   street: "",
   message: "",
@@ -49,8 +50,11 @@ function errorsForStep(stepId, vals) {
     }
   }
   if (stepId === 1) {
-    if (!vals.city.trim()) errors.city = true;
     if (!vals.region.trim()) errors.region = true;
+    if (!vals.city.trim()) errors.city = true;
+    else if (vals.businessCountry === "LB" && vals.city === JOIN_CITY_OTHER && !vals.cityOther.trim()) {
+      errors.cityOther = true;
+    }
     if (!vals.street.trim()) errors.street = true;
   }
   if (stepId === 2) {
@@ -143,11 +147,32 @@ export default function JoinPage() {
     setVals((v) => ({
       ...v,
       businessCountry: code,
-      region: code === "LB" ? v.region : "",
+      region: "",
+      city: "",
+      cityOther: "",
     }));
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next.region;
+      delete next.city;
+      delete next.cityOther;
+      return next;
+    });
+    if (error) setError("");
+  };
+
+  const setRegion = (region) => {
+    setVals((v) => ({
+      ...v,
+      region,
+      city: "",
+      cityOther: "",
+    }));
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.region;
+      delete next.city;
+      delete next.cityOther;
       return next;
     });
     if (error) setError("");
@@ -156,6 +181,11 @@ export default function JoinPage() {
   const phoneCountry = getPhoneCountry(vals.phoneCountry);
   const isLebanon = vals.businessCountry === "LB";
   const isOtherBusinessType = vals.businessType === JOIN_BUSINESS_TYPE_OTHER;
+  const isOtherCity = isLebanon && vals.city === JOIN_CITY_OTHER;
+  const lebanonCityOptions = getLebanonCitiesForRegion(vals.region).map((item) => ({
+    value: item.value,
+    label: t(item.labelKey),
+  }));
 
   const businessTypeOptions = JOIN_BUSINESS_TYPES.map((item) => ({
     value: item.value,
@@ -173,6 +203,11 @@ export default function JoinPage() {
     value: item.value,
     label: t(item.labelKey),
   }));
+
+  function resolveCity() {
+    if (isLebanon && vals.city === JOIN_CITY_OTHER) return vals.cityOther.trim();
+    return vals.city.trim();
+  }
 
   function goNext() {
     setError("");
@@ -237,7 +272,7 @@ export default function JoinPage() {
         shopName: vals.shopName.trim(),
         businessType,
         country: vals.businessCountry,
-        city: vals.city.trim(),
+        city: resolveCity(),
         region: vals.region.trim(),
         street: vals.street.trim(),
         message: vals.message.trim() || undefined,
@@ -297,7 +332,7 @@ export default function JoinPage() {
                   <p className="join-step-title">{t("join.step.shopTitle")}</p>
                   <div id="join-field-shopName" className={fieldClass("shopName")}>
                     <label>{t("join.shopName")}</label>
-                    <input value={vals.shopName} onChange={(e) => set("shopName", e.target.value)} placeholder="" autoFocus />
+                    <input value={vals.shopName} onChange={(e) => set("shopName", e.target.value)} placeholder={t("join.ph.shopName")} autoFocus />
                   </div>
                   <div id="join-field-businessType" className={fieldClass("businessType")}>
                     <label>{t("join.businessType")}</label>
@@ -319,7 +354,7 @@ export default function JoinPage() {
                       <input
                         value={vals.businessTypeOther}
                         onChange={(e) => set("businessTypeOther", e.target.value)}
-                        placeholder=""
+                        placeholder={t("join.ph.businessTypeOther")}
                         maxLength={60}
                       />
                     </div>
@@ -339,41 +374,64 @@ export default function JoinPage() {
                       aria-label={t("join.businessCountry")}
                     />
                   </div>
-                  <div className="join-field-row">
-                    <div id="join-field-city" className={fieldClass("city")}>
-                      <label>{t("join.city")}</label>
+                  <div id="join-field-region" className={fieldClass("region")}>
+                    <label>{isLebanon ? t("join.governorate") : t("join.stateProvince")}</label>
+                    {isLebanon ? (
+                      <FormSelect
+                        value={vals.region}
+                        onChange={setRegion}
+                        placeholder={t("join.selectRegion")}
+                        options={regionOptions}
+                        aria-label={t("join.governorate")}
+                        invalid={!!fieldErrors.region}
+                      />
+                    ) : (
+                      <input
+                        value={vals.region}
+                        onChange={(e) => set("region", e.target.value)}
+                        placeholder={t("join.ph.region")}
+                      />
+                    )}
+                  </div>
+                  <div id="join-field-city" className={fieldClass("city")}>
+                    <label>{t("join.city")}</label>
+                    {isLebanon ? (
+                      <FormSelect
+                        value={vals.city}
+                        onChange={(v) => {
+                          set("city", v);
+                          if (v !== JOIN_CITY_OTHER) set("cityOther", "");
+                        }}
+                        placeholder={vals.region ? t("join.selectCity") : t("join.selectCityAfterRegion")}
+                        options={lebanonCityOptions}
+                        aria-label={t("join.city")}
+                        invalid={!!fieldErrors.city}
+                        disabled={!vals.region}
+                      />
+                    ) : (
                       <input
                         value={vals.city}
                         onChange={(e) => set("city", e.target.value)}
-                        placeholder=""
+                        placeholder={t("join.ph.city")}
+                      />
+                    )}
+                  </div>
+                  {isOtherCity && (
+                    <div id="join-field-cityOther" className={fieldClass("cityOther")}>
+                      <label>{t("join.cityOther")}</label>
+                      <input
+                        value={vals.cityOther}
+                        onChange={(e) => set("cityOther", e.target.value)}
+                        placeholder={t("join.ph.cityOther")}
                       />
                     </div>
-                    <div id="join-field-region" className={fieldClass("region")}>
-                      <label>{isLebanon ? t("join.governorate") : t("join.stateProvince")}</label>
-                      {isLebanon ? (
-                        <FormSelect
-                          value={vals.region}
-                          onChange={(v) => set("region", v)}
-                          placeholder={t("join.selectRegion")}
-                          options={regionOptions}
-                          aria-label={t("join.governorate")}
-                          invalid={!!fieldErrors.region}
-                        />
-                      ) : (
-                        <input
-                          value={vals.region}
-                          onChange={(e) => set("region", e.target.value)}
-                          placeholder=""
-                        />
-                      )}
-                    </div>
-                  </div>
+                  )}
                   <div id="join-field-street" className={fieldClass("street")}>
                     <label>{t("join.street")}</label>
                     <input
                       value={vals.street}
                       onChange={(e) => set("street", e.target.value)}
-                      placeholder=""
+                      placeholder={t("join.ph.street")}
                       autoComplete="street-address"
                     />
                   </div>
@@ -385,7 +443,7 @@ export default function JoinPage() {
                     <textarea
                       value={vals.message}
                       onChange={(e) => set("message", e.target.value)}
-                      placeholder=""
+                      placeholder={t("join.ph.message")}
                       rows={2}
                     />
                   </div>
@@ -397,7 +455,7 @@ export default function JoinPage() {
                   <p className="join-step-title">{t("join.step.whatsappTitle")}</p>
                   <div id="join-field-contactName" className={fieldClass("contactName")}>
                     <label>{t("join.yourName")}</label>
-                    <input value={vals.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="" />
+                    <input value={vals.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder={t("join.ph.contactName")} />
                   </div>
                   <div className="field">
                     <label>{t("join.waCountry")}</label>
@@ -417,7 +475,7 @@ export default function JoinPage() {
                         type="tel"
                         value={vals.phoneLocal}
                         onChange={(e) => set("phoneLocal", e.target.value)}
-                        placeholder=""
+                        placeholder={t("join.ph.phone")}
                         inputMode="tel"
                         autoComplete="tel-national"
                       />
@@ -431,7 +489,7 @@ export default function JoinPage() {
                         type="tel"
                         value={vals.confirmPhoneLocal}
                         onChange={(e) => set("confirmPhoneLocal", e.target.value)}
-                        placeholder=""
+                        placeholder={t("join.ph.confirmPhone")}
                         inputMode="tel"
                         autoComplete="off"
                       />

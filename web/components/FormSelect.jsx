@@ -13,6 +13,7 @@ export default function FormSelect({
   "aria-label": ariaLabel,
   id,
   invalid = false,
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -36,21 +37,28 @@ export default function FormSelect({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
   function pick(next) {
     onChange(String(next));
     setOpen(false);
   }
 
   return (
-    <div className={`form-select${open ? " open" : ""}${invalid ? " is-invalid" : ""}`} ref={rootRef}>
+    <div className={`form-select${open ? " open" : ""}${invalid ? " is-invalid" : ""}${disabled ? " is-disabled" : ""}`} ref={rootRef}>
       <button
         type="button"
         id={id}
         className={`form-select-trigger${selected ? "" : " is-placeholder"}${invalid ? " is-invalid" : ""}`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!disabled) setOpen((v) => !v);
+        }}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled}
       >
         <span className="form-select-value">{display}</span>
         <span className="form-select-chevron" aria-hidden>
