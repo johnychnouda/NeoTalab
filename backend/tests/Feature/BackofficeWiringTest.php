@@ -40,6 +40,21 @@ class BackofficeWiringTest extends TestCase
         $this->assertSame('+96170161650', $merchant->phone);
     }
 
+    public function test_merchant_profile_ops_whatsapp_rejects_duplicate_number(): void
+    {
+        $this->merchantWithUser(Roles::MERCHANT_OWNER, [
+            'whatsapp_number' => '+96170161650',
+        ]);
+        [, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
+            'whatsapp_number' => '+96170161659',
+        ]);
+
+        $this->withToken($this->tokenFor($owner))
+            ->patchJson('/api/v1/settings/profile', ['opsWhatsapp' => '+96170161650'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ops_whatsapp']);
+    }
+
     public function test_admin_merchant_list_uses_ops_whatsapp_when_set(): void
     {
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [

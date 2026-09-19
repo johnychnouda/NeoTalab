@@ -29,8 +29,11 @@ class WhatsAppEmbeddedSignupService
         return [
             'enabled' => $appId !== '' && $configId !== '',
             'appId' => $appId !== '' ? $appId : null,
+            'app_id' => $appId !== '' ? $appId : null,
             'configId' => $configId !== '' ? $configId : null,
+            'config_id' => $configId !== '' ? $configId : null,
             'graphVersion' => (string) config('whatsapp.graph_api_version'),
+            'graph_version' => (string) config('whatsapp.graph_api_version'),
         ];
     }
 

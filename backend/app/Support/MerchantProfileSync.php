@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Merchant;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Keeps merchant profile/contact fields aligned between the owner portal and merchant backoffice.
@@ -23,6 +24,17 @@ final class MerchantProfileSync
             unset($settings['ops_whatsapp']);
 
             return;
+        }
+
+        $taken = Merchant::query()
+            ->where('whatsapp_number', $whatsapp)
+            ->when($merchant->exists, fn ($q) => $q->where('id', '!=', $merchant->id))
+            ->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages([
+                'ops_whatsapp' => ['This WhatsApp number is already used by another shop.'],
+            ]);
         }
 
         $merchant->whatsapp_number = $whatsapp;

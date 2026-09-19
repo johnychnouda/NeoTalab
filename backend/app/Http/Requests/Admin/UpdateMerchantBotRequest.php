@@ -15,7 +15,7 @@ class UpdateMerchantBotRequest extends FormRequest
     {
         return [
             'phoneNumberId' => ['required', 'string', 'max:80'],
-            'accessToken' => ['required', 'string', 'max:500'],
+            'accessToken' => ['required', 'string', 'max:2000'],
             'tokenExpires' => ['nullable', 'date'],
         ];
     }
