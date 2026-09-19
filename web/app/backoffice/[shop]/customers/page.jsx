@@ -52,7 +52,8 @@ export default function CustomersPage() {
           <option value="true">Blocked</option>
         </select>
       </div>
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead>
           <tr>
             <th>{t("th.customer")}</th><th>{t("th.phone")}</th><th>{t("th.orders")}</th>
@@ -79,6 +80,7 @@ export default function CustomersPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       {blockModal && (
         <Modal title="Block Customer" onClose={() => setBlockModal(null)}>

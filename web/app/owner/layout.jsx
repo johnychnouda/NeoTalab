@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, getToken, setToken, clearToken } from "@/lib/api";
 import { buildInboxAlerts } from "@/lib/inbox";
+import AppShell from "@/components/AppShell";
 import { AuthLoading } from "@/components/owner/ui";
 
 const OwnerContext = createContext({});
@@ -87,8 +88,8 @@ export default function OwnerLayout({ children }) {
 
   return (
     <OwnerContext.Provider value={{ api, platformName, setPlatformName }}>
-      <div className="app-shell">
-        <aside className="sidebar">
+      <AppShell brand={platformName} sidebar={(
+        <>
           <div className="sidebar-logo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/Logo1.png" alt="NeoTalab" />
@@ -129,12 +130,11 @@ export default function OwnerLayout({ children }) {
             </div>
             <button type="button" className="btn-logout" onClick={logout}>Sign out</button>
           </div>
-        </aside>
-
-        <main className="main">{children}</main>
-
+        </>
+      )}>
+        {children}
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      </div>
+      </AppShell>
     </OwnerContext.Provider>
   );
 }

@@ -11,6 +11,13 @@ export const metadata = {
   icons: { icon: "/Logo.png" },
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b1410",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>

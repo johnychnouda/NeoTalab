@@ -43,7 +43,8 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="section-title" style={{ marginTop: 24 }}>{t("analytics.topProducts")}</div>
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead><tr><th>{t("th.product")}</th><th>{t("th.qty")} Sold</th><th>{t("th.revenue")}</th></tr></thead>
         <tbody>
           {(data?.topProducts || []).length === 0 && <tr><td colSpan={3} className="loader">No data</td></tr>}
@@ -56,9 +57,11 @@ export default function AnalyticsPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <div className="section-title" style={{ marginTop: 24 }}>{t("analytics.drivers")}</div>
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead><tr><th>{t("th.driver")}</th><th>{t("th.deliveries")}</th><th>{t("analytics.avgDelivery")}</th></tr></thead>
         <tbody>
           {(data?.driverStats || []).length === 0 && <tr><td colSpan={3} className="loader">No data</td></tr>}
@@ -71,6 +74,7 @@ export default function AnalyticsPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

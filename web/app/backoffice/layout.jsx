@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, getToken, setToken, clearToken } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
+import AppShell from "@/components/AppShell";
 import { useToast } from "@/components/ui";
 
 const MerchantContext = createContext({});
@@ -195,8 +196,8 @@ export default function BackofficeLayout({ children }) {
 
   return (
     <MerchantContext.Provider value={{ api, shopName, shopSlug, refreshProfile: loadProfile }}>
-      <div className="app-shell">
-        <aside className="sidebar">
+      <AppShell brand={shopName || "NeoTalab"} sidebar={(
+        <>
           <div className="sidebar-top">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/Logo1.png" alt="NeoTalab" style={{ width: "100%", height: "auto" }} />
@@ -221,6 +222,7 @@ export default function BackofficeLayout({ children }) {
               );
             })}
           </nav>
+          <div className="sidebar-spacer" />
           <div className="sidebar-footer">
             <div className="lang-switcher">
               {["en", "ar", "fr"].map((code) => (
@@ -231,9 +233,10 @@ export default function BackofficeLayout({ children }) {
             </div>
             <button className="btn-logout" onClick={logout}>{t("nav.logout")}</button>
           </div>
-        </aside>
-        <main className="main">{children}</main>
-      </div>
+        </>
+      )}>
+        {children}
+      </AppShell>
     </MerchantContext.Provider>
   );
 }

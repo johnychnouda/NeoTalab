@@ -187,7 +187,8 @@ export default function BillingPage() {
             </div>
           ))}
         </div>
-        <table className="data-table">
+        <div className="table-scroll">
+<table className="data-table">
           <thead><tr><th>Shop</th><th>Fee</th><th>Next Renewal</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             {Array.from({ length: 6 }).map((_, i) => (
@@ -201,6 +202,7 @@ export default function BillingPage() {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     );
   }
@@ -270,13 +272,15 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead><tr><th>Shop</th><th>Fee</th><th>Next Renewal</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
           {list.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>No merchants</td></tr>}
           {list.map((m) => <BillingRow key={m.id} m={m} now={now} onMarkPaid={() => markPaid(m)} onRemind={() => sendReminder(m)} />)}
         </tbody>
       </table>
+      </div>
 
       {remindersModal && (
         <Modal title={`Send Overdue Reminders (${overdueList.length})`} onClose={() => setRemindersModal(false)}>

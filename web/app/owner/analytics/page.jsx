@@ -146,7 +146,8 @@ export default function OwnerAnalyticsPage() {
         </Link>
       </div>
 
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead>
           <tr>
             {filter === "paying" && (
@@ -214,6 +215,7 @@ export default function OwnerAnalyticsPage() {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

@@ -105,7 +105,8 @@ export default function OrdersPage() {
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <table className="data-table">
+      <div className="table-scroll">
+<table className="data-table">
         <thead>
           <tr>
             <th>#</th><th>{t("th.customer")}</th><th>{t("th.items")}</th><th>{t("th.total")}</th>
@@ -137,6 +138,7 @@ export default function OrdersPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       {modal?.type === "reject" && (
         <Modal title="Reject Order" onClose={() => setModal(null)}>
