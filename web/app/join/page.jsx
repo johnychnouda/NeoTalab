@@ -186,6 +186,14 @@ export default function JoinPage() {
     value: item.value,
     label: t(item.labelKey),
   }));
+  const canSubmit =
+    vals.contactName.trim() !== ""
+    && vals.phoneLocal.trim() !== ""
+    && vals.confirmPhoneLocal.trim() !== ""
+    && vals.phoneLocal.trim() === vals.confirmPhoneLocal.trim()
+    && vals.whatsappBusinessOk
+    && vals.acceptedTerms
+    && !busy;
 
   const businessTypeOptions = JOIN_BUSINESS_TYPES.map((item) => ({
     value: item.value,
@@ -541,7 +549,7 @@ export default function JoinPage() {
                     {t("join.next")}
                   </button>
                 ) : (
-                  <button type="submit" className="btn-primary join-btn-next" disabled={busy}>
+                  <button type="submit" className="btn-primary join-btn-next" disabled={!canSubmit}>
                     {busy ? t("join.submitting") : t("join.submit")}
                   </button>
                 )}
