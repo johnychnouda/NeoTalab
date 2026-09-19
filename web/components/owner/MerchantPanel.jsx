@@ -655,10 +655,6 @@ function BillingTab({ m, api, toast, onChanged, onConfirm }) {
 
 function BotTab({ m, api, toast, onChanged, onModal }) {
   const [testing, setTesting] = useState(false);
-  const [showManual, setShowManual] = useState(false);
-  const [phoneNumberId, setPhoneNumberId] = useState(m.bot_phone_id || "");
-  const [accessToken, setAccessToken] = useState("");
-  const [savingManual, setSavingManual] = useState(false);
   const retryTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(retryTimer.current), []);
@@ -680,32 +676,6 @@ function BotTab({ m, api, toast, onChanged, onModal }) {
     logActivity("bot", `${m.shop_name} WhatsApp connected via Meta Embedded Signup`);
     onChanged(merchant);
     setTimeout(testConnection, 800);
-  }
-
-  async function saveManual() {
-    const phone = phoneNumberId.trim();
-    const token = accessToken.trim();
-    if (!phone || !token) {
-      toast("Phone Number ID and Access Token are required.", "error");
-      return;
-    }
-    setSavingManual(true);
-    try {
-      const data = await api("PATCH", `/api/owner/merchants/${m.id}/bot`, {
-        phoneNumberId: phone,
-        accessToken: token,
-      });
-      toast(data.message || "WhatsApp connected manually.");
-      logActivity("bot", `${m.shop_name} WhatsApp connected manually`);
-      onChanged(data.merchant || data.data);
-      setAccessToken("");
-      setShowManual(false);
-      setTimeout(testConnection, 800);
-    } catch (e) {
-      toast(e.message || "Manual connect failed", "error");
-    } finally {
-      setSavingManual(false);
-    }
   }
 
   async function restart() {
@@ -833,10 +803,12 @@ function BotTab({ m, api, toast, onChanged, onModal }) {
 
       <div className="panel-section-label">WhatsApp Connection</div>
       <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-        Prefer Meta Embedded Signup. If it hangs, use manual Phone Number ID + token from Meta → WhatsApp → Step 1. Try it out.
-        {viaLabel !== "—" && <> Connected via <strong>{viaLabel}</strong>.</>}
+        {credsOk
+          ? <>WhatsApp is connected{viaLabel !== "—" && <> via <strong>{viaLabel}</strong></>}.</>
+          : "Connect this merchant’s WhatsApp Business number through Meta Embedded Signup."}
       </p>
-      <WhatsAppEmbeddedSignup
+      {(!credsOk || isError) && (
+        <WhatsAppEmbeddedSignup
           merchantId={m.id}
           api={api}
           toast={toast}
@@ -844,53 +816,9 @@ function BotTab({ m, api, toast, onChanged, onModal }) {
           buttonId={`wa-embedded-signup-${m.id}`}
           onConnected={handleConnected}
         />
-
-      <button
-        type="button"
-        className="paction-btn"
-        style={{ justifyContent: "center", marginTop: 10, marginBottom: 0, width: "100%" }}
-        onClick={() => setShowManual((v) => !v)}
-      >
-        {showManual ? "Hide manual connect" : "Connect manually (Phone ID + Token)"}
-      </button>
-
-      {showManual && (
-        <div style={{ marginTop: 10, padding: 12, border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface2)" }}>
-          <div className="field" style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>Phone Number ID</label>
-            <input
-              value={phoneNumberId}
-              onChange={(e) => setPhoneNumberId(e.target.value)}
-              placeholder="e.g. 1288929074293606"
-              style={{ width: "100%", marginTop: 4 }}
-            />
-          </div>
-          <div className="field" style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>Temporary Access Token</label>
-            <input
-              type="password"
-              value={accessToken}
-              onChange={(e) => setAccessToken(e.target.value)}
-              placeholder="EAA…"
-              style={{ width: "100%", marginTop: 4 }}
-            />
-          </div>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.45, marginBottom: 10 }}>
-            Meta → NeoTalab → Use cases → Connect on WhatsApp → Step 1. Try it out. Copy Phone number ID and Generate access token.
-          </p>
-          <button
-            type="button"
-            className="paction-btn paction-primary"
-            style={{ justifyContent: "center", width: "100%", marginBottom: 0 }}
-            onClick={saveManual}
-            disabled={savingManual}
-          >
-            {savingManual ? "Saving…" : "Save & Test Connection"}
-          </button>
-        </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: credsOk && !isError ? 0 : 10 }}>
         <button className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={testConnection} disabled={testing || !credsOk}>
           {testing ? "Testing…" : "📡 Test Connection"}
         </button>
