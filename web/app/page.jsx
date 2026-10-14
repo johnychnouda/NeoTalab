@@ -52,7 +52,7 @@ export default async function Home() {
       <section className="section" id="demo">
         <h2>{demo.title}</h2>
         <p className="lead">{demo.lead}</p>
-        <OrderDemo demo={demo} showSteps />
+        <OrderDemo demo={demo} />
       </section>
 
       <section className="section" id="how">
