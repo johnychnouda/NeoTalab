@@ -17,7 +17,7 @@ const UI = {
     title: "See NeoTalab at work",
     lead: "Pick a shop and watch one day on the customer's, the owner's and the driver's WhatsApp.",
     online: "online", typing: "typing…", today: "Today", message: "Message",
-    pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", prevShop: "Previous shop", nextShop: "Next shop", voice: "Voice message",
+    modes: { delivery: "🛵 Delivery", pickup: "🏪 Pickup only" }, pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", prevShop: "Previous shop", nextShop: "Next shop", voice: "Voice message",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
     steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup in lira", "Booking", "End of day"],
@@ -27,7 +27,7 @@ const UI = {
     title: "شوف NeoTalab عم يشتغل",
     lead: "اختار محل وتابع نهار كامل على واتساب الزبون وصاحب المحل والسائق.",
     online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
-    pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية",
+    modes: { delivery: "🛵 توصيل", pickup: "🏪 استلام فقط" }, pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
     steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام بالليرة", "حجز موعد", "آخر النهار"],
@@ -37,7 +37,7 @@ const UI = {
     title: "NeoTalab en action",
     lead: "Choisissez un commerce et suivez une journée sur le WhatsApp du client, du commerçant et du livreur.",
     online: "en ligne", typing: "écrit…", today: "Aujourd'hui", message: "Message",
-    pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", prevShop: "Commerce précédent", nextShop: "Commerce suivant", voice: "Message vocal",
+    modes: { delivery: "🛵 Livraison", pickup: "🏪 Retrait uniquement" }, pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", prevShop: "Commerce précédent", nextShop: "Commerce suivant", voice: "Message vocal",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
     steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait en livres", "Réservation", "Fin de journée"],
@@ -816,7 +816,7 @@ function lbp(value, lang) {
   return `${amount.toLocaleString("en-US")} ${lang === "ar" ? "ل.ل" : "LBP"}`;
 }
 
-function shopIn(shop, lang) {
+function shopIn(shop, lang, delivery) {
   const t = (v) => v[lang];
   const n = MONEY[lang];
   const line = ([qty, price, name]) => `${qty}× ${t(name)}  ${n(qty * price)}`;
@@ -829,7 +829,7 @@ function shopIn(shop, lang) {
     menuButton: UI[lang].menuButtons[shop.menu], shop: t(shop.shop), town: t(shop.town), address: t(shop.address), shopAddress: t(shop.shopAddress), eta: shop.eta,
     voiceLines: shop.voice.map(line).join("\n"),
     category: t(shop.category), addName: t(shop.add[2]), addPrice: shop.add[1],
-    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + (shop.delivery === false ? 0 : 1),
+    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + (delivery ? 1 : 0),
     cartLines: cart.map(line).join("\n"),
     cartShort: cart.map(([qty, , name]) => `${qty}× ${t(name)}`).join("\n"),
     photo: shop.photo, photoCaption: t(shop.photoCaption), staffName: t(shop.staffName),
@@ -849,11 +849,10 @@ function shopIn(shop, lang) {
   };
 }
 
-function build(shop, lang) {
+function build(shop, lang, delivery) {
   const ui = UI[lang];
-  const d = shopIn(shop, lang);
+  const d = shopIn(shop, lang, delivery);
   const messages = [];
-  const delivery = shop.delivery !== false;
   SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
     const step = STEP_OF_BLOCK[block];
     const [h, m] = at.split(":").map(Number);
@@ -879,5 +878,17 @@ const ORDER = ["restaurant", "bakery", "market", "butcher", "pharmacy", "clothin
 
 export function orderDemo(lang) {
   const key = UI[lang] ? lang : "en";
-  return { ...UI[key], scenarios: ORDER.map((id) => build(SHOPS.find((shop) => shop.id === id), key)) };
+  return {
+    ...UI[key],
+    scenarios: ORDER.map((id) => {
+      const shop = SHOPS.find((s) => s.id === id);
+      // Each shop chooses delivery or pickup only in its settings; the demo can show both.
+      return {
+        id, icon: shop.icon, label: shop.label[key],
+        defaultMode: shop.delivery === false ? "pickup" : "delivery",
+        delivery: build(shop, key, true),
+        pickup: build(shop, key, false),
+      };
+    }),
+  };
 }

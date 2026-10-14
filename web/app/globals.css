@@ -1939,6 +1939,12 @@ tr.action-highlight { background: #f9731618 !important; }
   mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .wa-tabs::-webkit-scrollbar { display: none; }
 .wa-tabs button { flex: none; scroll-snap-align: center; white-space: nowrap; }
+.wa-modes { display: inline-flex; gap: 2px; padding: 3px; margin: 0 auto 16px; border-radius: 12px; border: 1px solid var(--site-line); background: var(--site-card); }
+.wa-modes button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--site-muted); font: inherit; font-size: 13.5px;
+  font-weight: 700; cursor: pointer; transition: background .2s, color .2s; }
+.wa-modes button:hover { color: #dfe8e3; }
+.wa-modes button.active { background: #25d36622; color: #eef3f0; box-shadow: inset 0 0 0 1px #25d36655; }
+.wa-modes button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .wa-bar { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto 10px; }
 .wa-icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--site-line); background: var(--site-card);
   color: #dfe8e3; cursor: pointer; transition: border-color .2s, opacity .2s; }

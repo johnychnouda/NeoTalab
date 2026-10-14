@@ -44,7 +44,9 @@ export default function OrderDemo({ demo }) {
   const tabsRef = useRef(null);
   const bodyRefs = useRef({});
 
-  const scenario = demo.scenarios[scenarioIndex];
+  const shop = demo.scenarios[scenarioIndex];
+  const [mode, setMode] = useState(shop.defaultMode);
+  const scenario = shop[mode];
   const { messages, chats } = scenario;
 
   // Start when the demo scrolls into view; with reduced motion, show the whole conversation instead.
@@ -105,6 +107,14 @@ export default function OrderDemo({ demo }) {
     const tab = tabs?.querySelector(`[data-tab="${i}"]`);
     if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
     setScenarioIndex(i);
+    setMode(demo.scenarios[i].defaultMode);
+    setCount(0);
+    setStarted(true);
+    setPlaying(true);
+  }
+
+  function pickMode(next) {
+    setMode(next);
     setCount(0);
     setStarted(true);
     setPlaying(true);
@@ -140,6 +150,13 @@ export default function OrderDemo({ demo }) {
         </button>
       </div>
 
+      <div className="wa-modes" role="radiogroup">
+        {["delivery", "pickup"].map((m) => (
+          <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+            {demo.modes[m]}
+          </button>
+        ))}
+      </div>
       <div className="wa-bar">
         <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
           <Svg d={playing ? icons.pause : icons.play} size={18} />
@@ -187,7 +204,7 @@ export default function OrderDemo({ demo }) {
                     const prev = shown[k - 1];
                     const first = !prev || prev.out !== m.out || !!m.day || !!m.human !== !!prev.human;
                     return (
-                      <div key={`${scenario.id}-${m.i}`} className="wa-row">
+                      <div key={`${scenario.id}-${mode}-${m.i}`} className="wa-row">
                         {m.day && <span className="wa-date">{m.day}</span>}
                         <div className={`wa-msg ${m.out ? "out" : "in"}${first ? " tail" : ""}`}>
                           <div className={`wa-bubble${m.photo ? " wa-has-photo" : ""}`}>
