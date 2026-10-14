@@ -1817,8 +1817,20 @@ tr.action-highlight { background: #f9731618 !important; }
 .site-nav .site-nav-cta { color: #04210f; background: var(--green); padding: 9px 16px; border-radius: 10px; font-weight: 700; white-space: nowrap; }
 .site-header .site-brand, .site-lang button { white-space: nowrap; }
 .site-nav .site-nav-cta:hover { background: #3ee07c; color: #04210f; }
+.site-sections { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.site-links { display: flex; gap: 4px; padding: 4px; background: var(--site-card); border: 1px solid var(--site-line); border-radius: 12px; }
+.site-links a { color: var(--site-muted); text-decoration: none; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 8px; white-space: nowrap; transition: color .15s, background .15s; }
+.site-links a:hover { color: #fff; }
+.site-links a.active { color: #04210f; background: var(--green); }
+.site-links a:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+@media (max-width: 980px) {
+  .site-header { flex-wrap: wrap; row-gap: 10px; padding-bottom: 10px; }
+  .site-sections { order: 3; flex-basis: 100%; }
+  .site-links { width: 100%; justify-content: space-between; overflow-x: auto; scrollbar-width: none; }
+  .site-links::-webkit-scrollbar { display: none; }
+  .site-links a { flex: 1; text-align: center; padding: 7px 10px; font-size: 13.5px; }
+}
 @media (max-width: 820px) {
-  .site-nav > a:not(.site-nav-cta) { display: none; }
   .site-brand { font-size: 19px; }
   .site-brand img { width: 32px !important; height: 32px !important; }
 }
@@ -1976,7 +1988,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 @media (max-width: 980px) { .wa-strip.wa-count-3 { justify-content: flex-start; } }
 @media (max-width: 660px) { .wa-strip { justify-content: flex-start; } }
 
-.section { padding: clamp(44px, 6vw, 72px) 0; border-top: 1px solid var(--site-line); scroll-margin-top: 64px; }
+.section { padding: clamp(44px, 6vw, 72px) 0; border-top: 1px solid var(--site-line); }
+.section, .cta-band { scroll-margin-top: 84px; }
+@media (max-width: 980px) { .section, .cta-band { scroll-margin-top: 124px; } }
 @media (prefers-reduced-motion: no-preference) { html:has(.site) { scroll-behavior: smooth; } }
 .section-head { text-align: center; max-width: 680px; margin: 0 auto clamp(24px, 3.5vw, 36px); }
 .section h2 { font-size: clamp(26px, 3.4vw, 38px); margin: 0; letter-spacing: -0.03em; font-weight: 800; line-height: 1.15; }
@@ -2016,6 +2030,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 .cta-band h2 { font-size: clamp(26px, 3.6vw, 40px); margin: 0 0 12px; letter-spacing: -0.03em; font-weight: 800; }
 .cta-band p { color: var(--site-muted); max-width: 520px; margin: 0 auto 26px; line-height: 1.6; }
 .cta-band .hero-actions { justify-content: center; }
+.cta-band .steps { margin: 0 auto 28px; text-align: start; }
+.cta-band .step { background: #0c1511b3; border-color: #25d36626; }
+.cta-band .step p { margin: 0; max-width: none; font-size: 14px; }
 
 .legal { max-width: 760px; margin: 0 auto; padding: 48px 0 64px; line-height: 1.75; }
 .legal h1 { font-size: clamp(30px, 4.4vw, 42px); margin: 0 0 6px; letter-spacing: -0.03em; font-weight: 800; }

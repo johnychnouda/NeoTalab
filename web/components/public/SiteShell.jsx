@@ -4,6 +4,7 @@ import { getSiteLang } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import CookieConsent from "@/components/public/CookieConsent";
 import LangSwitch from "@/components/public/LangSwitch";
+import SiteNavLinks from "@/components/public/SiteNavLinks";
 import Brand from "@/components/Brand";
 
 /** Company address and country in the visitor's language (English uses the configured values). */
@@ -20,13 +21,13 @@ export async function SiteShell({ children }) {
     <div className="site">
       <header className="site-header" dir="ltr">
         <Link href="/" aria-label="NeoTalab home" style={{ textDecoration: "none" }}><Brand size={38} /></Link>
-        <nav className="site-nav">
-          <Link href="/#demo">{t.nav.demo}</Link>
-          <Link href="/#how">{t.nav.how}</Link>
-          <Link href="/contact">{t.nav.contact}</Link>
+        <nav className="site-sections" aria-label={t.nav.sections} dir={lang === "ar" ? "rtl" : "ltr"}>
+          <SiteNavLinks links={[["demo", t.nav.demo], ["features", t.nav.features], ["faq", t.nav.faq], ["start", t.nav.start]]} />
+        </nav>
+        <div className="site-nav">
           <LangSwitch current={lang} />
           <Link href="/backoffice" className="site-nav-cta">{t.nav.login}</Link>
-        </nav>
+        </div>
       </header>
       <main className="site-main">{children}</main>
       <SiteFooter lang={lang} />

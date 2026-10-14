@@ -57,19 +57,6 @@ export default async function Home() {
         <OrderDemo demo={demo} />
       </section>
 
-      <section className="section" id="how">
-        <div className="section-head"><h2>{t.stepsTitle}</h2></div>
-        <ol className="steps">
-          {t.steps.map(([title, text], i) => (
-            <li key={title} className="step">
-              <span className="step-num">{i + 1}</span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
       <section className="section" id="features">
         <div className="section-head">
           <h2>{t.featuresTitle}</h2>
@@ -88,7 +75,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="section faq">
+      <section className="section faq" id="faq">
         <div className="section-head"><h2>{t.faqTitle}</h2></div>
         <div className="faq-list">
           {t.faq.map(([q, a]) => (
@@ -97,9 +84,18 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="cta-band">
+      <section className="cta-band" id="start">
         <h2>{t.ctaTitle}</h2>
         <p>{t.ctaLead}</p>
+        <ol className="steps">
+          {t.steps.map(([title, text], i) => (
+            <li key={title} className="step">
+              <span className="step-num">{i + 1}</span>
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </li>
+          ))}
+        </ol>
         <div className="hero-actions">
           <Link href="/join" className="btn-hero primary">{t.apply}<Icon name="arrow" size={18} /></Link>
           <Link href="/contact" className="btn-hero ghost">{t.contactUs}</Link>

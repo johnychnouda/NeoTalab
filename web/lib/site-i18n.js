@@ -3,7 +3,7 @@
 
 export const SITE = {
   en: {
-    nav: { how: "How it works", demo: "Live demo", contact: "Contact", login: "Merchant login" },
+    nav: { demo: "Live demo", features: "Features", faq: "FAQ", start: "Get started", sections: "Page sections", login: "Merchant login" },
     place: { country: "Lebanon" },
     footer: {
       tagline: "AI WhatsApp ordering and booking for local businesses.",
@@ -21,7 +21,6 @@ export const SITE = {
       badge: "Official WhatsApp Business Platform",
       trust: ["Arabic, English and French", "Cash, cash on delivery and Whish", "Nothing to install"],
       trial: "Start your free trial", seeHow: "Watch the demo",
-      stepsTitle: "Live in three steps",
       steps: [
         ["Connect your number", "We link your WhatsApp Business number. You keep your app and your chats."],
         ["Add your menu", "Import prices from Excel or a photo, then set your hours and delivery areas."],
@@ -47,13 +46,13 @@ export const SITE = {
         ["Is there a free trial?", "Yes. Every new business starts with a free trial. Apply with the form and we set you up."],
       ],
       ctaTitle: "Ready to sell on WhatsApp?",
-      ctaLead: "Apply in two minutes. We connect your number and set up your menu with you.",
+      ctaLead: "Live in three steps. We set everything up with you.",
       apply: "Apply now", contactUs: "Contact us",
     },
   },
 
   ar: {
-    nav: { how: "كيف يعمل", demo: "عرض مباشر", contact: "تواصل معنا", login: "دخول التاجر" },
+    nav: { demo: "عرض مباشر", features: "المزايا", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", login: "دخول التاجر" },
     place: { country: "لبنان" },
     footer: {
       tagline: "طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
@@ -71,7 +70,6 @@ export const SITE = {
       badge: "منصّة واتساب للأعمال الرسمية",
       trust: ["العربية والإنجليزية والفرنسية", "نقدًا، عند التسليم أو عبر Whish", "لا شيء لتثبيته"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
-      stepsTitle: "جاهز في ثلاث خطوات",
       steps: [
         ["اربط رقمك", "نربط رقم واتساب للأعمال. تحتفظ بتطبيقك ومحادثاتك."],
         ["أضف قائمتك", "استورد الأسعار من Excel أو من صورة، ثم حدّد ساعات العمل ومناطق التوصيل."],
@@ -97,13 +95,13 @@ export const SITE = {
         ["هل هناك تجربة مجانية؟", "نعم. كل عمل جديد يبدأ بتجربة مجانية. قدّم طلبك عبر النموذج ونحن نجهّز لك كل شيء."],
       ],
       ctaTitle: "جاهز للبيع عبر واتساب؟",
-      ctaLead: "قدّم طلبك في دقيقتين. نربط رقمك ونجهّز قائمتك معك.",
+      ctaLead: "جاهز في ثلاث خطوات، ونحن نجهّز كل شيء معك.",
       apply: "قدّم الآن", contactUs: "تواصل معنا",
     },
   },
 
   fr: {
-    nav: { how: "Fonctionnement", demo: "Démo", contact: "Contact", login: "Connexion" },
+    nav: { demo: "Démo", features: "Fonctionnalités", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", login: "Connexion" },
     place: { country: "Liban" },
     footer: {
       tagline: "Commandes et réservations WhatsApp par IA pour les commerces locaux.",
@@ -121,7 +119,6 @@ export const SITE = {
       badge: "Plateforme officielle WhatsApp Business",
       trust: ["Arabe, anglais et français", "Espèces, à la livraison et Whish", "Rien à installer"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
-      stepsTitle: "En ligne en trois étapes",
       steps: [
         ["Connectez votre numéro", "Nous relions votre numéro WhatsApp Business. Vous gardez votre application et vos discussions."],
         ["Ajoutez votre menu", "Importez vos prix depuis Excel ou une photo, puis réglez horaires et zones de livraison."],
@@ -147,7 +144,7 @@ export const SITE = {
         ["Y a-t-il un essai gratuit ?", "Oui. Chaque nouveau commerce commence par un essai gratuit. Remplissez le formulaire et nous nous occupons de tout."],
       ],
       ctaTitle: "Prêt à vendre sur WhatsApp ?",
-      ctaLead: "Inscrivez-vous en deux minutes. Nous connectons votre numéro et préparons votre menu avec vous.",
+      ctaLead: "En ligne en trois étapes. Nous préparons tout avec vous.",
       apply: "S'inscrire", contactUs: "Nous contacter",
     },
   },
