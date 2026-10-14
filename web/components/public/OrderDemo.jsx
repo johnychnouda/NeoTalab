@@ -41,6 +41,7 @@ export default function OrderDemo({ demo }) {
   const [started, setStarted] = useState(false);
   const rootRef = useRef(null);
   const stripRef = useRef(null);
+  const tabsRef = useRef(null);
   const bodyRefs = useRef({});
 
   const scenario = demo.scenarios[scenarioIndex];
@@ -100,10 +101,18 @@ export default function OrderDemo({ demo }) {
   }, [count, typing, activeChat, scenarioIndex]);
 
   function pickScenario(i) {
+    const tabs = tabsRef.current;
+    const tab = tabs?.querySelector(`[data-tab="${i}"]`);
+    if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
     setScenarioIndex(i);
     setCount(0);
     setStarted(true);
     setPlaying(true);
+  }
+
+  // The arrows beside the shop list pick the previous or next kind of shop.
+  function slideTabs(direction) {
+    pickScenario((scenarioIndex + direction + demo.scenarios.length) % demo.scenarios.length);
   }
 
   function jumpToStep(step) {
@@ -114,14 +123,23 @@ export default function OrderDemo({ demo }) {
 
   return (
     <div className="wa-demo" ref={rootRef}>
-      <div className="wa-tabs" role="tablist">
-        {demo.scenarios.map((s, i) => (
-          <button key={s.id} type="button" role="tab" aria-selected={i === scenarioIndex}
-            className={i === scenarioIndex ? "active" : ""} onClick={() => pickScenario(i)}>
-            <span aria-hidden="true">{s.icon}</span>{s.label}
-          </button>
-        ))}
+      <div className="wa-tabs-wrap">
+        <button type="button" className="wa-icon-btn wa-prev wa-tabs-arrow" onClick={() => slideTabs(-1)} aria-label={demo.prevShop}>
+          <Svg d={icons.chevron} size={18} />
+        </button>
+        <div className="wa-tabs" role="tablist" ref={tabsRef}>
+          {demo.scenarios.map((s, i) => (
+            <button key={s.id} type="button" role="tab" aria-selected={i === scenarioIndex} data-tab={i}
+              className={i === scenarioIndex ? "active" : ""} onClick={() => pickScenario(i)}>
+              <span aria-hidden="true">{s.icon}</span>{s.label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="wa-icon-btn wa-next wa-tabs-arrow" onClick={() => slideTabs(1)} aria-label={demo.nextShop}>
+          <Svg d={icons.chevron} size={18} />
+        </button>
       </div>
+
       <div className="wa-bar">
         <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
           <Svg d={playing ? icons.pause : icons.play} size={18} />
