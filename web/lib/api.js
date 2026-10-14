@@ -248,6 +248,16 @@ export async function getTrialDays() {
   }
 }
 
+/** Prices and trial length set by the platform owner, for the homepage; null if the API can't be reached. */
+export async function getPlan() {
+  try {
+    const r = await fetch(`${API}/plan`, { headers: { Accept: "application/json" }, next: { revalidate: 60 } });
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function submitOnboardingApplication(payload) {
   return publicPost("/onboarding/apply", payload);
 }

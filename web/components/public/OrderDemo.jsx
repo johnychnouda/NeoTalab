@@ -11,7 +11,7 @@ const STEP_DELAY = 2000;
 // The visitor plays the customer: their next tap glows, and the demo taps it for them after this.
 const AUTO_DELAY = 6000;
 
-const icons = {
+export const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
   call: "M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z",
   more: "M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z",
@@ -27,7 +27,7 @@ const icons = {
   ticks: "M11.1.7L5.2 6.6 3.2 4.6 2 5.8l3.2 3.2 7.1-7.1zM14.5.7L8.6 6.6l-.6-.6-1.2 1.2L8.6 9l7.1-7.1z",
 };
 
-function Svg({ d, size = 20, box = "0 0 24 24", className }) {
+export function Svg({ d, size = 20, box = "0 0 24 24", className }) {
   return <svg className={className} viewBox={box} width={size} height={size} aria-hidden="true"><path fill="currentColor" d={d} /></svg>;
 }
 

@@ -3,7 +3,7 @@
 
 export const SITE = {
   en: {
-    nav: { demo: "Live demo", features: "Features", faq: "FAQ", start: "Get started", sections: "Page sections", login: "Merchant login" },
+    nav: { demo: "Live demo", features: "Features", pricing: "Pricing", faq: "FAQ", start: "Get started", sections: "Page sections", login: "Merchant login" },
     place: { country: "Lebanon" },
     footer: {
       tagline: "AI WhatsApp ordering and booking for local businesses.",
@@ -19,7 +19,7 @@ export const SITE = {
       h1a: "Your WhatsApp, now an ", h1b: "AI sales assistant",
       intro: "Customers order, book and pay on your business WhatsApp. NeoTalab answers them, takes the order and sends it to your team, while you watch it all from your WhatsApp Business app.",
       badge: "Official WhatsApp Business Platform",
-      trust: ["Arabic, English and French", "Cash, cash on delivery and Whish", "Nothing to install"],
+      trust: ["Arabic, English and French", "Cash, cash on delivery and Whish", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
       steps: [
         ["Connect your number", "We link your WhatsApp Business number. You keep your app and your chats."],
@@ -37,13 +37,18 @@ export const SITE = {
         ["shield", "Official and private", "Built on Meta's WhatsApp Business Platform. Customer data only serves your customers."],
       ],
       privacyLink: "Privacy policy",
+      pricingTitle: "Simple pricing",
+      pricingLead: "One plan with every feature. Try it free for {n} days.",
+      monthly: "Monthly", yearly: "Yearly", perMonth: "/ month", perYear: "/ year", save: "Save {pct}%",
+      included: ["AI assistant in Arabic, English and French", "Orders, bookings and payments on WhatsApp", "Drivers and staff on WhatsApp", "Menu import and nightly sales report"],
+      trialButton: "Start {n}-day free trial",
       faqTitle: "Questions",
       faq: [
         ["Do my customers need to install anything?", "No. They message your normal WhatsApp number, exactly like today."],
         ["Can I keep using my WhatsApp Business app?", "Yes. NeoTalab connects to your existing number, so you keep the app, your chats and your contacts, and you see every conversation the assistant has."],
         ["Can I talk to a customer myself?", "Any time. Send ⏸ in the chat to pause the assistant and ▶️ to hand the chat back."],
         ["Which businesses is it for?", "Restaurants, bakeries, pharmacies, supermarkets, flower shops, salons, clinics, laundries and more: anything sold by delivery, pickup or appointment."],
-        ["Is there a free trial?", "Yes. Every new business starts with a free trial. Apply with the form and we set you up."],
+        ["Is there a free trial?", "Yes. Every new business starts with a {n}-day free trial. Apply with the form and we set you up."],
       ],
       ctaTitle: "Ready to sell on WhatsApp?",
       ctaLead: "Live in three steps. We set everything up with you.",
@@ -52,7 +57,7 @@ export const SITE = {
   },
 
   ar: {
-    nav: { demo: "عرض مباشر", features: "المزايا", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", login: "دخول التاجر" },
+    nav: { demo: "عرض مباشر", features: "المزايا", pricing: "الأسعار", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", login: "دخول التاجر" },
     place: { country: "لبنان" },
     footer: {
       tagline: "طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
@@ -68,7 +73,7 @@ export const SITE = {
       h1a: "واتساب الخاص بك، أصبح الآن ", h1b: "مساعد مبيعات ذكي",
       intro: "يطلب زبائنك ويحجزون ويدفعون عبر واتساب عملك. يردّ NeoTalab عليهم، يأخذ الطلب ويرسله إلى فريقك، وأنت تتابع كل شيء من تطبيق واتساب للأعمال.",
       badge: "منصّة واتساب للأعمال الرسمية",
-      trust: ["العربية والإنجليزية والفرنسية", "نقدًا، عند التسليم أو عبر Whish", "لا شيء لتثبيته"],
+      trust: ["العربية والإنجليزية والفرنسية", "نقدًا، عند التسليم أو عبر Whish", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
       steps: [
         ["اربط رقمك", "نربط رقم واتساب للأعمال. تحتفظ بتطبيقك ومحادثاتك."],
@@ -86,13 +91,18 @@ export const SITE = {
         ["shield", "رسمي وخاص", "مبني على منصّة واتساب للأعمال من Meta. بيانات الزبائن تُستخدم فقط لخدمتهم."],
       ],
       privacyLink: "سياسة الخصوصية",
+      pricingTitle: "أسعار واضحة",
+      pricingLead: "خطة واحدة بكل الميزات. جرّبها مجانًا لمدة {days}.",
+      monthly: "شهري", yearly: "سنوي", perMonth: "/ شهر", perYear: "/ سنة", save: "وفّر {pct}%",
+      included: ["مساعد ذكي بالعربية والإنجليزية والفرنسية", "طلبات وحجوزات ودفع عبر واتساب", "السائقون والموظفون على واتساب", "استيراد القائمة وتقرير مبيعات يومي"],
+      trialButton: "ابدأ تجربة مجانية لمدة {days}",
       faqTitle: "أسئلة شائعة",
       faq: [
         ["هل يحتاج زبائني إلى تثبيت أي شيء؟", "لا. يراسلون رقم واتساب العادي الخاص بك، تمامًا كما اليوم."],
         ["هل يمكنني الاستمرار باستخدام تطبيق واتساب للأعمال؟", "نعم. يتّصل NeoTalab برقمك الحالي، فتحتفظ بالتطبيق ومحادثاتك وجهات اتصالك، وترى كل محادثة يجريها المساعد."],
         ["هل يمكنني التحدث مع الزبون بنفسي؟", "في أي وقت. أرسل ⏸ في المحادثة لإيقاف المساعد و▶️ لإعادتها إليه."],
         ["لأي نوع من الأعمال؟", "مطاعم، أفران، صيدليات، سوبرماركت، محلات ورود، صالونات، عيادات، مصابغ وغيرها: كل ما يُباع بالتوصيل أو الاستلام أو بموعد."],
-        ["هل هناك تجربة مجانية؟", "نعم. كل عمل جديد يبدأ بتجربة مجانية. قدّم طلبك عبر النموذج ونحن نجهّز لك كل شيء."],
+        ["هل هناك تجربة مجانية؟", "نعم. كل عمل جديد يبدأ بتجربة مجانية لمدة {days}. قدّم طلبك عبر النموذج ونحن نجهّز لك كل شيء."],
       ],
       ctaTitle: "جاهز للبيع عبر واتساب؟",
       ctaLead: "جاهز في ثلاث خطوات، ونحن نجهّز كل شيء معك.",
@@ -101,7 +111,7 @@ export const SITE = {
   },
 
   fr: {
-    nav: { demo: "Démo", features: "Fonctionnalités", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", login: "Connexion" },
+    nav: { demo: "Démo", features: "Fonctionnalités", pricing: "Tarifs", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", login: "Connexion" },
     place: { country: "Liban" },
     footer: {
       tagline: "Commandes et réservations WhatsApp par IA pour les commerces locaux.",
@@ -117,7 +127,7 @@ export const SITE = {
       h1a: "Votre WhatsApp, désormais un ", h1b: "assistant de vente IA",
       intro: "Vos clients commandent, réservent et paient sur le WhatsApp de votre commerce. NeoTalab leur répond, prend la commande et l'envoie à votre équipe, pendant que vous suivez tout depuis WhatsApp Business.",
       badge: "Plateforme officielle WhatsApp Business",
-      trust: ["Arabe, anglais et français", "Espèces, à la livraison et Whish", "Rien à installer"],
+      trust: ["Arabe, anglais et français", "Espèces, à la livraison et Whish", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
       steps: [
         ["Connectez votre numéro", "Nous relions votre numéro WhatsApp Business. Vous gardez votre application et vos discussions."],
@@ -135,13 +145,18 @@ export const SITE = {
         ["shield", "Officiel et confidentiel", "Basé sur la plateforme WhatsApp Business de Meta. Les données clients servent uniquement à les servir."],
       ],
       privacyLink: "Politique de confidentialité",
+      pricingTitle: "Des tarifs simples",
+      pricingLead: "Une seule formule, toutes les fonctionnalités. Essayez gratuitement pendant {n} jours.",
+      monthly: "Mensuel", yearly: "Annuel", perMonth: "/ mois", perYear: "/ an", save: "Économisez {pct} %",
+      included: ["Assistant IA en arabe, anglais et français", "Commandes, réservations et paiements sur WhatsApp", "Livreurs et équipe sur WhatsApp", "Import du menu et rapport des ventes chaque soir"],
+      trialButton: "Essai gratuit de {n} jours",
       faqTitle: "Questions fréquentes",
       faq: [
         ["Mes clients doivent-ils installer quelque chose ?", "Non. Ils écrivent à votre numéro WhatsApp habituel, exactement comme aujourd'hui."],
         ["Puis-je continuer à utiliser WhatsApp Business ?", "Oui. NeoTalab se connecte à votre numéro existant : vous gardez l'application, vos discussions et vos contacts, et vous voyez chaque conversation de l'assistant."],
         ["Puis-je parler moi-même à un client ?", "À tout moment. Envoyez ⏸ dans la discussion pour mettre l'assistant en pause et ▶️ pour lui rendre la main."],
         ["Pour quels commerces ?", "Restaurants, boulangeries, pharmacies, supermarchés, fleuristes, salons, cliniques, pressings et plus : tout ce qui se vend en livraison, à emporter ou sur rendez-vous."],
-        ["Y a-t-il un essai gratuit ?", "Oui. Chaque nouveau commerce commence par un essai gratuit. Remplissez le formulaire et nous nous occupons de tout."],
+        ["Y a-t-il un essai gratuit ?", "Oui. Chaque nouveau commerce commence par un essai gratuit de {n} jours. Remplissez le formulaire et nous nous occupons de tout."],
       ],
       ctaTitle: "Prêt à vendre sur WhatsApp ?",
       ctaLead: "En ligne en trois étapes. Nous préparons tout avec vous.",

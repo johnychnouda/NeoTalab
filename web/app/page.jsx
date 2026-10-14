@@ -5,7 +5,9 @@ import { getSiteLang } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
-import { orderDemo } from "@/lib/order-demo";
+import HeroPhone from "@/components/public/HeroPhone";
+import { orderDemo, heroChat } from "@/lib/order-demo";
+import { getPlan } from "@/lib/api";
 
 export const metadata = {
   title: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
@@ -18,6 +20,12 @@ export default async function Home() {
   const lang = await getSiteLang();
   const t = siteText(lang).home;
   const demo = orderDemo(lang);
+  const plan = await getPlan();
+  const days = plan?.trial_days ?? 3;
+  const arDays = days === 1 ? "يوم واحد" : days === 2 ? "يومين" : days <= 10 ? `${days} أيام` : `${days} يومًا`;
+  const n = (text) => text.replace("{n}", days).replace("{days}", arDays);
+  const money = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: plan.currency, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
+  const saving = plan && plan.monthly_price > 0 ? Math.round((1 - plan.yearly_price / (12 * plan.monthly_price)) * 100) : 0;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -44,9 +52,10 @@ export default async function Home() {
             <Link href="#demo" className="btn-hero ghost">{t.seeHow}</Link>
           </div>
           <ul className="hero-trust">
-            {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
+            {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{n(item)}</li>)}
           </ul>
         </div>
+        <HeroPhone chat={{ ...heroChat(lang), message: demo.message }} />
       </section>
 
       <section className="section" id="demo">
@@ -75,11 +84,35 @@ export default async function Home() {
         </div>
       </section>
 
+      {plan && plan.monthly_price > 0 ? (
+        <section className="section" id="pricing">
+          <div className="section-head">
+            <h2>{t.pricingTitle}</h2>
+            <p className="lead">{n(t.pricingLead)}</p>
+          </div>
+          <div className="plans">
+            {[["monthly", plan.monthly_price, t.perMonth], ["yearly", plan.yearly_price, t.perYear]].map(([key, price, per]) => (
+              <div className={`plan${key === "yearly" ? " plan-best" : ""}`} key={key}>
+                <div className="plan-top">
+                  <h3>{t[key]}</h3>
+                  {key === "yearly" && saving > 0 ? <span className="plan-save">{t.save.replace("{pct}", saving)}</span> : null}
+                </div>
+                <p className="plan-price"><strong dir="ltr">{money(price)}</strong><span>{per}</span></p>
+                <ul className="ticks">
+                  {t.included.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
+                </ul>
+                <Link href="/join" className={`btn-hero ${key === "yearly" ? "primary" : "ghost"}`}>{n(t.trialButton)}</Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="section faq" id="faq">
         <div className="section-head"><h2>{t.faqTitle}</h2></div>
         <div className="faq-list">
           {t.faq.map(([q, a]) => (
-            <details key={q}><summary>{q}</summary><p>{a}</p></details>
+            <details key={q}><summary>{q}</summary><p>{n(a)}</p></details>
           ))}
         </div>
       </section>
