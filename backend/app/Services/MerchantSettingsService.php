@@ -1,0 +1,288 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\DeliveryZone;
+use App\Models\Driver;
+use App\Models\Merchant;
+use App\Models\Product;
+use App\Models\ShopHour;
+use App\Support\BusinessKind;
+use App\Support\MapLocation;
+use App\Support\MerchantProfileSync;
+use App\Support\MerchantWhatsAppCredentials;
+use App\Support\ShopSettings;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+class MerchantSettingsService
+{
+    public function profile(Merchant $merchant): array
+    {
+        $settings = $merchant->settings ?? [];
+
+        return [
+            'shop_name' => $merchant->name,
+            'shop_name_ar' => $merchant->name_ar,
+            'shop_name_fr' => $merchant->name_fr,
+            'slug' => $merchant->slug,
+            'ops_whatsapp' => MerchantProfileSync::whatsapp($merchant),
+            'mode' => $settings['mode'] ?? 'auto',
+            'default_locale' => $merchant->locale ?? 'en',
+            'currency' => $merchant->currency ?: 'USD',
+            'whish_channel' => $settings['whish']['channel'] ?? '',
+            'whish_connected' => app(WhishPayService::class)->enabled($merchant),
+            'whish_sandbox' => (bool) ($settings['whish']['sandbox'] ?? false),
+            'whish_sandbox_allowed' => (bool) config('services.whish.sandbox_allowed'),
+            'wish_timeout_mins' => $settings['wish_timeout_mins'] ?? 15,
+            'business_kind' => BusinessKind::of($merchant),
+            'menu_profile' => BusinessKind::profile($merchant),
+        ] + collect(ShopSettings::FIELDS)->keys()
+            ->mapWithKeys(fn (string $key) => [$key => ShopSettings::for($merchant)->get($key)])
+            ->all();
+    }
+
+    /**
+     * What is done and what is left before the shop can take orders on WhatsApp.
+     *
+     * @return array<string, mixed>
+     */
+    public function setup(Merchant $merchant): array
+    {
+        $s = ShopSettings::for($merchant);
+        $bookings = $s->businessMode() === 'appointments';
+        $delivers = ! $bookings && $s->fulfillment() !== 'pickup';
+        $team = Driver::query()->where('merchant_id', $merchant->id)->where('is_active', true)->get(['role']);
+        $bot = ($merchant->settings ?? [])['bot'] ?? [];
+
+        $steps = [
+            ['key' => 'whatsapp', 'done' => MerchantWhatsAppCredentials::resolve($merchant) !== null, 'required' => true],
+            ['key' => 'business', 'done' => BusinessKind::chosen($merchant), 'required' => true],
+            ['key' => 'menu', 'done' => Product::query()->where('merchant_id', $merchant->id)->exists(), 'required' => true],
+            ['key' => 'hours', 'done' => ShopHour::query()->where('merchant_id', $merchant->id)->exists(), 'required' => true],
+        ];
+        if ($delivers) {
+            $steps[] = ['key' => 'zones', 'done' => DeliveryZone::query()->where('merchant_id', $merchant->id)->where('is_active', true)->exists(), 'required' => true];
+        }
+        if (! $bookings && $s->fulfillment() !== 'delivery') {
+            $steps[] = ['key' => 'pickup', 'done' => $s->pickupAddress() !== '', 'required' => true];
+        }
+        $steps[] = ['key' => 'team', 'done' => $team->isNotEmpty(), 'required' => false];
+        $steps[] = ['key' => 'whish', 'done' => app(WhishPayService::class)->enabled($merchant), 'required' => false];
+        $steps[] = ['key' => 'report', 'done' => $s->reportWhatsapp() !== '', 'required' => false];
+
+        return [
+            'steps' => $steps,
+            'ready' => collect($steps)->where('required', true)->every(fn ($step) => $step['done']),
+            'whatsapp_number' => $bot['display_phone_number'] ?? null,
+            'drivers' => $team->where('role', 'driver')->count(),
+            'staff' => $team->where('role', 'staff')->count(),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     */
+    public function updateProfile(Merchant $merchant, array $payload): Merchant
+    {
+        $settings = $merchant->settings ?? [];
+
+        if (array_key_exists('shopName', $payload) || array_key_exists('shop_name', $payload)
+            || array_key_exists('shopNameAr', $payload) || array_key_exists('shop_name_ar', $payload)) {
+            MerchantProfileSync::applyShopName(
+                $merchant,
+                array_key_exists('shopName', $payload) || array_key_exists('shop_name', $payload)
+                    ? ($payload['shopName'] ?? $payload['shop_name'])
+                    : null,
+                array_key_exists('shopNameAr', $payload) || array_key_exists('shop_name_ar', $payload)
+                    ? ($payload['shopNameAr'] ?? $payload['shop_name_ar'])
+                    : null,
+            );
+        }
+        if (array_key_exists('defaultLocale', $payload) || array_key_exists('default_locale', $payload)) {
+            MerchantProfileSync::applyLocale(
+                $merchant,
+                $payload['defaultLocale'] ?? $payload['default_locale'],
+            );
+        }
+        if (array_key_exists('opsWhatsapp', $payload) || array_key_exists('ops_whatsapp', $payload)) {
+            MerchantProfileSync::applyWhatsapp(
+                $merchant,
+                $settings,
+                (string) ($payload['opsWhatsapp'] ?? $payload['ops_whatsapp'] ?? ''),
+            );
+        }
+        if (array_key_exists('whish_channel', $payload) || array_key_exists('whish_secret', $payload) || array_key_exists('whish_sandbox', $payload)) {
+            $before = $settings['whish'] ?? [];
+            WhishPayService::applySettings(
+                $settings,
+                array_key_exists('whish_channel', $payload) ? (string) $payload['whish_channel'] : null,
+                isset($payload['whish_secret']) ? (string) $payload['whish_secret'] : null,
+                array_key_exists('whish_sandbox', $payload) ? (bool) $payload['whish_sandbox'] : null,
+            );
+            $this->checkWhish($merchant, $before, $settings);
+        }
+        if (array_key_exists('wishTimeoutMins', $payload) || array_key_exists('wish_timeout_mins', $payload)) {
+            $settings['wish_timeout_mins'] = (int) ($payload['wishTimeoutMins'] ?? $payload['wish_timeout_mins']);
+        }
+
+        // Changing the type of business resets its defaults (time unit, orders or bookings).
+        if (isset($payload['business_kind']) && $payload['business_kind'] !== BusinessKind::of($merchant)
+            && isset(BusinessKind::KINDS[$payload['business_kind']])) {
+            $settings = BusinessKind::applyDefaults($settings, (string) $payload['business_kind']);
+            unset($payload['timing_unit'], $payload['business_mode']);
+        }
+
+        $ops = Validator::make(
+            array_intersect_key($payload, ShopSettings::FIELDS),
+            ShopSettings::rules(),
+        )->validate();
+        if (filled($ops['shop_location'] ?? null) && $ops['shop_location'] !== ($settings['shop_location'] ?? null)) {
+            $ops['shop_location'] = MapLocation::resolve((string) $ops['shop_location'])
+                ?? throw ValidationException::withMessages([
+                    'shop_location' => [__('No location found in this link. In Google Maps, press and hold on your shop to drop a pin, then copy the numbers shown (e.g. 33.8938, 35.5018) and paste them here.')],
+                ]);
+        }
+        foreach ($ops as $key => $value) {
+            $settings[$key] = $value;
+        }
+
+        $merchant->settings = $settings;
+        $merchant->save();
+
+        return $merchant->fresh();
+    }
+
+    public function updateMode(Merchant $merchant, string $mode): Merchant
+    {
+        $valid = ['auto', 'busy', 'manual', 'closed'];
+        if (! in_array($mode, $valid, true)) {
+            throw ValidationException::withMessages([
+                'mode' => ['Mode must be one of: '.implode(', ', $valid)],
+            ]);
+        }
+
+        $settings = $merchant->settings ?? [];
+        $settings['mode'] = $mode;
+        $merchant->settings = $settings;
+        $merchant->save();
+
+        return $merchant->fresh();
+    }
+
+    /**
+     * @return list<ShopHour>
+     */
+    public function hours(Merchant $merchant): array
+    {
+        $rows = ShopHour::query()->where('merchant_id', $merchant->id)->orderBy('day_of_week')->get();
+        if ($rows->isEmpty()) {
+            return $this->defaultHours($merchant);
+        }
+
+        return $rows->all();
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $hours
+     * @return list<ShopHour>
+     */
+    public function replaceHours(Merchant $merchant, array $hours): array
+    {
+        ShopHour::query()->where('merchant_id', $merchant->id)->delete();
+
+        $created = [];
+        foreach ($hours as $h) {
+            $created[] = ShopHour::create([
+                'merchant_id' => $merchant->id,
+                'day_of_week' => (int) ($h['dayOfWeek'] ?? $h['day_of_week']),
+                'opens_at' => $h['opensAt'] ?? $h['opens_at'] ?? '09:00',
+                'closes_at' => $h['closesAt'] ?? $h['closes_at'] ?? '23:00',
+                'is_closed' => (bool) ($h['isClosed'] ?? $h['is_closed'] ?? false),
+            ]);
+        }
+
+        return $created;
+    }
+
+    /**
+     * @return list<DeliveryZone>
+     */
+    public function zones(Merchant $merchant): array
+    {
+        return DeliveryZone::query()
+            ->where('merchant_id', $merchant->id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * @param  array<string,mixed>  $data
+     */
+    public function createZone(Merchant $merchant, array $data): DeliveryZone
+    {
+        return DeliveryZone::create([
+            'merchant_id' => $merchant->id,
+            'name' => $data['name'],
+            'delivery_fee' => $data['deliveryFee'] ?? $data['delivery_fee'] ?? 0,
+            'minimum_order' => $data['minimumOrder'] ?? $data['minimum_order'] ?? 0,
+            'delivery_mins' => $data['deliveryMins'] ?? $data['delivery_mins'] ?? 15,
+            'sort_order' => $data['sortOrder'] ?? $data['sort_order'] ?? 0,
+            'is_active' => true,
+        ]);
+    }
+
+    public function deleteZone(Merchant $merchant, string $zoneId): void
+    {
+        $zone = DeliveryZone::query()->where('merchant_id', $merchant->id)->findOrFail($zoneId);
+        $zone->forceFill(['is_active' => false])->save();
+    }
+
+    /**
+     * @return list<ShopHour>
+     */
+    protected function defaultHours(Merchant $merchant): array
+    {
+        $rows = [];
+        for ($d = 0; $d < 7; $d++) {
+            $rows[] = new ShopHour([
+                'merchant_id' => $merchant->id,
+                'day_of_week' => $d,
+                'opens_at' => '09:00',
+                'closes_at' => '23:00',
+                'is_closed' => false,
+            ]);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * New Whish details are tried with Whish before they are saved, so a typo shows up here and not
+     * when a customer tries to pay.
+     *
+     * @param  array<string, mixed>  $before  the old settings.whish
+     * @param  array<string, mixed>  $settings  the new merchant settings
+     */
+    private function checkWhish(Merchant $merchant, array $before, array $settings): void
+    {
+        $after = $settings['whish'] ?? [];
+        $changed = ($after['channel'] ?? null) !== ($before['channel'] ?? null)
+            || ($after['secret'] ?? null) !== ($before['secret'] ?? null)
+            || ($after['sandbox'] ?? null) !== ($before['sandbox'] ?? null);
+
+        $probe = $merchant->replicate();
+        $probe->settings = $settings;
+        $whish = app(WhishPayService::class);
+        $creds = $whish->credentials($probe);
+
+        if ($changed && $creds && $whish->verify($creds) === false) {
+            throw ValidationException::withMessages([
+                'whish_secret' => [__('Whish did not accept this channel and secret. Check them in your Whish business account and try again.')],
+            ]);
+        }
+    }
+}
