@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import Brand from "@/components/Brand";
 import { getSiteLang } from "@/lib/site-lang";
 
@@ -25,6 +26,7 @@ const T = {
 // order is confirmed on WhatsApp only once NeoTalab has verified the payment with Whish.
 export default async function PaymentResult({ params, searchParams }) {
   const { result } = await params;
+  if (result !== "success" && result !== "failure") notFound(); // the only two results Whish sends back
   const { lang } = await searchParams;
   const ok = result === "success";
   const t = T[lang] || T[await getSiteLang()]; // ?lang= is the customer's WhatsApp language

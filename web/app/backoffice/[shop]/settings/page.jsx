@@ -24,7 +24,7 @@ function Settings() {
   const toast = useToast();
   const params = useSearchParams();
 
-  const [tab, setTab] = useState(params.get("tab") || "shop");
+  const [picked, setTab] = useState(params.get("tab") || "shop");
   const [p, setProfile] = useState(null);
   const [hours, setHours] = useState([]);
   const [zones, setZones] = useState([]);
@@ -74,6 +74,7 @@ function Settings() {
     ...(!bookingsOnly ? [["payments", t("db.set.tab.payments")]] : []),
     ["alerts", t("db.set.tab.alerts")],
   ];
+  const tab = tabs.some(([id]) => id === picked) ? picked : "shop"; // a tab this shop doesn't have opens Shop
   const hint = (text) => <div className="mk-hint">{text}</div>;
   const yesNo = (key, on = "15") => (
     <select style={{ maxWidth: 140 }} value={Number(p[key] ?? on) > 0 ? on : "0"} onChange={(e) => setP(key, e.target.value)}>
