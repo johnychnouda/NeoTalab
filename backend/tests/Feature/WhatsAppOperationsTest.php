@@ -726,6 +726,10 @@ class WhatsAppOperationsTest extends TestCase
         $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
         $this->assertSame('confirmed', $order->fresh()->status);
         $this->assertStringContainsString('accepted your order #1 — ready for pickup around', $this->lastTo(self::CUSTOMER));
+        $goAhead = collect($this->sentTo($owner->whatsapp_number))->last()['text'];
+        $this->assertStringStartsWith('✅ Order #1 is confirmed — prepare it now.', $goAhead);
+        $this->assertStringContainsString('(💵 cash)', $goAhead);
+        $this->assertStringContainsString('The customer picks it up at the shop.', $goAhead);
 
         $card = collect($this->sentTo($owner->whatsapp_number))->last();
         $this->assertSame(["stf:ready:{$order->id}", "stf:delivered:{$order->id}"], $card['buttons']);

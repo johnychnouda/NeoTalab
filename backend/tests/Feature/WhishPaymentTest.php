@@ -207,7 +207,7 @@ class WhishPaymentTest extends TestCase
         $this->whishCallback($order)->assertOk()->assertJsonPath('payment_status', 'paid');
         $this->assertSame('confirmed', $order->fresh()->status);
         $this->assertStringContainsString('Payment received! Order #1 is confirmed', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('New order #1', $this->lastTo('+96176000009'));
+        $this->assertStringContainsString('Order #1 is paid with Whish — prepare it now.', $this->lastTo('+96176000009'));
     }
 
     public function test_a_refused_whish_order_was_never_paid_so_nothing_is_refunded(): void

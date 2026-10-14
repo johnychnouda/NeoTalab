@@ -66,6 +66,17 @@ class NotifyStaffOfOrder implements ShouldQueue
             $templateParams = [(string) $order->number, $merchant->name, StaffMessenger::oneLine($details), $time];
         } elseif ($this->reminder) {
             return;
+        } else {
+            // Accepted (and paid, for Whish): the ticket says it is time to prepare, and who delivers.
+            $paid = $order->payment_method === 'whish' && $order->payment_status === 'paid';
+            $lines = explode("\n", $body);
+            $lines[0] = __($paid ? 'whatsapp.staff.paid_go' : 'whatsapp.staff.confirmed_go', ['number' => $params['number']], $locale);
+            if ($pickup) {
+                $lines[] = __('whatsapp.staff.pickup_note', [], $locale);
+            } elseif ($order->driver) {
+                $lines[] = __('whatsapp.staff.driver_takes', ['driver' => $order->driver->name], $locale);
+            }
+            $body = implode("\n", $lines);
         }
 
         $buttons = array_map(fn ($b) => ["{$b[0]}:{$order->id}", $b[1]], $buttons);

@@ -1964,7 +1964,13 @@ button.wa-mic { border: 0; cursor: pointer; }
   mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .wa-tabs::-webkit-scrollbar { display: none; }
 .wa-tabs button { flex: none; scroll-snap-align: center; white-space: nowrap; }
-.wa-modes { display: inline-flex; gap: 2px; padding: 3px; margin: 0 auto 16px; border-radius: 12px; border: 1px solid var(--site-line); background: var(--site-card); }
+/* The two demo choices: how the customer gets the order, and how they pay. */
+.wa-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 28px; margin: 0 auto 18px; }
+.wa-choice { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.wa-choice > span { font-size: 12.5px; font-weight: 700; color: var(--site-muted); }
+.wa-modes button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 112px; }
+.wa-modes .wa-whish { width: 16px; height: 16px; margin: 0; }
+.wa-modes { display: inline-flex; gap: 2px; padding: 3px; margin: 0; border-radius: 12px; border: 1px solid var(--site-line); background: var(--site-card); }
 .wa-modes button { padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--site-muted); font: inherit; font-size: 13.5px;
   font-weight: 700; cursor: pointer; transition: background .2s, color .2s; }
 .wa-modes button:hover { color: #dfe8e3; }
