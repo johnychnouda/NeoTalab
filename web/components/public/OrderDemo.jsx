@@ -10,7 +10,6 @@ const SWITCH_DELAY = 1500;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
-  video: "M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11z",
   call: "M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z",
   more: "M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z",
   emoji: "M12 2a10 10 0 100 20 10 10 0 000-20zm-3.5 6a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm7 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM12 18a6 6 0 01-5.3-3.2h10.6A6 6 0 0112 18z",
@@ -161,7 +160,6 @@ export default function OrderDemo({ demo }) {
                     <strong>{scenario.shop}</strong>
                     <span>{typing === chat ? demo.typing : demo.online}</span>
                   </div>
-                  <Svg d={icons.video} size={19} />
                   <Svg d={icons.call} size={17} />
                   <Svg d={icons.more} size={18} />
                 </div>
