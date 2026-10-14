@@ -4,6 +4,8 @@ import { company } from "@/lib/company";
 import { getSiteLang } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import Icon from "@/components/public/Icon";
+import OrderDemo from "@/components/public/OrderDemo";
+import { orderDemo } from "@/lib/order-demo";
 
 export const metadata = {
   title: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
@@ -13,7 +15,9 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const t = siteText(await getSiteLang()).home;
+  const lang = await getSiteLang();
+  const t = siteText(lang).home;
+  const demo = orderDemo(lang);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -43,7 +47,13 @@ export default async function Home() {
             {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
           </ul>
         </div>
-        <ChatPreview chat={t.chat} />
+        <div className="hero-demo"><OrderDemo demo={demo} chats={["c"]} /></div>
+      </section>
+
+      <section className="section" id="demo">
+        <h2>{demo.title}</h2>
+        <p className="lead">{demo.lead}</p>
+        <OrderDemo demo={demo} showSteps />
       </section>
 
       <section className="section" id="how">
@@ -129,24 +139,5 @@ export default async function Home() {
         </div>
       </section>
     </SiteShell>
-  );
-}
-
-/** A WhatsApp-style conversation showing an order being taken. */
-function ChatPreview({ chat }) {
-  return (
-    <div className="phone" aria-hidden="true">
-      <div className="phone-head">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/Logo.png" alt="" width={34} height={34} />
-        <div><strong>{chat.shop}</strong><span>{chat.online}</span></div>
-      </div>
-      <div className="phone-body">
-        <p className="bubble out">{chat.c1}</p>
-        <p className="bubble in">{chat.b1}</p>
-        <p className="bubble out">{chat.c2}</p>
-        <p className="bubble in">{chat.b2}</p>
-      </div>
-    </div>
   );
 }
