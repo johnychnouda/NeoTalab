@@ -1866,12 +1866,12 @@ tr.action-highlight { background: #f9731618 !important; }
   box-shadow: 0 30px 80px -20px #000a, 0 0 0 6px #ffffff06; }
 .phone-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 12px; border-bottom: 1px solid #1f2c33; }
 .phone-head img { border-radius: 50%; background: #fff; }
-.phone-head div { display: flex; flex-direction: column; line-height: 1.25; }
+.phone-head div { display: flex; flex-direction: column; align-items: flex-start; text-align: start; line-height: 1.25; }
 .phone-head strong { font-size: 14px; color: #e9edef; }
 .phone-head span { font-size: 12px; color: var(--green); }
 .phone-body { display: flex; flex-direction: column; gap: 8px; padding: 14px 8px 10px; min-height: 300px;
   background: radial-gradient(circle at 20% 20%, #ffffff05 0 2px, transparent 3px) 0 0 / 22px 22px; }
-.bubble { max-width: 84%; padding: 8px 11px; border-radius: 10px; font-size: 13.5px; line-height: 1.45; color: #e9edef; margin: 0; }
+.bubble { text-align: start; max-width: 84%; padding: 8px 11px; border-radius: 10px; font-size: 13.5px; line-height: 1.45; color: #e9edef; margin: 0; }
 .bubble.out { align-self: flex-end; background: #005c4b; border-top-right-radius: 3px; }
 .bubble.in { align-self: flex-start; background: #202c33; border-top-left-radius: 3px; }
 
