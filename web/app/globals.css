@@ -1923,6 +1923,13 @@ tr.action-highlight { background: #f9731618 !important; }
 .wa-field em { flex: 1; font-style: normal; font-size: 14px; text-align: start; }
 .wa-mic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #00a884; color: #0b141a; }
 .wa-row { display: flex; flex-direction: column; }
+button.wa-button { width: 100%; border: 0; font: inherit; font-size: 13.5px; font-weight: 500; }
+button.wa-mic { border: 0; cursor: pointer; }
+.wa-target { cursor: pointer; animation: wa-glow 1.6s ease-in-out .6s infinite; }
+.wa-target:hover { filter: brightness(1.15); }
+.wa-target:focus-visible { outline: 2px solid #25d366; outline-offset: 2px; }
+.wa-draft { color: var(--wa-text); overflow-wrap: anywhere; }
+@keyframes wa-glow { 0%, 100% { box-shadow: 0 0 0 0 #25d36600; } 50% { box-shadow: 0 0 0 4px #25d36699, 0 0 18px #25d36666; } }
 .wa-bot { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 600; color: #25d366; }
 .wa-human { display: block; margin-bottom: 2px; font-size: 12.5px; font-weight: 600; color: #ffd279; }
 .wa-whish { display: inline-block; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 5px; vertical-align: -3px; }

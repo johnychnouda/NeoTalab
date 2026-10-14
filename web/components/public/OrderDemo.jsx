@@ -8,6 +8,8 @@ const RESTART_DELAY = 12000;
 // Extra pauses when the next message is on another phone, or starts a new step.
 const SWITCH_DELAY = 1400;
 const STEP_DELAY = 2000;
+// The visitor plays the customer: their next tap glows, and the demo taps it for them after this.
+const AUTO_DELAY = 6000;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
@@ -21,6 +23,7 @@ const icons = {
   pause: "M6 5h4v14H6zm8 0h4v14h-4z",
   replay: "M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z",
   chevron: "M9.3 6.7L10.7 5.3 17.4 12l-6.7 6.7-1.4-1.4L14.6 12z",
+  send: "M3 20.5l18-8.5L3 3.5v6.6l12.5 1.9L3 13.9z",
   ticks: "M11.1.7L5.2 6.6 3.2 4.6 2 5.8l3.2 3.2 7.1-7.1zM14.5.7L8.6 6.6l-.6-.6-1.2 1.2L8.6 9l7.1-7.1z",
 };
 
@@ -42,6 +45,23 @@ function Text({ text }) {
     if (part === WHISH) return <Whish key={i} />;
     return i % 2 ? <span key={i} className="wa-link">{part}</span> : part;
   });
+}
+
+/**
+ * What the customer does next, so the visitor can do it: tap a button of the bot's last message
+ * (a list button stands for the item picked in it), send a voice note, or send the typed text.
+ */
+function customerAction(messages, count) {
+  const msg = messages[count];
+  if (msg.voice) return { kind: "voice" };
+  let i = count - 1;
+  while (i >= 0 && messages[i].chat !== "c") i--;
+  const bot = messages[i];
+  if (bot && !bot.out && bot.buttons && !msg.photo) {
+    if (bot.buttons.includes(msg.text)) return { kind: "button", at: i, label: msg.text };
+    if (bot.buttons.length === 1) return { kind: "button", at: i, label: bot.buttons[0] };
+  }
+  return { kind: "send", draft: msg.photo ? `${msg.photo} ${msg.text}` : msg.text };
 }
 
 /** Real NeoTalab conversations for several kinds of shops, on the phones of the people involved. */
@@ -87,7 +107,7 @@ export default function OrderDemo({ demo }) {
     }
     const msg = messages[count];
     const prev = messages[count - 1];
-    const wait = OUT_DELAY + (prev && prev.chat !== msg.chat ? SWITCH_DELAY : 0) + (prev && prev.step !== msg.step ? STEP_DELAY : 0);
+    const wait = msg.chat === "c" && msg.out ? AUTO_DELAY : OUT_DELAY + (prev && prev.chat !== msg.chat ? SWITCH_DELAY : 0) + (prev && prev.step !== msg.step ? STEP_DELAY : 0);
     if (msg.out) {
       timer = setTimeout(() => setCount(count + 1), wait);
     } else {
@@ -102,7 +122,9 @@ export default function OrderDemo({ demo }) {
   const last = count > 0 ? messages[count - 1] : null;
   // The step of the next message to show, so a jump lands on the step it picked.
   const step = count < messages.length ? messages[count].step : last?.step ?? 0;
-  const activeChat = typing || last?.chat || chats[0];
+  const next = messages[count];
+  const action = started && next?.chat === "c" && next.out ? customerAction(messages, count) : null;
+  const activeChat = typing || (action ? "c" : last?.chat) || chats[0];
 
   useEffect(() => {
     Object.values(bodyRefs.current).forEach((el) => {
@@ -137,6 +159,12 @@ export default function OrderDemo({ demo }) {
   // The arrows beside the shop list pick the previous or next kind of shop.
   function slideTabs(direction) {
     pickScenario((scenarioIndex + direction + demo.scenarios.length) % demo.scenarios.length);
+  }
+
+  function send() {
+    setStarted(true);
+    setPlaying(true);
+    setCount(count + 1);
   }
 
   function jumpToStep(step) {
@@ -192,7 +220,7 @@ export default function OrderDemo({ demo }) {
         ))}
       </div>
 
-      <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef} aria-hidden="true">
+      <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>
         {chats.map((chat) => {
           const shown = messages.map((m, i) => ({ ...m, i })).filter((m) => m.chat === chat && m.i < count);
           return (
@@ -239,7 +267,11 @@ export default function OrderDemo({ demo }) {
                               {m.out && <Svg d={icons.ticks} size={16} box="0 0 16 11" />}
                             </span>
                           </div>
-                          {m.buttons?.map((b) => <span key={b} className="wa-button">{b === WHISH ? <Whish /> : b}</span>)}
+                          {m.buttons?.map((b) => (action?.kind === "button" && action.at === m.i && action.label === b ? (
+                            <button key={b} type="button" className="wa-button wa-target" onClick={send}>{b === WHISH ? <Whish /> : b}</button>
+                          ) : (
+                            <span key={b} className="wa-button">{b === WHISH ? <Whish /> : b}</span>
+                          )))}
                         </div>
                       </div>
                     );
@@ -249,11 +281,16 @@ export default function OrderDemo({ demo }) {
                 <div className="wa-input">
                   <span className="wa-field">
                     <Svg d={icons.emoji} />
-                    <em>{demo.message}</em>
-                    <Svg d={icons.clip} size={19} />
-                    <Svg d={icons.camera} size={19} />
+                    {chat === "c" && action?.kind === "send" ? <em className="wa-draft">{action.draft}</em> : <em>{demo.message}</em>}
+                    {!(chat === "c" && action?.kind === "send") && <><Svg d={icons.clip} size={19} /><Svg d={icons.camera} size={19} /></>}
                   </span>
-                  <span className="wa-mic"><Svg d={icons.mic} /></span>
+                  {chat === "c" && action?.kind === "send" ? (
+                    <button type="button" className="wa-mic wa-target" onClick={send} aria-label={demo.sendLabel}><Svg d={icons.send} /></button>
+                  ) : chat === "c" && action?.kind === "voice" ? (
+                    <button type="button" className="wa-mic wa-target" onClick={send} aria-label={demo.voice}><Svg d={icons.mic} /></button>
+                  ) : (
+                    <span className="wa-mic"><Svg d={icons.mic} /></span>
+                  )}
                 </div>
               </div>
             </div>
