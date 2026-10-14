@@ -208,51 +208,55 @@ export default function OrderDemo({ demo }) {
         </button>
       </div>
 
-      {shop.booking ? (
-        <p className="wa-choices wa-booking-note">{demo.bookingNote}</p>
-      ) : (
-        <div className="wa-choices">
-          <div className="wa-choice">
-            <span id="wa-mode-label">{demo.choose.mode}</span>
-            <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
-              {["delivery", "pickup"].map((m) => (
-                <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
-                  {demo.modes[m]}
-                </button>
-              ))}
+      <div className="wa-controls">
+        {shop.booking ? (
+          <p className="wa-choices wa-booking-note">{demo.bookingNote}</p>
+        ) : (
+          <div className="wa-choices">
+            <div className="wa-choice">
+              <span id="wa-mode-label">{demo.choose.mode}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
+                {["delivery", "pickup"].map((m) => (
+                  <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+                    {demo.modes[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="wa-choice">
+              <span id="wa-pay-label">{demo.choose.pay}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
+                {["whish", "cash"].map((p) => (
+                  <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
+                    {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="wa-choice">
-            <span id="wa-pay-label">{demo.choose.pay}</span>
-            <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
-              {["whish", "cash"].map((p) => (
-                <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
-                  {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
-                </button>
-              ))}
-            </div>
+        )}
+        <div className="wa-player">
+          <div className="wa-bar">
+            <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
+              <Svg d={playing ? icons.pause : icons.play} size={18} />
+            </button>
+            <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
+              <Svg d={icons.chevron} size={18} />
+            </button>
+            <p className="wa-step" aria-live="polite"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
+            <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
+              <Svg d={icons.chevron} size={18} />
+            </button>
+            <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
+              <Svg d={icons.replay} size={18} />
+            </button>
+          </div>
+          <div className="wa-progress">
+            {scenario.steps.map((label, i) => (
+              <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
+            ))}
           </div>
         </div>
-      )}
-      <div className="wa-bar">
-        <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
-          <Svg d={playing ? icons.pause : icons.play} size={18} />
-        </button>
-        <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <p className="wa-step" aria-live="polite"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
-        <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
-          <Svg d={icons.replay} size={18} />
-        </button>
-      </div>
-      <div className="wa-progress">
-        {scenario.steps.map((label, i) => (
-          <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
-        ))}
       </div>
 
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>

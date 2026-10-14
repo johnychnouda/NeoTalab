@@ -2446,3 +2446,17 @@ button.wa-mic { border: 0; cursor: pointer; }
 .launch-name { font-size: 13.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .launch-level { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .launch-fix { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-top: 2px; word-break: break-word; }
+
+/* Desktop: the shop pickers and the player share one row and the phones follow the screen height,
+   so the whole demo (choices, controls and the newest messages) fits on a laptop screen. */
+@media (min-width: 981px) {
+  #demo { padding-top: 20px; }
+  #demo .section-head { max-width: 920px; margin-bottom: 18px; }
+  .wa-controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 14px 36px; margin-bottom: 16px; }
+  .wa-who { margin-bottom: 6px; }
+  .wa-controls .wa-choices { margin: 0; }
+  .wa-player .wa-bar { margin-bottom: 8px; }
+  .wa-player .wa-progress { margin-bottom: 0; }
+  .wa-tabs-wrap { margin-bottom: 16px; }
+  .wa-phone { height: clamp(360px, calc(100svh - 390px), 560px); }
+}
