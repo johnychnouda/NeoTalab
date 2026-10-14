@@ -152,7 +152,7 @@ export default function OrderDemo({ demo }) {
               <p className="wa-who">{demo.who[chat]}</p>
               <div className="wa-phone">
                 <div className="wa-head">
-                  <Svg d={icons.back} size={22} className="wa-back" />
+                  <Svg d={icons.back} size={20} className="wa-back" />
                   <span className="wa-avatar">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/Logo.png" alt="" width={24} height={24} />
@@ -161,9 +161,9 @@ export default function OrderDemo({ demo }) {
                     <strong>{scenario.shop}</strong>
                     <span>{typing === chat ? demo.typing : demo.online}</span>
                   </div>
-                  <Svg d={icons.video} size={21} />
-                  <Svg d={icons.call} size={19} />
-                  <Svg d={icons.more} size={20} />
+                  <Svg d={icons.video} size={19} />
+                  <Svg d={icons.call} size={17} />
+                  <Svg d={icons.more} size={18} />
                 </div>
                 <div className="wa-body" ref={(el) => { bodyRefs.current[chat] = el; }}>
                   <span className="wa-date">{demo.today}</span>
