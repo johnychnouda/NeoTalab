@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const OUT_DELAY = 3400;
-const TYPING_DELAY = 2000;
+const OUT_DELAY = 2600;
+const TYPING_DELAY = 1500;
 const RESTART_DELAY = 12000;
 // Extra pauses when the next message is on another phone, or starts a new step.
-const SWITCH_DELAY = 2000;
-const STEP_DELAY = 3000;
+const SWITCH_DELAY = 1400;
+const STEP_DELAY = 2000;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
