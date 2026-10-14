@@ -5,8 +5,7 @@ import { getSiteLang } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
-import HeroPhone from "@/components/public/HeroPhone";
-import { orderDemo, heroChat } from "@/lib/order-demo";
+import { orderDemo } from "@/lib/order-demo";
 import { getPlan } from "@/lib/api";
 
 export const metadata = {
@@ -55,7 +54,6 @@ export default async function Home() {
             {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{n(item)}</li>)}
           </ul>
         </div>
-        <HeroPhone chat={{ ...heroChat(lang), message: demo.message }} />
       </section>
 
       <section className="section" id="demo">
