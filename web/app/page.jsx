@@ -41,7 +41,7 @@ export default async function Home() {
           <p>{t.intro}</p>
           <div className="hero-actions">
             <Link href="/join" className="btn-hero primary">{t.trial}<Icon name="arrow" size={18} /></Link>
-            <Link href="#how" className="btn-hero ghost">{t.seeHow}</Link>
+            <Link href="#demo" className="btn-hero ghost">{t.seeHow}</Link>
           </div>
           <ul className="hero-trust">
             {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
@@ -50,13 +50,15 @@ export default async function Home() {
       </section>
 
       <section className="section" id="demo">
-        <h2>{demo.title}</h2>
-        <p className="lead">{demo.lead}</p>
+        <div className="section-head">
+          <h2>{demo.title}</h2>
+          <p className="lead">{demo.lead}</p>
+        </div>
         <OrderDemo demo={demo} />
       </section>
 
       <section className="section" id="how">
-        <h2>{t.stepsTitle}</h2>
+        <div className="section-head"><h2>{t.stepsTitle}</h2></div>
         <ol className="steps">
           {t.steps.map(([title, text], i) => (
             <li key={title} className="step">
@@ -68,60 +70,26 @@ export default async function Home() {
         </ol>
       </section>
 
-      <section className="section">
-        <h2>{t.rolesTitle}</h2>
-        <p className="lead">{t.howLead}</p>
-        <div className="cards">
-          {[["chat", t.customersTitle, t.customers], ["store", t.youTitle, t.you], ["scooter", t.teamTitle, t.team]].map(([icon, title, items]) => (
-            <div className="card" key={title}>
+      <section className="section" id="features">
+        <div className="section-head">
+          <h2>{t.featuresTitle}</h2>
+          <p className="lead">{t.featuresLead}</p>
+        </div>
+        <div className="features">
+          {t.features.map(([icon, title, text]) => (
+            <div className="feature" key={title}>
               <span className="card-icon"><Icon name={icon} /></span>
-              <h3>{title}</h3>
-              <ul className="ticks">{items.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}</ul>
+              <div>
+                <h3>{title}</h3>
+                <p>{text}{icon === "shield" ? <> <Link href="/privacy">{t.privacyLink}</Link></> : null}</p>
+              </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="section" id="payments">
-        <h2>{t.payTitle}</h2>
-        <p className="lead">{t.payLead}</p>
-        <div className="cards">
-          {t.pay.map(([title, text], i) => (
-            <div className={`card${i === 2 ? " card-accent" : ""}`} key={title}>
-              <span className="card-icon"><Icon name={["bag", "cash", "lock"][i]} /></span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="section" id="businesses">
-        <h2>{t.bizTitle}</h2>
-        <p className="lead">{t.bizLead}</p>
-        <div className="chips">{t.businesses.map((b) => <span key={b} className="chip">{b}</span>)}</div>
-      </section>
-
-      <section className="section">
-        <h2>{t.whyTitle}</h2>
-        <div className="cards cards-4">
-          {t.why.map(([title, text], i) => (
-            <div className="card" key={title}>
-              <span className="card-icon"><Icon name={["clock", "tag", "chat"][i]} /></span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </div>
-          ))}
-          <div className="card">
-            <span className="card-icon"><Icon name="shield" /></span>
-            <h3>{t.privacyTitle}</h3>
-            <p>{t.privacyText} <Link href="/privacy">{t.privacyLink}</Link>.</p>
-          </div>
         </div>
       </section>
 
       <section className="section faq">
-        <h2>{t.faqTitle}</h2>
+        <div className="section-head"><h2>{t.faqTitle}</h2></div>
         <div className="faq-list">
           {t.faq.map(([q, a]) => (
             <details key={q}><summary>{q}</summary><p>{a}</p></details>

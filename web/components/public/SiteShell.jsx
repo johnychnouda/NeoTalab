@@ -21,8 +21,8 @@ export async function SiteShell({ children }) {
       <header className="site-header" dir="ltr">
         <Link href="/" aria-label="NeoTalab home" style={{ textDecoration: "none" }}><Brand size={38} /></Link>
         <nav className="site-nav">
+          <Link href="/#demo">{t.nav.demo}</Link>
           <Link href="/#how">{t.nav.how}</Link>
-          <Link href="/#businesses">{t.nav.businesses}</Link>
           <Link href="/contact">{t.nav.contact}</Link>
           <LangSwitch current={lang} />
           <Link href="/backoffice" className="site-nav-cta">{t.nav.login}</Link>
