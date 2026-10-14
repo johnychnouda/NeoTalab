@@ -5,14 +5,10 @@
 // A message is [chat, text, extras]:
 //   lower-case chat = sent by the shop's NeoTalab number, upper-case = sent by that phone's owner
 //   c / C  customer      s / S  shop owner or staff      d / D  driver
-// extras: buttons (WhatsApp reply buttons), voice ("0:07"), photo (emoji shown in the picture),
-// human (a person from the shop answers instead of the bot), day (date chip before the message).
+// extras: buttons (WhatsApp reply buttons), voice ("0:07"), only ("delivery" or "pickup").
 
-const LBP_RATE = 89500;
-// The script's time blocks. The main story is one order from start to end, grouped into the steps
-// shown above the phones; each extra is a later scene of the same day the visitor can play after it.
-const MAIN_BLOCKS = [[0, 0], [1, 0], [2, 1], [3, 2], [4, 3], [5, 4]];
-const EXTRA_BLOCKS = { human: [6], cash: [7], booking: [8, 10], report: [9] };
+// The script's time blocks (one order from start to end), grouped into the steps shown above the phones.
+const STEP_OF_BLOCK = [0, 0, 1, 2, 3, 4];
 
 const UI = {
   en: {
@@ -25,8 +21,6 @@ const UI = {
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
     steps: ["Order", "Shop accepts", "Whish payment", "Delivery", "Rating"],
     pickupSteps: ["Order", "Shop accepts", "Whish payment", "Pickup", "Rating"],
-    alsoSee: "Also see",
-    extras: { human: "👤 A person answers", cash: "💵 Cash in lira", booking: "🗓 Bookings", report: "📊 Daily report" },
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
@@ -38,8 +32,6 @@ const UI = {
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
     steps: ["الطلب", "المحل بيقبل", "دفع Whish", "التوصيل", "التقييم"],
     pickupSteps: ["الطلب", "المحل بيقبل", "دفع Whish", "الاستلام", "التقييم"],
-    alsoSee: "شوف كمان",
-    extras: { human: "👤 موظف بيرد", cash: "💵 كاش بالليرة", booking: "🗓 حجز مواعيد", report: "📊 تقرير اليوم" },
   },
   fr: {
     title: "NeoTalab en action",
@@ -51,8 +43,6 @@ const UI = {
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
     steps: ["Commande", "Le commerce accepte", "Paiement Whish", "Livraison", "Note"],
     pickupSteps: ["Commande", "Le commerce accepte", "Paiement Whish", "Retrait", "Note"],
-    alsoSee: "Voir aussi",
-    extras: { human: "👤 Un humain répond", cash: "💵 Espèces en livres", booking: "🗓 Réservations", report: "📊 Rapport du jour" },
   },
 };
 
@@ -71,19 +61,6 @@ const SHOPS = [
       [2, 1.0, { en: "Zaatar man'oushe", ar: "منقوشة زعتر", fr: "Man'oushé zaatar" }],
       [1, 2.5, { en: "Cheese man'oushe", ar: "منقوشة جبنة", fr: "Man'oushé fromage" }],
     ],
-    photo: "🍕",
-    photoCaption: { en: "Can you make this one? 😍", ar: "فيكن تعملولي هيدي؟ 😍", fr: "Vous pouvez faire celle-ci ? 😍" },
-    staffName: { en: "Georges, Foren Al Hara", ar: "جورج، فرن الحارة", fr: "Georges, Foren Al Hara" },
-    staffReply: { en: "Yes! That's our lahm b'ajeen, 3.00$ each. Shall I prepare 2 for tonight? 🙂", ar: "أكيد! هيدي لحم بعجين، 3.00$ الوحدة. بحضّرلك 2 لليوم المسا؟ 🙂", fr: "Oui ! C'est notre lahm b'ajeen, 3,00 $ pièce. Je vous en prépare 2 pour ce soir ? 🙂" },
-    customerThanks: { en: "Yes please, thank you!", ar: "إيه بليز، شكراً!", fr: "Oui merci !" },
-    pickupAsk: { en: "bade 3 man2oushe zaatar, I'll pass to take them", ar: "بدي 3 مناقيش زعتر، بمرق باخدن", fr: "3 man'oushé zaatar à emporter svp, je passe" },
-    pickup: [3, 1.0, { en: "Zaatar man'oushe", ar: "منقوشة زعتر", fr: "Man'oushé zaatar" }],
-    bookingAsk: { en: "Can I book a table for 4 on Friday evening?", ar: "فيي احجز طاولة لـ 4 نهار الجمعة المسا؟", fr: "Je peux réserver une table pour 4 vendredi soir ?" },
-    service: { en: "Table for 4", ar: "طاولة لـ 4", fr: "Table pour 4" },
-    servicePrice: 0,
-    slots: "19:00 · 20:00 · 21:00 · 22:00", time: "20:00",
-    bookingDay: { en: "Fri 17 Oct", ar: "الجمعة 17 تشرين الأول", fr: "ven. 17 oct." },
-    report: [42, 238.5, "4.8"],
   },
   {
     id: "pharmacy", icon: "💊", eta: 40, menu: "products",
@@ -96,19 +73,6 @@ const SHOPS = [
       [1, 4.0, { en: "Panadol Extra", ar: "Panadol Extra", fr: "Panadol Extra" }],
       [1, 6.0, { en: "Vitamin C 1000", ar: "فيتامين C 1000", fr: "Vitamine C 1000" }],
     ],
-    photo: "💊",
-    photoCaption: { en: "Do you have this one?", ar: "عندكن هيدا الدوا؟", fr: "Vous avez celui-ci ?" },
-    staffName: { en: "Rita, pharmacist", ar: "ريتا، صيدلانية", fr: "Rita, pharmacienne" },
-    staffReply: { en: "Yes, we have it, 8.50$. It needs a prescription, please bring it when you pass 🙂", ar: "إيه موجود، 8.50$. بدو وصفة طبية، جيبها معك لما تمرق 🙂", fr: "Oui, nous l'avons, 8,50 $. Il faut une ordonnance, apportez-la en passant 🙂" },
-    customerThanks: { en: "Perfect, thank you!", ar: "تمام، شكراً!", fr: "Parfait, merci !" },
-    pickupAsk: { en: "Do you have baby wipes? I'll pass to pick them up", ar: "عندكن محارم للأطفال؟ بمرق باخدن", fr: "Vous avez des lingettes bébé ? Je passe les chercher" },
-    pickup: [2, 1.5, { en: "Baby wipes", ar: "محارم أطفال", fr: "Lingettes bébé" }],
-    bookingAsk: { en: "Can I book a blood pressure check tomorrow morning?", ar: "فيي احجز فحص ضغط بكرا الصبح؟", fr: "Je peux réserver une prise de tension demain matin ?" },
-    service: { en: "Blood pressure check", ar: "فحص ضغط", fr: "Prise de tension" },
-    servicePrice: 5,
-    slots: "09:00 · 09:30 · 10:30 · 11:00", time: "10:30",
-    bookingDay: { en: "Wed 15 Oct", ar: "الأربعاء 15 تشرين الأول", fr: "mer. 15 oct." },
-    report: [27, 412, "4.9"],
   },
   {
     id: "salon", icon: "💇", eta: 45, menu: "services", delivery: false,
@@ -121,19 +85,6 @@ const SHOPS = [
       [1, 15.0, { en: "Hair mask", ar: "ماسك للشعر", fr: "Masque capillaire" }],
       [1, 9.0, { en: "Shampoo 400 ml", ar: "شامبو 400 مل", fr: "Shampooing 400 ml" }],
     ],
-    photo: "💇",
-    photoCaption: { en: "Can you do this haircut?", ar: "فيكن تعملولي هالقصة؟", fr: "Vous pouvez faire cette coupe ?" },
-    staffName: { en: "Maya, Beauty Corner", ar: "مايا، Beauty Corner", fr: "Maya, Beauty Corner" },
-    staffReply: { en: "Of course! It's a layered cut, 25.00$, about 1 hour. You can book it right here 😊", ar: "أكيد! هيدي قصة layers، 25.00$، حوالي ساعة. فيك تحجز من هون 😊", fr: "Bien sûr ! C'est une coupe dégradée, 25,00 $, environ 1 heure. Vous pouvez réserver ici 😊" },
-    customerThanks: { en: "Great, thank you!", ar: "حلو، شكراً!", fr: "Super, merci !" },
-    pickupAsk: { en: "Can I pick up a hair brush today?", ar: "فيي آخد فرشاية شعر اليوم؟", fr: "Je peux passer prendre une brosse aujourd'hui ?" },
-    pickup: [1, 7.0, { en: "Hair brush", ar: "فرشاية شعر", fr: "Brosse à cheveux" }],
-    bookingAsk: { en: "Can I book that layered cut tomorrow afternoon?", ar: "فيي احجز قصة الـ layers بكرا بعد الضهر؟", fr: "Je peux réserver cette coupe demain après-midi ?" },
-    service: { en: "Layered haircut", ar: "قصة layers", fr: "Coupe dégradée" },
-    servicePrice: 25,
-    slots: "14:00 · 15:30 · 16:30 · 17:30", time: "16:30",
-    bookingDay: { en: "Wed 15 Oct", ar: "الأربعاء 15 تشرين الأول", fr: "mer. 15 oct." },
-    report: [18, 520, "5.0"],
   },
   {
     id: "market", icon: "🛒", eta: 30, menu: "products",
@@ -146,19 +97,6 @@ const SHOPS = [
       [2, 3.5, { en: "Labneh 500 g", ar: "لبنة 500 غ", fr: "Labné 500 g" }],
       [1, 6.5, { en: "Eggs (30)", ar: "بيض (30)", fr: "Œufs (30)" }],
     ],
-    photo: "🛒",
-    photoCaption: { en: "3andak hayda l brand?", ar: "عندك هالماركة؟", fr: "Vous avez cette marque ?" },
-    staffName: { en: "Elie, Mini Market", ar: "إيلي، ميني ماركت", fr: "Elie, Mini Market" },
-    staffReply: { en: "Yes, 4.25$. I'll keep one for you 🙂", ar: "إيه موجودة، 4.25$. بخبيلك وحدة 🙂", fr: "Oui, 4,25 $. Je vous en garde un 🙂" },
-    customerThanks: { en: "Merci Elie!", ar: "ميرسي إيلي!", fr: "Merci Elie !" },
-    pickupAsk: { en: "3andak 2 khebz? I'll pass now", ar: "عندك 2 خبز؟ بمرق هلق", fr: "Vous avez 2 paquets de pain ? Je passe maintenant" },
-    pickup: [2, 0.8, { en: "Arabic bread", ar: "خبز عربي", fr: "Pain libanais" }],
-    bookingAsk: { en: "Can I order a mezze platter for Saturday noon?", ar: "فيي اطلب صينية مازة لنهار السبت الضهر؟", fr: "Je peux commander un plateau mezzé pour samedi midi ?" },
-    service: { en: "Mezze platter (10 people)", ar: "صينية مازة (10 أشخاص)", fr: "Plateau mezzé (10 pers.)" },
-    servicePrice: 45,
-    slots: "10:00 · 12:00 · 14:00", time: "12:00",
-    bookingDay: { en: "Sat 18 Oct", ar: "السبت 18 تشرين الأول", fr: "sam. 18 oct." },
-    report: [36, 287.25, "4.7"],
   },
   {
     id: "bakery", icon: "🥐", eta: 30, menu: "menu",
@@ -171,19 +109,6 @@ const SHOPS = [
       [1, 12.0, L("Maamoul (1 kg)", "معمول (1 كغ)", "Maamoul (1 kg)")],
       [2, 3.5, L("Knefeh", "كنافة", "Knéfé")],
     ],
-    photo: "🎂",
-    photoCaption: L("Can you make a cake like this?", "فيكن تعملولي قالب متل هيدا؟", "Vous pouvez faire un gâteau comme celui-ci ?"),
-    staffName: L("Nour, Patisserie Nour", "نور، حلويات نور", "Nour, Pâtisserie Nour"),
-    staffReply: L("Yes! This one is 35.00$ for 12 people. Book it here and it will be ready 🎂", "أكيد! هيدا بـ 35.00$ لـ 12 شخص. احجزه من هون وبيكون جاهز 🎂", "Oui ! Celui-ci fait 35,00 $ pour 12 personnes. Réservez-le ici et il sera prêt 🎂"),
-    customerThanks: L("Perfect, thank you!", "تمام، شكراً!", "Parfait, merci !"),
-    pickupAsk: L("bade 1 kilo ka3ek, I'll pass to take it", "بدي كيلو كعك، بمرق باخدو", "1 kg de ka'ak svp, je passe le prendre"),
-    pickup: [1, 5.0, L("Ka'ak (1 kg)", "كعك (1 كغ)", "Ka'ak (1 kg)")],
-    bookingAsk: L("Can I order a birthday cake for Saturday at 5pm?", "فيي اطلب قالب عيد ميلاد لنهار السبت الساعة 5؟", "Je peux commander un gâteau d'anniversaire pour samedi 17h ?"),
-    service: L("Birthday cake (12 people)", "قالب عيد ميلاد (12 شخص)", "Gâteau d'anniversaire (12 pers.)"),
-    servicePrice: 35,
-    slots: "10:00 · 12:00 · 15:00 · 17:00", time: "17:00",
-    bookingDay: L("Sat 18 Oct", "السبت 18 تشرين الأول", "sam. 18 oct."),
-    report: [55, 690, "4.9"],
   },
   {
     id: "butcher", icon: "🥩", eta: 35, menu: "products",
@@ -196,19 +121,6 @@ const SHOPS = [
       [1, 14.0, L("Kafta (1 kg)", "كفتة (1 كغ)", "Kafta (1 kg)")],
       [1, 9.0, L("Chicken breast (1 kg)", "صدر دجاج (1 كغ)", "Blanc de poulet (1 kg)")],
     ],
-    photo: "🥩",
-    photoCaption: L("Can you cut the meat like this?", "فيكن تقطعولي اللحمة هيك؟", "Vous pouvez couper la viande comme ça ?"),
-    staffName: L("Tony, Al Wadi", "طوني، ملحمة الوادي", "Tony, Al Wadi"),
-    staffReply: L("Sure, cubes for the grill, no extra charge 👍", "أكيد، مكعبات للمشاوي، بلا زيادة 👍", "Bien sûr, en cubes pour le grill, sans supplément 👍"),
-    customerThanks: L("Thanks Tony!", "شكراً طوني!", "Merci Tony !"),
-    pickupAsk: L("bade 1 kilo lahme mafroumeh, I'll pass", "بدي كيلو لحمة مفرومة، بمرق باخدن", "1 kg de viande hachée svp, je passe"),
-    pickup: [1, 15.0, L("Minced beef (1 kg)", "لحمة مفرومة (1 كغ)", "Bœuf haché (1 kg)")],
-    bookingAsk: L("Can I order a whole lamb for Sunday?", "فيي اطلب خاروف كامل لنهار الأحد؟", "Je peux commander un agneau entier pour dimanche ?"),
-    service: L("Whole lamb, cut and packed", "خاروف كامل مقطّع ومغلّف", "Agneau entier découpé"),
-    servicePrice: 220,
-    slots: "09:00 · 11:00 · 13:00", time: "11:00",
-    bookingDay: L("Sun 19 Oct", "الأحد 19 تشرين الأول", "dim. 19 oct."),
-    report: [31, 1240, "4.8"],
   },
   {
     id: "clothing", icon: "👗", eta: 60, menu: "catalogue",
@@ -221,19 +133,6 @@ const SHOPS = [
       [1, 35.0, L("Black jeans, size 38", "جينز أسود، قياس 38", "Jean noir, taille 38")],
       [1, 18.0, L("White t-shirt, M", "تيشرت أبيض، M", "T-shirt blanc, M")],
     ],
-    photo: "👗",
-    photoCaption: L("Do you have this dress in red?", "عندكن هالفستان بالأحمر؟", "Vous avez cette robe en rouge ?"),
-    staffName: L("Lina, Boutique Lina", "لينا، بوتيك لينا", "Lina, Boutique Lina"),
-    staffReply: L("Yes, in S and M, 55.00$. Book a fitting here and come try it 😊", "إيه، في S و M، بـ 55.00$. احجزي موعد قياس وتعي جربيه 😊", "Oui, en S et M, 55,00 $. Réservez un essayage ici 😊"),
-    customerThanks: L("Great, thank you!", "حلو، شكراً!", "Super, merci !"),
-    pickupAsk: L("Can I pick up a leather belt today?", "فيي آخد زنار جلد اليوم؟", "Je peux passer prendre une ceinture aujourd'hui ?"),
-    pickup: [1, 15.0, L("Leather belt", "زنار جلد", "Ceinture en cuir")],
-    bookingAsk: L("Can I book a fitting tomorrow afternoon?", "فيي احجز موعد قياس بكرا بعد الضهر؟", "Je peux réserver un essayage demain après-midi ?"),
-    service: L("Private fitting", "موعد قياس خاص", "Essayage privé"),
-    servicePrice: 0,
-    slots: "13:00 · 15:00 · 16:00 · 18:00", time: "16:00",
-    bookingDay: L("Wed 15 Oct", "الأربعاء 15 تشرين الأول", "mer. 15 oct."),
-    report: [22, 1480, "4.9"],
   },
   {
     id: "electronics", icon: "📱", eta: 45, menu: "catalogue",
@@ -246,19 +145,6 @@ const SHOPS = [
       [1, 25.0, L("Fast charger 25W", "شاحن سريع 25W", "Chargeur rapide 25W")],
       [1, 8.0, L("iPhone 15 case", "كفر iPhone 15", "Coque iPhone 15")],
     ],
-    photo: "📱",
-    photoCaption: L("My screen is broken, can you fix it?", "الشاشة مكسورة، فيكن تصلحوها؟", "Mon écran est cassé, vous pouvez le réparer ?"),
-    staffName: L("Rami, Phone City", "رامي، فون سيتي", "Rami, Phone City"),
-    staffReply: L("Yes, a new screen is 90.00$, about 1 hour. Book a time here 🔧", "إيه، شاشة جديدة بـ 90.00$، حوالي ساعة. احجز موعد من هون 🔧", "Oui, un nouvel écran coûte 90,00 $, environ 1 heure. Réservez ici 🔧"),
-    customerThanks: L("Perfect, thanks!", "تمام، شكراً!", "Parfait, merci !"),
-    pickupAsk: L("Do you have a USB-C cable? I'll pass", "عندكن كابل USB-C؟ بمرق باخدو", "Vous avez un câble USB-C ? Je passe"),
-    pickup: [1, 6.0, L("USB-C cable", "كابل USB-C", "Câble USB-C")],
-    bookingAsk: L("Can I book the screen repair tomorrow?", "فيي احجز تصليح الشاشة بكرا؟", "Je peux réserver la réparation demain ?"),
-    service: L("Screen repair", "تصليح شاشة", "Réparation d'écran"),
-    servicePrice: 90,
-    slots: "10:00 · 12:00 · 15:00 · 17:00", time: "12:00",
-    bookingDay: L("Wed 15 Oct", "الأربعاء 15 تشرين الأول", "mer. 15 oct."),
-    report: [19, 1135, "4.7"],
   },
   {
     id: "flowers", icon: "💐", eta: 60, menu: "products",
@@ -271,19 +157,6 @@ const SHOPS = [
       [1, 40.0, L("Bouquet of 20 red roses", "بوكيه 20 وردة حمرا", "Bouquet de 20 roses rouges")],
       [1, 12.0, L("Card and chocolates", "كرت وشوكولا", "Carte et chocolats")],
     ],
-    photo: "💐",
-    photoCaption: L("Can you make a bouquet like this?", "فيكن تعملولي بوكيه متل هيدا؟", "Vous pouvez faire un bouquet comme celui-ci ?"),
-    staffName: L("Joelle, Fleurs de Lys", "جويل، Fleurs de Lys", "Joëlle, Fleurs de Lys"),
-    staffReply: L("Yes! With white roses it's 50.00$, ready in 2 hours 🌸", "أكيد! مع ورد أبيض بـ 50.00$، جاهز بساعتين 🌸", "Oui ! Avec des roses blanches, 50,00 $, prêt en 2 heures 🌸"),
-    customerThanks: L("Lovely, thank you!", "حلو كتير، شكراً!", "Parfait, merci !"),
-    pickupAsk: L("Can I pick up a small orchid today?", "فيي آخد أوركيدة صغيرة اليوم؟", "Je peux passer prendre une petite orchidée ?"),
-    pickup: [1, 15.0, L("Small orchid", "أوركيدة صغيرة", "Petite orchidée")],
-    bookingAsk: L("Can I book wedding table flowers for Saturday?", "فيي احجز ورد طاولات عرس لنهار السبت؟", "Je peux réserver les fleurs de table d'un mariage samedi ?"),
-    service: L("Wedding table flowers", "ورد طاولات عرس", "Fleurs de table de mariage"),
-    servicePrice: 300,
-    slots: "09:00 · 11:00 · 14:00", time: "11:00",
-    bookingDay: L("Sat 18 Oct", "السبت 18 تشرين الأول", "sam. 18 oct."),
-    report: [17, 860, "5.0"],
   },
   {
     id: "water", icon: "💧", eta: 40, menu: "products",
@@ -296,19 +169,6 @@ const SHOPS = [
       [2, 3.0, L("Water gallon 18.9 L", "غالون مي 18.9 ل", "Bonbonne d'eau 18,9 L")],
       [1, 15.0, L("Gas cylinder 10 kg", "قنينة غاز 10 كغ", "Bouteille de gaz 10 kg")],
     ],
-    photo: "🔥",
-    photoCaption: L("My gas regulator looks like this, do you have it?", "ساعة الغاز عندي هيك، عندكن متلها؟", "Mon détendeur ressemble à ça, vous l'avez ?"),
-    staffName: L("Fadi, Abou Fadi Gas", "فادي، غاز أبو فادي", "Fadi, Abou Fadi Gaz"),
-    staffReply: L("Yes, 12.00$. Our technician can check it tomorrow, book a time here 🔧", "إيه، بـ 12.00$. الفني فيه يجي يفحصها بكرا، احجز من هون 🔧", "Oui, 12,00 $. Notre technicien peut passer demain, réservez ici 🔧"),
-    customerThanks: L("Great, thanks!", "تمام، شكراً!", "Super, merci !"),
-    pickupAsk: L("I'll pass to take 2 water gallons", "بمرق آخد 2 غالون مي", "Je passe prendre 2 bonbonnes d'eau"),
-    pickup: [2, 3.0, L("Water gallon 18.9 L", "غالون مي 18.9 ل", "Bonbonne d'eau 18,9 L")],
-    bookingAsk: L("Can the technician come tomorrow morning?", "فيه الفني يجي بكرا الصبح؟", "Le technicien peut passer demain matin ?"),
-    service: L("Gas safety check", "فحص سلامة الغاز", "Contrôle gaz"),
-    servicePrice: 10,
-    slots: "09:00 · 10:30 · 12:00", time: "10:30",
-    bookingDay: L("Wed 15 Oct", "الأربعاء 15 تشرين الأول", "mer. 15 oct."),
-    report: [64, 780, "4.8"],
   },
   {
     id: "laundry", icon: "👔", eta: 60, menu: "price_list",
@@ -321,19 +181,6 @@ const SHOPS = [
       [3, 2.0, L("Shirt, wash and iron", "قميص، غسيل وكوي", "Chemise, lavage et repassage")],
       [1, 8.0, L("Suit, dry cleaning", "بدلة، تنظيف ناشف", "Costume, nettoyage à sec")],
     ],
-    photo: "👔",
-    photoCaption: L("Can you remove this stain?", "فيكن تشيلوا هالبقعة؟", "Vous pouvez enlever cette tache ?"),
-    staffName: L("Hadi, Clean Express", "هادي، كلين إكسبرس", "Hadi, Clean Express"),
-    staffReply: L("Yes, it's oil, we can treat it for 3.00$ extra 👍", "إيه، هيدي زيت، منعالجها بـ 3.00$ زيادة 👍", "Oui, c'est de l'huile, on la traite pour 3,00 $ de plus 👍"),
-    customerThanks: L("Perfect, thanks!", "تمام، شكراً!", "Parfait, merci !"),
-    pickupAsk: L("I'll drop 2 shirts and pick them up later", "بنزّل 2 قمصان وبرجع باخدن", "Je dépose 2 chemises et je les reprends plus tard"),
-    pickup: [2, 2.0, L("Shirt, wash and iron", "قميص، غسيل وكوي", "Chemise, lavage et repassage")],
-    bookingAsk: L("Can you collect my carpets on Thursday?", "فيكن تاخدوا السجاد نهار الخميس؟", "Vous pouvez récupérer mes tapis jeudi ?"),
-    service: L("Carpet pickup and cleaning", "سحب وتنظيف سجاد", "Ramassage et nettoyage de tapis"),
-    servicePrice: 35,
-    slots: "09:00 · 12:00 · 16:00", time: "12:00",
-    bookingDay: L("Thu 16 Oct", "الخميس 16 تشرين الأول", "jeu. 16 oct."),
-    report: [38, 640, "4.8"],
   },
   {
     id: "clinic", icon: "🦷", eta: 60, menu: "services", delivery: false,
@@ -346,19 +193,6 @@ const SHOPS = [
       [1, 6.0, L("Whitening toothpaste", "معجون تبييض", "Dentifrice blanchissant")],
       [1, 12.0, L("Toothbrush heads (4)", "رؤوس فرشاية (4)", "Têtes de brosse (4)")],
     ],
-    photo: "🦷",
-    photoCaption: L("My gum looks like this, should I worry?", "لثتي هيك، لازم اقلق؟", "Ma gencive ressemble à ça, c'est grave ?"),
-    staffName: L("Dr. Karen, Smile Dental", "د. كارين، سمايل دنتال", "Dr Karen, Smile Dental"),
-    staffReply: L("Better to check it. I have free times tomorrow, book one here 🙂", "الأفضل نفحصها. عندي مواعيد فاضية بكرا، احجز من هون 🙂", "Mieux vaut la contrôler. J'ai des créneaux demain, réservez ici 🙂"),
-    customerThanks: L("Thank you doctor!", "شكراً دكتورة!", "Merci docteur !"),
-    pickupAsk: L("Can I pick up a mouthwash today?", "فيي آخد غسول فم اليوم؟", "Je peux passer prendre un bain de bouche ?"),
-    pickup: [1, 7.0, L("Mouthwash 500 ml", "غسول فم 500 مل", "Bain de bouche 500 ml")],
-    bookingAsk: L("Can I book a check-up tomorrow?", "فيي احجز فحص بكرا؟", "Je peux réserver un contrôle demain ?"),
-    service: L("Dental check-up", "فحص أسنان", "Contrôle dentaire"),
-    servicePrice: 40,
-    slots: "09:00 · 11:30 · 14:00 · 16:00", time: "11:30",
-    bookingDay: L("Wed 15 Oct", "الأربعاء 15 تشرين الأول", "mer. 15 oct."),
-    report: [26, 1650, "4.9"],
   },
   {
     id: "pets", icon: "🐾", eta: 45, menu: "products",
@@ -371,19 +205,6 @@ const SHOPS = [
       [1, 28.0, L("Cat food 4 kg", "أكل قطط 4 كغ", "Croquettes chat 4 kg")],
       [1, 9.0, L("Cat litter 10 L", "رمل قطط 10 ل", "Litière 10 L")],
     ],
-    photo: "🐶",
-    photoCaption: L("My dog has this on the skin, what should I use?", "كلبي عندو هيك عالجلد، شو بستعمل؟", "Mon chien a ça sur la peau, que faire ?"),
-    staffName: L("Maya, Pet Corner", "مايا، Pet Corner", "Maya, Pet Corner"),
-    staffReply: L("Looks like a small allergy. Our vet is in tomorrow, book a visit here 🐾", "شكلها حساسية خفيفة. الطبيب البيطري موجود بكرا، احجز من هون 🐾", "On dirait une petite allergie. Le vétérinaire est là demain, réservez ici 🐾"),
-    customerThanks: L("Thank you!", "شكراً!", "Merci !"),
-    pickupAsk: L("I'll pass to take dog treats", "بمرق آخد سناكات للكلب", "Je passe prendre des friandises pour chien"),
-    pickup: [1, 8.0, L("Dog treats", "سناكات كلاب", "Friandises chien")],
-    bookingAsk: L("Can I book a vet visit for my dog tomorrow?", "فيي احجز معاينة للكلب بكرا؟", "Je peux réserver le vétérinaire demain pour mon chien ?"),
-    service: L("Vet visit", "معاينة بيطرية", "Visite vétérinaire"),
-    servicePrice: 30,
-    slots: "10:00 · 12:00 · 15:00", time: "15:00",
-    bookingDay: L("Wed 15 Oct", "الأربعاء 15 تشرين الأول", "mer. 15 oct."),
-    report: [24, 910, "4.9"],
   },
   {
     id: "home", icon: "🛋", eta: 120, menu: "catalogue",
@@ -396,19 +217,6 @@ const SHOPS = [
       [4, 12.0, L("Cushion", "مخدة كنباية", "Coussin")],
       [1, 60.0, L("Table lamp", "لمبة طاولة", "Lampe de table")],
     ],
-    photo: "🛋",
-    photoCaption: L("Do you have this sofa in grey?", "عندكن هالكنباية بالرمادي؟", "Vous avez ce canapé en gris ?"),
-    staffName: L("Ralph, Casa Deco", "رالف، كازا ديكو", "Ralph, Casa Deco"),
-    staffReply: L("Yes, in stock, 650.00$ with free delivery. Book a visit to see it 🙂", "إيه موجودة، بـ 650.00$ مع توصيل مجاني. احجز زيارة لتشوفها 🙂", "Oui, en stock, 650,00 $ livraison offerte. Réservez une visite 🙂"),
-    customerThanks: L("Great, thanks!", "حلو، شكراً!", "Super, merci !"),
-    pickupAsk: L("Can I pick up a scented candle today?", "فيي آخد شمعة معطرة اليوم؟", "Je peux passer prendre une bougie parfumée ?"),
-    pickup: [1, 18.0, L("Scented candle", "شمعة معطرة", "Bougie parfumée")],
-    bookingAsk: L("Can I come see the sofa on Thursday?", "فيي إجي شوف الكنباية نهار الخميس؟", "Je peux venir voir le canapé jeudi ?"),
-    service: L("Showroom visit", "زيارة المعرض", "Visite du showroom"),
-    servicePrice: 0,
-    slots: "11:00 · 14:00 · 17:00", time: "17:00",
-    bookingDay: L("Thu 16 Oct", "الخميس 16 تشرين الأول", "jeu. 16 oct."),
-    report: [9, 2300, "4.8"],
   },
   {
     id: "retail", icon: "🛍", eta: 45, menu: "catalogue",
@@ -421,19 +229,6 @@ const SHOPS = [
       [1, 9.0, L("Umbrella", "شمسية", "Parapluie")],
       [2, 4.0, L("A4 notebook", "دفتر A4", "Cahier A4")],
     ],
-    photo: "🎒",
-    photoCaption: L("Do you have this school bag?", "عندكن هالشنطة للمدرسة؟", "Vous avez ce cartable ?"),
-    staffName: L("Rizk, Bazar Rizk", "رزق، بازار رزق", "Rizk, Bazar Rizk"),
-    staffReply: L("Yes, in blue and black, 22.00$ 🎒", "إيه، في أزرق وأسود، بـ 22.00$ 🎒", "Oui, en bleu et noir, 22,00 $ 🎒"),
-    customerThanks: L("Thanks!", "شكراً!", "Merci !"),
-    pickupAsk: L("I'll pass to take AA batteries", "بمرق آخد بطاريات AA", "Je passe prendre des piles AA"),
-    pickup: [1, 3.0, L("AA batteries (4)", "بطاريات AA (4)", "Piles AA (4)")],
-    bookingAsk: L("Can you wrap 10 gifts for Friday?", "فيكن تغلفولي 10 هدايا لنهار الجمعة؟", "Vous pouvez emballer 10 cadeaux pour vendredi ?"),
-    service: L("Gift wrapping (10 gifts)", "تغليف هدايا (10)", "Emballage cadeaux (10)"),
-    servicePrice: 15,
-    slots: "10:00 · 13:00 · 16:00", time: "16:00",
-    bookingDay: L("Fri 17 Oct", "الجمعة 17 تشرين الأول", "ven. 17 oct."),
-    report: [33, 720, "4.7"],
   },
 ];
 
@@ -491,57 +286,6 @@ const SCRIPT = {
       ["C", "5"],
       ["c", "Thank you for your rating! 🙏"],
     ]],
-    ["15:10", [
-      ["C", d.photoCaption, { photo: d.photo }],
-      ["c", `👋 A member of the ${d.shop} team will reply to you here shortly.`],
-      ["s", "📷 +961 71 234 567 sent a photo. The bot is paused in that chat, see it and answer in your WhatsApp Business app.\nTap the button when you're done.", { buttons: ["▶️ Give back to bot"] }],
-      ["c", d.staffReply, { human: d.staffName }],
-      ["C", d.customerThanks],
-      ["S", "▶️ Give back to bot"],
-      ["s", "🤖 The bot is handling +961 71 234 567 again."],
-    ]],
-    ["16:20", [
-      ["C", d.pickupAsk],
-      ["c", `Sure! 🙂\n${d.pickupLine}\nAnything else?`, { buttons: ["📋 View menu", "🛒 Checkout"] }],
-      ["C", "🛒 Checkout"],
-      ["c", "How would you like to get your order?", { buttons: ["🛵 Delivery", "🏪 Pickup"], only: "delivery" }],
-      ["C", "🏪 Pickup", { only: "delivery" }],
-      ["c", "How would you like to pay?", { buttons: ["💵 Cash at the shop", "💳 Whish"] }],
-      ["C", "💵 Cash at the shop"],
-      ["c", "Pay cash in dollars or in lira?", { buttons: ["Dollars", "Lira"] }],
-      ["C", "Lira"],
-      ["c", `Your order\n${d.pickupLine}\nTotal: ${n(d.pickupTotal)} (${d.pickupLbp})\nPickup at ${d.shopAddress} · Cash at the shop\nReady in about 15 min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
-      ["C", "✅ Confirm order"],
-      ["c", `🧾 Order #129 sent to ${d.shop}.\nTotal: ${n(d.pickupTotal)} (${d.pickupLbp})\nYou will get a message as soon as the shop accepts it.`],
-      ["s", `🔔 New PICKUP order #129\n${d.pickupLine}\nTotal: ${d.pickupLbp} (cash)\n📞 +961 71 234 567`, { buttons: ["✅ Accept · 15 min", "❌ Can't take it"] }],
-      ["S", "✅ Accept · 15 min"],
-      ["s", "👍 Order #129 updated.", { buttons: ["✅ Ready for pickup", "📦 Collected"] }],
-      ["c", `✅ ${d.shop} accepted your order #129, about 15 min.`],
-      ["S", "✅ Ready for pickup"],
-      ["c", `📦 Your order #129 is ready! You can pick it up now at ${d.shopAddress}.`],
-      ["S", "📦 Collected"],
-      ["c", `✅ Thank you for picking up order #129 from ${d.shop}!`],
-    ]],
-    ["18:05", [
-      ["C", d.bookingAsk],
-      ["c", `🗓 Free times for ${d.service} on ${d.bookingDay}:\n${d.slots}\nWhich time suits you?`],
-      ["C", d.time],
-      ["c", `✅ Booked: ${d.service} on ${d.bookingDay} at ${d.time}${d.servicePrice} at ${d.shop}, ${d.shopAddress}.\nWe'll send you a reminder. Reply "cancel appointment" if you can't make it.`],
-      ["s", `🗓 New booking, ${d.shop}\n${d.service}\n${d.bookingDay} at ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ Done", "🚫 No-show"] }],
-    ]],
-    ["22:00", [
-      ["S", "close"],
-      ["s", `🔴 ${d.shop} is CLOSED, the bot tells customers you are closed.`],
-      ["D", "stop"],
-      ["d", `👋 Shift ended, Karim.\nDeliveries: ${d.driverOrders}\nCash to hand over: ${d.driverCash}`],
-      ["s", `📊 ${d.shop}, daily report\nOrders delivered: ${d.reportOrders}\nSales: ${n(d.reportSales)}\nAverage rating: ${d.reportRating} ⭐\nLate orders: 0\nTop items: ${d.topItems}`],
-    ]],
-    [d.reminderAt, [
-      ["c", `⏰ Reminder: your ${d.service} at ${d.shop} is on ${d.bookingDay} at ${d.time}. See you soon!`, { day: d.bookingDay }],
-      ["C", "See you there 👍"],
-      ["S", "✅ Done", { day: d.bookingDay, late: true }],
-      ["s", `👍 ${d.service} updated.`],
-    ]],
   ],
 
   ar: (d, n) => [
@@ -595,57 +339,6 @@ const SCRIPT = {
       ["c", "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز)."],
       ["C", "5"],
       ["c", "شكراً على تقييمك! 🙏"],
-    ]],
-    ["15:10", [
-      ["C", d.photoCaption, { photo: d.photo }],
-      ["c", `👋 حدا من فريق ${d.shop} رح يرد عليك هون بعد شوي.`],
-      ["s", "📷 ‎+961 71 234 567 بعت صورة. البوت موقّف بهالمحادثة، شوفها وردّ من تطبيق واتساب للأعمال.\nاضغط الزر لما تخلص.", { buttons: ["▶️ رجّع للبوت"] }],
-      ["c", d.staffReply, { human: d.staffName }],
-      ["C", d.customerThanks],
-      ["S", "▶️ رجّع للبوت"],
-      ["s", "🤖 البوت رجع يرد على ‎+961 71 234 567."],
-    ]],
-    ["16:20", [
-      ["C", d.pickupAsk],
-      ["c", `أكيد! 🙂\n${d.pickupLine}\nبدك شي تاني؟`, { buttons: ["📋 عرض القائمة", "🛒 إتمام الطلب"] }],
-      ["C", "🛒 إتمام الطلب"],
-      ["c", "كيف تريد استلام طلبك؟", { buttons: ["🛵 توصيل", "🏪 استلام من المحل"], only: "delivery" }],
-      ["C", "🏪 استلام من المحل", { only: "delivery" }],
-      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش بالمحل", "💳 Whish"] }],
-      ["C", "💵 كاش بالمحل"],
-      ["c", "بتدفع كاش بالدولار أو بالليرة؟", { buttons: ["دولار", "ليرة"] }],
-      ["C", "ليرة"],
-      ["c", `طلبك\n${d.pickupLine}\nالمجموع: ${n(d.pickupTotal)} (${d.pickupLbp})\nاستلام من ${d.shopAddress} · كاش بالمحل\nجاهز بحوالي 15 دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
-      ["C", "✅ تأكيد الطلب"],
-      ["c", `🧾 تم إرسال الطلب رقم 129 إلى ${d.shop}.\nالمجموع: ${n(d.pickupTotal)} (${d.pickupLbp})\nستصلك رسالة فور قبول المحل للطلب.`],
-      ["s", `🔔 طلب استلام جديد رقم 129\n${d.pickupLine}\nالمجموع: ${d.pickupLbp} (كاش)\n📞 +961 71 234 567`, { buttons: ["✅ قبول · 15 د", "❌ ما فينا"] }],
-      ["S", "✅ قبول · 15 د"],
-      ["s", "👍 تم تحديث الطلب رقم 129.", { buttons: ["✅ جاهز للاستلام", "📦 تم الاستلام"] }],
-      ["c", `✅ قبل ${d.shop} طلبك رقم 129، حوالي 15 دقيقة.`],
-      ["S", "✅ جاهز للاستلام"],
-      ["c", `📦 طلبك رقم 129 جاهز! فيك تستلمه هلق من ${d.shopAddress}.`],
-      ["S", "📦 تم الاستلام"],
-      ["c", `✅ شكراً لاستلام الطلب رقم 129 من ${d.shop}!`],
-    ]],
-    ["18:05", [
-      ["C", d.bookingAsk],
-      ["c", `🗓 المواعيد الفاضية لـ ${d.service} نهار ${d.bookingDay}:\n${d.slots}\nأي وقت بيناسبك؟`],
-      ["C", d.time],
-      ["c", `✅ تم الحجز: ${d.service} نهار ${d.bookingDay} الساعة ${d.time}${d.servicePrice} عند ${d.shop}، ${d.shopAddress}.\nرح نبعتلك تذكير. ابعت "إلغاء الموعد" إذا ما فيك تجي.`],
-      ["s", `🗓 حجز جديد، ${d.shop}\n${d.service}\n${d.bookingDay} الساعة ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ تم", "🚫 ما إجا"] }],
-    ]],
-    ["22:00", [
-      ["S", "close"],
-      ["s", `🔴 ${d.shop} مسكّر، البوت بيخبّر الزباين إنكن مسكرين.`],
-      ["D", "stop"],
-      ["d", `👋 انتهى دوامك يا كريم.\nالتوصيلات: ${d.driverOrders}\nالكاش يلي لازم تسلمه: ${d.driverCash}`],
-      ["s", `📊 ${d.shop}، تقرير اليوم\nالطلبات المسلّمة: ${d.reportOrders}\nالمبيعات: ${n(d.reportSales)}\nمعدل التقييم: ${d.reportRating} ⭐\nطلبات متأخرة: 0\nالأكثر طلباً: ${d.topItems}`],
-    ]],
-    [d.reminderAt, [
-      ["c", `⏰ تذكير: موعدك لـ ${d.service} عند ${d.shop} نهار ${d.bookingDay} الساعة ${d.time}. منشوفك قريباً!`, { day: d.bookingDay }],
-      ["C", "منشوفكن 👍"],
-      ["S", "✅ تم", { day: d.bookingDay, late: true }],
-      ["s", `👍 تم تحديث ${d.service}.`],
     ]],
   ],
 
@@ -701,57 +394,6 @@ const SCRIPT = {
       ["C", "5"],
       ["c", "Merci pour votre note ! 🙏"],
     ]],
-    ["15:10", [
-      ["C", d.photoCaption, { photo: d.photo }],
-      ["c", `👋 Un membre de l'équipe ${d.shop} va vous répondre ici très vite.`],
-      ["s", "📷 +961 71 234 567 a envoyé une photo. Le bot est en pause dans cette discussion, voyez-la et répondez depuis WhatsApp Business.\nTouchez le bouton quand vous avez fini.", { buttons: ["▶️ Rendre au bot"] }],
-      ["c", d.staffReply, { human: d.staffName }],
-      ["C", d.customerThanks],
-      ["S", "▶️ Rendre au bot"],
-      ["s", "🤖 Le bot reprend la discussion avec +961 71 234 567."],
-    ]],
-    ["16:20", [
-      ["C", d.pickupAsk],
-      ["c", `Bien sûr ! 🙂\n${d.pickupLine}\nAutre chose ?`, { buttons: ["📋 Voir le menu", "🛒 Commander"] }],
-      ["C", "🛒 Commander"],
-      ["c", "Comment souhaitez-vous recevoir votre commande ?", { buttons: ["🛵 Livraison", "🏪 À emporter"], only: "delivery" }],
-      ["C", "🏪 À emporter", { only: "delivery" }],
-      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces au magasin", "💳 Whish"] }],
-      ["C", "💵 Espèces au magasin"],
-      ["c", "Payer en dollars ou en livres ?", { buttons: ["Dollars", "Livres"] }],
-      ["C", "Livres"],
-      ["c", `Votre commande\n${d.pickupLine}\nTotal : ${n(d.pickupTotal)} (${d.pickupLbp})\nRetrait à ${d.shopAddress} · Espèces au magasin\nPrête dans 15 min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
-      ["C", "✅ Confirmer"],
-      ["c", `🧾 Commande n° 129 envoyée à ${d.shop}.\nTotal : ${n(d.pickupTotal)} (${d.pickupLbp})\nVous recevrez un message dès que le commerce l'accepte.`],
-      ["s", `🔔 Nouvelle commande À RETIRER n° 129\n${d.pickupLine}\nTotal : ${d.pickupLbp} (espèces)\n📞 +961 71 234 567`, { buttons: ["✅ Accepter · 15 min", "❌ Impossible"] }],
-      ["S", "✅ Accepter · 15 min"],
-      ["s", "👍 Commande n° 129 mise à jour.", { buttons: ["✅ Prête à retirer", "📦 Récupérée"] }],
-      ["c", `✅ ${d.shop} a accepté votre commande n° 129, environ 15 min.`],
-      ["S", "✅ Prête à retirer"],
-      ["c", `📦 Votre commande n° 129 est prête ! Vous pouvez la retirer à ${d.shopAddress}.`],
-      ["S", "📦 Récupérée"],
-      ["c", `✅ Merci d'avoir retiré la commande n° 129 chez ${d.shop} !`],
-    ]],
-    ["18:05", [
-      ["C", d.bookingAsk],
-      ["c", `🗓 Créneaux libres pour ${d.service} le ${d.bookingDay} :\n${d.slots}\nQuel horaire vous convient ?`],
-      ["C", d.time],
-      ["c", `✅ Réservé : ${d.service} le ${d.bookingDay} à ${d.time}${d.servicePrice} chez ${d.shop}, ${d.shopAddress}.\nNous vous enverrons un rappel. Répondez "annuler le rendez-vous" si vous ne pouvez pas venir.`],
-      ["s", `🗓 Nouvelle réservation, ${d.shop}\n${d.service}\n${d.bookingDay} à ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ Terminé", "🚫 Absent"] }],
-    ]],
-    ["22:00", [
-      ["S", "close"],
-      ["s", `🔴 ${d.shop} est FERMÉ, le bot prévient les clients.`],
-      ["D", "stop"],
-      ["d", `👋 Service terminé, Karim.\nLivraisons : ${d.driverOrders}\nEspèces à remettre : ${d.driverCash}`],
-      ["s", `📊 ${d.shop}, rapport du jour\nCommandes livrées : ${d.reportOrders}\nVentes : ${n(d.reportSales)}\nNote moyenne : ${d.reportRating} ⭐\nCommandes en retard : 0\nLes plus demandés : ${d.topItems}`],
-    ]],
-    [d.reminderAt, [
-      ["c", `⏰ Rappel : votre ${d.service} chez ${d.shop} est le ${d.bookingDay} à ${d.time}. À bientôt !`, { day: d.bookingDay }],
-      ["C", "À tout à l'heure 👍"],
-      ["S", "✅ Terminé", { day: d.bookingDay, late: true }],
-      ["s", `👍 ${d.service} mis à jour.`],
-    ]],
   ],
 };
 
@@ -761,83 +403,44 @@ const MONEY = {
   fr: (v) => `${v.toFixed(2).replace(".", ",")} $`,
 };
 
-function lbp(value, lang) {
-  const amount = Math.round(value * LBP_RATE);
-  if (lang === "fr") return `${amount.toLocaleString("fr-FR").replace(/\s/g, " ")} LBP`;
-  return `${amount.toLocaleString("en-US")} ${lang === "ar" ? "ل.ل" : "LBP"}`;
-}
-
 function shopIn(shop, lang, delivery) {
   const t = (v) => v[lang];
   const n = MONEY[lang];
   const line = ([qty, price, name]) => `${qty}× ${t(name)}  ${n(qty * price)}`;
   const cart = shop.voice;
   const subtotal = cart.reduce((sum, [qty, price]) => sum + qty * price, 0);
-  const pickupTotal = shop.pickup[0] * shop.pickup[1];
-  const [hour] = shop.time.split(":").map(Number);
-  const [orders, sales, rating] = shop.report;
   return {
     menuButton: UI[lang].menuButtons[shop.menu], shop: t(shop.shop), town: t(shop.town), address: t(shop.address), shopAddress: t(shop.shopAddress), eta: shop.eta,
     voiceLines: shop.voice.map(line).join("\n"),
     total: subtotal + (delivery ? 1 : 0),
     cartLines: cart.map(line).join("\n"),
     cartShort: cart.map(([qty, , name]) => `${qty}× ${t(name)}`).join("\n"),
-    photo: shop.photo, photoCaption: t(shop.photoCaption), staffName: t(shop.staffName),
-    staffReply: lang === "ar" ? t(shop.staffReply).replace(/(\d[\d.,]*\$)/g, "⁦$1⁩") : t(shop.staffReply),
-    customerThanks: t(shop.customerThanks),
-    pickupAsk: t(shop.pickupAsk), pickupLine: line(shop.pickup), pickupTotal, pickupLbp: lbp(pickupTotal, lang),
-    bookingAsk: t(shop.bookingAsk), service: t(shop.service), slots: shop.slots, time: shop.time, bookingDay: t(shop.bookingDay),
-    servicePrice: shop.servicePrice ? ` (${n(shop.servicePrice)})` : "",
-    servicePriceShort: shop.servicePrice ? ` · ${n(shop.servicePrice)}` : "",
-    // The reminder goes out two hours before the booking.
-    reminderAt: `${String(Math.max(hour - 2, 7)).padStart(2, "0")}:00`,
-    reportOrders: orders, reportSales: sales, reportRating: lang === "fr" ? rating.replace(".", ",") : rating,
-    // Karim is one of two drivers and brings back the cash of his share of the cash orders.
-    driverOrders: Math.ceil(orders / 2),
-    driverCash: lbp(sales * 0.3, lang),
-    topItems: shop.voice.map(([, , name]) => t(name)).join(lang === "ar" ? "، " : ", "),
   };
 }
 
 function build(shop, lang, delivery) {
   const ui = UI[lang];
   const d = shopIn(shop, lang, delivery);
-  const blocks = SCRIPT[lang](d, MONEY[lang]);
-  const steps = delivery ? ui.steps : ui.pickupSteps;
+  const messages = [];
   let clock = 0;
-  const run = (list, stepOf) => {
-    const messages = [];
-    list.forEach((block) => {
-      const [at, lines] = blocks[block];
-      const [h, m] = at.split(":").map(Number);
-      lines.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
-        .forEach(([who, text, extra = {}], k) => {
-        // The booked visit itself is later in the day than the reminder.
-        let minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
-        // The clock never goes back within a day; a date chip starts a new day.
-        minutes = extra.day ? minutes : Math.max(minutes, clock);
-        clock = minutes;
-        messages.push({
-          chat: who.toLowerCase(),
-          out: who !== who.toLowerCase(),
-          step: stepOf(block),
-          time: `${Math.floor(minutes / 60) % 24}:${String(minutes % 60).padStart(2, "0")}`,
-          text,
-          ...extra,
-        });
+  SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
+    const step = STEP_OF_BLOCK[block];
+    const [h, m] = at.split(":").map(Number);
+    list.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
+      .forEach(([who, text, extra = {}], k) => {
+      // The clock never goes back.
+      clock = Math.max(h * 60 + m + Math.floor(k / 3), clock);
+      messages.push({
+        chat: who.toLowerCase(),
+        out: who !== who.toLowerCase(),
+        step,
+        time: `${Math.floor(clock / 60) % 24}:${String(clock % 60).padStart(2, "0")}`,
+        text,
+        ...extra,
       });
     });
-    return messages;
-  };
-  const stepOf = Object.fromEntries(MAIN_BLOCKS);
-  const messages = run(MAIN_BLOCKS.map(([block]) => block), (block) => stepOf[block]);
-  const mainClock = clock;
-  // Every extra continues the day right after the main story, as its own last step.
-  const extras = Object.entries(EXTRA_BLOCKS).map(([id, list]) => {
-    clock = mainClock;
-    return { id, label: ui.extras[id], messages: run(list, () => steps.length) };
   });
-  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, steps, chats: delivery ? ["c", "s", "d"] : ["c", "s"], messages, extras };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, steps: delivery ? ui.steps : ui.pickupSteps, chats: delivery ? ["c", "s", "d"] : ["c", "s"], messages };
 }
 
 // Same order as the business types on the sign-up form.

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const OUT_DELAY = 2000;
 const TYPING_DELAY = 1200;
+const RESTART_DELAY = 12000;
 // Extra pauses when the next message is on another phone, or starts a new step.
 const SWITCH_DELAY = 900;
 const STEP_DELAY = 1200;
@@ -77,13 +78,8 @@ export default function OrderDemo({ demo }) {
 
   const shop = demo.scenarios[scenarioIndex];
   const [mode, setMode] = useState(shop.defaultMode);
-  const [extra, setExtra] = useState(null);
   const scenario = shop[mode];
-  const { chats } = scenario;
-  // The main story is one order; an extra scene the visitor picks continues it.
-  const scene = scenario.extras.find((e) => e.id === extra);
-  const messages = useMemo(() => (scene ? [...scenario.messages, ...scene.messages] : scenario.messages), [scenario, scene]);
-  const steps = scene ? [...scenario.steps, scene.label] : scenario.steps;
+  const { messages, chats } = scenario;
 
   // Start when the demo scrolls into view; with reduced motion, show the whole conversation instead.
   useEffect(() => {
@@ -105,10 +101,9 @@ export default function OrderDemo({ demo }) {
   useEffect(() => {
     if (!started || !playing) return;
     let timer;
-    // At the end it waits: the visitor replays it or picks an extra scene below the phones.
     if (count >= messages.length) {
-      setPlaying(false);
-      return;
+      timer = setTimeout(() => setCount(0), RESTART_DELAY);
+      return () => clearTimeout(timer);
     }
     const msg = messages[count];
     const prev = messages[count - 1];
@@ -149,7 +144,6 @@ export default function OrderDemo({ demo }) {
     if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
     setScenarioIndex(i);
     setMode(demo.scenarios[i].defaultMode);
-    setExtra(null);
     setCount(0);
     setStarted(true);
     setPlaying(true);
@@ -157,7 +151,6 @@ export default function OrderDemo({ demo }) {
 
   function pickMode(next) {
     setMode(next);
-    setExtra(null);
     setCount(0);
     setStarted(true);
     setPlaying(true);
@@ -172,26 +165,6 @@ export default function OrderDemo({ demo }) {
     setStarted(true);
     setPlaying(true);
     setCount(count + 1);
-  }
-
-  function replay() {
-    setExtra(null);
-    setCount(0);
-    setStarted(true);
-    setPlaying(true);
-  }
-
-  function togglePlay() {
-    setStarted(true);
-    if (!playing && count >= messages.length) replay();
-    else setPlaying(!playing);
-  }
-
-  function playExtra(id) {
-    setExtra(id);
-    setCount(scenario.messages.length);
-    setStarted(true);
-    setPlaying(true);
   }
 
   function jumpToStep(step) {
@@ -227,22 +200,22 @@ export default function OrderDemo({ demo }) {
         ))}
       </div>
       <div className="wa-bar">
-        <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
+        <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
           <Svg d={playing ? icons.pause : icons.play} size={18} />
         </button>
         <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
           <Svg d={icons.chevron} size={18} />
         </button>
-        <p className="wa-step" aria-live="polite"><span>{step + 1} / {steps.length}</span>{steps[step]}</p>
-        <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, steps.length - 1))} disabled={step === steps.length - 1} aria-label={demo.next}>
+        <p className="wa-step" aria-live="polite"><span>{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
+        <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
           <Svg d={icons.chevron} size={18} />
         </button>
-        <button type="button" className="wa-icon-btn" onClick={replay} aria-label={demo.replay}>
+        <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
           <Svg d={icons.replay} size={18} />
         </button>
       </div>
       <div className="wa-progress">
-        {steps.map((label, i) => (
+        {scenario.steps.map((label, i) => (
           <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
         ))}
       </div>
@@ -323,15 +296,6 @@ export default function OrderDemo({ demo }) {
             </div>
           );
         })}
-      </div>
-
-      <div className={`wa-extras${count >= scenario.messages.length ? " ready" : ""}`}>
-        <span>{demo.alsoSee}</span>
-        {scenario.extras.map((e) => (
-          <button key={e.id} type="button" aria-pressed={extra === e.id} className={extra === e.id ? "active" : ""} onClick={() => playExtra(e.id)}>
-            {e.label}
-          </button>
-        ))}
       </div>
     </div>
   );
