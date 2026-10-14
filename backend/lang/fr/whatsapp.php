@@ -166,11 +166,11 @@ return [
     ],
 
     'driver' => [
-        'on_the_way' => "🛵 Livraison n° :number — en route\n📍 :address\n📞 Client : :phone\n💵 À encaisser : :collect\nTouchez « Je suis devant » en arrivant.",
+        'on_the_way' => "🛵 Livraison n° :number — en route\n📍 :address\n📞 Client : :phone\n:collect\nTouchez « Je suis devant » en arrivant.",
         'button_outside' => '📍 Je suis devant',
         'customer_told' => '👍 Le client a été prévenu que vous êtes devant.',
         'cancelled' => '❌ La livraison n° :number a été annulée par le client — ne la récupérez pas.',
-        'assigned' => "🛵 Nouvelle livraison n° :number — :shop\n:items\nÀ encaisser : :collect (:payment)\n📍 :address\n📞 Client : :phone",
+        'assigned' => "🛵 Nouvelle livraison n° :number — :shop\n:items\n:collect\n📍 :address\n📞 Client : :phone",
         'shift_started' => "✅ Service commencé, :name. Les livraisons arriveront ici.\nEnvoyez \"stop\" à la fin.",
         'already_on_shift' => 'Vous êtes déjà en service. Envoyez "stop" à la fin.',
         'shift_ended' => "👋 Service terminé, :name.\nLivraisons : :count\nEspèces à remettre : :cash",
@@ -181,6 +181,8 @@ return [
         'button_picked_up' => '🚀 Récupérée',
         'button_delivered' => '✅ Livrée',
         'nothing' => 'rien',
+        'collect_cash' => '💵 À encaisser : :amount (espèces)',
+        'paid_whish' => '💳 Payé avec Whish — rien à encaisser auprès du client',
     ],
 
     'report' => [

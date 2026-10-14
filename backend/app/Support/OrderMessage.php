@@ -37,6 +37,23 @@ final class OrderMessage
     }
 
     /**
+     * The same values for a driver's message, where :collect is a whole line: the cash to collect,
+     * or that the order is already paid with Whish so the driver takes nothing from the customer.
+     *
+     * @return array<string, string>
+     */
+    public static function forDriver(Order $order, Merchant $merchant, ?string $locale = null): array
+    {
+        $locale ??= $merchant->locale ?? 'en';
+        $params = self::params($order, $merchant, $locale);
+        $params['collect'] = $order->payment_method === 'whish'
+            ? __('whatsapp.driver.paid_whish', [], $locale)
+            : __('whatsapp.driver.collect_cash', ['amount' => $params['collect']], $locale);
+
+        return $params;
+    }
+
+    /**
      * What the customer pays / the driver collects: "12.00 USD", "1,074,000 LBP" or "5.00 USD + 627,000 LBP".
      */
     public static function paymentLine(Order $order, Merchant $merchant): string

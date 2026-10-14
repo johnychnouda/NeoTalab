@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 const OUT_DELAY = 2000;
 const TYPING_DELAY = 1200;
-const RESTART_DELAY = 12000;
 // Extra pauses when the next message is on another phone, or starts a new step.
 const SWITCH_DELAY = 900;
 const STEP_DELAY = 1200;
@@ -101,9 +100,10 @@ export default function OrderDemo({ demo }) {
   useEffect(() => {
     if (!started || !playing) return;
     let timer;
+    // At the end it stops; Play or Replay starts it again.
     if (count >= messages.length) {
-      timer = setTimeout(() => setCount(0), RESTART_DELAY);
-      return () => clearTimeout(timer);
+      setPlaying(false);
+      return;
     }
     const msg = messages[count];
     const prev = messages[count - 1];
@@ -167,6 +167,12 @@ export default function OrderDemo({ demo }) {
     setCount(count + 1);
   }
 
+  function togglePlay() {
+    setStarted(true);
+    if (!playing && count >= messages.length) setCount(0);
+    setPlaying(!playing);
+  }
+
   function jumpToStep(step) {
     setCount(messages.findIndex((m) => m.step === step));
     setStarted(true);
@@ -200,7 +206,7 @@ export default function OrderDemo({ demo }) {
         ))}
       </div>
       <div className="wa-bar">
-        <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
+        <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
           <Svg d={playing ? icons.pause : icons.play} size={18} />
         </button>
         <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>

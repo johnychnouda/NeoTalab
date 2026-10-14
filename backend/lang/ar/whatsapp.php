@@ -166,11 +166,11 @@ return [
     ],
 
     'driver' => [
-        'on_the_way' => "🛵 التوصيل رقم :number — في الطريق\n📍 :address\n📞 الزبون: :phone\n💵 المبلغ: :collect\nاضغط «أنا في الخارج» عند الوصول.",
+        'on_the_way' => "🛵 التوصيل رقم :number — في الطريق\n📍 :address\n📞 الزبون: :phone\n:collect\nاضغط «أنا في الخارج» عند الوصول.",
         'button_outside' => '📍 أنا في الخارج',
         'customer_told' => '👍 تم إبلاغ الزبون أنك في الخارج.',
         'cancelled' => '❌ ألغى الزبون التوصيل رقم :number — لا تستلمه.',
-        'assigned' => "🛵 توصيل جديد رقم :number — :shop\n:items\nالمبلغ: :collect (:payment)\n📍 :address\n📞 الزبون: :phone",
+        'assigned' => "🛵 توصيل جديد رقم :number — :shop\n:items\n:collect\n📍 :address\n📞 الزبون: :phone",
         'shift_started' => "✅ بدأت ورديتك يا :name. ستصلك التوصيلات هنا.\nأرسل \"stop\" عند الانتهاء.",
         'already_on_shift' => 'أنت في الوردية بالفعل. أرسل "stop" عند الانتهاء.',
         'shift_ended' => "👋 انتهت ورديتك يا :name.\nالتوصيلات: :count\nالنقد المطلوب تسليمه: :cash",
@@ -181,6 +181,8 @@ return [
         'button_picked_up' => '🚀 تم الاستلام',
         'button_delivered' => '✅ تم التوصيل',
         'nothing' => 'لا شيء',
+        'collect_cash' => '💵 المبلغ: :amount (كاش)',
+        'paid_whish' => '💳 مدفوع بـ Whish — لا تأخذ أي مبلغ من الزبون',
     ],
 
     'report' => [

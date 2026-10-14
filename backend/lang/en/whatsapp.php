@@ -170,11 +170,11 @@ return [
 
     // Drivers talk to the shop's number.
     'driver' => [
-        'on_the_way' => "🛵 Delivery #:number — on the way\n📍 :address\n📞 Customer: :phone\n💵 Collect: :collect\nTap “I'm outside” when you arrive.",
+        'on_the_way' => "🛵 Delivery #:number — on the way\n📍 :address\n📞 Customer: :phone\n:collect\nTap “I'm outside” when you arrive.",
         'button_outside' => "📍 I'm outside",
         'customer_told' => '👍 The customer was told you are outside.',
         'cancelled' => '❌ Delivery #:number was cancelled by the customer — do not pick it up.',
-        'assigned' => "🛵 New delivery #:number — :shop\n:items\nCollect: :collect (:payment)\n📍 :address\n📞 Customer: :phone",
+        'assigned' => "🛵 New delivery #:number — :shop\n:items\n:collect\n📍 :address\n📞 Customer: :phone",
         'shift_started' => "✅ Shift started, :name. New deliveries will come here.\nSend \"stop\" when you finish.",
         'already_on_shift' => 'You are already on shift. Send "stop" when you finish.',
         'shift_ended' => "👋 Shift ended, :name.\nDeliveries: :count\nCash to hand over: :cash",
@@ -185,6 +185,8 @@ return [
         'button_picked_up' => '🚀 Picked up',
         'button_delivered' => '✅ Delivered',
         'nothing' => 'nothing',
+        'collect_cash' => '💵 Collect: :amount (cash)',
+        'paid_whish' => '💳 Paid with Whish — collect nothing from the customer',
     ],
 
     // Nightly report to the owner's personal number.

@@ -15,6 +15,7 @@ use App\Services\TrialExpiryService;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\OrderMessage;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,6 +143,20 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertStringContainsString('New delivery #1', $delivery['text']);
         $this->assertStringContainsString('Collect: 12.00 USD (cash)', $delivery['text']);
         $this->assertSame(["drv:picked_up:{$order->id}", "drv:delivered:{$order->id}"], $delivery['buttons']);
+    }
+
+    public function test_driver_is_told_a_whish_order_is_paid_and_collects_nothing(): void
+    {
+        $this->driver();
+        $order = $this->order();
+        $order->forceFill(['payment_method' => 'whish', 'payment_status' => 'paid'])->save();
+
+        $text = __('whatsapp.driver.assigned', OrderMessage::forDriver($order->fresh(), $this->merchant, 'en'), 'en');
+        $this->assertStringContainsString('Paid with Whish — collect nothing', $text);
+        $this->assertStringNotContainsString('12.00', $text);
+
+        $ar = __('whatsapp.driver.on_the_way', OrderMessage::forDriver($order->fresh(), $this->merchant, 'ar'), 'ar');
+        $this->assertStringContainsString('مدفوع بـ Whish', $ar);
     }
 
     public function test_driver_buttons_drive_the_order_to_delivered(): void

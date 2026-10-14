@@ -278,7 +278,7 @@ class DriverBotService
 
     protected function sendOnTheWayCard(Merchant $merchant, Driver $driver, Order $order, string $locale): void
     {
-        $body = __('whatsapp.driver.on_the_way', OrderMessage::params($order, $merchant, $locale), $locale);
+        $body = __('whatsapp.driver.on_the_way', OrderMessage::forDriver($order, $merchant, $locale), $locale);
         try {
             $this->whatsapp->sendToCustomer($merchant, $driver->whatsapp_number ?: $driver->phone, ['type' => 'interactive', 'interactive' => [
                 'type' => 'button',
