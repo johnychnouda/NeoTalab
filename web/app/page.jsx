@@ -23,7 +23,11 @@ export default async function Home() {
   const days = plan?.trial_days ?? 3;
   const arDays = days === 1 ? "يوم واحد" : days === 2 ? "يومين" : days <= 10 ? `${days} أيام` : `${days} يومًا`;
   const n = (text) => text.replace("{n}", days).replace("{days}", arDays);
-  const money = (v) => new Intl.NumberFormat("en-US", { style: "currency", currency: plan.currency, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
+  // As in the chats: the dollar sign after the amount ("30$"); other currencies keep their code.
+  const money = (v) => {
+    const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
+    return plan.currency === "USD" ? `${amount}$` : `${amount} ${plan.currency}`;
+  };
   const saving = plan && plan.monthly_price > 0 ? Math.round((1 - plan.yearly_price / (12 * plan.monthly_price)) * 100) : 0;
   const jsonLd = {
     "@context": "https://schema.org",
