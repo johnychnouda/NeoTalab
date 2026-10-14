@@ -89,7 +89,8 @@ export default function OrderDemo({ demo }) {
   }, [count, playing, started, messages]);
 
   const last = count > 0 ? messages[count - 1] : null;
-  const step = typing ? messages[count]?.step ?? 0 : last?.step ?? 0;
+  // The step of the next message to show, so a jump lands on the step it picked.
+  const step = count < messages.length ? messages[count].step : last?.step ?? 0;
   const activeChat = typing || last?.chat || chats[0];
 
   useEffect(() => {
