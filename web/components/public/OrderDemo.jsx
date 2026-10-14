@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 
 // Minutes after 12:40 for each message of the script, so the clock looks like a real order.
 const MINUTES = [0, 0, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4, 22, 23, 23, 23, 34, 34, 34, 64, 65, 65];
-const OUT_DELAY = 1100;
-const TYPING_DELAY = 900;
-const RESTART_DELAY = 6000;
+const OUT_DELAY = 2400;
+const TYPING_DELAY = 1600;
+const RESTART_DELAY = 9000;
+// Extra pause when the next message is on another phone, so the eye can follow.
+const SWITCH_DELAY = 1500;
 
 function clock(i) {
   const total = 12 * 60 + 40 + (MINUTES[i] ?? MINUTES[MINUTES.length - 1]);
@@ -35,13 +37,14 @@ export default function OrderDemo({ demo, chats = ["c", "s", "d"], showSteps = f
         return;
       }
       const msg = script[i];
+      const wait = OUT_DELAY + (i > 0 && script[i - 1].chat !== msg.chat ? SWITCH_DELAY : 0);
       if (msg.out) {
-        timer = setTimeout(() => { setCount(i + 1); play(i + 1); }, OUT_DELAY);
+        timer = setTimeout(() => { setCount(i + 1); play(i + 1); }, wait);
       } else {
         timer = setTimeout(() => {
           setTyping(msg.chat);
           timer = setTimeout(() => { setTyping(null); setCount(i + 1); play(i + 1); }, TYPING_DELAY);
-        }, OUT_DELAY - TYPING_DELAY / 2);
+        }, wait - TYPING_DELAY / 2);
       }
     };
     const observer = new IntersectionObserver(([entry]) => {
