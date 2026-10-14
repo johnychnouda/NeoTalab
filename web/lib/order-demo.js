@@ -1,602 +1,561 @@
-// The homepage demo: real NeoTalab conversations for a few kinds of shops, shown on the phones of
-// the people involved. Each message is [chat, text, extras]:
+// The homepage demo: a day of real NeoTalab conversations for several kinds of shops, on the
+// phones of the customer, the shop owner and the driver. Every shop goes through the same
+// features (SCRIPT below) with its own products; the messages follow the real bot texts.
+//
+// A message is [chat, text, extras]:
 //   lower-case chat = sent by the shop's NeoTalab number, upper-case = sent by that phone's owner
 //   c / C  customer      s / S  shop owner or staff      d / D  driver
-// extras: buttons (WhatsApp reply buttons), voice ("0:07"), photo (caption shown under it),
+// extras: buttons (WhatsApp reply buttons), voice ("0:07"), photo (emoji shown in the picture),
 // human (a person from the shop answers instead of the bot), day (date chip before the message).
+
+const LBP_RATE = 89500;
 
 const UI = {
   en: {
     title: "See NeoTalab at work",
-    lead: "Pick a kind of shop. Every message below is what NeoTalab really sends, on the customer's, the shop's and the driver's own WhatsApp.",
-    online: "online",
-    typing: "typing…",
-    today: "Today",
-    message: "Message",
-    shows: "Shows",
-    pause: "Pause",
-    play: "Play",
-    replay: "Replay",
-    voice: "Voice message",
+    lead: "Pick a kind of shop and watch a full day: every feature, on the customer's, the shop's and the driver's own WhatsApp.",
+    online: "online", typing: "typing…", today: "Today", message: "Message",
+    shows: "Shows", pause: "Pause", play: "Play", replay: "Replay", voice: "Voice message",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
+    showsText: "opening the shop from WhatsApp, a voice-note order, the menu inside the chat, delivery with Whish payment, the shop accepting, the driver's buttons and “I'm outside”, rating, talking to a real person, a pickup order paid cash in lira, a booking with its reminder, closing the shop, the driver's cash summary and the nightly report",
+    steps: ["Shop opens", "Voice order", "Menu", "Delivery & payment", "Shop accepts", "Whish payment", "Driver", "Rating", "Talk to a person", "Pickup, cash in lira", "Booking", "End of day", "Next day"],
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
-    lead: "اختار نوع المحل. كل رسالة هون هي يلي بيبعتها NeoTalab فعلياً، على واتساب الزبون والمحل والسائق.",
-    online: "متصل",
-    typing: "يكتب…",
-    today: "اليوم",
-    message: "مراسلة",
-    shows: "بيورجي",
-    pause: "إيقاف",
-    play: "تشغيل",
-    replay: "إعادة",
-    voice: "رسالة صوتية",
+    lead: "اختار نوع المحل وتابع نهار كامل: كل الميزات، على واتساب الزبون والمحل والسائق.",
+    online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
+    shows: "بيورجي", pause: "إيقاف", play: "تشغيل", replay: "إعادة", voice: "رسالة صوتية",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
+    showsText: "فتح المحل من واتساب، طلب برسالة صوتية، القائمة داخل المحادثة، توصيل مع دفع Whish، قبول المحل، أزرار السائق و«أنا برا»، التقييم، الحكي مع شخص حقيقي، طلب استلام مدفوع كاش بالليرة، حجز موعد مع تذكير، تسكير المحل، حساب الكاش للسائق والتقرير اليومي",
+    steps: ["فتح المحل", "طلب صوتي", "القائمة", "التوصيل والدفع", "المحل يقبل", "دفع Whish", "السائق", "التقييم", "حكي مع شخص", "استلام، كاش بالليرة", "حجز موعد", "آخر النهار", "تاني يوم"],
   },
   fr: {
     title: "NeoTalab en action",
-    lead: "Choisissez un type de commerce. Chaque message ci-dessous est ce que NeoTalab envoie vraiment, sur le WhatsApp du client, du commerce et du livreur.",
-    online: "en ligne",
-    typing: "écrit…",
-    today: "Aujourd'hui",
-    message: "Message",
-    shows: "Montre",
-    pause: "Pause",
-    play: "Lecture",
-    replay: "Rejouer",
-    voice: "Message vocal",
+    lead: "Choisissez un type de commerce et suivez une journée entière : toutes les fonctions, sur le WhatsApp du client, du commerce et du livreur.",
+    online: "en ligne", typing: "écrit…", today: "Aujourd'hui", message: "Message",
+    shows: "Montre", pause: "Pause", play: "Lecture", replay: "Rejouer", voice: "Message vocal",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
+    showsText: "ouverture du commerce depuis WhatsApp, commande par message vocal, menu dans la discussion, livraison payée avec Whish, acceptation par le commerce, boutons du livreur et « Je suis devant », note, discussion avec une vraie personne, retrait payé en espèces en livres, réservation avec rappel, fermeture, caisse du livreur et rapport du soir",
+    steps: ["Ouverture", "Commande vocale", "Menu", "Livraison et paiement", "Acceptée", "Paiement Whish", "Livreur", "Note", "Parler à quelqu'un", "Retrait, espèces en livres", "Réservation", "Fin de journée", "Le lendemain"],
   },
 };
 
-const SCENARIOS = {
-  en: [
-    {
-      id: "restaurant", icon: "🥙", label: "Restaurant", shop: "Foren Al Hara", chats: ["c", "s", "d"],
-      shows: "menu inside the chat, cart, cash in dollars or lira, shop accepts, driver shift, “I'm outside”, rating, nightly report",
-      steps: [
-        { label: "Driver starts", at: "11:58", messages: [
-          ["D", "start"],
-          ["d", "✅ Shift started, Karim. New deliveries will come here.\nSend \"stop\" when you finish."],
-        ] },
-        { label: "Order", at: "12:30", messages: [
-          ["C", "Marhaba 👋"],
-          ["c", "Ahla w sahla at Foren Al Hara! 😊 What would you like? Choose a category 👇", { buttons: ["📋 View menu"] }],
-          ["C", "🥙 Man'oushe"],
-          ["c", "Choose an item 👇", { buttons: ["📋 See items"] }],
-          ["C", "Zaatar man'oushe · 1.00$"],
-          ["c", "How many Zaatar man'oushe?"],
-          ["C", "2"],
-          ["c", "✅ Added 2× Zaatar man'oushe\n🛒 Cart: 2 items · 2.00$", { buttons: ["➕ Add more", "🛒 Checkout"] }],
-          ["C", "w zid 1 jebne please"],
-          ["c", "✅ Added 1× Cheese man'oushe\n🛒 Cart: 3 items · 4.50$", { buttons: ["➕ Add more", "🛒 Checkout"] }],
-          ["C", "🛒 Checkout"],
-          ["c", "Which area should we deliver to?", { buttons: ["Choose"] }],
-          ["C", "Jbeil · Delivery 1.00$"],
-          ["c", "📍 Tap the button to send your location, or type your address (street, building, floor)."],
-          ["C", "Main street, near the church, building Haddad, 2nd floor"],
-          ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"] }],
-          ["C", "💵 Cash on delivery"],
-          ["c", "Pay cash in dollars or in lira?", { buttons: ["Dollars", "Lira"] }],
-          ["C", "Lira"],
-          ["c", "Your order\n2× Zaatar man'oushe  2.00$\n1× Cheese man'oushe  2.50$\nDelivery (Jbeil)  1.00$\nTotal: 5.50$ (492,250 LBP)\nCash on delivery · Ready in about 25 min", { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
-          ["C", "✅ Confirm order"],
-          ["c", "🧾 Order #128 sent to Foren Al Hara.\nTotal: 5.50$ (492,250 LBP)\nYou will get a message as soon as the shop accepts it."],
-        ] },
-        { label: "Shop accepts", at: "12:34", messages: [
-          ["s", "🔔 New order #128\n2× Zaatar man'oushe\n1× Cheese man'oushe\nTotal: 492,250 LBP (cash)\n📍 Jbeil, main street, near the church\n📞 +961 71 234 567", { buttons: ["✅ Accept · 25 min", "❌ Can't take it"] }],
-          ["S", "✅ Accept · 25 min"],
-          ["s", "👍 Order #128 updated."],
-          ["c", "✅ Foren Al Hara accepted your order #128, about 25 min."],
-        ] },
-        { label: "On the way", at: "12:52", messages: [
-          ["d", "🛵 New delivery #128\n2× Zaatar, 1× Cheese\nCollect: 492,250 LBP (cash)\n📍 Jbeil, main street, near the church\n📞 Customer: +961 71 234 567", { buttons: ["🚀 Picked up"] }],
-          ["D", "🚀 Picked up"],
-          ["d", "🛵 Delivery #128, on the way\n💵 Collect: 492,250 LBP\nTap “I'm outside” when you arrive.", { buttons: ["📍 I'm outside", "✅ Delivered"] }],
-          ["c", "🛵 Your order #128 is on its way with Karim, about 10 min."],
-        ] },
-        { label: "At the door", at: "13:03", messages: [
-          ["D", "📍 I'm outside"],
-          ["d", "👍 The customer was told you are outside."],
-          ["c", "📍 Karim is outside with your order #128! 📞 +961 70 111 222"],
-          ["D", "✅ Delivered"],
-          ["d", "✅ Delivery #128 completed. Thanks!"],
-          ["c", "✅ Your order #128 was delivered. Thank you for ordering from Foren Al Hara!"],
-        ] },
-        { label: "Rating", at: "13:35", messages: [
-          ["c", "⭐ How was it? Reply with a number from 1 (bad) to 5 (excellent)."],
-          ["C", "5"],
-          ["c", "Thank you for your rating! 🙏"],
-        ] },
-        { label: "End of day", at: "22:01", messages: [
-          ["D", "stop"],
-          ["d", "👋 Shift ended, Karim.\nDeliveries: 14\nCash to hand over: 3,850,000 LBP"],
-          ["s", "📊 Foren Al Hara, daily report\nOrders delivered: 14\nSales: 81.00$\nAverage rating: 4.8 ⭐\nLate orders: 0\nTop items: Zaatar man'oushe, Cheese man'oushe"],
-        ] },
-      ],
-    },
-    {
-      id: "pharmacy", icon: "💊", label: "Pharmacy", shop: "Pharmacie Al Shifa", chats: ["c", "s"],
-      shows: "ordering by voice note, Whish payment link after the shop accepts, a photo handed to a real person, delivery by the shop",
-      steps: [
-        { label: "Voice order", at: "18:10", messages: [
-          ["C", "", { voice: "0:07" }],
-          ["c", "Sure! 🙂\n1× Panadol Extra  4.00$\n1× Vitamin C 1000  6.00$\nDelivery or pickup?"],
-          ["C", "Delivery, Achrafieh, Sursock street, building 12, 3rd floor"],
-          ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"] }],
-          ["C", "💳 Whish"],
-          ["c", "Your order\n1× Panadol Extra  4.00$\n1× Vitamin C 1000  6.00$\nDelivery (Achrafieh)  1.00$\nTotal: 11.00$\nWhish · Ready in about 40 min", { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
-          ["C", "✅ Confirm order"],
-          ["c", "🧾 Order #57 sent to Pharmacie Al Shifa.\nTotal: 11.00$\n💳 You will get the Whish payment link here as soon as the shop accepts your order."],
-        ] },
-        { label: "Shop accepts", at: "18:12", messages: [
-          ["s", "🔔 New order #57\n1× Panadol Extra\n1× Vitamin C 1000\nTotal: 11.00$ (Whish)\n📍 Achrafieh, Sursock street, building 12\n📞 +961 3 456 789", { buttons: ["✅ Accept · 40 min", "❌ Can't take it"] }],
-          ["S", "✅ Accept · 40 min"],
-          ["s", "👍 Order #57 accepted, the customer got the Whish link. You will get the order here again as soon as it is paid. Don't prepare it before."],
-        ] },
-        { label: "Whish payment", at: "18:13", messages: [
-          ["c", "✅ Pharmacie Al Shifa accepted your order #57! Pay 11.00$ with Whish here:\nhttps://whish.money/pay/57xk\nWe start preparing it as soon as the payment is confirmed (link valid 30 minutes)."],
-          ["c", "✅ Payment received! Order #57 is confirmed, about 40 min."],
-          ["s", "🔔 Order #57 is paid ✅\n1× Panadol Extra\n1× Vitamin C 1000\nTotal: 11.00$ (Whish)\n📍 Achrafieh, Sursock street, building 12", { buttons: ["🛵 Out for delivery", "✅ Delivered"] }],
-          ["S", "🛵 Out for delivery"],
-          ["c", "🛵 Your order #57 is on its way!"],
-        ] },
-        { label: "Talk to a person", at: "18:31", messages: [
-          ["C", "Do you also have this one?", { photo: true }],
-          ["c", "👋 A member of the Pharmacie Al Shifa team will reply to you here shortly."],
-          ["s", "📷 +961 3 456 789 sent a photo. The bot is paused in that chat, see it and answer in your WhatsApp Business app.\nTap the button when you're done.", { buttons: ["▶️ Give back to bot"] }],
-          ["c", "Yes, we have it, 8.50$. The driver will bring it with your order 🙂", { human: "Rita, pharmacist" }],
-          ["C", "Perfect, thank you!"],
-          ["S", "▶️ Give back to bot"],
-          ["s", "🤖 The bot is handling +961 3 456 789 again."],
-        ] },
-        { label: "Delivered", at: "18:50", messages: [
-          ["S", "✅ Delivered"],
-          ["s", "👍 Order #57 updated."],
-          ["c", "✅ Your order #57 was delivered. Thank you for ordering from Pharmacie Al Shifa!"],
-        ] },
-      ],
-    },
-    {
-      id: "salon", icon: "💇", label: "Salon", shop: "Beauty Corner", chats: ["c", "s"],
-      shows: "booking a free time, the shop is notified, automatic reminder, Done / No-show, rating",
-      steps: [
-        { label: "Booking", at: "20:15", messages: [
-          ["C", "Hi! Can I book a haircut and blow-dry tomorrow afternoon?"],
-          ["c", "🗓 Free times for Haircut & blow-dry on Wed 15 Oct:\n14:00 · 15:30 · 16:30 · 17:30\nWhich time suits you?"],
-          ["C", "16:30"],
-          ["c", "✅ Booked: Haircut & blow-dry on Wed 15 Oct at 16:30 (25.00$) at Beauty Corner, Jounieh.\nWe'll send you a reminder. Reply \"cancel appointment\" if you can't make it."],
-        ] },
-        { label: "Shop notified", at: "20:16", messages: [
-          ["s", "🗓 New booking, Beauty Corner\nHaircut & blow-dry\nWed 15 Oct at 16:30 · 25.00$\n📞 +961 76 555 010", { buttons: ["✅ Done", "🚫 No-show"] }],
-        ] },
-        { label: "Reminder", at: "14:30", messages: [
-          ["c", "⏰ Reminder: your Haircut & blow-dry at Beauty Corner is on Wed 15 Oct at 16:30. See you soon!", { day: "Wed 15 Oct" }],
-          ["C", "See you there 👍"],
-        ] },
-        { label: "Done", at: "17:20", messages: [
-          ["S", "✅ Done", { day: "Wed 15 Oct" }],
-          ["s", "👍 Haircut & blow-dry updated."],
-        ] },
-        { label: "Rating", at: "18:20", messages: [
-          ["c", "⭐ How was it? Reply with a number from 1 (bad) to 5 (excellent)."],
-          ["C", "5"],
-          ["c", "Thank you for your rating! 🙏"],
-        ] },
-      ],
-    },
-    {
-      id: "market", icon: "🛒", label: "Mini market", shop: "Mini Market Abou Elie", chats: ["c", "s"],
-      shows: "opening and closing the shop from WhatsApp, typing in any mix of languages, pickup order, ready, collected",
-      steps: [
-        { label: "Shop opens", at: "07:58", messages: [
-          ["S", "open"],
-          ["s", "🟢 Mini Market Abou Elie is OPEN, the bot is taking orders."],
-        ] },
-        { label: "Order", at: "09:12", messages: [
-          ["C", "bonjour, 3andak labne w 2 khebz?"],
-          ["c", "Yes! 🙂\n1× Labneh 500g  3.50$\n2× Arabic bread  1.60$\nDelivery or pickup?"],
-          ["C", "pickup, I'll pass in 15 min"],
-          ["c", "Your order\n1× Labneh 500g  3.50$\n2× Arabic bread  1.60$\nTotal: 5.10$\nPickup at Zalka, main road · Cash at the shop\nReady in about 15 min", { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
-          ["C", "✅ Confirm order"],
-          ["c", "🧾 Order #312 sent to Mini Market Abou Elie.\nTotal: 5.10$\nYou will get a message as soon as the shop accepts it."],
-        ] },
-        { label: "Shop accepts", at: "09:13", messages: [
-          ["s", "🔔 New PICKUP order #312\n1× Labneh 500g\n2× Arabic bread\nTotal: 5.10$ (cash)\n📞 +961 71 909 090", { buttons: ["✅ Accept · 15 min", "❌ Can't take it"] }],
-          ["S", "✅ Accept · 15 min"],
-          ["s", "👍 Order #312 updated.", { buttons: ["✅ Ready for pickup", "📦 Collected"] }],
-          ["c", "✅ Mini Market Abou Elie accepted your order #312, ready in about 15 min."],
-        ] },
-        { label: "Pickup", at: "09:24", messages: [
-          ["S", "✅ Ready for pickup"],
-          ["c", "📦 Your order #312 is ready! You can pick it up now at Zalka, main road."],
-          ["S", "📦 Collected"],
-          ["c", "✅ Thank you for picking up order #312 from Mini Market Abou Elie!"],
-        ] },
-        { label: "Shop closes", at: "21:00", messages: [
-          ["S", "close"],
-          ["s", "🔴 Mini Market Abou Elie is CLOSED, the bot tells customers you are closed."],
-          ["C", "3andak khebz?"],
-          ["c", "Sorry, we're closed right now 🌙 We open again tomorrow at 8:00."],
-        ] },
-      ],
-    },
+// What changes from one shop to another. Text is given as { en, ar, fr }.
+const SHOPS = [
+  {
+    id: "restaurant", icon: "🥙", eta: 25,
+    label: { en: "Restaurant", ar: "مطعم", fr: "Restaurant" },
+    shop: { en: "Foren Al Hara", ar: "فرن الحارة", fr: "Foren Al Hara" },
+    town: { en: "Jbeil", ar: "جبيل", fr: "Jbeil" },
+    address: { en: "Main street, near the church, building Haddad, 2nd floor", ar: "الشارع العام حد الكنيسة، بناية حداد، الطابق الثاني", fr: "Rue principale près de l'église, immeuble Haddad, 2e étage" },
+    shopAddress: { en: "Jbeil, main street", ar: "جبيل، الشارع العام", fr: "Jbeil, rue principale" },
+    voice: [
+      [2, 1.0, { en: "Zaatar man'oushe", ar: "منقوشة زعتر", fr: "Man'oushé zaatar" }],
+      [1, 2.5, { en: "Cheese man'oushe", ar: "منقوشة جبنة", fr: "Man'oushé fromage" }],
+    ],
+    category: { en: "🥤 Drinks", ar: "🥤 مشروبات", fr: "🥤 Boissons" },
+    add: [1, 0.75, { en: "Ayran", ar: "عيران", fr: "Ayran" }],
+    photo: "🍕",
+    photoCaption: { en: "Can you make this one? 😍", ar: "فيكن تعملولي هيدي؟ 😍", fr: "Vous pouvez faire celle-ci ? 😍" },
+    staffName: { en: "Georges, Foren Al Hara", ar: "جورج، فرن الحارة", fr: "Georges, Foren Al Hara" },
+    staffReply: { en: "Yes! That's our lahm b'ajeen, 3.00$ each. Shall I prepare 2 for tonight? 🙂", ar: "أكيد! هيدي لحم بعجين، 3.00$ الوحدة. بحضّرلك 2 لليوم المسا؟ 🙂", fr: "Oui ! C'est notre lahm b'ajeen, 3,00 $ pièce. Je vous en prépare 2 pour ce soir ? 🙂" },
+    customerThanks: { en: "Yes please, thank you!", ar: "إيه بليز، شكراً!", fr: "Oui merci !" },
+    pickupAsk: { en: "bade 3 man2oushe zaatar, I'll pass to take them", ar: "بدي 3 مناقيش زعتر، بمرق باخدن", fr: "3 man'oushé zaatar à emporter svp, je passe" },
+    pickup: [3, 1.0, { en: "Zaatar man'oushe", ar: "منقوشة زعتر", fr: "Man'oushé zaatar" }],
+    bookingAsk: { en: "Can I book a table for 4 on Friday evening?", ar: "فيي احجز طاولة لـ 4 نهار الجمعة المسا؟", fr: "Je peux réserver une table pour 4 vendredi soir ?" },
+    service: { en: "Table for 4", ar: "طاولة لـ 4", fr: "Table pour 4" },
+    servicePrice: 0,
+    slots: "19:00 · 20:00 · 21:00 · 22:00", time: "20:00",
+    bookingDay: { en: "Fri 17 Oct", ar: "الجمعة 17 تشرين الأول", fr: "ven. 17 oct." },
+    report: [42, 238.5, "4.8"],
+  },
+  {
+    id: "pharmacy", icon: "💊", eta: 40,
+    label: { en: "Pharmacy", ar: "صيدلية", fr: "Pharmacie" },
+    shop: { en: "Pharmacie Al Shifa", ar: "صيدلية الشفاء", fr: "Pharmacie Al Shifa" },
+    town: { en: "Achrafieh", ar: "الأشرفية", fr: "Achrafieh" },
+    address: { en: "Sursock street, building 12, 3rd floor", ar: "شارع سرسق، بناية 12، الطابق الثالث", fr: "Rue Sursock, immeuble 12, 3e étage" },
+    shopAddress: { en: "Achrafieh, Sassine square", ar: "الأشرفية، ساحة ساسين", fr: "Achrafieh, place Sassine" },
+    voice: [
+      [1, 4.0, { en: "Panadol Extra", ar: "Panadol Extra", fr: "Panadol Extra" }],
+      [1, 6.0, { en: "Vitamin C 1000", ar: "فيتامين C 1000", fr: "Vitamine C 1000" }],
+    ],
+    category: { en: "🧴 Skin care", ar: "🧴 العناية بالبشرة", fr: "🧴 Soins de la peau" },
+    add: [1, 12.0, { en: "Sunscreen SPF 50", ar: "كريم واقي SPF 50", fr: "Écran solaire SPF 50" }],
+    photo: "💊",
+    photoCaption: { en: "Do you have this one?", ar: "عندكن هيدا الدوا؟", fr: "Vous avez celui-ci ?" },
+    staffName: { en: "Rita, pharmacist", ar: "ريتا، صيدلانية", fr: "Rita, pharmacienne" },
+    staffReply: { en: "Yes, we have it, 8.50$. It needs a prescription, please bring it when you pass 🙂", ar: "إيه موجود، 8.50$. بدو وصفة طبية، جيبها معك لما تمرق 🙂", fr: "Oui, nous l'avons, 8,50 $. Il faut une ordonnance, apportez-la en passant 🙂" },
+    customerThanks: { en: "Perfect, thank you!", ar: "تمام، شكراً!", fr: "Parfait, merci !" },
+    pickupAsk: { en: "Do you have baby wipes? I'll pass to pick them up", ar: "عندكن محارم للأطفال؟ بمرق باخدن", fr: "Vous avez des lingettes bébé ? Je passe les chercher" },
+    pickup: [2, 1.5, { en: "Baby wipes", ar: "محارم أطفال", fr: "Lingettes bébé" }],
+    bookingAsk: { en: "Can I book a blood pressure check tomorrow morning?", ar: "فيي احجز فحص ضغط بكرا الصبح؟", fr: "Je peux réserver une prise de tension demain matin ?" },
+    service: { en: "Blood pressure check", ar: "فحص ضغط", fr: "Prise de tension" },
+    servicePrice: 5,
+    slots: "09:00 · 09:30 · 10:30 · 11:00", time: "10:30",
+    bookingDay: { en: "Wed 15 Oct", ar: "الأربعاء 15 تشرين الأول", fr: "mer. 15 oct." },
+    report: [27, 412, "4.9"],
+  },
+  {
+    id: "salon", icon: "💇", eta: 45,
+    label: { en: "Salon", ar: "صالون", fr: "Salon" },
+    shop: { en: "Beauty Corner", ar: "Beauty Corner", fr: "Beauty Corner" },
+    town: { en: "Jounieh", ar: "جونيه", fr: "Jounieh" },
+    address: { en: "Fouad Chehab street, building Nassar, 4th floor", ar: "شارع فؤاد شهاب، بناية نصار، الطابق الرابع", fr: "Rue Fouad Chehab, immeuble Nassar, 4e étage" },
+    shopAddress: { en: "Jounieh, old souk", ar: "جونيه، السوق القديم", fr: "Jounieh, vieux souk" },
+    voice: [
+      [1, 15.0, { en: "Hair mask", ar: "ماسك للشعر", fr: "Masque capillaire" }],
+      [1, 9.0, { en: "Shampoo 400 ml", ar: "شامبو 400 مل", fr: "Shampooing 400 ml" }],
+    ],
+    category: { en: "💅 Nails", ar: "💅 أظافر", fr: "💅 Ongles" },
+    add: [1, 6.0, { en: "Nail polish", ar: "طلاء أظافر", fr: "Vernis à ongles" }],
+    photo: "💇",
+    photoCaption: { en: "Can you do this haircut?", ar: "فيكن تعملولي هالقصة؟", fr: "Vous pouvez faire cette coupe ?" },
+    staffName: { en: "Maya, Beauty Corner", ar: "مايا، Beauty Corner", fr: "Maya, Beauty Corner" },
+    staffReply: { en: "Of course! It's a layered cut, 25.00$, about 1 hour. You can book it right here 😊", ar: "أكيد! هيدي قصة layers، 25.00$، حوالي ساعة. فيك تحجز من هون 😊", fr: "Bien sûr ! C'est une coupe dégradée, 25,00 $, environ 1 heure. Vous pouvez réserver ici 😊" },
+    customerThanks: { en: "Great, thank you!", ar: "حلو، شكراً!", fr: "Super, merci !" },
+    pickupAsk: { en: "Can I pick up a hair brush today?", ar: "فيي آخد فرشاية شعر اليوم؟", fr: "Je peux passer prendre une brosse aujourd'hui ?" },
+    pickup: [1, 7.0, { en: "Hair brush", ar: "فرشاية شعر", fr: "Brosse à cheveux" }],
+    bookingAsk: { en: "Can I book that layered cut tomorrow afternoon?", ar: "فيي احجز قصة الـ layers بكرا بعد الضهر؟", fr: "Je peux réserver cette coupe demain après-midi ?" },
+    service: { en: "Layered haircut", ar: "قصة layers", fr: "Coupe dégradée" },
+    servicePrice: 25,
+    slots: "14:00 · 15:30 · 16:30 · 17:30", time: "16:30",
+    bookingDay: { en: "Wed 15 Oct", ar: "الأربعاء 15 تشرين الأول", fr: "mer. 15 oct." },
+    report: [18, 520, "5.0"],
+  },
+  {
+    id: "market", icon: "🛒", eta: 30,
+    label: { en: "Mini market", ar: "ميني ماركت", fr: "Supérette" },
+    shop: { en: "Mini Market Abou Elie", ar: "ميني ماركت أبو إيلي", fr: "Mini Market Abou Elie" },
+    town: { en: "Zalka", ar: "الزلقا", fr: "Zalka" },
+    address: { en: "Main road, building Khoury, 1st floor", ar: "الطريق العام، بناية خوري، الطابق الأول", fr: "Route principale, immeuble Khoury, 1er étage" },
+    shopAddress: { en: "Zalka, main road", ar: "الزلقا، الطريق العام", fr: "Zalka, route principale" },
+    voice: [
+      [2, 3.5, { en: "Labneh 500 g", ar: "لبنة 500 غ", fr: "Labné 500 g" }],
+      [1, 6.5, { en: "Eggs (30)", ar: "بيض (30)", fr: "Œufs (30)" }],
+    ],
+    category: { en: "🥤 Drinks", ar: "🥤 مشروبات", fr: "🥤 Boissons" },
+    add: [1, 3.0, { en: "Water pack 6 × 1.5 L", ar: "كرتونة مي 6 × 1.5 ل", fr: "Pack d'eau 6 × 1,5 L" }],
+    photo: "🛒",
+    photoCaption: { en: "3andak hayda l brand?", ar: "عندك هالماركة؟", fr: "Vous avez cette marque ?" },
+    staffName: { en: "Elie, Mini Market", ar: "إيلي، ميني ماركت", fr: "Elie, Mini Market" },
+    staffReply: { en: "Yes, 4.25$. I'll keep one for you 🙂", ar: "إيه موجودة، 4.25$. بخبيلك وحدة 🙂", fr: "Oui, 4,25 $. Je vous en garde un 🙂" },
+    customerThanks: { en: "Merci Elie!", ar: "ميرسي إيلي!", fr: "Merci Elie !" },
+    pickupAsk: { en: "3andak 2 khebz? I'll pass now", ar: "عندك 2 خبز؟ بمرق هلق", fr: "Vous avez 2 paquets de pain ? Je passe maintenant" },
+    pickup: [2, 0.8, { en: "Arabic bread", ar: "خبز عربي", fr: "Pain libanais" }],
+    bookingAsk: { en: "Can I order a mezze platter for Saturday noon?", ar: "فيي اطلب صينية مازة لنهار السبت الضهر؟", fr: "Je peux commander un plateau mezzé pour samedi midi ?" },
+    service: { en: "Mezze platter (10 people)", ar: "صينية مازة (10 أشخاص)", fr: "Plateau mezzé (10 pers.)" },
+    servicePrice: 45,
+    slots: "10:00 · 12:00 · 14:00", time: "12:00",
+    bookingDay: { en: "Sat 18 Oct", ar: "السبت 18 تشرين الأول", fr: "sam. 18 oct." },
+    report: [36, 287.25, "4.7"],
+  },
+];
+
+// The same day for every shop, in each language. `d` is the shop in that language, `n` formats money.
+const SCRIPT = {
+  en: (d, n) => [
+    ["07:58", [
+      ["S", "open"],
+      ["s", `🟢 ${d.shop} is OPEN, the bot is taking orders.`],
+      ["D", "start"],
+      ["d", "✅ Shift started, Karim. New deliveries will come here.\nSend \"stop\" when you finish."],
+    ]],
+    ["12:30", [
+      ["C", "", { voice: "0:07" }],
+      ["c", `Sure! 🙂\n${d.voiceLines}\nAnything else?`, { buttons: ["📋 View menu", "🛒 Checkout"] }],
+    ]],
+    ["12:31", [
+      ["C", "📋 View menu"],
+      ["c", "What would you like? Choose a category 👇", { buttons: ["📋 Products"] }],
+      ["C", d.category],
+      ["c", "Choose an item 👇", { buttons: ["📋 See items"] }],
+      ["C", `${d.addName} · ${n(d.addPrice)}`],
+      ["c", `How many ${d.addName}?`],
+      ["C", "1"],
+      ["c", `✅ Added 1× ${d.addName}\n🛒 Cart: ${d.cartCount} items · ${n(d.subtotal)}`, { buttons: ["➕ Add more", "🛒 Checkout"] }],
+      ["C", "🛒 Checkout"],
+    ]],
+    ["12:32", [
+      ["c", "Which area should we deliver to?", { buttons: ["Choose"] }],
+      ["C", `${d.town} · Delivery ${n(1)}`],
+      ["c", "📍 Tap the button to send your location, or type your address (street, building, floor)."],
+      ["C", d.address],
+      ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"] }],
+      ["C", "💳 Whish"],
+      ["c", `Your order\n${d.cartLines}\nDelivery (${d.town})  ${n(1)}\nTotal: ${n(d.total)}\nWhish · Ready in about ${d.eta} min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
+      ["C", "✅ Confirm order"],
+      ["c", `🧾 Order #128 sent to ${d.shop}.\nTotal: ${n(d.total)}\n💳 You will get the Whish payment link here as soon as the shop accepts your order.`],
+    ]],
+    ["12:34", [
+      ["s", `🔔 New order #128\n${d.cartLines}\nTotal: ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accept · ${d.eta} min`, "❌ Can't take it"] }],
+      ["S", `✅ Accept · ${d.eta} min`],
+      ["s", "👍 Order #128 accepted, the customer got the Whish link. You will get the order here again as soon as it is paid. Don't prepare it before."],
+    ]],
+    ["12:35", [
+      ["c", `✅ ${d.shop} accepted your order #128! Pay ${n(d.total)} with Whish here:\nhttps://whish.money/pay/128xk\nWe start preparing it as soon as the payment is confirmed (link valid 30 minutes).`],
+      ["c", `✅ Payment received! Order #128 is confirmed, about ${d.eta} min.`],
+      ["s", `🔔 Order #128 is paid ✅ Prepare it now.\n${d.cartLines}\n🛵 Karim will deliver it.`],
+    ]],
+    ["12:55", [
+      ["d", `🛵 New delivery #128\n${d.cartShort}\nCollect: nothing (paid with Whish)\n📍 ${d.town}, ${d.address}\n📞 Customer: +961 71 234 567`, { buttons: ["🚀 Picked up"] }],
+      ["D", "🚀 Picked up"],
+      ["d", "🛵 Delivery #128, on the way\n💵 Collect: nothing\nTap “I'm outside” when you arrive.", { buttons: ["📍 I'm outside", "✅ Delivered"] }],
+      ["c", "🛵 Your order #128 is on its way with Karim, about 10 min."],
+      ["D", "📍 I'm outside"],
+      ["d", "👍 The customer was told you are outside."],
+      ["c", "📍 Karim is outside with your order #128! 📞 +961 70 111 222"],
+      ["D", "✅ Delivered"],
+      ["d", "✅ Delivery #128 completed. Thanks!"],
+      ["c", `✅ Your order #128 was delivered. Thank you for ordering from ${d.shop}!`],
+    ]],
+    ["13:40", [
+      ["c", "⭐ How was it? Reply with a number from 1 (bad) to 5 (excellent)."],
+      ["C", "5"],
+      ["c", "Thank you for your rating! 🙏"],
+    ]],
+    ["15:10", [
+      ["C", d.photoCaption, { photo: d.photo }],
+      ["c", `👋 A member of the ${d.shop} team will reply to you here shortly.`],
+      ["s", "📷 +961 71 234 567 sent a photo. The bot is paused in that chat, see it and answer in your WhatsApp Business app.\nTap the button when you're done.", { buttons: ["▶️ Give back to bot"] }],
+      ["c", d.staffReply, { human: d.staffName }],
+      ["C", d.customerThanks],
+      ["S", "▶️ Give back to bot"],
+      ["s", "🤖 The bot is handling +961 71 234 567 again."],
+    ]],
+    ["16:20", [
+      ["C", d.pickupAsk],
+      ["c", `Sure! ${d.pickupLine}\nDelivery or pickup?`],
+      ["C", "Pickup"],
+      ["c", "How would you like to pay?", { buttons: ["💵 Cash at the shop", "💳 Whish"] }],
+      ["C", "💵 Cash at the shop"],
+      ["c", "Pay cash in dollars or in lira?", { buttons: ["Dollars", "Lira"] }],
+      ["C", "Lira"],
+      ["c", `Your order\n${d.pickupLine}\nTotal: ${n(d.pickupTotal)} (${d.pickupLbp})\nPickup at ${d.shopAddress} · Cash at the shop\nReady in about 15 min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
+      ["C", "✅ Confirm order"],
+      ["c", `🧾 Order #129 sent to ${d.shop}.\nTotal: ${n(d.pickupTotal)} (${d.pickupLbp})\nYou will get a message as soon as the shop accepts it.`],
+      ["s", `🔔 New PICKUP order #129\n${d.pickupLine}\nTotal: ${d.pickupLbp} (cash)\n📞 +961 71 234 567`, { buttons: ["✅ Accept · 15 min", "❌ Can't take it"] }],
+      ["S", "✅ Accept · 15 min"],
+      ["s", "👍 Order #129 updated.", { buttons: ["✅ Ready for pickup", "📦 Collected"] }],
+      ["c", `✅ ${d.shop} accepted your order #129, about 15 min.`],
+      ["S", "✅ Ready for pickup"],
+      ["c", `📦 Your order #129 is ready! You can pick it up now at ${d.shopAddress}.`],
+      ["S", "📦 Collected"],
+      ["c", `✅ Thank you for picking up order #129 from ${d.shop}!`],
+    ]],
+    ["18:05", [
+      ["C", d.bookingAsk],
+      ["c", `🗓 Free times for ${d.service} on ${d.bookingDay}:\n${d.slots}\nWhich time suits you?`],
+      ["C", d.time],
+      ["c", `✅ Booked: ${d.service} on ${d.bookingDay} at ${d.time}${d.servicePrice} at ${d.shop}, ${d.shopAddress}.\nWe'll send you a reminder. Reply "cancel appointment" if you can't make it.`],
+      ["s", `🗓 New booking, ${d.shop}\n${d.service}\n${d.bookingDay} at ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ Done", "🚫 No-show"] }],
+    ]],
+    ["22:00", [
+      ["S", "close"],
+      ["s", `🔴 ${d.shop} is CLOSED, the bot tells customers you are closed.`],
+      ["D", "stop"],
+      ["d", `👋 Shift ended, Karim.\nDeliveries: ${d.driverOrders}\nCash to hand over: ${d.driverCash}`],
+      ["s", `📊 ${d.shop}, daily report\nOrders delivered: ${d.reportOrders}\nSales: ${n(d.reportSales)}\nAverage rating: ${d.reportRating} ⭐\nLate orders: 0\nTop items: ${d.topItems}`],
+    ]],
+    [d.reminderAt, [
+      ["c", `⏰ Reminder: your ${d.service} at ${d.shop} is on ${d.bookingDay} at ${d.time}. See you soon!`, { day: d.bookingDay }],
+      ["C", "See you there 👍"],
+      ["S", "✅ Done", { day: d.bookingDay, late: true }],
+      ["s", `👍 ${d.service} updated.`],
+    ]],
   ],
 
-  ar: [
-    {
-      id: "restaurant", icon: "🥙", label: "مطعم", shop: "فرن الحارة", chats: ["c", "s", "d"],
-      shows: "القائمة داخل المحادثة، السلة، الدفع كاش بالدولار أو بالليرة، قبول المحل، دوام السائق، «أنا برا»، التقييم، التقرير اليومي",
-      steps: [
-        { label: "السائق يبدأ", at: "11:58", messages: [
-          ["D", "start"],
-          ["d", "✅ بدأ دوامك يا كريم. التوصيلات الجديدة رح توصلك هون.\nابعت \"stop\" لما تخلص."],
-        ] },
-        { label: "الطلب", at: "12:30", messages: [
-          ["C", "مرحبا 👋"],
-          ["c", "أهلا وسهلا بفرن الحارة! 😊 شو بتحب تطلب؟ اختار فئة 👇", { buttons: ["📋 عرض القائمة"] }],
-          ["C", "🥙 مناقيش"],
-          ["c", "اختار صنف 👇", { buttons: ["📋 شوف الأصناف"] }],
-          ["C", "منقوشة زعتر · 1.00$"],
-          ["c", "قديش منقوشة زعتر؟"],
-          ["C", "2"],
-          ["c", "✅ انضاف 2× منقوشة زعتر\n🛒 السلة: 2 أصناف · 2.00$", { buttons: ["➕ زيد", "🛒 إتمام الطلب"] }],
-          ["C", "و زيد 1 جبنة"],
-          ["c", "✅ انضاف 1× منقوشة جبنة\n🛒 السلة: 3 أصناف · 4.50$", { buttons: ["➕ زيد", "🛒 إتمام الطلب"] }],
-          ["C", "🛒 إتمام الطلب"],
-          ["c", "لأي منطقة منوصّل؟", { buttons: ["اختار"] }],
-          ["C", "جبيل · التوصيل 1.00$"],
-          ["c", "📍 اضغط الزر لتبعت موقعك، أو اكتب العنوان (الشارع، البناية، الطابق)."],
-          ["C", "الشارع العام حد الكنيسة، بناية حداد، الطابق الثاني"],
-          ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"] }],
-          ["C", "💵 كاش عند التسليم"],
-          ["c", "بتدفع كاش بالدولار أو بالليرة؟", { buttons: ["دولار", "ليرة"] }],
-          ["C", "ليرة"],
-          ["c", "طلبك\n2× منقوشة زعتر  2.00$\n1× منقوشة جبنة  2.50$\nالتوصيل (جبيل)  1.00$\nالمجموع: 5.50$ (492,250 ل.ل)\nكاش عند التسليم · جاهز بحوالي 25 دقيقة", { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
-          ["C", "✅ تأكيد الطلب"],
-          ["c", "🧾 تم إرسال الطلب رقم 128 إلى فرن الحارة.\nالمجموع: 5.50$ (492,250 ل.ل)\nستصلك رسالة فور قبول المحل للطلب."],
-        ] },
-        { label: "المحل يقبل", at: "12:34", messages: [
-          ["s", "🔔 طلب جديد رقم 128\n2× منقوشة زعتر\n1× منقوشة جبنة\nالمجموع: 492,250 ل.ل (كاش)\n📍 جبيل، الشارع العام حد الكنيسة\n📞 +961 71 234 567", { buttons: ["✅ قبول · 25 د", "❌ ما فينا"] }],
-          ["S", "✅ قبول · 25 د"],
-          ["s", "👍 تم تحديث الطلب رقم 128."],
-          ["c", "✅ قبل فرن الحارة طلبك رقم 128، حوالي 25 دقيقة."],
-        ] },
-        { label: "بالطريق", at: "12:52", messages: [
-          ["d", "🛵 توصيل جديد رقم 128\n2× زعتر، 1× جبنة\nالمبلغ: 492,250 ل.ل (كاش)\n📍 جبيل، الشارع العام حد الكنيسة\n📞 الزبون: +961 71 234 567", { buttons: ["🚀 استلمت"] }],
-          ["D", "🚀 استلمت"],
-          ["d", "🛵 التوصيل رقم 128، في الطريق\n💵 المبلغ: 492,250 ل.ل\nاضغط «أنا برا» لما توصل.", { buttons: ["📍 أنا برا", "✅ تم التوصيل"] }],
-          ["c", "🛵 طلبك رقم 128 في الطريق مع كريم، حوالي 10 دقائق."],
-        ] },
-        { label: "عالباب", at: "13:03", messages: [
-          ["D", "📍 أنا برا"],
-          ["d", "👍 خبّرنا الزبون إنك برا."],
-          ["c", "📍 كريم برا مع طلبك رقم 128! 📞 +961 70 111 222"],
-          ["D", "✅ تم التوصيل"],
-          ["d", "✅ تم التوصيل رقم 128. شكراً!"],
-          ["c", "✅ تم توصيل طلبك رقم 128. شكراً لطلبك من فرن الحارة!"],
-        ] },
-        { label: "التقييم", at: "13:35", messages: [
-          ["c", "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز)."],
-          ["C", "5"],
-          ["c", "شكراً على تقييمك! 🙏"],
-        ] },
-        { label: "آخر النهار", at: "22:01", messages: [
-          ["D", "stop"],
-          ["d", "👋 انتهى دوامك يا كريم.\nالتوصيلات: 14\nالكاش يلي لازم تسلمه: 3,850,000 ل.ل"],
-          ["s", "📊 فرن الحارة، تقرير اليوم\nالطلبات المسلّمة: 14\nالمبيعات: 81.00$\nمعدل التقييم: 4.8 ⭐\nطلبات متأخرة: 0\nالأكثر طلباً: منقوشة زعتر، منقوشة جبنة"],
-        ] },
-      ],
-    },
-    {
-      id: "pharmacy", icon: "💊", label: "صيدلية", shop: "صيدلية الشفاء", chats: ["c", "s"],
-      shows: "الطلب برسالة صوتية، رابط دفع Whish بعد قبول المحل، صورة بتنحوّل لشخص حقيقي، توصيل من المحل",
-      steps: [
-        { label: "طلب صوتي", at: "18:10", messages: [
-          ["C", "", { voice: "0:07" }],
-          ["c", "أكيد! 🙂\n1× Panadol Extra  4.00$\n1× Vitamin C 1000  6.00$\nتوصيل أو استلام؟"],
-          ["C", "توصيل، الأشرفية، شارع سرسق، بناية 12، الطابق الثالث"],
-          ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"] }],
-          ["C", "💳 Whish"],
-          ["c", "طلبك\n1× Panadol Extra  4.00$\n1× Vitamin C 1000  6.00$\nالتوصيل (الأشرفية)  1.00$\nالمجموع: 11.00$\nWhish · جاهز بحوالي 40 دقيقة", { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
-          ["C", "✅ تأكيد الطلب"],
-          ["c", "🧾 تم إرسال الطلب رقم 57 إلى صيدلية الشفاء.\nالمجموع: 11.00$\n💳 رح يوصلك رابط الدفع بـ Whish هون أول ما المحل يقبل طلبك."],
-        ] },
-        { label: "المحل يقبل", at: "18:12", messages: [
-          ["s", "🔔 طلب جديد رقم 57\n1× Panadol Extra\n1× Vitamin C 1000\nالمجموع: 11.00$ (Whish)\n📍 الأشرفية، شارع سرسق، بناية 12\n📞 +961 3 456 789", { buttons: ["✅ قبول · 40 د", "❌ ما فينا"] }],
-          ["S", "✅ قبول · 40 د"],
-          ["s", "👍 تم قبول الطلب رقم 57، والزبون وصله رابط Whish. رح يرجعلك الطلب هون أول ما ينْدفع. لا تحضّره قبل."],
-        ] },
-        { label: "دفع Whish", at: "18:13", messages: [
-          ["c", "✅ صيدلية الشفاء قبلت طلبك رقم 57! ادفع 11.00$ بـ Whish من هون:\nhttps://whish.money/pay/57xk\nمنبلش نحضّره أول ما يتأكد الدفع (الرابط صالح 30 دقيقة)."],
-          ["c", "✅ وصل الدفع! الطلب رقم 57 تأكد، حوالي 40 دقيقة."],
-          ["s", "🔔 الطلب رقم 57 مدفوع ✅\n1× Panadol Extra\n1× Vitamin C 1000\nالمجموع: 11.00$ (Whish)\n📍 الأشرفية، شارع سرسق، بناية 12", { buttons: ["🛵 طلع للتوصيل", "✅ تم التوصيل"] }],
-          ["S", "🛵 طلع للتوصيل"],
-          ["c", "🛵 طلبك رقم 57 في الطريق!"],
-        ] },
-        { label: "حكي مع شخص", at: "18:31", messages: [
-          ["C", "عندكن كمان هيدا؟", { photo: true }],
-          ["c", "👋 حدا من فريق صيدلية الشفاء رح يرد عليك هون بعد شوي."],
-          ["s", "📷 ‎+961 3 456 789 بعت صورة. البوت موقّف بهالمحادثة، شوفها وردّ من تطبيق واتساب للأعمال.\nاضغط الزر لما تخلص.", { buttons: ["▶️ رجّع للبوت"] }],
-          ["c", "إيه موجود، 8.50$. السائق بيجيبلك ياه مع الطلب 🙂", { human: "ريتا، صيدلانية" }],
-          ["C", "تمام، شكراً!"],
-          ["S", "▶️ رجّع للبوت"],
-          ["s", "🤖 البوت رجع يرد على ‎+961 3 456 789."],
-        ] },
-        { label: "التوصيل", at: "18:50", messages: [
-          ["S", "✅ تم التوصيل"],
-          ["s", "👍 تم تحديث الطلب رقم 57."],
-          ["c", "✅ تم توصيل طلبك رقم 57. شكراً لطلبك من صيدلية الشفاء!"],
-        ] },
-      ],
-    },
-    {
-      id: "salon", icon: "💇", label: "صالون", shop: "Beauty Corner", chats: ["c", "s"],
-      shows: "حجز موعد فاضي، المحل بيوصله خبر، تذكير تلقائي، تم / ما إجا، التقييم",
-      steps: [
-        { label: "الحجز", at: "20:15", messages: [
-          ["C", "مرحبا! فيي احجز قص وسشوار بكرا بعد الضهر؟"],
-          ["c", "🗓 المواعيد الفاضية لـ قص وسشوار نهار الأربعاء 15 تشرين الأول:\n14:00 · 15:30 · 16:30 · 17:30\nأي وقت بيناسبك؟"],
-          ["C", "16:30"],
-          ["c", "✅ تم الحجز: قص وسشوار نهار الأربعاء 15 تشرين الأول الساعة 16:30 (25.00$) عند Beauty Corner، جونيه.\nرح نبعتلك تذكير. ابعت \"إلغاء الموعد\" إذا ما فيك تجي."],
-        ] },
-        { label: "خبر للمحل", at: "20:16", messages: [
-          ["s", "🗓 حجز جديد، Beauty Corner\nقص وسشوار\nالأربعاء 15 تشرين الأول الساعة 16:30 · 25.00$\n📞 +961 76 555 010", { buttons: ["✅ تم", "🚫 ما إجا"] }],
-        ] },
-        { label: "التذكير", at: "14:30", messages: [
-          ["c", "⏰ تذكير: موعدك لـ قص وسشوار عند Beauty Corner نهار الأربعاء 15 تشرين الأول الساعة 16:30. منشوفك قريباً!", { day: "الأربعاء 15 تشرين الأول" }],
-          ["C", "منشوفكن 👍"],
-        ] },
-        { label: "تم", at: "17:20", messages: [
-          ["S", "✅ تم", { day: "الأربعاء 15 تشرين الأول" }],
-          ["s", "👍 تم تحديث قص وسشوار."],
-        ] },
-        { label: "التقييم", at: "18:20", messages: [
-          ["c", "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز)."],
-          ["C", "5"],
-          ["c", "شكراً على تقييمك! 🙏"],
-        ] },
-      ],
-    },
-    {
-      id: "market", icon: "🛒", label: "ميني ماركت", shop: "ميني ماركت أبو إيلي", chats: ["c", "s"],
-      shows: "فتح وسكّر المحل من واتساب، الكتابة بأي خليط لغات، طلب استلام، جاهز، تم الاستلام",
-      steps: [
-        { label: "فتح المحل", at: "07:58", messages: [
-          ["S", "open"],
-          ["s", "🟢 ميني ماركت أبو إيلي مفتوح، البوت عم ياخد طلبات."],
-        ] },
-        { label: "الطلب", at: "09:12", messages: [
-          ["C", "bonjour, 3andak labne w 2 khebz?"],
-          ["c", "أكيد! 🙂\n1× لبنة 500غ  3.50$\n2× خبز عربي  1.60$\nتوصيل أو استلام؟"],
-          ["C", "استلام، بمرق بعد ربع ساعة"],
-          ["c", "طلبك\n1× لبنة 500غ  3.50$\n2× خبز عربي  1.60$\nالمجموع: 5.10$\nاستلام من الزلقا، الطريق العام · كاش بالمحل\nجاهز بحوالي 15 دقيقة", { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
-          ["C", "✅ تأكيد الطلب"],
-          ["c", "🧾 تم إرسال الطلب رقم 312 إلى ميني ماركت أبو إيلي.\nالمجموع: 5.10$\nستصلك رسالة فور قبول المحل للطلب."],
-        ] },
-        { label: "المحل يقبل", at: "09:13", messages: [
-          ["s", "🔔 طلب استلام جديد رقم 312\n1× لبنة 500غ\n2× خبز عربي\nالمجموع: 5.10$ (كاش)\n📞 +961 71 909 090", { buttons: ["✅ قبول · 15 د", "❌ ما فينا"] }],
-          ["S", "✅ قبول · 15 د"],
-          ["s", "👍 تم تحديث الطلب رقم 312.", { buttons: ["✅ جاهز للاستلام", "📦 تم الاستلام"] }],
-          ["c", "✅ قبل ميني ماركت أبو إيلي طلبك رقم 312، جاهز بحوالي 15 دقيقة."],
-        ] },
-        { label: "الاستلام", at: "09:24", messages: [
-          ["S", "✅ جاهز للاستلام"],
-          ["c", "📦 طلبك رقم 312 جاهز! فيك تستلمه هلق من الزلقا، الطريق العام."],
-          ["S", "📦 تم الاستلام"],
-          ["c", "✅ شكراً لاستلام الطلب رقم 312 من ميني ماركت أبو إيلي!"],
-        ] },
-        { label: "سكّر المحل", at: "21:00", messages: [
-          ["S", "close"],
-          ["s", "🔴 ميني ماركت أبو إيلي مسكّر، البوت بيخبّر الزباين إنكن مسكرين."],
-          ["C", "3andak khebz?"],
-          ["c", "عذراً، نحنا مسكرين هلق 🌙 منفتح بكرا الساعة 8:00."],
-        ] },
-      ],
-    },
+  ar: (d, n) => [
+    ["07:58", [
+      ["S", "open"],
+      ["s", `🟢 ${d.shop} مفتوح، البوت عم ياخد طلبات.`],
+      ["D", "start"],
+      ["d", "✅ بدأ دوامك يا كريم. التوصيلات الجديدة رح توصلك هون.\nابعت \"stop\" لما تخلص."],
+    ]],
+    ["12:30", [
+      ["C", "", { voice: "0:07" }],
+      ["c", `أكيد! 🙂\n${d.voiceLines}\nبدك شي تاني؟`, { buttons: ["📋 عرض القائمة", "🛒 إتمام الطلب"] }],
+    ]],
+    ["12:31", [
+      ["C", "📋 عرض القائمة"],
+      ["c", "شو بتحب؟ اختار فئة 👇", { buttons: ["📋 المنتجات"] }],
+      ["C", d.category],
+      ["c", "اختار صنف 👇", { buttons: ["📋 شوف الأصناف"] }],
+      ["C", `${d.addName} · ${n(d.addPrice)}`],
+      ["c", `قديش ${d.addName}؟`],
+      ["C", "1"],
+      ["c", `✅ انضاف 1× ${d.addName}\n🛒 السلة: ${d.cartCount} أصناف · ${n(d.subtotal)}`, { buttons: ["➕ زيد", "🛒 إتمام الطلب"] }],
+      ["C", "🛒 إتمام الطلب"],
+    ]],
+    ["12:32", [
+      ["c", "لأي منطقة منوصّل؟", { buttons: ["اختار"] }],
+      ["C", `${d.town} · التوصيل ${n(1)}`],
+      ["c", "📍 اضغط الزر لتبعت موقعك، أو اكتب العنوان (الشارع، البناية، الطابق)."],
+      ["C", d.address],
+      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"] }],
+      ["C", "💳 Whish"],
+      ["c", `طلبك\n${d.cartLines}\nالتوصيل (${d.town})  ${n(1)}\nالمجموع: ${n(d.total)}\nWhish · جاهز بحوالي ${d.eta} دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
+      ["C", "✅ تأكيد الطلب"],
+      ["c", `🧾 تم إرسال الطلب رقم 128 إلى ${d.shop}.\nالمجموع: ${n(d.total)}\n💳 رح يوصلك رابط الدفع بـ Whish هون أول ما المحل يقبل طلبك.`],
+    ]],
+    ["12:34", [
+      ["s", `🔔 طلب جديد رقم 128\n${d.cartLines}\nالمجموع: ${n(d.total)} (Whish)\n📍 ${d.town}، ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ قبول · ${d.eta} د`, "❌ ما فينا"] }],
+      ["S", `✅ قبول · ${d.eta} د`],
+      ["s", "👍 تم قبول الطلب رقم 128، والزبون وصله رابط Whish. رح يرجعلك الطلب هون أول ما ينْدفع. لا تحضّره قبل."],
+    ]],
+    ["12:35", [
+      ["c", `✅ ${d.shop} قبل طلبك رقم 128! ادفع ${n(d.total)} بـ Whish من هون:\nhttps://whish.money/pay/128xk\nمنبلش نحضّره أول ما يتأكد الدفع (الرابط صالح 30 دقيقة).`],
+      ["c", `✅ وصل الدفع! الطلب رقم 128 تأكد، حوالي ${d.eta} دقيقة.`],
+      ["s", `🔔 الطلب رقم 128 مدفوع ✅ حضّره هلق.\n${d.cartLines}\n🛵 كريم رح يوصّله.`],
+    ]],
+    ["12:55", [
+      ["d", `🛵 توصيل جديد رقم 128\n${d.cartShort}\nالمبلغ: ولا شي (مدفوع بـ Whish)\n📍 ${d.town}، ${d.address}\n📞 الزبون: +961 71 234 567`, { buttons: ["🚀 استلمت"] }],
+      ["D", "🚀 استلمت"],
+      ["d", "🛵 التوصيل رقم 128، في الطريق\n💵 المبلغ: ولا شي\nاضغط «أنا برا» لما توصل.", { buttons: ["📍 أنا برا", "✅ تم التوصيل"] }],
+      ["c", "🛵 طلبك رقم 128 في الطريق مع كريم، حوالي 10 دقائق."],
+      ["D", "📍 أنا برا"],
+      ["d", "👍 خبّرنا الزبون إنك برا."],
+      ["c", "📍 كريم برا مع طلبك رقم 128! 📞 +961 70 111 222"],
+      ["D", "✅ تم التوصيل"],
+      ["d", "✅ تم التوصيل رقم 128. شكراً!"],
+      ["c", `✅ تم توصيل طلبك رقم 128. شكراً لطلبك من ${d.shop}!`],
+    ]],
+    ["13:40", [
+      ["c", "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز)."],
+      ["C", "5"],
+      ["c", "شكراً على تقييمك! 🙏"],
+    ]],
+    ["15:10", [
+      ["C", d.photoCaption, { photo: d.photo }],
+      ["c", `👋 حدا من فريق ${d.shop} رح يرد عليك هون بعد شوي.`],
+      ["s", "📷 ‎+961 71 234 567 بعت صورة. البوت موقّف بهالمحادثة، شوفها وردّ من تطبيق واتساب للأعمال.\nاضغط الزر لما تخلص.", { buttons: ["▶️ رجّع للبوت"] }],
+      ["c", d.staffReply, { human: d.staffName }],
+      ["C", d.customerThanks],
+      ["S", "▶️ رجّع للبوت"],
+      ["s", "🤖 البوت رجع يرد على ‎+961 71 234 567."],
+    ]],
+    ["16:20", [
+      ["C", d.pickupAsk],
+      ["c", `أكيد! ${d.pickupLine}\nتوصيل أو استلام؟`],
+      ["C", "استلام"],
+      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش بالمحل", "💳 Whish"] }],
+      ["C", "💵 كاش بالمحل"],
+      ["c", "بتدفع كاش بالدولار أو بالليرة؟", { buttons: ["دولار", "ليرة"] }],
+      ["C", "ليرة"],
+      ["c", `طلبك\n${d.pickupLine}\nالمجموع: ${n(d.pickupTotal)} (${d.pickupLbp})\nاستلام من ${d.shopAddress} · كاش بالمحل\nجاهز بحوالي 15 دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
+      ["C", "✅ تأكيد الطلب"],
+      ["c", `🧾 تم إرسال الطلب رقم 129 إلى ${d.shop}.\nالمجموع: ${n(d.pickupTotal)} (${d.pickupLbp})\nستصلك رسالة فور قبول المحل للطلب.`],
+      ["s", `🔔 طلب استلام جديد رقم 129\n${d.pickupLine}\nالمجموع: ${d.pickupLbp} (كاش)\n📞 +961 71 234 567`, { buttons: ["✅ قبول · 15 د", "❌ ما فينا"] }],
+      ["S", "✅ قبول · 15 د"],
+      ["s", "👍 تم تحديث الطلب رقم 129.", { buttons: ["✅ جاهز للاستلام", "📦 تم الاستلام"] }],
+      ["c", `✅ قبل ${d.shop} طلبك رقم 129، حوالي 15 دقيقة.`],
+      ["S", "✅ جاهز للاستلام"],
+      ["c", `📦 طلبك رقم 129 جاهز! فيك تستلمه هلق من ${d.shopAddress}.`],
+      ["S", "📦 تم الاستلام"],
+      ["c", `✅ شكراً لاستلام الطلب رقم 129 من ${d.shop}!`],
+    ]],
+    ["18:05", [
+      ["C", d.bookingAsk],
+      ["c", `🗓 المواعيد الفاضية لـ ${d.service} نهار ${d.bookingDay}:\n${d.slots}\nأي وقت بيناسبك؟`],
+      ["C", d.time],
+      ["c", `✅ تم الحجز: ${d.service} نهار ${d.bookingDay} الساعة ${d.time}${d.servicePrice} عند ${d.shop}، ${d.shopAddress}.\nرح نبعتلك تذكير. ابعت "إلغاء الموعد" إذا ما فيك تجي.`],
+      ["s", `🗓 حجز جديد، ${d.shop}\n${d.service}\n${d.bookingDay} الساعة ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ تم", "🚫 ما إجا"] }],
+    ]],
+    ["22:00", [
+      ["S", "close"],
+      ["s", `🔴 ${d.shop} مسكّر، البوت بيخبّر الزباين إنكن مسكرين.`],
+      ["D", "stop"],
+      ["d", `👋 انتهى دوامك يا كريم.\nالتوصيلات: ${d.driverOrders}\nالكاش يلي لازم تسلمه: ${d.driverCash}`],
+      ["s", `📊 ${d.shop}، تقرير اليوم\nالطلبات المسلّمة: ${d.reportOrders}\nالمبيعات: ${n(d.reportSales)}\nمعدل التقييم: ${d.reportRating} ⭐\nطلبات متأخرة: 0\nالأكثر طلباً: ${d.topItems}`],
+    ]],
+    [d.reminderAt, [
+      ["c", `⏰ تذكير: موعدك لـ ${d.service} عند ${d.shop} نهار ${d.bookingDay} الساعة ${d.time}. منشوفك قريباً!`, { day: d.bookingDay }],
+      ["C", "منشوفكن 👍"],
+      ["S", "✅ تم", { day: d.bookingDay, late: true }],
+      ["s", `👍 تم تحديث ${d.service}.`],
+    ]],
   ],
 
-  fr: [
-    {
-      id: "restaurant", icon: "🥙", label: "Restaurant", shop: "Foren Al Hara", chats: ["c", "s", "d"],
-      shows: "menu dans la discussion, panier, espèces en dollars ou en livres, acceptation par le commerce, service du livreur, « Je suis devant », note, rapport du soir",
-      steps: [
-        { label: "Livreur en service", at: "11:58", messages: [
-          ["D", "start"],
-          ["d", "✅ Service commencé, Karim. Les nouvelles livraisons arriveront ici.\nEnvoyez \"stop\" à la fin."],
-        ] },
-        { label: "Commande", at: "12:30", messages: [
-          ["C", "Bonjour 👋"],
-          ["c", "Bienvenue chez Foren Al Hara ! 😊 Que souhaitez-vous ? Choisissez une catégorie 👇", { buttons: ["📋 Voir le menu"] }],
-          ["C", "🥙 Man'oushé"],
-          ["c", "Choisissez un article 👇", { buttons: ["📋 Voir les articles"] }],
-          ["C", "Man'oushé zaatar · 1,00 $"],
-          ["c", "Combien de Man'oushé zaatar ?"],
-          ["C", "2"],
-          ["c", "✅ Ajouté 2× Man'oushé zaatar\n🛒 Panier : 2 articles · 2,00 $", { buttons: ["➕ Ajouter", "🛒 Commander"] }],
-          ["C", "et 1 au fromage svp"],
-          ["c", "✅ Ajouté 1× Man'oushé fromage\n🛒 Panier : 3 articles · 4,50 $", { buttons: ["➕ Ajouter", "🛒 Commander"] }],
-          ["C", "🛒 Commander"],
-          ["c", "Dans quelle zone livrer ?", { buttons: ["Choisir"] }],
-          ["C", "Jbeil · Livraison 1,00 $"],
-          ["c", "📍 Touchez le bouton pour envoyer votre position, ou écrivez l'adresse (rue, immeuble, étage)."],
-          ["C", "Rue principale près de l'église, immeuble Haddad, 2e étage"],
-          ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"] }],
-          ["C", "💵 Espèces à la livraison"],
-          ["c", "Payer en dollars ou en livres ?", { buttons: ["Dollars", "Livres"] }],
-          ["C", "Livres"],
-          ["c", "Votre commande\n2× Man'oushé zaatar  2,00 $\n1× Man'oushé fromage  2,50 $\nLivraison (Jbeil)  1,00 $\nTotal : 5,50 $ (492 250 LBP)\nEspèces à la livraison · Prête dans 25 min environ", { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
-          ["C", "✅ Confirmer"],
-          ["c", "🧾 Commande n° 128 envoyée à Foren Al Hara.\nTotal : 5,50 $ (492 250 LBP)\nVous recevrez un message dès que le commerce l'accepte."],
-        ] },
-        { label: "Acceptée", at: "12:34", messages: [
-          ["s", "🔔 Nouvelle commande n° 128\n2× Man'oushé zaatar\n1× Man'oushé fromage\nTotal : 492 250 LBP (espèces)\n📍 Jbeil, rue principale près de l'église\n📞 +961 71 234 567", { buttons: ["✅ Accepter · 25 min", "❌ Impossible"] }],
-          ["S", "✅ Accepter · 25 min"],
-          ["s", "👍 Commande n° 128 mise à jour."],
-          ["c", "✅ Foren Al Hara a accepté votre commande n° 128, environ 25 min."],
-        ] },
-        { label: "En route", at: "12:52", messages: [
-          ["d", "🛵 Nouvelle livraison n° 128\n2× Zaatar, 1× Fromage\nÀ encaisser : 492 250 LBP (espèces)\n📍 Jbeil, rue principale près de l'église\n📞 Client : +961 71 234 567", { buttons: ["🚀 Récupérée"] }],
-          ["D", "🚀 Récupérée"],
-          ["d", "🛵 Livraison n° 128, en route\n💵 À encaisser : 492 250 LBP\nTouchez « Je suis devant » en arrivant.", { buttons: ["📍 Je suis devant", "✅ Livrée"] }],
-          ["c", "🛵 Votre commande n° 128 est en route avec Karim, environ 10 min."],
-        ] },
-        { label: "À la porte", at: "13:03", messages: [
-          ["D", "📍 Je suis devant"],
-          ["d", "👍 Le client sait que vous êtes devant."],
-          ["c", "📍 Karim est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222"],
-          ["D", "✅ Livrée"],
-          ["d", "✅ Livraison n° 128 terminée. Merci !"],
-          ["c", "✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez Foren Al Hara !"],
-        ] },
-        { label: "Note", at: "13:35", messages: [
-          ["c", "⭐ Qu'en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent)."],
-          ["C", "5"],
-          ["c", "Merci pour votre note ! 🙏"],
-        ] },
-        { label: "Fin de journée", at: "22:01", messages: [
-          ["D", "stop"],
-          ["d", "👋 Service terminé, Karim.\nLivraisons : 14\nEspèces à remettre : 3 850 000 LBP"],
-          ["s", "📊 Foren Al Hara, rapport du jour\nCommandes livrées : 14\nVentes : 81,00 $\nNote moyenne : 4,8 ⭐\nCommandes en retard : 0\nLes plus demandés : Man'oushé zaatar, Man'oushé fromage"],
-        ] },
-      ],
-    },
-    {
-      id: "pharmacy", icon: "💊", label: "Pharmacie", shop: "Pharmacie Al Shifa", chats: ["c", "s"],
-      shows: "commande par message vocal, lien de paiement Whish après acceptation, photo transmise à une vraie personne, livraison par le commerce",
-      steps: [
-        { label: "Commande vocale", at: "18:10", messages: [
-          ["C", "", { voice: "0:07" }],
-          ["c", "Bien sûr ! 🙂\n1× Panadol Extra  4,00 $\n1× Vitamine C 1000  6,00 $\nLivraison ou retrait ?"],
-          ["C", "Livraison, Achrafieh, rue Sursock, immeuble 12, 3e étage"],
-          ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"] }],
-          ["C", "💳 Whish"],
-          ["c", "Votre commande\n1× Panadol Extra  4,00 $\n1× Vitamine C 1000  6,00 $\nLivraison (Achrafieh)  1,00 $\nTotal : 11,00 $\nWhish · Prête dans 40 min environ", { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
-          ["C", "✅ Confirmer"],
-          ["c", "🧾 Commande n° 57 envoyée à Pharmacie Al Shifa.\nTotal : 11,00 $\n💳 Vous recevrez ici le lien de paiement Whish dès que le commerce accepte votre commande."],
-        ] },
-        { label: "Acceptée", at: "18:12", messages: [
-          ["s", "🔔 Nouvelle commande n° 57\n1× Panadol Extra\n1× Vitamine C 1000\nTotal : 11,00 $ (Whish)\n📍 Achrafieh, rue Sursock, immeuble 12\n📞 +961 3 456 789", { buttons: ["✅ Accepter · 40 min", "❌ Impossible"] }],
-          ["S", "✅ Accepter · 40 min"],
-          ["s", "👍 Commande n° 57 acceptée, le client a reçu le lien Whish. Vous recevrez la commande ici dès qu'elle est payée. Ne la préparez pas avant."],
-        ] },
-        { label: "Paiement Whish", at: "18:13", messages: [
-          ["c", "✅ Pharmacie Al Shifa a accepté votre commande n° 57 ! Payez 11,00 $ avec Whish ici :\nhttps://whish.money/pay/57xk\nNous la préparons dès que le paiement est confirmé (lien valable 30 minutes)."],
-          ["c", "✅ Paiement reçu ! La commande n° 57 est confirmée, environ 40 min."],
-          ["s", "🔔 Commande n° 57 payée ✅\n1× Panadol Extra\n1× Vitamine C 1000\nTotal : 11,00 $ (Whish)\n📍 Achrafieh, rue Sursock, immeuble 12", { buttons: ["🛵 En livraison", "✅ Livrée"] }],
-          ["S", "🛵 En livraison"],
-          ["c", "🛵 Votre commande n° 57 est en route !"],
-        ] },
-        { label: "Parler à quelqu'un", at: "18:31", messages: [
-          ["C", "Vous avez aussi celui-ci ?", { photo: true }],
-          ["c", "👋 Un membre de l'équipe Pharmacie Al Shifa va vous répondre ici très vite."],
-          ["s", "📷 +961 3 456 789 a envoyé une photo. Le bot est en pause dans cette discussion, voyez-la et répondez depuis WhatsApp Business.\nTouchez le bouton quand vous avez fini.", { buttons: ["▶️ Rendre au bot"] }],
-          ["c", "Oui, nous l'avons, 8,50 $. Le livreur vous l'apporte avec la commande 🙂", { human: "Rita, pharmacienne" }],
-          ["C", "Parfait, merci !"],
-          ["S", "▶️ Rendre au bot"],
-          ["s", "🤖 Le bot reprend la discussion avec +961 3 456 789."],
-        ] },
-        { label: "Livrée", at: "18:50", messages: [
-          ["S", "✅ Livrée"],
-          ["s", "👍 Commande n° 57 mise à jour."],
-          ["c", "✅ Votre commande n° 57 a été livrée. Merci d'avoir commandé chez Pharmacie Al Shifa !"],
-        ] },
-      ],
-    },
-    {
-      id: "salon", icon: "💇", label: "Salon", shop: "Beauty Corner", chats: ["c", "s"],
-      shows: "réservation d'un créneau libre, commerce prévenu, rappel automatique, Terminé / Absent, note",
-      steps: [
-        { label: "Réservation", at: "20:15", messages: [
-          ["C", "Bonjour ! Je peux réserver une coupe et brushing demain après-midi ?"],
-          ["c", "🗓 Créneaux libres pour Coupe & brushing le mer. 15 oct. :\n14:00 · 15:30 · 16:30 · 17:30\nQuel horaire vous convient ?"],
-          ["C", "16:30"],
-          ["c", "✅ Réservé : Coupe & brushing le mer. 15 oct. à 16:30 (25,00 $) chez Beauty Corner, Jounieh.\nNous vous enverrons un rappel. Répondez \"annuler le rendez-vous\" si vous ne pouvez pas venir."],
-        ] },
-        { label: "Commerce prévenu", at: "20:16", messages: [
-          ["s", "🗓 Nouvelle réservation, Beauty Corner\nCoupe & brushing\nmer. 15 oct. à 16:30 · 25,00 $\n📞 +961 76 555 010", { buttons: ["✅ Terminé", "🚫 Absent"] }],
-        ] },
-        { label: "Rappel", at: "14:30", messages: [
-          ["c", "⏰ Rappel : votre Coupe & brushing chez Beauty Corner est le mer. 15 oct. à 16:30. À bientôt !", { day: "mer. 15 oct." }],
-          ["C", "À tout à l'heure 👍"],
-        ] },
-        { label: "Terminé", at: "17:20", messages: [
-          ["S", "✅ Terminé", { day: "mer. 15 oct." }],
-          ["s", "👍 Coupe & brushing mis à jour."],
-        ] },
-        { label: "Note", at: "18:20", messages: [
-          ["c", "⭐ Qu'en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent)."],
-          ["C", "5"],
-          ["c", "Merci pour votre note ! 🙏"],
-        ] },
-      ],
-    },
-    {
-      id: "market", icon: "🛒", label: "Supérette", shop: "Mini Market Abou Elie", chats: ["c", "s"],
-      shows: "ouvrir et fermer le commerce depuis WhatsApp, écrire dans n'importe quel mélange de langues, retrait, prête, récupérée",
-      steps: [
-        { label: "Ouverture", at: "07:58", messages: [
-          ["S", "open"],
-          ["s", "🟢 Mini Market Abou Elie est OUVERT, le bot prend les commandes."],
-        ] },
-        { label: "Commande", at: "09:12", messages: [
-          ["C", "bonjour, 3andak labne w 2 khebz?"],
-          ["c", "Oui ! 🙂\n1× Labné 500 g  3,50 $\n2× Pain libanais  1,60 $\nLivraison ou retrait ?"],
-          ["C", "retrait, je passe dans 15 min"],
-          ["c", "Votre commande\n1× Labné 500 g  3,50 $\n2× Pain libanais  1,60 $\nTotal : 5,10 $\nRetrait à Zalka, route principale · Espèces au magasin\nPrête dans 15 min environ", { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
-          ["C", "✅ Confirmer"],
-          ["c", "🧾 Commande n° 312 envoyée à Mini Market Abou Elie.\nTotal : 5,10 $\nVous recevrez un message dès que le commerce l'accepte."],
-        ] },
-        { label: "Acceptée", at: "09:13", messages: [
-          ["s", "🔔 Nouvelle commande À RETIRER n° 312\n1× Labné 500 g\n2× Pain libanais\nTotal : 5,10 $ (espèces)\n📞 +961 71 909 090", { buttons: ["✅ Accepter · 15 min", "❌ Impossible"] }],
-          ["S", "✅ Accepter · 15 min"],
-          ["s", "👍 Commande n° 312 mise à jour.", { buttons: ["✅ Prête à retirer", "📦 Récupérée"] }],
-          ["c", "✅ Mini Market Abou Elie a accepté votre commande n° 312, prête dans 15 min environ."],
-        ] },
-        { label: "Retrait", at: "09:24", messages: [
-          ["S", "✅ Prête à retirer"],
-          ["c", "📦 Votre commande n° 312 est prête ! Vous pouvez la retirer à Zalka, route principale."],
-          ["S", "📦 Récupérée"],
-          ["c", "✅ Merci d'avoir retiré la commande n° 312 chez Mini Market Abou Elie !"],
-        ] },
-        { label: "Fermeture", at: "21:00", messages: [
-          ["S", "close"],
-          ["s", "🔴 Mini Market Abou Elie est FERMÉ, le bot prévient les clients."],
-          ["C", "3andak khebz?"],
-          ["c", "Désolé, nous sommes fermés 🌙 Nous rouvrons demain à 8:00."],
-        ] },
-      ],
-    },
+  fr: (d, n) => [
+    ["07:58", [
+      ["S", "open"],
+      ["s", `🟢 ${d.shop} est OUVERT, le bot prend les commandes.`],
+      ["D", "start"],
+      ["d", "✅ Service commencé, Karim. Les nouvelles livraisons arriveront ici.\nEnvoyez \"stop\" à la fin."],
+    ]],
+    ["12:30", [
+      ["C", "", { voice: "0:07" }],
+      ["c", `Bien sûr ! 🙂\n${d.voiceLines}\nAutre chose ?`, { buttons: ["📋 Voir le menu", "🛒 Commander"] }],
+    ]],
+    ["12:31", [
+      ["C", "📋 Voir le menu"],
+      ["c", "Que souhaitez-vous ? Choisissez une catégorie 👇", { buttons: ["📋 Produits"] }],
+      ["C", d.category],
+      ["c", "Choisissez un article 👇", { buttons: ["📋 Voir les articles"] }],
+      ["C", `${d.addName} · ${n(d.addPrice)}`],
+      ["c", `Combien de ${d.addName} ?`],
+      ["C", "1"],
+      ["c", `✅ Ajouté 1× ${d.addName}\n🛒 Panier : ${d.cartCount} articles · ${n(d.subtotal)}`, { buttons: ["➕ Ajouter", "🛒 Commander"] }],
+      ["C", "🛒 Commander"],
+    ]],
+    ["12:32", [
+      ["c", "Dans quelle zone livrer ?", { buttons: ["Choisir"] }],
+      ["C", `${d.town} · Livraison ${n(1)}`],
+      ["c", "📍 Touchez le bouton pour envoyer votre position, ou écrivez l'adresse (rue, immeuble, étage)."],
+      ["C", d.address],
+      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"] }],
+      ["C", "💳 Whish"],
+      ["c", `Votre commande\n${d.cartLines}\nLivraison (${d.town})  ${n(1)}\nTotal : ${n(d.total)}\nWhish · Prête dans ${d.eta} min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
+      ["C", "✅ Confirmer"],
+      ["c", `🧾 Commande n° 128 envoyée à ${d.shop}.\nTotal : ${n(d.total)}\n💳 Vous recevrez ici le lien de paiement Whish dès que le commerce accepte votre commande.`],
+    ]],
+    ["12:34", [
+      ["s", `🔔 Nouvelle commande n° 128\n${d.cartLines}\nTotal : ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accepter · ${d.eta} min`, "❌ Impossible"] }],
+      ["S", `✅ Accepter · ${d.eta} min`],
+      ["s", "👍 Commande n° 128 acceptée, le client a reçu le lien Whish. Vous recevrez la commande ici dès qu'elle est payée. Ne la préparez pas avant."],
+    ]],
+    ["12:35", [
+      ["c", `✅ ${d.shop} a accepté votre commande n° 128 ! Payez ${n(d.total)} avec Whish ici :\nhttps://whish.money/pay/128xk\nNous la préparons dès que le paiement est confirmé (lien valable 30 minutes).`],
+      ["c", `✅ Paiement reçu ! La commande n° 128 est confirmée, environ ${d.eta} min.`],
+      ["s", `🔔 Commande n° 128 payée ✅ Préparez-la.\n${d.cartLines}\n🛵 Karim va la livrer.`],
+    ]],
+    ["12:55", [
+      ["d", `🛵 Nouvelle livraison n° 128\n${d.cartShort}\nÀ encaisser : rien (payé avec Whish)\n📍 ${d.town}, ${d.address}\n📞 Client : +961 71 234 567`, { buttons: ["🚀 Récupérée"] }],
+      ["D", "🚀 Récupérée"],
+      ["d", "🛵 Livraison n° 128, en route\n💵 À encaisser : rien\nTouchez « Je suis devant » en arrivant.", { buttons: ["📍 Je suis devant", "✅ Livrée"] }],
+      ["c", "🛵 Votre commande n° 128 est en route avec Karim, environ 10 min."],
+      ["D", "📍 Je suis devant"],
+      ["d", "👍 Le client sait que vous êtes devant."],
+      ["c", "📍 Karim est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222"],
+      ["D", "✅ Livrée"],
+      ["d", "✅ Livraison n° 128 terminée. Merci !"],
+      ["c", `✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez ${d.shop} !`],
+    ]],
+    ["13:40", [
+      ["c", "⭐ Qu'en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent)."],
+      ["C", "5"],
+      ["c", "Merci pour votre note ! 🙏"],
+    ]],
+    ["15:10", [
+      ["C", d.photoCaption, { photo: d.photo }],
+      ["c", `👋 Un membre de l'équipe ${d.shop} va vous répondre ici très vite.`],
+      ["s", "📷 +961 71 234 567 a envoyé une photo. Le bot est en pause dans cette discussion, voyez-la et répondez depuis WhatsApp Business.\nTouchez le bouton quand vous avez fini.", { buttons: ["▶️ Rendre au bot"] }],
+      ["c", d.staffReply, { human: d.staffName }],
+      ["C", d.customerThanks],
+      ["S", "▶️ Rendre au bot"],
+      ["s", "🤖 Le bot reprend la discussion avec +961 71 234 567."],
+    ]],
+    ["16:20", [
+      ["C", d.pickupAsk],
+      ["c", `Bien sûr ! ${d.pickupLine}\nLivraison ou retrait ?`],
+      ["C", "Retrait"],
+      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces au magasin", "💳 Whish"] }],
+      ["C", "💵 Espèces au magasin"],
+      ["c", "Payer en dollars ou en livres ?", { buttons: ["Dollars", "Livres"] }],
+      ["C", "Livres"],
+      ["c", `Votre commande\n${d.pickupLine}\nTotal : ${n(d.pickupTotal)} (${d.pickupLbp})\nRetrait à ${d.shopAddress} · Espèces au magasin\nPrête dans 15 min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
+      ["C", "✅ Confirmer"],
+      ["c", `🧾 Commande n° 129 envoyée à ${d.shop}.\nTotal : ${n(d.pickupTotal)} (${d.pickupLbp})\nVous recevrez un message dès que le commerce l'accepte.`],
+      ["s", `🔔 Nouvelle commande À RETIRER n° 129\n${d.pickupLine}\nTotal : ${d.pickupLbp} (espèces)\n📞 +961 71 234 567`, { buttons: ["✅ Accepter · 15 min", "❌ Impossible"] }],
+      ["S", "✅ Accepter · 15 min"],
+      ["s", "👍 Commande n° 129 mise à jour.", { buttons: ["✅ Prête à retirer", "📦 Récupérée"] }],
+      ["c", `✅ ${d.shop} a accepté votre commande n° 129, environ 15 min.`],
+      ["S", "✅ Prête à retirer"],
+      ["c", `📦 Votre commande n° 129 est prête ! Vous pouvez la retirer à ${d.shopAddress}.`],
+      ["S", "📦 Récupérée"],
+      ["c", `✅ Merci d'avoir retiré la commande n° 129 chez ${d.shop} !`],
+    ]],
+    ["18:05", [
+      ["C", d.bookingAsk],
+      ["c", `🗓 Créneaux libres pour ${d.service} le ${d.bookingDay} :\n${d.slots}\nQuel horaire vous convient ?`],
+      ["C", d.time],
+      ["c", `✅ Réservé : ${d.service} le ${d.bookingDay} à ${d.time}${d.servicePrice} chez ${d.shop}, ${d.shopAddress}.\nNous vous enverrons un rappel. Répondez "annuler le rendez-vous" si vous ne pouvez pas venir.`],
+      ["s", `🗓 Nouvelle réservation, ${d.shop}\n${d.service}\n${d.bookingDay} à ${d.time}${d.servicePriceShort}\n📞 +961 71 234 567`, { buttons: ["✅ Terminé", "🚫 Absent"] }],
+    ]],
+    ["22:00", [
+      ["S", "close"],
+      ["s", `🔴 ${d.shop} est FERMÉ, le bot prévient les clients.`],
+      ["D", "stop"],
+      ["d", `👋 Service terminé, Karim.\nLivraisons : ${d.driverOrders}\nEspèces à remettre : ${d.driverCash}`],
+      ["s", `📊 ${d.shop}, rapport du jour\nCommandes livrées : ${d.reportOrders}\nVentes : ${n(d.reportSales)}\nNote moyenne : ${d.reportRating} ⭐\nCommandes en retard : 0\nLes plus demandés : ${d.topItems}`],
+    ]],
+    [d.reminderAt, [
+      ["c", `⏰ Rappel : votre ${d.service} chez ${d.shop} est le ${d.bookingDay} à ${d.time}. À bientôt !`, { day: d.bookingDay }],
+      ["C", "À tout à l'heure 👍"],
+      ["S", "✅ Terminé", { day: d.bookingDay, late: true }],
+      ["s", `👍 ${d.service} mis à jour.`],
+    ]],
   ],
 };
 
-// Arabic text runs right to left: keep "5.50$" written that way instead of "$5.50".
-function isolateAmounts(text) {
-  return text.replace(/(\d[\d.,]*\$)/g, "⁦$1⁩");
+const MONEY = {
+  en: (v) => `${v.toFixed(2)}$`,
+  ar: (v) => `⁦${v.toFixed(2)}$⁩`,
+  fr: (v) => `${v.toFixed(2).replace(".", ",")} $`,
+};
+
+function lbp(value, lang) {
+  const amount = Math.round(value * LBP_RATE);
+  if (lang === "fr") return `${amount.toLocaleString("fr-FR").replace(/\s/g, " ")} LBP`;
+  return `${amount.toLocaleString("en-US")} ${lang === "ar" ? "ل.ل" : "LBP"}`;
 }
 
-function flatten(scenario, rtl) {
+function shopIn(shop, lang) {
+  const t = (v) => v[lang];
+  const n = MONEY[lang];
+  const line = ([qty, price, name]) => `${qty}× ${t(name)}  ${n(qty * price)}`;
+  const cart = [...shop.voice, shop.add];
+  const subtotal = cart.reduce((sum, [qty, price]) => sum + qty * price, 0);
+  const pickupTotal = shop.pickup[0] * shop.pickup[1];
+  const [hour] = shop.time.split(":").map(Number);
+  const [orders, sales, rating] = shop.report;
+  return {
+    shop: t(shop.shop), town: t(shop.town), address: t(shop.address), shopAddress: t(shop.shopAddress), eta: shop.eta,
+    voiceLines: shop.voice.map(line).join("\n"),
+    category: t(shop.category), addName: t(shop.add[2]), addPrice: shop.add[1],
+    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + 1,
+    cartLines: cart.map(line).join("\n"),
+    cartShort: cart.map(([qty, , name]) => `${qty}× ${t(name)}`).join("\n"),
+    photo: shop.photo, photoCaption: t(shop.photoCaption), staffName: t(shop.staffName),
+    staffReply: lang === "ar" ? t(shop.staffReply).replace(/(\d[\d.,]*\$)/g, "⁦$1⁩") : t(shop.staffReply),
+    customerThanks: t(shop.customerThanks),
+    pickupAsk: t(shop.pickupAsk), pickupLine: line(shop.pickup), pickupTotal, pickupLbp: lbp(pickupTotal, lang),
+    bookingAsk: t(shop.bookingAsk), service: t(shop.service), slots: shop.slots, time: shop.time, bookingDay: t(shop.bookingDay),
+    servicePrice: shop.servicePrice ? ` (${n(shop.servicePrice)})` : "",
+    servicePriceShort: shop.servicePrice ? ` · ${n(shop.servicePrice)}` : "",
+    // The reminder goes out two hours before the booking.
+    reminderAt: `${String(Math.max(hour - 2, 7)).padStart(2, "0")}:00`,
+    reportOrders: orders, reportSales: sales, reportRating: lang === "fr" ? rating.replace(".", ",") : rating,
+    // Karim is one of two drivers and brings back the cash of his share of the cash orders.
+    driverOrders: Math.ceil(orders / 2),
+    driverCash: lbp(sales * 0.3, lang),
+    topItems: shop.voice.map(([, , name]) => t(name)).join(lang === "ar" ? "، " : ", "),
+  };
+}
+
+function build(shop, lang) {
+  const ui = UI[lang];
+  const d = shopIn(shop, lang);
   const messages = [];
-  scenario.steps.forEach((step, stepIndex) => {
-    const [h, m] = step.at.split(":").map(Number);
-    step.messages.forEach(([who, text, extra = {}], k) => {
-      const minutes = h * 60 + m + Math.floor(k / 3);
+  SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], step) => {
+    const [h, m] = at.split(":").map(Number);
+    list.forEach(([who, text, extra = {}], k) => {
+      // The booked visit itself is later in the day than the reminder.
+      const minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
       messages.push({
         chat: who.toLowerCase(),
         out: who !== who.toLowerCase(),
-        step: stepIndex,
+        step,
         time: `${Math.floor(minutes / 60) % 24}:${String(minutes % 60).padStart(2, "0")}`,
-        text: rtl ? isolateAmounts(text) : text,
+        text,
         ...extra,
-        buttons: extra.buttons?.map((b) => (rtl ? isolateAmounts(b) : b)),
       });
     });
   });
-  return { ...scenario, steps: scenario.steps.map((s) => s.label), messages };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, chats: ["c", "s", "d"], steps: ui.steps, shows: ui.showsText, messages };
 }
 
 export function orderDemo(lang) {
   const key = UI[lang] ? lang : "en";
-  return { ...UI[key], scenarios: SCENARIOS[key].map((s) => flatten(s, key === "ar")) };
+  return { ...UI[key], scenarios: SHOPS.map((shop) => build(shop, key)) };
 }

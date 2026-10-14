@@ -175,16 +175,7 @@ export default function OrderDemo({ demo }) {
                         <div className={`wa-msg ${m.out ? "out" : "in"}${first ? " tail" : ""}`}>
                           <div className={`wa-bubble${m.photo ? " wa-has-photo" : ""}`}>
                             {m.human && <span className="wa-human">{m.human}</span>}
-                            {m.photo && (
-                              <span className="wa-photo">
-                                <svg viewBox="0 0 120 80" aria-hidden="true">
-                                  <rect width="120" height="80" fill="#e8ece9" />
-                                  <rect x="30" y="14" width="60" height="52" rx="4" fill="#fff" stroke="#c9d3ce" />
-                                  <path d="M38 26h30M38 34h44M38 42h36M38 50h22" stroke="#9fb0a7" strokeWidth="3" strokeLinecap="round" />
-                                  <text x="70" y="60" fontSize="12" fontWeight="700" fill="#2f8f5b">Rx</text>
-                                </svg>
-                              </span>
-                            )}
+                            {m.photo && <span className="wa-photo" aria-hidden="true">{m.photo}</span>}
                             {m.voice ? (
                               <span className="wa-voice" aria-label={demo.voice}>
                                 <Svg d={icons.play} size={26} />
