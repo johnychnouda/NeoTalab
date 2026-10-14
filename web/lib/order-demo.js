@@ -21,6 +21,7 @@ const UI = {
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
     steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup in lira", "Booking", "End of day"],
+    pickupSteps: ["Shop opens", "Order", "Whish payment", "Pickup", "Rating & help", "Cash in lira", "Booking", "End of day"],
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
@@ -30,6 +31,7 @@ const UI = {
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
     steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام بالليرة", "حجز موعد", "آخر النهار"],
+    pickupSteps: ["فتح المحل", "الطلب", "دفع Whish", "الاستلام", "تقييم ومساعدة", "كاش بالليرة", "حجز موعد", "آخر النهار"],
   },
   fr: {
     title: "NeoTalab en action",
@@ -39,6 +41,7 @@ const UI = {
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
     steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait en livres", "Réservation", "Fin de journée"],
+    pickupSteps: ["Ouverture", "Commande", "Paiement Whish", "Retrait", "Note et aide", "Espèces en livres", "Réservation", "Fin de journée"],
   },
 };
 
@@ -101,7 +104,7 @@ const SHOPS = [
     report: [27, 412, "4.9"],
   },
   {
-    id: "salon", icon: "💇", eta: 45, menu: "services",
+    id: "salon", icon: "💇", eta: 45, menu: "services", delivery: false,
     label: { en: "Salon & beauty", ar: "صالون وتجميل", fr: "Salon et beauté" },
     shop: { en: "Beauty Corner", ar: "Beauty Corner", fr: "Beauty Corner" },
     town: { en: "Jounieh", ar: "جونيه", fr: "Jounieh" },
@@ -344,7 +347,7 @@ const SHOPS = [
     report: [38, 640, "4.8"],
   },
   {
-    id: "clinic", icon: "🦷", eta: 60, menu: "services",
+    id: "clinic", icon: "🦷", eta: 60, menu: "services", delivery: false,
     label: L("Clinic & dentist", "عيادة وطبيب أسنان", "Clinique et dentiste"),
     shop: L("Smile Dental", "سمايل دنتال", "Smile Dental"),
     town: L("Jdeideh", "الجديدة", "Jdeideh"),
@@ -476,37 +479,45 @@ const SCRIPT = {
       ["C", "🛒 Checkout"],
     ]],
     ["12:32", [
-      ["c", "Which area should we deliver to?", { buttons: ["Choose"] }],
-      ["C", `${d.town} · Delivery ${n(1)}`],
-      ["c", "📍 Tap the button to send your location, or type your address (street, building, floor)."],
-      ["C", d.address],
-      ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"] }],
+      ["c", "Which area should we deliver to?", { buttons: ["Choose"], only: "delivery" }],
+      ["C", `${d.town} · Delivery ${n(1)}`, { only: "delivery" }],
+      ["c", "📍 Tap the button to send your location, or type your address (street, building, floor).", { only: "delivery" }],
+      ["C", d.address, { only: "delivery" }],
+      ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"], only: "delivery" }],
+      ["c", "How would you like to pay?", { buttons: ["💵 Cash at the shop", "💳 Whish"], only: "pickup" }],
       ["C", "💳 Whish"],
-      ["c", `Your order\n${d.cartLines}\nDelivery (${d.town})  ${n(1)}\nTotal: ${n(d.total)}\nWhish · Ready in about ${d.eta} min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"] }],
+      ["c", `Your order\n${d.cartLines}\nDelivery (${d.town})  ${n(1)}\nTotal: ${n(d.total)}\nWhish · Ready in about ${d.eta} min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"], only: "delivery" }],
+      ["c", `Your order\n${d.cartLines}\nTotal: ${n(d.total)}\nPickup at ${d.shopAddress} · Whish\nReady in about ${d.eta} min`, { buttons: ["✅ Confirm order", "✏️ Edit order", "❌ Cancel"], only: "pickup" }],
       ["C", "✅ Confirm order"],
       ["c", `🧾 Order #128 sent to ${d.shop}.\nTotal: ${n(d.total)}\n💳 You will get the Whish payment link here as soon as the shop accepts your order.`],
     ]],
     ["12:34", [
-      ["s", `🔔 New order #128\n${d.cartLines}\nTotal: ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accept · ${d.eta} min`, "❌ Can't take it"] }],
+      ["s", `🔔 New order #128\n${d.cartLines}\nTotal: ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accept · ${d.eta} min`, "❌ Can't take it"], only: "delivery" }],
+      ["s", `🔔 New PICKUP order #128\n${d.cartLines}\nTotal: ${n(d.total)} (Whish)\n📞 +961 71 234 567`, { buttons: [`✅ Accept · ${d.eta} min`, "❌ Can't take it"], only: "pickup" }],
       ["S", `✅ Accept · ${d.eta} min`],
       ["s", "👍 Order #128 accepted, the customer got the Whish link. You will get the order here again as soon as it is paid. Don't prepare it before."],
     ]],
     ["12:35", [
       ["c", `✅ ${d.shop} accepted your order #128! Pay ${n(d.total)} with Whish here:\nhttps://whish.money/pay/128xk\nWe start preparing it as soon as the payment is confirmed (link valid 30 minutes).`],
       ["c", `✅ Payment received! Order #128 is confirmed, about ${d.eta} min.`],
-      ["s", `🔔 Order #128 is paid ✅ Prepare it now.\n${d.cartLines}\n🛵 Karim will deliver it.`],
+      ["s", `🔔 Order #128 is paid ✅ Prepare it now.\n${d.cartLines}\n🛵 Karim will deliver it.`, { only: "delivery" }],
+      ["s", `🔔 Order #128 is paid ✅ Prepare it now.\n${d.cartLines}`, { buttons: ["✅ Ready for pickup", "📦 Collected"], only: "pickup" }],
     ]],
     ["12:55", [
       ["d", `🛵 New delivery #128\n${d.cartShort}\nCollect: nothing (paid with Whish)\n📍 ${d.town}, ${d.address}\n📞 Customer: +961 71 234 567`, { buttons: ["🚀 Picked up"] }],
       ["D", "🚀 Picked up"],
       ["d", "🛵 Delivery #128, on the way\n💵 Collect: nothing\nTap “I'm outside” when you arrive.", { buttons: ["📍 I'm outside", "✅ Delivered"] }],
-      ["c", "🛵 Your order #128 is on its way with Karim, about 10 min."],
+      ["c", "🛵 Your order #128 is on its way with Karim, about 10 min.", { only: "delivery" }],
       ["D", "📍 I'm outside"],
       ["d", "👍 The customer was told you are outside."],
-      ["c", "📍 Karim is outside with your order #128! 📞 +961 70 111 222"],
+      ["c", "📍 Karim is outside with your order #128! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ Delivered"],
       ["d", "✅ Delivery #128 completed. Thanks!"],
-      ["c", `✅ Your order #128 was delivered. Thank you for ordering from ${d.shop}!`],
+      ["c", `✅ Your order #128 was delivered. Thank you for ordering from ${d.shop}!`, { only: "delivery" }],
+      ["S", "✅ Ready for pickup", { only: "pickup" }],
+      ["c", `📦 Your order #128 is ready! You can pick it up now at ${d.shopAddress}.`, { only: "pickup" }],
+      ["S", "📦 Collected", { only: "pickup" }],
+      ["c", `✅ Thank you for picking up order #128 from ${d.shop}!`, { only: "pickup" }],
     ]],
     ["13:40", [
       ["c", "⭐ How was it? Reply with a number from 1 (bad) to 5 (excellent)."],
@@ -583,37 +594,45 @@ const SCRIPT = {
       ["C", "🛒 إتمام الطلب"],
     ]],
     ["12:32", [
-      ["c", "لأي منطقة منوصّل؟", { buttons: ["اختار"] }],
-      ["C", `${d.town} · التوصيل ${n(1)}`],
-      ["c", "📍 اضغط الزر لتبعت موقعك، أو اكتب العنوان (الشارع، البناية، الطابق)."],
-      ["C", d.address],
-      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"] }],
+      ["c", "لأي منطقة منوصّل؟", { buttons: ["اختار"], only: "delivery" }],
+      ["C", `${d.town} · التوصيل ${n(1)}`, { only: "delivery" }],
+      ["c", "📍 اضغط الزر لتبعت موقعك، أو اكتب العنوان (الشارع، البناية، الطابق).", { only: "delivery" }],
+      ["C", d.address, { only: "delivery" }],
+      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"], only: "delivery" }],
+      ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش بالمحل", "💳 Whish"], only: "pickup" }],
       ["C", "💳 Whish"],
-      ["c", `طلبك\n${d.cartLines}\nالتوصيل (${d.town})  ${n(1)}\nالمجموع: ${n(d.total)}\nWhish · جاهز بحوالي ${d.eta} دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"] }],
+      ["c", `طلبك\n${d.cartLines}\nالتوصيل (${d.town})  ${n(1)}\nالمجموع: ${n(d.total)}\nWhish · جاهز بحوالي ${d.eta} دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"], only: "delivery" }],
+      ["c", `طلبك\n${d.cartLines}\nالمجموع: ${n(d.total)}\nاستلام من ${d.shopAddress} · Whish\nجاهز بحوالي ${d.eta} دقيقة`, { buttons: ["✅ تأكيد الطلب", "✏️ تعديل", "❌ إلغاء"], only: "pickup" }],
       ["C", "✅ تأكيد الطلب"],
       ["c", `🧾 تم إرسال الطلب رقم 128 إلى ${d.shop}.\nالمجموع: ${n(d.total)}\n💳 رح يوصلك رابط الدفع بـ Whish هون أول ما المحل يقبل طلبك.`],
     ]],
     ["12:34", [
-      ["s", `🔔 طلب جديد رقم 128\n${d.cartLines}\nالمجموع: ${n(d.total)} (Whish)\n📍 ${d.town}، ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ قبول · ${d.eta} د`, "❌ ما فينا"] }],
+      ["s", `🔔 طلب جديد رقم 128\n${d.cartLines}\nالمجموع: ${n(d.total)} (Whish)\n📍 ${d.town}، ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ قبول · ${d.eta} د`, "❌ ما فينا"], only: "delivery" }],
+      ["s", `🔔 طلب استلام جديد رقم 128\n${d.cartLines}\nالمجموع: ${n(d.total)} (Whish)\n📞 +961 71 234 567`, { buttons: [`✅ قبول · ${d.eta} د`, "❌ ما فينا"], only: "pickup" }],
       ["S", `✅ قبول · ${d.eta} د`],
       ["s", "👍 تم قبول الطلب رقم 128، والزبون وصله رابط Whish. رح يرجعلك الطلب هون أول ما ينْدفع. لا تحضّره قبل."],
     ]],
     ["12:35", [
       ["c", `✅ ${d.shop} قبل طلبك رقم 128! ادفع ${n(d.total)} بـ Whish من هون:\nhttps://whish.money/pay/128xk\nمنبلش نحضّره أول ما يتأكد الدفع (الرابط صالح 30 دقيقة).`],
       ["c", `✅ وصل الدفع! الطلب رقم 128 تأكد، حوالي ${d.eta} دقيقة.`],
-      ["s", `🔔 الطلب رقم 128 مدفوع ✅ حضّره هلق.\n${d.cartLines}\n🛵 كريم رح يوصّله.`],
+      ["s", `🔔 الطلب رقم 128 مدفوع ✅ حضّره هلق.\n${d.cartLines}\n🛵 كريم رح يوصّله.`, { only: "delivery" }],
+      ["s", `🔔 الطلب رقم 128 مدفوع ✅ حضّره هلق.\n${d.cartLines}`, { buttons: ["✅ جاهز للاستلام", "📦 تم الاستلام"], only: "pickup" }],
     ]],
     ["12:55", [
       ["d", `🛵 توصيل جديد رقم 128\n${d.cartShort}\nالمبلغ: ولا شي (مدفوع بـ Whish)\n📍 ${d.town}، ${d.address}\n📞 الزبون: +961 71 234 567`, { buttons: ["🚀 استلمت"] }],
       ["D", "🚀 استلمت"],
       ["d", "🛵 التوصيل رقم 128، في الطريق\n💵 المبلغ: ولا شي\nاضغط «أنا برا» لما توصل.", { buttons: ["📍 أنا برا", "✅ تم التوصيل"] }],
-      ["c", "🛵 طلبك رقم 128 في الطريق مع كريم، حوالي 10 دقائق."],
+      ["c", "🛵 طلبك رقم 128 في الطريق مع كريم، حوالي 10 دقائق.", { only: "delivery" }],
       ["D", "📍 أنا برا"],
       ["d", "👍 خبّرنا الزبون إنك برا."],
-      ["c", "📍 كريم برا مع طلبك رقم 128! 📞 +961 70 111 222"],
+      ["c", "📍 كريم برا مع طلبك رقم 128! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ تم التوصيل"],
       ["d", "✅ تم التوصيل رقم 128. شكراً!"],
-      ["c", `✅ تم توصيل طلبك رقم 128. شكراً لطلبك من ${d.shop}!`],
+      ["c", `✅ تم توصيل طلبك رقم 128. شكراً لطلبك من ${d.shop}!`, { only: "delivery" }],
+      ["S", "✅ جاهز للاستلام", { only: "pickup" }],
+      ["c", `📦 طلبك رقم 128 جاهز! فيك تستلمه هلق من ${d.shopAddress}.`, { only: "pickup" }],
+      ["S", "📦 تم الاستلام", { only: "pickup" }],
+      ["c", `✅ شكراً لاستلام الطلب رقم 128 من ${d.shop}!`, { only: "pickup" }],
     ]],
     ["13:40", [
       ["c", "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز)."],
@@ -690,37 +709,45 @@ const SCRIPT = {
       ["C", "🛒 Commander"],
     ]],
     ["12:32", [
-      ["c", "Dans quelle zone livrer ?", { buttons: ["Choisir"] }],
-      ["C", `${d.town} · Livraison ${n(1)}`],
-      ["c", "📍 Touchez le bouton pour envoyer votre position, ou écrivez l'adresse (rue, immeuble, étage)."],
-      ["C", d.address],
-      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"] }],
+      ["c", "Dans quelle zone livrer ?", { buttons: ["Choisir"], only: "delivery" }],
+      ["C", `${d.town} · Livraison ${n(1)}`, { only: "delivery" }],
+      ["c", "📍 Touchez le bouton pour envoyer votre position, ou écrivez l'adresse (rue, immeuble, étage).", { only: "delivery" }],
+      ["C", d.address, { only: "delivery" }],
+      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"], only: "delivery" }],
+      ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces au magasin", "💳 Whish"], only: "pickup" }],
       ["C", "💳 Whish"],
-      ["c", `Votre commande\n${d.cartLines}\nLivraison (${d.town})  ${n(1)}\nTotal : ${n(d.total)}\nWhish · Prête dans ${d.eta} min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"] }],
+      ["c", `Votre commande\n${d.cartLines}\nLivraison (${d.town})  ${n(1)}\nTotal : ${n(d.total)}\nWhish · Prête dans ${d.eta} min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"], only: "delivery" }],
+      ["c", `Votre commande\n${d.cartLines}\nTotal : ${n(d.total)}\nRetrait à ${d.shopAddress} · Whish\nPrête dans ${d.eta} min environ`, { buttons: ["✅ Confirmer", "✏️ Modifier", "❌ Annuler"], only: "pickup" }],
       ["C", "✅ Confirmer"],
       ["c", `🧾 Commande n° 128 envoyée à ${d.shop}.\nTotal : ${n(d.total)}\n💳 Vous recevrez ici le lien de paiement Whish dès que le commerce accepte votre commande.`],
     ]],
     ["12:34", [
-      ["s", `🔔 Nouvelle commande n° 128\n${d.cartLines}\nTotal : ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accepter · ${d.eta} min`, "❌ Impossible"] }],
+      ["s", `🔔 Nouvelle commande n° 128\n${d.cartLines}\nTotal : ${n(d.total)} (Whish)\n📍 ${d.town}, ${d.address}\n📞 +961 71 234 567`, { buttons: [`✅ Accepter · ${d.eta} min`, "❌ Impossible"], only: "delivery" }],
+      ["s", `🔔 Nouvelle commande À RETIRER n° 128\n${d.cartLines}\nTotal : ${n(d.total)} (Whish)\n📞 +961 71 234 567`, { buttons: [`✅ Accepter · ${d.eta} min`, "❌ Impossible"], only: "pickup" }],
       ["S", `✅ Accepter · ${d.eta} min`],
       ["s", "👍 Commande n° 128 acceptée, le client a reçu le lien Whish. Vous recevrez la commande ici dès qu'elle est payée. Ne la préparez pas avant."],
     ]],
     ["12:35", [
       ["c", `✅ ${d.shop} a accepté votre commande n° 128 ! Payez ${n(d.total)} avec Whish ici :\nhttps://whish.money/pay/128xk\nNous la préparons dès que le paiement est confirmé (lien valable 30 minutes).`],
       ["c", `✅ Paiement reçu ! La commande n° 128 est confirmée, environ ${d.eta} min.`],
-      ["s", `🔔 Commande n° 128 payée ✅ Préparez-la.\n${d.cartLines}\n🛵 Karim va la livrer.`],
+      ["s", `🔔 Commande n° 128 payée ✅ Préparez-la.\n${d.cartLines}\n🛵 Karim va la livrer.`, { only: "delivery" }],
+      ["s", `🔔 Commande n° 128 payée ✅ Préparez-la.\n${d.cartLines}`, { buttons: ["✅ Prête à retirer", "📦 Récupérée"], only: "pickup" }],
     ]],
     ["12:55", [
       ["d", `🛵 Nouvelle livraison n° 128\n${d.cartShort}\nÀ encaisser : rien (payé avec Whish)\n📍 ${d.town}, ${d.address}\n📞 Client : +961 71 234 567`, { buttons: ["🚀 Récupérée"] }],
       ["D", "🚀 Récupérée"],
       ["d", "🛵 Livraison n° 128, en route\n💵 À encaisser : rien\nTouchez « Je suis devant » en arrivant.", { buttons: ["📍 Je suis devant", "✅ Livrée"] }],
-      ["c", "🛵 Votre commande n° 128 est en route avec Karim, environ 10 min."],
+      ["c", "🛵 Votre commande n° 128 est en route avec Karim, environ 10 min.", { only: "delivery" }],
       ["D", "📍 Je suis devant"],
       ["d", "👍 Le client sait que vous êtes devant."],
-      ["c", "📍 Karim est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222"],
+      ["c", "📍 Karim est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ Livrée"],
       ["d", "✅ Livraison n° 128 terminée. Merci !"],
-      ["c", `✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez ${d.shop} !`],
+      ["c", `✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez ${d.shop} !`, { only: "delivery" }],
+      ["S", "✅ Prête à retirer", { only: "pickup" }],
+      ["c", `📦 Votre commande n° 128 est prête ! Vous pouvez la retirer à ${d.shopAddress}.`, { only: "pickup" }],
+      ["S", "📦 Récupérée", { only: "pickup" }],
+      ["c", `✅ Merci d'avoir retiré la commande n° 128 chez ${d.shop} !`, { only: "pickup" }],
     ]],
     ["13:40", [
       ["c", "⭐ Qu'en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent)."],
@@ -802,7 +829,7 @@ function shopIn(shop, lang) {
     menuButton: UI[lang].menuButtons[shop.menu], shop: t(shop.shop), town: t(shop.town), address: t(shop.address), shopAddress: t(shop.shopAddress), eta: shop.eta,
     voiceLines: shop.voice.map(line).join("\n"),
     category: t(shop.category), addName: t(shop.add[2]), addPrice: shop.add[1],
-    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + 1,
+    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + (shop.delivery === false ? 0 : 1),
     cartLines: cart.map(line).join("\n"),
     cartShort: cart.map(([qty, , name]) => `${qty}× ${t(name)}`).join("\n"),
     photo: shop.photo, photoCaption: t(shop.photoCaption), staffName: t(shop.staffName),
@@ -826,10 +853,12 @@ function build(shop, lang) {
   const ui = UI[lang];
   const d = shopIn(shop, lang);
   const messages = [];
+  const delivery = shop.delivery !== false;
   SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
     const step = STEP_OF_BLOCK[block];
     const [h, m] = at.split(":").map(Number);
-    list.forEach(([who, text, extra = {}], k) => {
+    list.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
+      .forEach(([who, text, extra = {}], k) => {
       // The booked visit itself is later in the day than the reminder.
       const minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
       messages.push({
@@ -842,7 +871,7 @@ function build(shop, lang) {
       });
     });
   });
-  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, chats: ["c", "s", "d"], steps: ui.steps, messages };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, steps: delivery ? ui.steps : ui.pickupSteps, chats: delivery ? ["c", "s", "d"] : ["c", "s"], messages };
 }
 
 // Same order as the business types on the sign-up form.
