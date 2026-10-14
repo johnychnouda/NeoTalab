@@ -156,7 +156,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertStringNotContainsString('12.00', $text);
 
         $ar = __('whatsapp.driver.on_the_way', OrderMessage::forDriver($order->fresh(), $this->merchant, 'ar'), 'ar');
-        $this->assertStringContainsString('مدفوع بـ Whish', $ar);
+        $this->assertStringContainsString('مدفوع عبر Whish', $ar);
     }
 
     public function test_driver_buttons_drive_the_order_to_delivered(): void

@@ -81,7 +81,7 @@ class OrderTiming
     public function estimate(Merchant $merchant, string $fulfillment, ?int $zoneMins, string $locale): string
     {
         if ($this->inDays($merchant)) {
-            return __('whatsapp.timing.estimate_days', ['range' => $this->dayRange($merchant)], $locale);
+            return __($fulfillment === 'pickup' ? 'whatsapp.timing.estimate_days_pickup' : 'whatsapp.timing.estimate_days', ['range' => $this->dayRange($merchant)], $locale);
         }
         $mins = $this->prepMins($merchant) + ($fulfillment === 'delivery' ? ($zoneMins ?? TravelTime::FALLBACK_MINS) : 0);
 

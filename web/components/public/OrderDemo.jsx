@@ -39,9 +39,10 @@ function Whish() {
 }
 
 function Text({ text }) {
-  // Links (the Whish payment link) look like links, as they do in WhatsApp.
-  return text.split(/(https?:\/\/\S+|💳 Whish)/).map((part, i) => {
+  // As in WhatsApp: links look like links and *stars* make bold text.
+  return text.split(/(https?:\/\/\S+|💳 Whish|\*[^*\n]+\*)/).map((part, i) => {
     if (part === WHISH) return <Whish key={i} />;
+    if (i % 2 && part.startsWith("*")) return <strong key={i}>{part.slice(1, -1)}</strong>;
     return i % 2 ? <span key={i} className="wa-link">{part}</span> : part;
   });
 }
@@ -78,7 +79,8 @@ export default function OrderDemo({ demo }) {
   const shop = demo.scenarios[scenarioIndex];
   const [mode, setMode] = useState(shop.defaultMode);
   const [pay, setPay] = useState("whish");
-  const scenario = shop[mode][pay];
+  // Salons and clinics take bookings, so there is nothing to pick.
+  const scenario = shop.booking || shop[mode][pay];
   const { messages, chats } = scenario;
 
   // Start when the demo scrolls into view; with reduced motion, show the whole conversation instead.
@@ -206,28 +208,32 @@ export default function OrderDemo({ demo }) {
         </button>
       </div>
 
-      <div className="wa-choices">
-        <div className="wa-choice">
-          <span id="wa-mode-label">{demo.choose.mode}</span>
-          <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
-            {["delivery", "pickup"].map((m) => (
-              <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
-                {demo.modes[m]}
-              </button>
-            ))}
+      {shop.booking ? (
+        <p className="wa-choices wa-booking-note">{demo.bookingNote}</p>
+      ) : (
+        <div className="wa-choices">
+          <div className="wa-choice">
+            <span id="wa-mode-label">{demo.choose.mode}</span>
+            <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
+              {["delivery", "pickup"].map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+                  {demo.modes[m]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="wa-choice">
+            <span id="wa-pay-label">{demo.choose.pay}</span>
+            <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
+              {["whish", "cash"].map((p) => (
+                <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
+                  {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="wa-choice">
-          <span id="wa-pay-label">{demo.choose.pay}</span>
-          <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
-            {["whish", "cash"].map((p) => (
-              <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
-                {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
       <div className="wa-bar">
         <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
           <Svg d={playing ? icons.pause : icons.play} size={18} />

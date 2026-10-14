@@ -1966,6 +1966,8 @@ button.wa-mic { border: 0; cursor: pointer; }
 .wa-tabs button { flex: none; scroll-snap-align: center; white-space: nowrap; }
 /* The two demo choices: how the customer gets the order, and how they pay. */
 .wa-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 28px; margin: 0 auto 18px; }
+.wa-booking-note { display: inline-flex; align-items: center; padding: 9px 16px; border-radius: 12px; border: 1px solid var(--site-line); background: var(--site-card);
+  color: #dfe8e3; font-size: 14px; font-weight: 700; }
 .wa-choice { display: flex; flex-direction: column; align-items: center; gap: 7px; }
 .wa-choice > span { font-size: 12.5px; font-weight: 700; color: var(--site-muted); }
 .wa-modes button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 112px; }

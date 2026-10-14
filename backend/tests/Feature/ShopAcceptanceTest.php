@@ -12,6 +12,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\WhatsAppMessage;
+use App\Services\OrderTiming;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
@@ -213,6 +214,7 @@ class ShopAcceptanceTest extends TestCase
         Artisan::call('orders:due');
         $due = $this->lastTo(self::STAFF);
         $this->assertStringStartsWith('📦 Order #1 is due today', $due['text']);
+        $this->assertStringContainsString('(💵 cash)', $due['text'], 'the shop delivering itself knows what to collect');
         $this->assertSame(["stf:picked_up:{$order->id}", "stf:delay:{$order->id}"], $due['buttons']);
 
         $this->tap("stf:delay:{$order->id}");
@@ -222,6 +224,14 @@ class ShopAcceptanceTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-20 08:00', 'Asia/Beirut'));
         Artisan::call('orders:due');
         $this->assertStringContainsString('delivered by Wednesday 21 October', $this->lastTo(self::CUSTOMER)['text']);
+    }
+
+    public function test_days_shop_pickup_estimate_says_ready_for_pickup(): void
+    {
+        $this->settings(['timing_unit' => 'days', 'delivery_days_min' => 1, 'delivery_days_max' => 2]);
+
+        $this->assertSame('Ready for pickup in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'pickup', null, 'en'));
+        $this->assertSame('Delivered in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'delivery', null, 'en'));
     }
 
     public function test_shop_without_staff_keeps_the_bot_accepting(): void
