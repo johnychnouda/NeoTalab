@@ -28,9 +28,20 @@ function Svg({ d, size = 20, box = "0 0 24 24", className }) {
   return <svg className={className} viewBox={box} width={size} height={size} aria-hidden="true"><path fill="currentColor" d={d} /></svg>;
 }
 
+const WHISH = "💳 Whish";
+
+// The Whish logo in place of the card emoji, the way the shop's WhatsApp button shows it.
+function Whish() {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <><img src="/whish.png" alt="" width={18} height={18} className="wa-whish" />Whish</>;
+}
+
 function Text({ text }) {
   // Links (the Whish payment link) look like links, as they do in WhatsApp.
-  return text.split(/(https?:\/\/\S+)/).map((part, i) => (i % 2 ? <span key={i} className="wa-link">{part}</span> : part));
+  return text.split(/(https?:\/\/\S+|💳 Whish)/).map((part, i) => {
+    if (part === WHISH) return <Whish key={i} />;
+    return i % 2 ? <span key={i} className="wa-link">{part}</span> : part;
+  });
 }
 
 /** Real NeoTalab conversations for several kinds of shops, on the phones of the people involved. */
@@ -228,7 +239,7 @@ export default function OrderDemo({ demo }) {
                               {m.out && <Svg d={icons.ticks} size={16} box="0 0 16 11" />}
                             </span>
                           </div>
-                          {m.buttons?.map((b) => <span key={b} className="wa-button">{b}</span>)}
+                          {m.buttons?.map((b) => <span key={b} className="wa-button">{b === WHISH ? <Whish /> : b}</span>)}
                         </div>
                       </div>
                     );

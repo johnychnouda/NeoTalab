@@ -1925,6 +1925,7 @@ tr.action-highlight { background: #f9731618 !important; }
 .wa-row { display: flex; flex-direction: column; }
 .wa-bot { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 600; color: #25d366; }
 .wa-human { display: block; margin-bottom: 2px; font-size: 12.5px; font-weight: 600; color: #ffd279; }
+.wa-whish { display: inline-block; width: 18px; height: 18px; margin-inline-end: 6px; border-radius: 5px; vertical-align: -3px; }
 .wa-link { color: #53bdeb; text-decoration: underline; word-break: break-all; }
 .wa-has-photo { padding: 3px 3px 7px; }
 .wa-has-photo .wa-text { display: block; padding: 4px 6px 0; }
