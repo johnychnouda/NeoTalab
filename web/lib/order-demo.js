@@ -19,9 +19,10 @@ const UI = {
     online: "online", typing: "typing…", today: "Today", message: "Message",
     modes: { delivery: "🛵 Delivery", pickup: "🏪 Pickup only" }, pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", prevShop: "Previous shop", nextShop: "Next shop", voice: "Voice message",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
+    bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
-    steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup in lira", "Booking", "End of day"],
-    pickupSteps: ["Shop opens", "Order", "Whish payment", "Pickup", "Rating & help", "Cash in lira", "Booking", "End of day"],
+    steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup, $ or lira", "Booking", "End of day"],
+    pickupSteps: ["Shop opens", "Order", "Whish payment", "Pickup", "Rating & help", "Cash, $ or lira", "Booking", "End of day"],
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
@@ -29,9 +30,10 @@ const UI = {
     online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
     modes: { delivery: "🛵 توصيل", pickup: "🏪 استلام فقط" }, pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
+    bot: "NeoTalab",
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
-    steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام بالليرة", "حجز موعد", "آخر النهار"],
-    pickupSteps: ["فتح المحل", "الطلب", "دفع Whish", "الاستلام", "تقييم ومساعدة", "كاش بالليرة", "حجز موعد", "آخر النهار"],
+    steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام، $ أو ليرة", "حجز موعد", "آخر النهار"],
+    pickupSteps: ["فتح المحل", "الطلب", "دفع Whish", "الاستلام", "تقييم ومساعدة", "كاش، $ أو ليرة", "حجز موعد", "آخر النهار"],
   },
   fr: {
     title: "NeoTalab en action",
@@ -39,9 +41,10 @@ const UI = {
     online: "en ligne", typing: "écrit…", today: "Aujourd'hui", message: "Message",
     modes: { delivery: "🛵 Livraison", pickup: "🏪 Retrait uniquement" }, pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", prevShop: "Commerce précédent", nextShop: "Commerce suivant", voice: "Message vocal",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
+    bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
-    steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait en livres", "Réservation", "Fin de journée"],
-    pickupSteps: ["Ouverture", "Commande", "Paiement Whish", "Retrait", "Note et aide", "Espèces en livres", "Réservation", "Fin de journée"],
+    steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait, $ ou livres", "Réservation", "Fin de journée"],
+    pickupSteps: ["Ouverture", "Commande", "Paiement Whish", "Retrait", "Note et aide", "Espèces, $ ou livres", "Réservation", "Fin de journée"],
   },
 };
 
@@ -853,13 +856,17 @@ function build(shop, lang, delivery) {
   const ui = UI[lang];
   const d = shopIn(shop, lang, delivery);
   const messages = [];
+  let clock = 0;
   SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
     const step = STEP_OF_BLOCK[block];
     const [h, m] = at.split(":").map(Number);
     list.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
       .forEach(([who, text, extra = {}], k) => {
       // The booked visit itself is later in the day than the reminder.
-      const minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
+      let minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
+      // The clock never goes back within a day; a date chip starts a new day.
+      minutes = extra.day ? minutes : Math.max(minutes, clock);
+      clock = minutes;
       messages.push({
         chat: who.toLowerCase(),
         out: who !== who.toLowerCase(),

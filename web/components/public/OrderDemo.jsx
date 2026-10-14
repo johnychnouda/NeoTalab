@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const OUT_DELAY = 2400;
-const TYPING_DELAY = 1600;
-const RESTART_DELAY = 9000;
-// Extra pause when the next message is on another phone, so the eye can follow.
-const SWITCH_DELAY = 1500;
+const OUT_DELAY = 3400;
+const TYPING_DELAY = 2000;
+const RESTART_DELAY = 12000;
+// Extra pauses when the next message is on another phone, or starts a new step.
+const SWITCH_DELAY = 2000;
+const STEP_DELAY = 3000;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
@@ -74,7 +75,8 @@ export default function OrderDemo({ demo }) {
       return () => clearTimeout(timer);
     }
     const msg = messages[count];
-    const wait = OUT_DELAY + (count > 0 && messages[count - 1].chat !== msg.chat ? SWITCH_DELAY : 0);
+    const prev = messages[count - 1];
+    const wait = OUT_DELAY + (prev && prev.chat !== msg.chat ? SWITCH_DELAY : 0) + (prev && prev.step !== msg.step ? STEP_DELAY : 0);
     if (msg.out) {
       timer = setTimeout(() => setCount(count + 1), wait);
     } else {
@@ -209,6 +211,7 @@ export default function OrderDemo({ demo }) {
                         <div className={`wa-msg ${m.out ? "out" : "in"}${first ? " tail" : ""}`}>
                           <div className={`wa-bubble${m.photo ? " wa-has-photo" : ""}`}>
                             {m.human && <span className="wa-human">{m.human}</span>}
+                            {!m.out && !m.human && first && <span className="wa-bot">🤖 {demo.bot}</span>}
                             {m.photo && <span className="wa-photo" aria-hidden="true">{m.photo}</span>}
                             {m.voice ? (
                               <span className="wa-voice" aria-label={demo.voice}>
