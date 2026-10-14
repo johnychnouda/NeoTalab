@@ -19,6 +19,7 @@ use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
+use App\Support\Money;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
@@ -235,7 +236,7 @@ class ConversationService
         return [__($key, [
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
             'number' => $order->number,
-            'total' => number_format((float) $order->total, 2),
+            'total' => Money::format((float) $order->total, $merchant->currency),
             'currency' => $merchant->currency,
             'lbp' => match ($order->payment_currency) {
                 'LBP' => __('whatsapp.checkout.lbp', ['amount' => number_format((float) $order->total_lbp)], $locale),
@@ -360,7 +361,7 @@ class ConversationService
 
         return __('whatsapp.appointment.booked', [
             'service' => $appointment->service_name, 'date' => $local->format('D j M'), 'time' => $local->format('H:i'),
-            'price' => number_format((float) $appointment->price, 2).' '.$merchant->currency, 'shop' => $merchant->name,
+            'price' => Money::format((float) $appointment->price, $merchant->currency), 'shop' => $merchant->name,
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
         ], $locale);
     }

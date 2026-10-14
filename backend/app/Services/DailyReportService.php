@@ -9,6 +9,7 @@ use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\Money;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -87,10 +88,10 @@ class DailyReportService
             $this->tenant->forget();
         }
 
-        $sales = number_format((float) $delivered->sum('total'), 2).' '.$merchant->currency;
+        $sales = Money::format((float) $delivered->sum('total'), $merchant->currency);
         $lbp = (float) $delivered->where('payment_currency', 'LBP')->sum(fn ($o) => (float) $o->total_lbp);
         if ($lbp > 0) {
-            $sales .= ' (incl. '.number_format($lbp).' LBP cash)';
+            $sales .= ' (incl. '.Money::lbp($lbp).' cash)';
         }
 
         return [

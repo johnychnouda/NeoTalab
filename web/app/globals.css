@@ -1960,7 +1960,8 @@ button.wa-mic { border: 0; cursor: pointer; }
 .wa-voice-time { font-size: 11px; color: #ffffff8c; }
 .wa-tabs-wrap { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; }
 .wa-tabs-arrow { flex: none; }
-.wa-tabs { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding: 2px;
+.wa-tabs { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; padding: 2px 22px;
+  scroll-padding-inline: 22px;
   mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
 .wa-tabs::-webkit-scrollbar { display: none; }
 .wa-tabs button { flex: none; scroll-snap-align: center; white-space: nowrap; }

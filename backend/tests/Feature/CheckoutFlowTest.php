@@ -113,13 +113,14 @@ class CheckoutFlowTest extends TestCase
         $this->assertSame(['co:skip:'], $this->buttonIds(), 'asks for building / floor');
 
         $this->say('Building 4, 2nd floor');
-        $this->assertSame(['co:cur:USD', 'co:cur:LBP'], $this->buttonIds(), 'cash: dollars or lira');
+        $this->assertSame(['co:cur:USD', 'co:cur:LBP', 'co:cur:MIXED'], $this->buttonIds(), 'cash: dollars, lira or both');
+        $this->assertStringStartsWith('Total: 5.50$ = 493,000 LBP', $this->last()['interactive']['body']['text']);
 
         $this->tap('co:cur:LBP');
         $receipt = $this->last()['interactive']['body']['text'];
-        $this->assertStringContainsString('2× Zaatar — $4.00', $receipt);
-        $this->assertStringContainsString('Delivery (Jbeil): $1.50', $receipt);
-        $this->assertStringContainsString('Total: $5.50*', $receipt);
+        $this->assertStringContainsString('2× Zaatar — 4.00$', $receipt);
+        $this->assertStringContainsString('Delivery (Jbeil): 1.50$', $receipt);
+        $this->assertStringContainsString('Total: 5.50$*', $receipt);
         $this->assertStringContainsString('493,000 LBP', $receipt);
         $this->assertSame(['co:ok:', 'co:edit:', 'co:cancel:'], $this->buttonIds());
 
@@ -135,6 +136,29 @@ class CheckoutFlowTest extends TestCase
 
         $saved = Customer::query()->withoutGlobalScopes()->where('phone', '+'.self::CUSTOMER)->first()->addresses;
         $this->assertSame('Jbeil', $saved[0]['zone']);
+    }
+
+    public function test_cash_split_between_dollars_and_lira(): void
+    {
+        $this->menuOrder();
+        $this->pickRow("co:zone:{$this->jbeil->id}");
+        $this->say('Bliss St, Building 4');
+        $this->tap('co:cur:MIXED');
+        $this->assertStringContainsString('How many dollars will you pay?', $this->last()['text']['body']);
+
+        $this->say('9');
+        $this->assertStringContainsString('less than 5.50$', $this->last()['text']['body'], 'more than the total is refused');
+
+        $this->say('5');
+        $receipt = $this->last()['interactive']['body']['text'];
+        $this->assertStringContainsString('*Total: 5.50$* (493,000 LBP)', $receipt);
+        $this->assertStringContainsString('Cash on delivery · 5.00$ + 45,000 LBP', $receipt);
+
+        $this->tap('co:ok:');
+        $order = $this->order();
+        $this->assertSame('MIXED', $order->payment_currency);
+        $this->assertEquals(5.0, (float) $order->cash_main);
+        $this->assertEquals(45000, (float) $order->total_lbp);
     }
 
     public function test_returning_customer_picks_a_saved_address(): void
@@ -160,7 +184,7 @@ class CheckoutFlowTest extends TestCase
 
         $this->menuOrder(3);
         $this->pickRow("co:addr:{$saved}");
-        $this->assertSame(['co:cur:USD', 'co:cur:LBP'], $this->buttonIds(), 'no area, location or details questions');
+        $this->assertSame(['co:cur:USD', 'co:cur:LBP', 'co:cur:MIXED'], $this->buttonIds(), 'no area, location or details questions');
         $this->tap('co:cur:USD');
         $this->tap('co:ok:');
 

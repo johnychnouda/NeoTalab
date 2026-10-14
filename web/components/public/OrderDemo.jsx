@@ -241,7 +241,7 @@ export default function OrderDemo({ demo }) {
         <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
           <Svg d={icons.chevron} size={18} />
         </button>
-        <p className="wa-step" aria-live="polite"><span>{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
+        <p className="wa-step" aria-live="polite"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
         <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
           <Svg d={icons.chevron} size={18} />
         </button>

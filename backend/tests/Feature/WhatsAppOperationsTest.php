@@ -141,7 +141,7 @@ class WhatsAppOperationsTest extends TestCase
         $toRami = $this->sentTo($rami->whatsapp_number);
         $delivery = end($toRami);
         $this->assertStringContainsString('New delivery #1', $delivery['text']);
-        $this->assertStringContainsString('Collect: 12.00 USD (cash)', $delivery['text']);
+        $this->assertStringContainsString('Collect: 12.00$ (cash)', $delivery['text']);
         $this->assertSame(["drv:picked_up:{$order->id}", "drv:delivered:{$order->id}"], $delivery['buttons']);
     }
 
@@ -254,7 +254,7 @@ class WhatsAppOperationsTest extends TestCase
 
         $summary = $this->lastTo($rami->whatsapp_number);
         $this->assertStringContainsString('Deliveries: 2', $summary);
-        $this->assertStringContainsString('Cash to hand over: 12.00 USD + 1,074,000 LBP', $summary);
+        $this->assertStringContainsString('Cash to hand over: 12.00$ + 1,074,000 LBP', $summary);
         $this->assertSame('off_duty', $rami->fresh()->status);
     }
 
@@ -280,7 +280,7 @@ class WhatsAppOperationsTest extends TestCase
         // 12 × 89,700 = 1,076,400 → 1,077,000
         $this->assertEquals(1077000, (float) $order->total_lbp);
         $this->assertSame('LBP', $order->payment_currency);
-        $this->assertStringContainsString('12.00 USD (1,077,000 LBP)', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('12.00$ (1,077,000 LBP)', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_lbp_is_ignored_when_the_shop_has_no_rate(): void
@@ -473,12 +473,12 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('MIXED', $order->payment_currency);
         $this->assertEquals(5.0, (float) $order->cash_main);
         $this->assertEquals(627000, (float) $order->total_lbp);
-        $this->assertStringContainsString('you pay 5.00 USD + 627,000 LBP', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('Collect: 5.00 USD + 627,000 LBP (cash)', $this->lastTo($rami->whatsapp_number));
+        $this->assertStringContainsString('you pay 5.00$ + 627,000 LBP', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Collect: 5.00$ + 627,000 LBP (cash)', $this->lastTo($rami->whatsapp_number));
 
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
         $this->say('stop', $rami->whatsapp_number);
-        $this->assertStringContainsString('Cash to hand over: 5.00 USD + 627,000 LBP', $this->lastTo($rami->whatsapp_number));
+        $this->assertStringContainsString('Cash to hand over: 5.00$ + 627,000 LBP', $this->lastTo($rami->whatsapp_number));
     }
 
     public function test_bot_off_means_no_automatic_replies(): void
@@ -559,7 +559,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertCount(1, $sent);
         $this->assertStringContainsString('/555/messages', $sent[0]->url(), 'sent from the shop number');
         $this->assertStringContainsString('Orders delivered: 1', $sent[0]['text']['body']);
-        $this->assertStringContainsString('Sales: 12.00 USD', $sent[0]['text']['body']);
+        $this->assertStringContainsString('Sales: 12.00$', $sent[0]['text']['body']);
         $this->assertStringContainsString('Shawarma ×2', $sent[0]['text']['body']);
     }
 

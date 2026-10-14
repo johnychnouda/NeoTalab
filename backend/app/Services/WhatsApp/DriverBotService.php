@@ -11,6 +11,7 @@ use App\Services\DriverDispatcher;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
 use App\Services\OrderTiming;
+use App\Support\Money;
 use App\Support\OrderMessage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -101,7 +102,7 @@ class DriverBotService
             $customer = Customer::query()->whereKey($m[1])->first();
             $customer?->forceFill(['bot_paused_until' => null])->save();
 
-            return __('whatsapp.staff.resumed', ['phone' => $customer?->phone ?? ''], $locale);
+            return __('whatsapp.staff.resumed', ['phone' => OrderMessage::phone($customer?->phone)], $locale);
         }
 
         if (preg_match('/^stf:appt_(completed|no_show):(.+)$/', $buttonId, $m)) {
@@ -229,10 +230,10 @@ class DriverBotService
 
         $parts = [];
         if ($main > 0) {
-            $parts[] = number_format($main, 2).' '.$merchant->currency;
+            $parts[] = Money::format($main, $merchant->currency);
         }
         if ($lbp > 0) {
-            $parts[] = number_format($lbp).' LBP';
+            $parts[] = Money::lbp($lbp);
         }
 
         return $parts ? implode(' + ', $parts) : __('whatsapp.driver.nothing', [], $locale);
@@ -251,7 +252,7 @@ class DriverBotService
             $customerLocale = $order->customer?->locale ?? $locale;
             try {
                 $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'text', 'text' => __('whatsapp.status.outside', [
-                    'number' => $order->number, 'driver' => $driver->name, 'phone' => $driver->whatsapp_number ?: $driver->phone,
+                    'number' => $order->number, 'driver' => $driver->name, 'phone' => OrderMessage::phone($driver->whatsapp_number ?: $driver->phone),
                 ], $customerLocale)]);
             } catch (\Throwable $e) {
                 Log::warning('Driver outside message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);

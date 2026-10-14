@@ -243,7 +243,8 @@ const T = {
     how: "How would you like to get your order?", btnDelivery: "🛵 Delivery", btnPickup: "🏪 Pickup",
     location: "📍 Tap the button to send your location, or type your address (street, building, floor).",
     pay: "How would you like to pay?", btnCash: "💵 Cash on delivery", btnCashShop: "💵 Cash at the shop",
-    currency: "Pay cash in dollars or in lira?",
+    currency: (usd, lbp) => `Total: ${usd} = ${lbp}\nPay cash in dollars, in lira, or both?`, btnSplit: "🔀 $ + LBP",
+    splitAsk: "How many dollars will you pay? Type the amount (for example 5). The rest is paid in lira at the shop's rate.", split: (p) => ` — you pay ${p}`,
     estDaysPickup: (r) => `Ready for pickup in ${r} working days`, yourOrder: "Your order", subtotal: "Subtotal", deliveryFee: (zone) => `Delivery (${zone})`, total: "Total",
     pickupAt: (address) => `Pickup at ${address}`, cash: "Cash on delivery", cashShop: "Cash at the shop",
     btnConfirm: "✅ Confirm order", btnEdit: "✏️ Edit order", btnCancel: "❌ Cancel",
@@ -287,7 +288,8 @@ const T = {
     how: "كيف تريد استلام طلبك؟", btnDelivery: "🛵 توصيل", btnPickup: "🏪 استلام من المحل",
     location: "📍 اضغط الزر لإرسال موقعك، أو اكتب عنوانك (الشارع، البناية، الطابق).",
     pay: "كيف تريد أن تدفع؟", btnCash: "💵 نقدًا عند التسليم", btnCashShop: "💵 نقدًا في المحل",
-    currency: "تدفع نقدًا بالدولار أم بالليرة؟",
+    currency: (usd, lbp) => `المجموع: ${usd} = ${lbp}\nتدفع نقدًا بالدولار أم بالليرة أم بالاثنين؟`, btnSplit: "🔀 دولار + ليرة",
+    splitAsk: "كم دولارًا ستدفع؟ اكتب المبلغ (مثلًا 5)، والباقي تدفعه بالليرة حسب سعر صرف المحل.", split: (p) => ` — تدفع ${p}`,
     estDaysPickup: (r) => `جاهز للاستلام خلال ${r} أيام عمل`, yourOrder: "طلبك", subtotal: "المجموع", deliveryFee: (zone) => `التوصيل (${zone})`, total: "الإجمالي",
     pickupAt: (address) => `الاستلام من ${address}`, cash: "نقدًا عند التسليم", cashShop: "نقدًا في المحل",
     btnConfirm: "✅ تأكيد الطلب", btnEdit: "✏️ تعديل الطلب", btnCancel: "❌ إلغاء",
@@ -331,7 +333,8 @@ const T = {
     how: "Comment souhaitez-vous recevoir votre commande ?", btnDelivery: "🛵 Livraison", btnPickup: "🏪 À emporter",
     location: "📍 Touchez le bouton pour envoyer votre position, ou écrivez votre adresse (rue, immeuble, étage).",
     pay: "Comment souhaitez-vous payer ?", btnCash: "💵 À la livraison", btnCashShop: "💵 Au commerce",
-    currency: "Payer en dollars ou en livres ?",
+    currency: (usd, lbp) => `Total : ${usd} = ${lbp}\nPayer en dollars, en livres, ou les deux ?`, btnSplit: "🔀 $ + livres",
+    splitAsk: "Combien de dollars payez-vous ? Écrivez le montant (par exemple 5), le reste en livres au taux du commerce.", split: (p) => ` — vous payez ${p}`,
     estDaysPickup: (r) => `Prête à emporter sous ${r} jours ouvrés`, yourOrder: "Votre commande", subtotal: "Sous-total", deliveryFee: (zone) => `Livraison (${zone})`, total: "Total",
     pickupAt: (address) => `Retrait : ${address}`, cash: "Espèces à la livraison", cashShop: "Espèces au commerce",
     btnConfirm: "✅ Confirmer", btnEdit: "✏️ Modifier", btnCancel: "❌ Annuler",
@@ -376,12 +379,13 @@ const LOCALES = { en: "en-GB", ar: "ar-LB-u-nu-latn", fr: "fr-FR" };
 // Arabic text keeps dollar amounts and phone numbers the right way round.
 const iso = (lang, text) => (lang === "ar" ? `⁦${text}⁩` : text);
 
+// Amounts as the bot writes them: "5.50$" and "493,000 LBP".
 function money(lang, v) {
-  return iso(lang, `$${v.toFixed(2)}`);
+  return iso(lang, `${v.toFixed(2)}$`);
 }
 
-function usd(lang, v) {
-  return iso(lang, `${v.toFixed(2)} USD`);
+function lira(lang, v) {
+  return iso(lang, `${(Math.ceil((v * LBP_RATE) / 1000) * 1000).toLocaleString("en-US")} LBP`);
 }
 
 function clock(lang, mins) {
@@ -449,12 +453,14 @@ function script(shop, lang, delivery, whish) {
   const mins = prepMins + (delivery ? shop.travel : 0);
   const duration = mins >= 90 ? t.aboutHours(Math.round(mins / 6) / 10) : t.aboutMins(mins);
   const estimate = days ? (delivery ? t.estDays(range) : t.estDaysPickup(range)) : delivery ? t.estArrival(duration) : t.estReady(duration);
-  const lbp = Math.ceil((total * LBP_RATE) / 1000) * 1000;
+  // Cash is paid split: round dollars, the rest in lira at the shop's rate.
+  const dollars = [Math.floor(total / 10) * 10, Math.floor(total), total - 5].find((d) => d > 0 && d < total);
+  const paid = whish ? money(lang, total) : `${money(lang, dollars)} + ${lira(lang, total - dollars)}`;
   const receipt = `🧾 *${t.yourOrder}*\n${lines}\n\n${t.subtotal}: ${money(lang, subtotal)}\n`
     + (delivery ? `${t.deliveryFee(town)}: ${money(lang, shop.fee)}\n` : "")
-    + `*${t.total}: ${money(lang, total)}*\n\n`
+    + `*${t.total}: ${money(lang, total)}*${whish ? "" : ` (${lira(lang, total)})`}\n\n`
     + (delivery ? `🛵 ${address}` : `🏪 ${t.pickupAt(shopAddress)}`)
-    + `\n${whish ? "💳 Whish" : `💵 ${delivery ? t.cash : t.cashShop}`}\n⏱ ${estimate}`;
+    + `\n${whish ? "💳 Whish" : `💵 ${delivery ? t.cash : t.cashShop} · ${paid}`}\n⏱ ${estimate}`;
 
   // Times of day in minutes: the shop accepts at 12:36, Whish is paid at 12:39.
   const accepted = 12 * 60 + 36;
@@ -467,16 +473,16 @@ function script(shop, lang, delivery, whish) {
   const at = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
   const label = days ? t.daysShort(range) : hours ? t.hoursShort(shop.prep) : t.minsShort(shop.prep);
   const where = delivery ? `📍 ${address}\n📞 +961 71 234 567` : "📞 +961 71 234 567";
-  const ticket = (head) => `${head}\n${bullets}\n${t.totalLine(usd(lang, total), payTag)}\n${where}`;
+  const ticket = (head) => `${head}\n${bullets}\n${t.totalLine(paid, payTag)}\n${where}`;
   const goButtons = delivery ? [t.btnOut, t.btnDelivered] : [t.btnReady, t.btnCollected];
   const goAhead = (head) => [
     "s", `${ticket(head)}${driver ? `\n${t.driverTakes(t.driver)}` : delivery ? "" : `\n${t.pickupNote}`}`, { buttons: goButtons },
   ];
-  const collect = whish ? t.paidWhish : t.collectCash(usd(lang, total));
+  const collect = whish ? t.paidWhish : t.collectCash(paid);
   const assigned = ["d", `${t.drvNew(shopName)}\n${bullets}\n${collect}\n📍 ${address}\n${t.customer}`, { buttons: [t.btnPickedUp, t.btnDelivered] }];
 
   // The order leaves the shop (or is ready), then reaches the customer (or is collected) later.
-  const dueTicket = ["s", `${t.dueToday}\n${bullets}\n${t.totalLine(usd(lang, total), payTag)}\n${where}`, { buttons: [goButtons[0], t.btnDelay], day: dueDay }];
+  const dueTicket = ["s", `${t.dueToday}\n${bullets}\n${t.totalLine(paid, payTag)}\n${where}`, { buttons: [goButtons[0], t.btnDelay], day: dueDay }];
   const [leaves, arrives] = driver
     ? [[
       ["D", t.btnPickedUp],
@@ -512,18 +518,20 @@ function script(shop, lang, delivery, whish) {
       ["c", t.pay, { buttons: [cashButton, "💳 Whish"] }],
       ["C", whish ? "💳 Whish" : cashButton],
       ...(whish ? [] : [
-        ["c", t.currency, { buttons: [`💵 ${money(lang, total)}`, `🇱🇧 ${lbp.toLocaleString("en-US")} LBP`] }],
-        ["C", `💵 ${money(lang, total)}`],
+        ["c", t.currency(money(lang, total), lira(lang, total)), { buttons: [`💵 ${money(lang, total)}`, `🇱🇧 ${lira(lang, total)}`, t.btnSplit] }],
+        ["C", t.btnSplit],
+        ["c", t.splitAsk],
+        ["C", String(dollars)],
       ]),
       ["c", receipt, { buttons: [t.btnConfirm, t.btnEdit, t.btnCancel] }],
       ["C", t.btnConfirm],
-      ["c", t.placed(shopName, usd(lang, total)) + (whish ? `\n${t.whishAfter}` : "")],
+      ["c", t.placed(shopName, money(lang, total) + (whish ? "" : t.split(paid))) + (whish ? `\n${t.whishAfter}` : "")],
     ]],
     [at(accepted), "accept", [
       ["s", ticket(t.newOrder(shopName, !delivery)), { buttons: [t.accept(label), t.reject] }],
       ["S", t.accept(label)],
       ...(whish
-        ? [["s", t.awaiting], ["c", t.whishAccepted(shopName, usd(lang, total))]]
+        ? [["s", t.awaiting], ["c", t.whishAccepted(shopName, money(lang, total))]]
         : [["c", t.confirmed(shopName, when)], goAhead(t.confirmedGo), ...(driver ? [assigned] : [])]),
     ]],
     ...(whish ? [[at(go), "whish", [
@@ -564,7 +572,8 @@ function build(shop, lang, delivery, whish) {
         out: who !== chat,
         step: steps.length - 1,
         time: `${Math.floor(now / 60) % 24}:${String(now % 60).padStart(2, "0")}`,
-        text,
+        // Phone numbers stay left to right in Arabic, as the bot sends them.
+        text: lang === "ar" ? text.replace(/\+961[\d ]*\d/g, (phone) => iso(lang, phone)) : text,
         ...(chip && { day: chip }),
         ...extra,
       });

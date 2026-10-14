@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\AI\DTO\CartAction;
 use App\Support\BusinessKind;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -399,9 +400,7 @@ class ChatMenu
 
     protected function money(Merchant $merchant, float $amount): string
     {
-        $currency = strtoupper((string) ($merchant->currency ?: 'USD'));
-
-        return $currency === 'USD' ? '$'.number_format($amount, 2) : number_format($amount, 2).' '.$currency;
+        return Money::format($amount, $merchant->currency);
     }
 
     /** @param array<string, mixed> $params */

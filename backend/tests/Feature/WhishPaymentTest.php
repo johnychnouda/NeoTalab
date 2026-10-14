@@ -143,7 +143,7 @@ class WhishPaymentTest extends TestCase
         $this->assertSame('pending_payment', $order->status);
         $this->assertSame('pending', $order->payment_status);
         $this->assertNull($order->driver_id, 'no driver before payment');
-        $this->assertStringContainsString('Pay 12.00 USD with Whish here', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Pay 12.00$ with Whish here', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('https://pay.whish.test/abc', $this->lastTo(self::CUSTOMER));
         $this->assertSame('', $this->lastTo($rami->whatsapp_number));
 
@@ -197,7 +197,7 @@ class WhishPaymentTest extends TestCase
         $this->staffTaps("stf:accept:{$order->id}", '+96176000009');
         $this->assertSame('pending_payment', $order->fresh()->status);
         $this->assertNotNull($order->fresh()->accepted_at);
-        $this->assertStringContainsString('Beirut Bites accepted your order #1! Pay 12.00 USD with Whish here', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Beirut Bites accepted your order #1! Pay 12.00$ with Whish here', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('https://pay.whish.test/abc', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString("Don't prepare it before", $this->lastTo('+96176000009'));
         Bus::assertDispatched(CheckWhishPayment::class, fn ($job) => $job->final);
@@ -251,7 +251,7 @@ class WhishPaymentTest extends TestCase
 
         $this->shopTypes('✅');
         $this->assertSame('pending_payment', $order->fresh()->status);
-        $this->assertStringContainsString('Beirut Bites accepted your order #1! Pay 12.00 USD with Whish here', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Beirut Bites accepted your order #1! Pay 12.00$ with Whish here', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_the_shop_phone_refuses_with_a_cross(): void

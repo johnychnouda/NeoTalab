@@ -104,7 +104,7 @@ class CheckoutTest extends TestCase
 
         $this->assertStringContainsString('Order #1 confirmed', $this->lastReply());
         $this->assertStringContainsString('confirmed — arriving around', $this->lastReply());
-        $this->assertStringContainsString('12.00 USD', $this->lastReply());
+        $this->assertStringContainsString('12.00$', $this->lastReply());
 
         $conversation = Conversation::query()->withoutGlobalScopes()->findOrFail($order->conversation_id);
         $this->assertSame(ConversationStatus::Closed, $conversation->status);
@@ -171,7 +171,7 @@ class CheckoutTest extends TestCase
         $this->say('confirm | Hamra | Bliss St, Building 4');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('minimum order for Hamra is 20.00 USD', $this->lastReply());
+        $this->assertStringContainsString('minimum order for Hamra is 20.00$', $this->lastReply());
     }
 
     public function test_out_of_stock_item_blocks_checkout_and_stock_is_decremented(): void

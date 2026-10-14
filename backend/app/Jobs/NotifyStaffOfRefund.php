@@ -30,7 +30,7 @@ class NotifyStaffOfRefund implements ShouldQueue
 
         $amount = OrderMessage::paymentLine($order, $merchant);
         $phone = (string) $order->customer?->phone;
-        $body = __('whatsapp.staff.whish_refund', ['number' => $order->number, 'amount' => $amount, 'phone' => $phone], $merchant->locale ?? 'en');
+        $body = __('whatsapp.staff.whish_refund', ['number' => $order->number, 'amount' => $amount, 'phone' => OrderMessage::phone($phone)], $merchant->locale ?? 'en');
 
         foreach ($messenger->staff($merchant) as $member) {
             $messenger->send($merchant, $member, $body, [], ShopTemplateService::REFUND_NEEDED, [$merchant->name, (string) $order->number, StaffMessenger::oneLine($amount), $phone]);

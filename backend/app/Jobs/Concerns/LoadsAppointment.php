@@ -5,6 +5,8 @@ namespace App\Jobs\Concerns;
 use App\Models\Appointment;
 use App\Models\Merchant;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\Money;
+use App\Support\OrderMessage;
 
 trait LoadsAppointment
 {
@@ -35,8 +37,8 @@ trait LoadsAppointment
             'service' => $appointment->service_name,
             'date' => $local->format('D j M'),
             'time' => $local->format('H:i'),
-            'price' => number_format((float) $appointment->price, 2).' '.$merchant->currency,
-            'phone' => (string) $appointment->customer?->phone,
+            'price' => Money::format((float) $appointment->price, $merchant->currency),
+            'phone' => OrderMessage::phone($appointment->customer?->phone),
         ];
     }
 }

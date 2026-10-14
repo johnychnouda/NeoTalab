@@ -21,19 +21,28 @@ final class OrderMessage
         return [
             'shop' => $merchant->name,
             'number' => (string) ($order->number ?? strtoupper(substr($order->id, -6))),
-            'total' => number_format((float) $order->total, 2),
+            'total' => Money::format((float) $order->total, $merchant->currency),
             'currency' => (string) $merchant->currency,
             'payment' => __($order->payment_method === 'whish' ? 'whatsapp.staff.pay_whish' : 'whatsapp.staff.pay_cash', [], $locale),
             'items' => $order->items
                 ->map(fn ($i) => "• {$i->quantity}× {$i->product_name}".($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
                 ->implode("\n"),
             'address' => trim(($order->delivery_zone_name ? "{$order->delivery_zone_name} — " : '').($order->delivery_address ?? ''), ' —') ?: '📍',
-            'phone' => (string) $order->customer?->phone,
+            'phone' => self::phone($order->customer?->phone),
             'collect' => self::paymentLine($order, $merchant),
             'lbp' => $order->total_lbp
                 ? __('whatsapp.checkout.lbp', ['amount' => number_format((float) $order->total_lbp)], $locale)
                 : '',
         ];
+    }
+
+    /**
+     * A phone number kept left to right inside Arabic text, where "+961 71 234 567" would
+     * otherwise show as "567 234 71 961+". The marks are invisible.
+     */
+    public static function phone(?string $phone): string
+    {
+        return filled($phone) ? "\u{2066}{$phone}\u{2069}" : '';
     }
 
     /**
@@ -54,12 +63,12 @@ final class OrderMessage
     }
 
     /**
-     * What the customer pays / the driver collects: "12.00 USD", "1,074,000 LBP" or "5.00 USD + 627,000 LBP".
+     * What the customer pays / the driver collects: "12.00$", "1,074,000 LBP" or "5.00$ + 627,000 LBP".
      */
     public static function paymentLine(Order $order, Merchant $merchant): string
     {
-        $main = fn (float $v) => number_format($v, 2).' '.$merchant->currency;
-        $lbp = fn ($v) => number_format((float) $v).' LBP';
+        $main = fn (float $v) => Money::format($v, $merchant->currency);
+        $lbp = fn ($v) => Money::lbp((float) $v);
 
         return match ($order->payment_currency) {
             'LBP' => $lbp($order->total_lbp),

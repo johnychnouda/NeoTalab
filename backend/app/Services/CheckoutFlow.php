@@ -9,6 +9,7 @@ use App\Models\DeliveryZone;
 use App\Models\Merchant;
 use App\Models\Modifier;
 use App\Models\Order;
+use App\Support\Money;
 use App\Support\ShopSettings;
 use Illuminate\Support\Str;
 
@@ -102,7 +103,8 @@ class CheckoutFlow
                     $state['payment'] = $value === 'whish' ? 'whish' : 'cash';
                     break;
                 case 'cur':
-                    $state['currency'] = $value === 'LBP' ? 'LBP' : $merchant->currency;
+                    $state['currency'] = in_array($value, ['LBP', 'MIXED'], true) ? $value : $merchant->currency;
+                    unset($state['cash_main']);
                     break;
                 case 'ok':
                     return $this->confirm($merchant, $conversation, $state, $locale);
@@ -142,6 +144,14 @@ class CheckoutFlow
         } elseif ($step === 'details' && $text !== null && trim($text) !== '') {
             $state['address'] = trim(trim($state['address'] ?? '').' — '.trim($text), ' —');
             $state['address_done'] = true;
+        } elseif ($step === 'split' && $text !== null) {
+            // Split cash: the dollars the customer pays, the rest in lira at the shop's rate.
+            $amount = $this->amount($text);
+            $total = $this->total($conversation, $state);
+            if ($amount === null || $amount <= 0 || $amount >= $total) {
+                return $this->text($this->t('split_invalid', $locale, ['max' => $this->money($merchant, $total)]));
+            }
+            $state['cash_main'] = round($amount, 2);
         } elseif ($step === 'location' && $text !== null) {
             return $this->location($this->t('address_short', $locale));
         } else {
@@ -223,12 +233,22 @@ class CheckoutFlow
         if (empty($state['currency'])) {
             $total = $this->total($conversation, $state);
             if ($state['payment'] === 'cash' && ($lbp = $settings->toLbp($total)) !== null && strtoupper((string) $merchant->currency) !== 'LBP') {
-                return $this->ask($conversation, $state, 'currency', $this->buttons($this->t('currency', $locale), [
+                // The total in both currencies: all in dollars, all in lira, or part of each.
+                return $this->ask($conversation, $state, 'currency', $this->buttons($this->t('currency', $locale, [
+                    'usd' => $this->money($merchant, $total), 'lbp' => Money::lbp($lbp),
+                ]), [
                     ['co:cur:'.$merchant->currency, Str::limit("💵 {$this->money($merchant, $total)}", 20, '')],
-                    ['co:cur:LBP', Str::limit('🇱🇧 '.number_format($lbp).' LBP', 20, '')],
+                    ['co:cur:LBP', Str::limit('🇱🇧 '.Money::lbp($lbp), 20, '')],
+                    ['co:cur:MIXED', $this->t('btn_split', $locale)],
                 ]));
             }
             $state['currency'] = $merchant->currency;
+        }
+
+        if ($state['currency'] === 'MIXED' && ! isset($state['cash_main'])) {
+            return $this->ask($conversation, $state, 'split', $this->text($this->t('split_ask', $locale, [
+                'total' => $this->money($merchant, $this->total($conversation, $state)),
+            ])));
         }
 
         return $this->ask($conversation, $state, 'confirm', $this->buttons($this->receipt($merchant, $conversation, $state, $locale), [
@@ -251,6 +271,7 @@ class CheckoutFlow
             'location' => $state['location'] ?? null,
             'payment_method' => $state['payment'] ?? 'cash',
             'payment_currency' => $state['currency'] ?? $merchant->currency,
+            'cash_main' => $state['cash_main'] ?? null,
         ]);
 
         $this->exit($conversation, $order ? 'completed' : null);
@@ -298,14 +319,21 @@ class CheckoutFlow
             $out .= $this->t('delivery_fee', $locale, ['zone' => $zone->name]).": {$this->money($merchant, $fee)}\n";
         }
         $out .= '*'.$this->t('total', $locale).": {$this->money($merchant, $total)}*";
-        if (($state['currency'] ?? '') === 'LBP' && ($lbp = ShopSettings::for($merchant)->toLbp($total)) !== null) {
-            $out .= ' ('.number_format($lbp).' LBP)';
+        $settings = ShopSettings::for($merchant);
+        $cash = ($state['payment'] ?? '') !== 'whish';
+        if ($cash && ($lbp = $settings->toLbp($total)) !== null) {
+            $out .= ' ('.Money::lbp($lbp).')';
         }
         $out .= "\n\n";
         $out .= ($state['fulfillment'] ?? '') === 'pickup'
             ? '🏪 '.$this->t('pickup_at', $locale, ['address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name])
             : '🛵 '.trim(($state['zone'] ?? '').' — '.(($state['address'] ?? '') ?: $this->t('pin', $locale)), ' —');
-        $out .= "\n".(($state['payment'] ?? '') === 'whish' ? '💳 Whish' : '💵 '.$this->t(($state['fulfillment'] ?? '') === 'pickup' ? 'cash_shop' : 'cash', $locale));
+        $out .= "\n".(! $cash ? '💳 Whish' : '💵 '.$this->t(($state['fulfillment'] ?? '') === 'pickup' ? 'cash_shop' : 'cash', $locale)
+            .' · '.match ($state['currency'] ?? '') {
+                'LBP' => Money::lbp((float) $settings->toLbp($total)),
+                'MIXED' => $this->money($merchant, (float) $state['cash_main']).' + '.Money::lbp((float) $settings->toLbp($total - (float) $state['cash_main'])),
+                default => $this->money($merchant, $total),
+            });
         $out .= "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $zone?->delivery_mins, $locale);
 
         return $out;
@@ -328,7 +356,7 @@ class CheckoutFlow
         $this->exit($conversation);
 
         return $this->menuMessage($merchant, __('whatsapp.checkout.minimum_order', [
-            'zone' => $zone->name, 'minimum' => number_format((float) $zone->minimum_order, 2), 'currency' => $merchant->currency,
+            'zone' => $zone->name, 'minimum' => Money::format((float) $zone->minimum_order, $merchant->currency),
         ], $locale), $locale);
     }
 
@@ -400,11 +428,17 @@ class CheckoutFlow
         return __("whatsapp.flow.{$key}", $params, $locale);
     }
 
+    /** A typed amount, in Western or Arabic digits ("5", "7.5", "٥"); null when there is none. */
+    protected function amount(string $text): ?float
+    {
+        $text = strtr($text, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9', '٫' => '.', ',' => '.']);
+
+        return preg_match('/\d+(?:\.\d+)?/', $text, $m) ? (float) $m[0] : null;
+    }
+
     protected function money(Merchant $merchant, float $amount): string
     {
-        $currency = strtoupper((string) ($merchant->currency ?: 'USD'));
-
-        return $currency === 'USD' ? '$'.number_format($amount, 2) : number_format($amount, 2).' '.$currency;
+        return Money::format($amount, $merchant->currency);
     }
 
     /** @return array<string, mixed> */

@@ -16,6 +16,7 @@ use App\Models\ShopHour;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
+use App\Support\Money;
 use App\Support\ShopSettings;
 use Illuminate\Support\Facades\DB;
 
@@ -78,7 +79,7 @@ class CheckoutService
         if ($zone && $subtotal < (float) $zone->minimum_order) {
             throw new CheckoutException('minimum_order', [
                 'zone' => $zone->name,
-                'minimum' => number_format((float) $zone->minimum_order, 2),
+                'minimum' => Money::format((float) $zone->minimum_order, $merchant->currency),
                 'currency' => $merchant->currency,
             ]);
         }

@@ -15,6 +15,7 @@ use App\Models\WhatsAppMessage;
 use App\Services\OrderTiming;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
+use App\Support\OrderMessage;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -270,7 +271,7 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('Rami · 📞 +96176000001', $this->lastTo(self::CUSTOMER)['text']);
 
         $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "drv:outside:{$order->id}", 'title' => 'x']]], '+96176000001');
-        $this->assertSame('📍 Rami is outside with your order #1! 📞 +96176000001', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertSame('📍 Rami is outside with your order #1! 📞 '.OrderMessage::phone('+96176000001'), $this->lastTo(self::CUSTOMER)['text']);
     }
 
     public function test_status_button_only_answers_for_the_customers_own_order(): void

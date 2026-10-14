@@ -8,6 +8,7 @@ use App\Models\Merchant;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\OrderMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -34,7 +35,7 @@ class NotifyStaffOfHandoff implements ShouldQueue
 
         $locale = $merchant->locale ?? 'en';
         $key = $this->reason === 'photo' ? 'photo' : 'handoff';
-        $body = __("whatsapp.staff.{$key}", ['phone' => $customer->phone], $locale);
+        $body = __("whatsapp.staff.{$key}", ['phone' => OrderMessage::phone($customer->phone)], $locale);
         $buttons = [["stf:resume:{$customer->id}", __('whatsapp.staff.button_resume', [], $locale)]];
         // The template is in English, so its reason is too.
         $why = __("whatsapp.staff.alert_{$key}", ['phone' => $customer->phone], 'en');

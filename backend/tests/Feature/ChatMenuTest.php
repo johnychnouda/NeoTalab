@@ -114,7 +114,7 @@ class ChatMenuTest extends TestCase
         $this->tap('mn:qtymore');
         $this->tap('mn:qty:4');
         $this->assertStringContainsString('Added 4× Pizza', $this->last()['interactive']['body']['text']);
-        $this->assertStringContainsString('Cart: 4 items · $42.00', $this->last()['interactive']['body']['text']);
+        $this->assertStringContainsString('Cart: 4 items · 42.00$', $this->last()['interactive']['body']['text']);
         $this->assertSame(['mn:cats:1', 'co:start:'], $this->ids());
 
         $item = $this->cartItems()->first();
@@ -158,7 +158,7 @@ class ChatMenuTest extends TestCase
         $this->assertSame('1 items', $rows[0]['description'], 'expired offers do not count');
 
         $this->tap('mn:cat:offers:1');
-        $this->assertSame('$8.00 (was $10.00) 🔥', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
+        $this->assertSame('8.00$ (was 10.00$) 🔥', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
 
         $this->tap("mn:item:{$deal->id}");
         $this->tap('mn:qty:2');
@@ -170,7 +170,7 @@ class ChatMenuTest extends TestCase
         $tomato = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Tomatoes', 'price' => 1.5, 'unit' => 'kg']);
 
         $this->tap('mn:cats:1');
-        $this->assertSame('$1.50 / kg', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
+        $this->assertSame('1.50$ / kg', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
 
         $this->tap("mn:item:{$tomato->id}");
         $this->assertSame(['1 kg', '2 kg', '3+ kg'], array_map(fn ($b) => $b['reply']['title'], $this->last()['interactive']['action']['buttons']));

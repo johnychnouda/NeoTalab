@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\ShopHour;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
+use App\Support\OrderMessage;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,7 +97,7 @@ class AppointmentTest extends TestCase
 
         $appointment = Appointment::query()->withoutGlobalScopes()->sole();
         $this->assertSame('2026-10-06 08:00:00', $appointment->starts_at->utc()->format('Y-m-d H:i:s'), 'stored in UTC');
-        $this->assertStringContainsString('Booked: Haircut on Tue 6 Oct at 11:00 (10.00 USD) at Hair Studio — Hamra St', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Booked: Haircut on Tue 6 Oct at 11:00 (10.00$) at Hair Studio — Hamra St', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('New booking', $this->lastTo($owner->whatsapp_number));
         Bus::assertDispatched(SendAppointmentReminder::class);
 
@@ -116,7 +117,7 @@ class AppointmentTest extends TestCase
         $appointment = Appointment::query()->withoutGlobalScopes()->sole();
         $sent = Http::recorded()->map(fn ($p) => $p[0])->last(fn ($r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96171555000');
         $this->assertSame(ShopTemplateService::NEW_BOOKING, $sent['template']['name']);
-        $this->assertSame(['Hair Studio', 'Haircut', 'Tue 6 Oct', '11:00', '10.00 USD', self::CUSTOMER], array_column($sent['template']['components'][0]['parameters'], 'text'));
+        $this->assertSame(['Hair Studio', 'Haircut', 'Tue 6 Oct', '11:00', '10.00$', OrderMessage::phone(self::CUSTOMER)], array_column($sent['template']['components'][0]['parameters'], 'text'));
         $this->assertSame("stf:appt_no_show:{$appointment->id}", $sent['template']['components'][2]['parameters'][0]['payload']);
     }
 
