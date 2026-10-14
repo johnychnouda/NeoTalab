@@ -47,7 +47,6 @@ export default async function Home() {
             {t.trust.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
           </ul>
         </div>
-        <div className="hero-demo"><OrderDemo demo={demo} chats={["c"]} /></div>
       </section>
 
       <section className="section" id="demo">
