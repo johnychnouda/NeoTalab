@@ -320,7 +320,7 @@ const T = {
     readyPickup: (a) => `📦 طلبك رقم 128 جاهز! يمكنك استلامه الآن من ${a}.`, collected: (shop) => `✅ شكراً لاستلامك الطلب رقم 128 من ${shop}!`,
     rateAsk: "⭐ كيف كان طلبك؟ أجب برقم من 1 (سيء) إلى 5 (ممتاز).", rateThanks: "شكراً على تقييمك! 🙏",
     slots: (s, d, list) => `🗓 الأوقات المتاحة لـ ${s} يوم ${d}:\n${list}\nأي وقت يناسبك؟`,
-    booked: (s, d, t, p, shop, a) => `✅ تم الحجز: ${s} يوم ${d} الساعة ${t} (${p}) في ${shop} — ${a}.\nسنرسل لك تذكيراً. أرسل "cancel appointment" إذا لم تتمكن من الحضور.`,
+    booked: (s, d, t, p, shop, a) => `✅ تم الحجز: ${s} يوم ${d} الساعة ${t} (${p}) في ${shop} — ${a}.\nسنرسل لك تذكيراً. أرسل «إلغاء الموعد» إذا لم تتمكن من الحضور.`,
     staffBooking: (shop, s, d, t, p) => `🗓 حجز جديد — ${shop}\n${s}\n${d} الساعة ${t} · ${p}\n📞 +961 71 234 567`,
     reminder: (s, shop, d, t) => `⏰ تذكير: موعد ${s} في ${shop} يوم ${d} الساعة ${t}. نراك قريباً!`,
     btnDone: "✅ تم", btnNoShow: "🚫 لم يحضر", staffUpdated: (s) => `👍 تم تحديث ${s}.`,
@@ -365,7 +365,7 @@ const T = {
     readyPickup: (a) => `📦 Votre commande n° 128 est prête ! Vous pouvez la récupérer à ${a}.`, collected: (shop) => `✅ Merci d'avoir récupéré la commande n° 128 chez ${shop} !`,
     rateAsk: "⭐ Qu’en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent).", rateThanks: "Merci pour votre note ! 🙏",
     slots: (s, d, list) => `🗓 Créneaux libres pour ${s} le ${d} :\n${list}\nQuelle heure vous convient ?`,
-    booked: (s, d, t, p, shop, a) => `✅ Réservé : ${s} le ${d} à ${t} (${p}) chez ${shop} — ${a}.\nNous vous enverrons un rappel. Répondez "cancel appointment" si vous ne pouvez pas venir.`,
+    booked: (s, d, t, p, shop, a) => `✅ Réservé : ${s} le ${d} à ${t} (${p}) chez ${shop} — ${a}.\nNous vous enverrons un rappel. Répondez « annuler le rendez-vous » si vous ne pouvez pas venir.`,
     staffBooking: (shop, s, d, t, p) => `🗓 Nouvelle réservation — ${shop}\n${s}\n${d} à ${t} · ${p}\n📞 +961 71 234 567`,
     reminder: (s, shop, d, t) => `⏰ Rappel : votre ${s} chez ${shop} est le ${d} à ${t}. À bientôt !`,
     btnDone: "✅ Terminé", btnNoShow: "🚫 Absent", staffUpdated: (s) => `👍 ${s} mis à jour.`,
@@ -456,9 +456,10 @@ function script(shop, lang, delivery, whish) {
   // Cash is paid split: round dollars, the rest in lira at the shop's rate.
   const dollars = [Math.floor(total / 10) * 10, Math.floor(total), total - 5].find((d) => d > 0 && d < total);
   const paid = whish ? money(lang, total) : `${money(lang, dollars)} + ${lira(lang, total - dollars)}`;
-  const receipt = `🧾 *${t.yourOrder}*\n${lines}\n\n${t.subtotal}: ${money(lang, subtotal)}\n`
-    + (delivery ? `${t.deliveryFee(town)}: ${money(lang, shop.fee)}\n` : "")
-    + `*${t.total}: ${money(lang, total)}*${whish ? "" : ` (${lira(lang, total)})`}\n\n`
+  const colon = lang === "fr" ? " : " : ": "; // French puts a space before the colon
+  const receipt = `🧾 *${t.yourOrder}*\n${lines}\n\n${t.subtotal}${colon}${money(lang, subtotal)}\n`
+    + (delivery ? `${t.deliveryFee(town)}${colon}${money(lang, shop.fee)}\n` : "")
+    + `*${t.total}${colon}${money(lang, total)}*${whish ? "" : ` (${lira(lang, total)})`}\n\n`
     + (delivery ? `🛵 ${address}` : `🏪 ${t.pickupAt(shopAddress)}`)
     + `\n${whish ? "💳 Whish" : `💵 ${delivery ? t.cash : t.cashShop} · ${paid}`}\n⏱ ${estimate}`;
 

@@ -19,7 +19,7 @@ export const SITE = {
       h1a: "Your WhatsApp, now an ", h1b: "AI sales assistant",
       intro: "Customers order, book and pay on your business WhatsApp. NeoTalab answers them, takes the order and sends it to your team, while you watch it all from your WhatsApp Business app.",
       badge: "Official WhatsApp Business Platform",
-      trust: ["Arabic, English and French", "Cash, cash on delivery and Whish", "{n}-day free trial"],
+      trust: ["Arabic, English and French", "Cash in $ or lira, and Whish", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
       steps: [
         ["Connect your number", "We link your WhatsApp Business number. You keep your app and your chats."],
@@ -73,7 +73,7 @@ export const SITE = {
       h1a: "واتساب الخاص بك، أصبح الآن ", h1b: "مساعد مبيعات ذكي",
       intro: "يطلب زبائنك ويحجزون ويدفعون عبر واتساب عملك. يردّ NeoTalab عليهم، يأخذ الطلب ويرسله إلى فريقك، وأنت تتابع كل شيء من تطبيق واتساب للأعمال.",
       badge: "منصّة واتساب للأعمال الرسمية",
-      trust: ["العربية والإنجليزية والفرنسية", "نقدًا، عند التسليم أو عبر Whish", "تجربة مجانية لمدة {days}"],
+      trust: ["العربية والإنجليزية والفرنسية", "نقدًا بالدولار أو بالليرة، وWhish", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
       steps: [
         ["اربط رقمك", "نربط رقم واتساب للأعمال. تحتفظ بتطبيقك ومحادثاتك."],
@@ -127,7 +127,7 @@ export const SITE = {
       h1a: "Votre WhatsApp, désormais un ", h1b: "assistant de vente IA",
       intro: "Vos clients commandent, réservent et paient sur le WhatsApp de votre commerce. NeoTalab leur répond, prend la commande et l'envoie à votre équipe, pendant que vous suivez tout depuis WhatsApp Business.",
       badge: "Plateforme officielle WhatsApp Business",
-      trust: ["Arabe, anglais et français", "Espèces, à la livraison et Whish", "Essai gratuit de {n} jours"],
+      trust: ["Arabe, anglais et français", "Espèces en $ ou en livres, et Whish", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
       steps: [
         ["Connectez votre numéro", "Nous relions votre numéro WhatsApp Business. Vous gardez votre application et vos discussions."],

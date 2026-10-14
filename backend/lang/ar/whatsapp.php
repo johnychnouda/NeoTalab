@@ -240,7 +240,7 @@ return [
         'fully_booked' => 'عذراً، :service محجوز بالكامل خلال الأسبوعين القادمين. يرجى مراسلتنا لاحقاً.',
         'which_service' => 'أي خدمة تريد حجزها؟ لدينا: :services.',
         'taken' => 'عذراً، هذا الوقت حُجز للتو.',
-        'booked' => "✅ تم الحجز: :service يوم :date الساعة :time (:price) في :shop — :address.\nسنرسل لك تذكيراً. أرسل \"cancel appointment\" إذا لم تتمكن من الحضور.",
+        'booked' => "✅ تم الحجز: :service يوم :date الساعة :time (:price) في :shop — :address.\nسنرسل لك تذكيراً. أرسل «إلغاء الموعد» إذا لم تتمكن من الحضور.",
         'reminder' => '⏰ تذكير: موعد :service في :shop يوم :date الساعة :time. نراك قريباً!',
         'cancelled' => 'تم إلغاء موعد :service يوم :date الساعة :time. يمكنك الحجز مجدداً في أي وقت.',
         'cancel_none' => 'لا يوجد لديك موعد قادم لإلغائه.',

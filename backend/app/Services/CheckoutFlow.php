@@ -314,11 +314,12 @@ class CheckoutFlow
         $total = $subtotal + $fee;
 
         $out = '🧾 *'.$this->t('your_order', $locale)."*\n{$lines}\n\n";
-        $out .= $this->t('subtotal', $locale).": {$this->money($merchant, $subtotal)}\n";
+        $colon = $locale === 'fr' ? ' : ' : ': '; // French puts a space before the colon
+        $out .= $this->t('subtotal', $locale).$colon.$this->money($merchant, $subtotal)."\n";
         if ($zone) {
-            $out .= $this->t('delivery_fee', $locale, ['zone' => $zone->name]).": {$this->money($merchant, $fee)}\n";
+            $out .= $this->t('delivery_fee', $locale, ['zone' => $zone->name]).$colon.$this->money($merchant, $fee)."\n";
         }
-        $out .= '*'.$this->t('total', $locale).": {$this->money($merchant, $total)}*";
+        $out .= '*'.$this->t('total', $locale).$colon.$this->money($merchant, $total).'*';
         $settings = ShopSettings::for($merchant);
         $cash = ($state['payment'] ?? '') !== 'whish';
         if ($cash && ($lbp = $settings->toLbp($total)) !== null) {
