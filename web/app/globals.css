@@ -1933,26 +1933,25 @@ tr.action-highlight { background: #f9731618 !important; }
 .wa-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 20px; }
 .wa-wave i { flex: 1; min-width: 2px; border-radius: 2px; background: #ffffff80; }
 .wa-voice-time { font-size: 11px; color: #ffffff8c; }
-.wa-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 14px; }
+.wa-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 18px; }
+.wa-bar { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto 10px; }
+.wa-icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--site-line); background: var(--site-card);
+  color: #dfe8e3; cursor: pointer; transition: border-color .2s, opacity .2s; }
+.wa-icon-btn:hover:not(:disabled) { border-color: #2f4a3c; }
+.wa-icon-btn:disabled { opacity: .35; cursor: default; }
+.wa-prev svg, [dir="rtl"] .wa-next svg { transform: scaleX(-1); }
+[dir="rtl"] .wa-prev svg { transform: none; }
+.wa-step { min-width: 190px; margin: 0 6px; font-size: 15px; font-weight: 700; color: #eef3f0; }
+.wa-step span { margin-inline-end: 8px; color: var(--green); font-variant-numeric: tabular-nums; }
+.wa-progress { display: flex; gap: 4px; max-width: 320px; margin: 0 auto 24px; }
+.wa-progress button { flex: 1; height: 5px; padding: 0; border: 0; border-radius: 3px; background: #ffffff1a; cursor: pointer; transition: background .3s; }
+.wa-progress button.done { background: #25d36680; }
+.wa-progress button.current { background: var(--green); }
 .wa-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 12px; border: 1px solid var(--site-line);
   background: var(--site-card); color: #dfe8e3; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: border-color .2s, background .2s, color .2s; }
 .wa-tabs button:hover { border-color: #2f4a3c; }
 .wa-tabs button.active { background: var(--green); border-color: var(--green); color: #04210f; }
-.wa-shows { max-width: 720px; margin: 0 auto 20px; color: var(--site-muted); font-size: 14px; line-height: 1.6; }
-.wa-shows strong { color: #dfe8e3; }
-.wa-controls { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0 0 26px; }
-.wa-steps { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 0; }
-.wa-steps button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px 6px 7px; border-radius: 999px; border: 1px solid var(--site-line);
-  background: var(--site-card); color: var(--site-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color .3s, border-color .3s, background .3s; }
-.wa-steps button:hover { border-color: #2f4a3c; color: #dfe8e3; }
-.wa-steps button span { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: #ffffff10; font-size: 11.5px; transition: background .3s, color .3s; }
-.wa-steps button.done { color: #eef3f0; border-color: #25d36655; background: #25d36614; }
-.wa-steps button.done span { background: var(--green); color: #04210f; }
-.wa-buttons { display: flex; gap: 8px; }
-.wa-buttons button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px; border: 1px solid var(--site-line);
-  background: transparent; color: #dfe8e3; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.wa-buttons button:hover { border-color: #2f4a3c; background: var(--site-card); }
-.wa-tabs button:focus-visible, .wa-steps button:focus-visible, .wa-buttons button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.wa-tabs button:focus-visible, .wa-bar button:focus-visible, .wa-progress button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 @keyframes wa-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes wa-dot { 0%, 60%, 100% { opacity: .35; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
 @media (max-width: 980px) { .wa-strip.wa-count-3 { justify-content: flex-start; } }

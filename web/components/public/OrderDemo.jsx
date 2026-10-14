@@ -20,6 +20,7 @@ const icons = {
   play: "M8 5v14l11-7z",
   pause: "M6 5h4v14H6zm8 0h4v14h-4z",
   replay: "M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z",
+  chevron: "M9.3 6.7L10.7 5.3 17.4 12l-6.7 6.7-1.4-1.4L14.6 12z",
   ticks: "M11.1.7L5.2 6.6 3.2 4.6 2 5.8l3.2 3.2 7.1-7.1zM14.5.7L8.6 6.6l-.6-.6-1.2 1.2L8.6 9l7.1-7.1z",
 };
 
@@ -84,6 +85,7 @@ export default function OrderDemo({ demo }) {
   }, [count, playing, started, messages]);
 
   const last = count > 0 ? messages[count - 1] : null;
+  const step = typing ? messages[count]?.step ?? 0 : last?.step ?? 0;
   const activeChat = typing || last?.chat || chats[0];
 
   useEffect(() => {
@@ -121,26 +123,25 @@ export default function OrderDemo({ demo }) {
           </button>
         ))}
       </div>
-      <p className="wa-shows"><strong>{demo.shows}:</strong> {scenario.shows}</p>
-
-      <div className="wa-controls">
-        <ol className="wa-steps">
-          {scenario.steps.map((label, i) => (
-            <li key={label}>
-              <button type="button" className={last && last.step >= i ? "done" : ""} onClick={() => jumpToStep(i)}>
-                <span>{i + 1}</span>{label}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="wa-buttons">
-          <button type="button" onClick={() => { setStarted(true); setPlaying(!playing); }}>
-            <Svg d={playing ? icons.pause : icons.play} size={16} />{playing ? demo.pause : demo.play}
-          </button>
-          <button type="button" onClick={() => jumpToStep(0)}>
-            <Svg d={icons.replay} size={16} />{demo.replay}
-          </button>
-        </div>
+      <div className="wa-bar">
+        <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
+          <Svg d={playing ? icons.pause : icons.play} size={18} />
+        </button>
+        <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
+          <Svg d={icons.chevron} size={18} />
+        </button>
+        <p className="wa-step" aria-live="polite"><span>{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
+        <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
+          <Svg d={icons.chevron} size={18} />
+        </button>
+        <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
+          <Svg d={icons.replay} size={18} />
+        </button>
+      </div>
+      <div className="wa-progress">
+        {scenario.steps.map((label, i) => (
+          <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
+        ))}
       </div>
 
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef} aria-hidden="true">

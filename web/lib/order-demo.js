@@ -9,34 +9,33 @@
 // human (a person from the shop answers instead of the bot), day (date chip before the message).
 
 const LBP_RATE = 89500;
+// The script's time blocks, grouped into the steps shown above the phones.
+const STEP_OF_BLOCK = [0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 6, 7, 7];
 
 const UI = {
   en: {
     title: "See NeoTalab at work",
-    lead: "Pick a kind of shop and watch a full day: every feature, on the customer's, the shop's and the driver's own WhatsApp.",
+    lead: "Pick a shop and watch one day on the customer's, the owner's and the driver's WhatsApp.",
     online: "online", typing: "typing…", today: "Today", message: "Message",
-    shows: "Shows", pause: "Pause", play: "Play", replay: "Replay", voice: "Voice message",
+    pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", voice: "Voice message",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
-    showsText: "opening the shop from WhatsApp, a voice-note order, the menu inside the chat, delivery with Whish payment, the shop accepting, the driver's buttons and “I'm outside”, rating, talking to a real person, a pickup order paid cash in lira, a booking with its reminder, closing the shop, the driver's cash summary and the nightly report",
-    steps: ["Shop opens", "Voice order", "Menu", "Delivery & payment", "Shop accepts", "Whish payment", "Driver", "Rating", "Talk to a person", "Pickup, cash in lira", "Booking", "End of day", "Next day"],
+    steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup in lira", "Booking", "End of day"],
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
-    lead: "اختار نوع المحل وتابع نهار كامل: كل الميزات، على واتساب الزبون والمحل والسائق.",
+    lead: "اختار محل وتابع نهار كامل على واتساب الزبون وصاحب المحل والسائق.",
     online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
-    shows: "بيورجي", pause: "إيقاف", play: "تشغيل", replay: "إعادة", voice: "رسالة صوتية",
+    pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", voice: "رسالة صوتية",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
-    showsText: "فتح المحل من واتساب، طلب برسالة صوتية، القائمة داخل المحادثة، توصيل مع دفع Whish، قبول المحل، أزرار السائق و«أنا برا»، التقييم، الحكي مع شخص حقيقي، طلب استلام مدفوع كاش بالليرة، حجز موعد مع تذكير، تسكير المحل، حساب الكاش للسائق والتقرير اليومي",
-    steps: ["فتح المحل", "طلب صوتي", "القائمة", "التوصيل والدفع", "المحل يقبل", "دفع Whish", "السائق", "التقييم", "حكي مع شخص", "استلام، كاش بالليرة", "حجز موعد", "آخر النهار", "تاني يوم"],
+    steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام بالليرة", "حجز موعد", "آخر النهار"],
   },
   fr: {
     title: "NeoTalab en action",
-    lead: "Choisissez un type de commerce et suivez une journée entière : toutes les fonctions, sur le WhatsApp du client, du commerce et du livreur.",
+    lead: "Choisissez un commerce et suivez une journée sur le WhatsApp du client, du commerçant et du livreur.",
     online: "en ligne", typing: "écrit…", today: "Aujourd'hui", message: "Message",
-    shows: "Montre", pause: "Pause", play: "Lecture", replay: "Rejouer", voice: "Message vocal",
+    pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", voice: "Message vocal",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
-    showsText: "ouverture du commerce depuis WhatsApp, commande par message vocal, menu dans la discussion, livraison payée avec Whish, acceptation par le commerce, boutons du livreur et « Je suis devant », note, discussion avec une vraie personne, retrait payé en espèces en livres, réservation avec rappel, fermeture, caisse du livreur et rapport du soir",
-    steps: ["Ouverture", "Commande vocale", "Menu", "Livraison et paiement", "Acceptée", "Paiement Whish", "Livreur", "Note", "Parler à quelqu'un", "Retrait, espèces en livres", "Réservation", "Fin de journée", "Le lendemain"],
+    steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait en livres", "Réservation", "Fin de journée"],
   },
 };
 
@@ -171,8 +170,6 @@ const SCRIPT = {
       ["C", d.category],
       ["c", "Choose an item 👇", { buttons: ["📋 See items"] }],
       ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `How many ${d.addName}?`],
-      ["C", "1"],
       ["c", `✅ Added 1× ${d.addName}\n🛒 Cart: ${d.cartCount} items · ${n(d.subtotal)}`, { buttons: ["➕ Add more", "🛒 Checkout"] }],
       ["C", "🛒 Checkout"],
     ]],
@@ -225,8 +222,6 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
-      ["c", `Sure! ${d.pickupLine}\nDelivery or pickup?`],
-      ["C", "Pickup"],
       ["c", "How would you like to pay?", { buttons: ["💵 Cash at the shop", "💳 Whish"] }],
       ["C", "💵 Cash at the shop"],
       ["c", "Pay cash in dollars or in lira?", { buttons: ["Dollars", "Lira"] }],
@@ -282,8 +277,6 @@ const SCRIPT = {
       ["C", d.category],
       ["c", "اختار صنف 👇", { buttons: ["📋 شوف الأصناف"] }],
       ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `قديش ${d.addName}؟`],
-      ["C", "1"],
       ["c", `✅ انضاف 1× ${d.addName}\n🛒 السلة: ${d.cartCount} أصناف · ${n(d.subtotal)}`, { buttons: ["➕ زيد", "🛒 إتمام الطلب"] }],
       ["C", "🛒 إتمام الطلب"],
     ]],
@@ -336,8 +329,6 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
-      ["c", `أكيد! ${d.pickupLine}\nتوصيل أو استلام؟`],
-      ["C", "استلام"],
       ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش بالمحل", "💳 Whish"] }],
       ["C", "💵 كاش بالمحل"],
       ["c", "بتدفع كاش بالدولار أو بالليرة؟", { buttons: ["دولار", "ليرة"] }],
@@ -393,8 +384,6 @@ const SCRIPT = {
       ["C", d.category],
       ["c", "Choisissez un article 👇", { buttons: ["📋 Voir les articles"] }],
       ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `Combien de ${d.addName} ?`],
-      ["C", "1"],
       ["c", `✅ Ajouté 1× ${d.addName}\n🛒 Panier : ${d.cartCount} articles · ${n(d.subtotal)}`, { buttons: ["➕ Ajouter", "🛒 Commander"] }],
       ["C", "🛒 Commander"],
     ]],
@@ -447,8 +436,6 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
-      ["c", `Bien sûr ! ${d.pickupLine}\nLivraison ou retrait ?`],
-      ["C", "Retrait"],
       ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces au magasin", "💳 Whish"] }],
       ["C", "💵 Espèces au magasin"],
       ["c", "Payer en dollars ou en livres ?", { buttons: ["Dollars", "Livres"] }],
@@ -537,7 +524,8 @@ function build(shop, lang) {
   const ui = UI[lang];
   const d = shopIn(shop, lang);
   const messages = [];
-  SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], step) => {
+  SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
+    const step = STEP_OF_BLOCK[block];
     const [h, m] = at.split(":").map(Number);
     list.forEach(([who, text, extra = {}], k) => {
       // The booked visit itself is later in the day than the reminder.
@@ -552,7 +540,7 @@ function build(shop, lang) {
       });
     });
   });
-  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, chats: ["c", "s", "d"], steps: ui.steps, shows: ui.showsText, messages };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, chats: ["c", "s", "d"], steps: ui.steps, messages };
 }
 
 export function orderDemo(lang) {
