@@ -1,4 +1,4 @@
-// The homepage demo: a day of real NeoTalab conversations for several kinds of shops, on the
+// The homepage demo: real NeoTalab conversations for several kinds of shops, on the
 // phones of the customer, the shop owner and the driver. Every shop goes through the same
 // features (SCRIPT below) with its own products; the messages follow the real bot texts.
 //
@@ -9,42 +9,50 @@
 // human (a person from the shop answers instead of the bot), day (date chip before the message).
 
 const LBP_RATE = 89500;
-// The script's time blocks, grouped into the steps shown above the phones.
-const STEP_OF_BLOCK = [0, 1, 1, 2, 2, 2, 3, 4, 4, 5, 6, 7, 7];
+// The script's time blocks. The main story is one order from start to end, grouped into the steps
+// shown above the phones; each extra is a later scene of the same day the visitor can play after it.
+const MAIN_BLOCKS = [[0, 0], [1, 0], [2, 1], [3, 2], [4, 3], [5, 4]];
+const EXTRA_BLOCKS = { human: [6], cash: [7], booking: [8, 10], report: [9] };
 
 const UI = {
   en: {
     title: "See NeoTalab at work",
-    lead: "Pick a shop and watch one day on the customer's, the owner's and the driver's WhatsApp.",
+    lead: "Pick a shop and follow one order on the customer's, the owner's and the driver's WhatsApp.",
     online: "online", typing: "typing…", today: "Today", message: "Message",
     modes: { delivery: "🛵 Delivery", pickup: "🏪 Pickup only" }, pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", prevShop: "Previous shop", nextShop: "Next shop", voice: "Voice message", sendLabel: "Send",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
     bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
-    steps: ["Shop opens", "Order", "Whish payment", "Delivery", "Rating & help", "Pickup, $ or lira", "Booking", "End of day"],
-    pickupSteps: ["Shop opens", "Order", "Whish payment", "Pickup", "Rating & help", "Cash, $ or lira", "Booking", "End of day"],
+    steps: ["Order", "Shop accepts", "Whish payment", "Delivery", "Rating"],
+    pickupSteps: ["Order", "Shop accepts", "Whish payment", "Pickup", "Rating"],
+    alsoSee: "Also see",
+    extras: { human: "👤 A person answers", cash: "💵 Cash in lira", booking: "🗓 Bookings", report: "📊 Daily report" },
   },
   ar: {
     title: "شوف NeoTalab عم يشتغل",
-    lead: "اختار محل وتابع نهار كامل على واتساب الزبون وصاحب المحل والسائق.",
+    lead: "اختار محل وتابع طلب من أوله لآخره على واتساب الزبون وصاحب المحل والسائق.",
     online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
     modes: { delivery: "🛵 توصيل", pickup: "🏪 استلام فقط" }, pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية", sendLabel: "إرسال",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
     bot: "NeoTalab",
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
-    steps: ["فتح المحل", "الطلب", "دفع Whish", "التوصيل", "تقييم ومساعدة", "استلام، $ أو ليرة", "حجز موعد", "آخر النهار"],
-    pickupSteps: ["فتح المحل", "الطلب", "دفع Whish", "الاستلام", "تقييم ومساعدة", "كاش، $ أو ليرة", "حجز موعد", "آخر النهار"],
+    steps: ["الطلب", "المحل بيقبل", "دفع Whish", "التوصيل", "التقييم"],
+    pickupSteps: ["الطلب", "المحل بيقبل", "دفع Whish", "الاستلام", "التقييم"],
+    alsoSee: "شوف كمان",
+    extras: { human: "👤 موظف بيرد", cash: "💵 كاش بالليرة", booking: "🗓 حجز مواعيد", report: "📊 تقرير اليوم" },
   },
   fr: {
     title: "NeoTalab en action",
-    lead: "Choisissez un commerce et suivez une journée sur le WhatsApp du client, du commerçant et du livreur.",
+    lead: "Choisissez un commerce et suivez une commande sur le WhatsApp du client, du commerçant et du livreur.",
     online: "en ligne", typing: "écrit…", today: "Aujourd'hui", message: "Message",
     modes: { delivery: "🛵 Livraison", pickup: "🏪 Retrait uniquement" }, pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", prevShop: "Commerce précédent", nextShop: "Commerce suivant", voice: "Message vocal", sendLabel: "Envoyer",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
     bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
-    steps: ["Ouverture", "Commande", "Paiement Whish", "Livraison", "Note et aide", "Retrait, $ ou livres", "Réservation", "Fin de journée"],
-    pickupSteps: ["Ouverture", "Commande", "Paiement Whish", "Retrait", "Note et aide", "Espèces, $ ou livres", "Réservation", "Fin de journée"],
+    steps: ["Commande", "Le commerce accepte", "Paiement Whish", "Livraison", "Note"],
+    pickupSteps: ["Commande", "Le commerce accepte", "Paiement Whish", "Retrait", "Note"],
+    alsoSee: "Voir aussi",
+    extras: { human: "👤 Un humain répond", cash: "💵 Espèces en livres", booking: "🗓 Réservations", report: "📊 Rapport du jour" },
   },
 };
 
@@ -63,8 +71,6 @@ const SHOPS = [
       [2, 1.0, { en: "Zaatar man'oushe", ar: "منقوشة زعتر", fr: "Man'oushé zaatar" }],
       [1, 2.5, { en: "Cheese man'oushe", ar: "منقوشة جبنة", fr: "Man'oushé fromage" }],
     ],
-    category: { en: "🥤 Drinks", ar: "🥤 مشروبات", fr: "🥤 Boissons" },
-    add: [1, 0.75, { en: "Ayran", ar: "عيران", fr: "Ayran" }],
     photo: "🍕",
     photoCaption: { en: "Can you make this one? 😍", ar: "فيكن تعملولي هيدي؟ 😍", fr: "Vous pouvez faire celle-ci ? 😍" },
     staffName: { en: "Georges, Foren Al Hara", ar: "جورج، فرن الحارة", fr: "Georges, Foren Al Hara" },
@@ -90,8 +96,6 @@ const SHOPS = [
       [1, 4.0, { en: "Panadol Extra", ar: "Panadol Extra", fr: "Panadol Extra" }],
       [1, 6.0, { en: "Vitamin C 1000", ar: "فيتامين C 1000", fr: "Vitamine C 1000" }],
     ],
-    category: { en: "🧴 Skin care", ar: "🧴 العناية بالبشرة", fr: "🧴 Soins de la peau" },
-    add: [1, 12.0, { en: "Sunscreen SPF 50", ar: "كريم واقي SPF 50", fr: "Écran solaire SPF 50" }],
     photo: "💊",
     photoCaption: { en: "Do you have this one?", ar: "عندكن هيدا الدوا؟", fr: "Vous avez celui-ci ?" },
     staffName: { en: "Rita, pharmacist", ar: "ريتا، صيدلانية", fr: "Rita, pharmacienne" },
@@ -117,8 +121,6 @@ const SHOPS = [
       [1, 15.0, { en: "Hair mask", ar: "ماسك للشعر", fr: "Masque capillaire" }],
       [1, 9.0, { en: "Shampoo 400 ml", ar: "شامبو 400 مل", fr: "Shampooing 400 ml" }],
     ],
-    category: { en: "💅 Nails", ar: "💅 أظافر", fr: "💅 Ongles" },
-    add: [1, 6.0, { en: "Nail polish", ar: "طلاء أظافر", fr: "Vernis à ongles" }],
     photo: "💇",
     photoCaption: { en: "Can you do this haircut?", ar: "فيكن تعملولي هالقصة؟", fr: "Vous pouvez faire cette coupe ?" },
     staffName: { en: "Maya, Beauty Corner", ar: "مايا، Beauty Corner", fr: "Maya, Beauty Corner" },
@@ -144,8 +146,6 @@ const SHOPS = [
       [2, 3.5, { en: "Labneh 500 g", ar: "لبنة 500 غ", fr: "Labné 500 g" }],
       [1, 6.5, { en: "Eggs (30)", ar: "بيض (30)", fr: "Œufs (30)" }],
     ],
-    category: { en: "🥤 Drinks", ar: "🥤 مشروبات", fr: "🥤 Boissons" },
-    add: [1, 3.0, { en: "Water pack 6 × 1.5 L", ar: "كرتونة مي 6 × 1.5 ل", fr: "Pack d'eau 6 × 1,5 L" }],
     photo: "🛒",
     photoCaption: { en: "3andak hayda l brand?", ar: "عندك هالماركة؟", fr: "Vous avez cette marque ?" },
     staffName: { en: "Elie, Mini Market", ar: "إيلي، ميني ماركت", fr: "Elie, Mini Market" },
@@ -171,8 +171,6 @@ const SHOPS = [
       [1, 12.0, L("Maamoul (1 kg)", "معمول (1 كغ)", "Maamoul (1 kg)")],
       [2, 3.5, L("Knefeh", "كنافة", "Knéfé")],
     ],
-    category: L("🍰 Cakes", "🍰 قوالب", "🍰 Gâteaux"),
-    add: [1, 18.0, L("Chocolate cake", "قالب شوكولا", "Gâteau au chocolat")],
     photo: "🎂",
     photoCaption: L("Can you make a cake like this?", "فيكن تعملولي قالب متل هيدا؟", "Vous pouvez faire un gâteau comme celui-ci ?"),
     staffName: L("Nour, Patisserie Nour", "نور، حلويات نور", "Nour, Pâtisserie Nour"),
@@ -198,8 +196,6 @@ const SHOPS = [
       [1, 14.0, L("Kafta (1 kg)", "كفتة (1 كغ)", "Kafta (1 kg)")],
       [1, 9.0, L("Chicken breast (1 kg)", "صدر دجاج (1 كغ)", "Blanc de poulet (1 kg)")],
     ],
-    category: L("🍅 Vegetables", "🍅 خضرة", "🍅 Légumes"),
-    add: [2, 1.2, L("Tomatoes (1 kg)", "بندورة (1 كغ)", "Tomates (1 kg)")],
     photo: "🥩",
     photoCaption: L("Can you cut the meat like this?", "فيكن تقطعولي اللحمة هيك؟", "Vous pouvez couper la viande comme ça ?"),
     staffName: L("Tony, Al Wadi", "طوني، ملحمة الوادي", "Tony, Al Wadi"),
@@ -225,8 +221,6 @@ const SHOPS = [
       [1, 35.0, L("Black jeans, size 38", "جينز أسود، قياس 38", "Jean noir, taille 38")],
       [1, 18.0, L("White t-shirt, M", "تيشرت أبيض، M", "T-shirt blanc, M")],
     ],
-    category: L("👟 Shoes", "👟 أحذية", "👟 Chaussures"),
-    add: [1, 45.0, L("White sneakers, 39", "سنيكرز أبيض، 39", "Baskets blanches, 39")],
     photo: "👗",
     photoCaption: L("Do you have this dress in red?", "عندكن هالفستان بالأحمر؟", "Vous avez cette robe en rouge ?"),
     staffName: L("Lina, Boutique Lina", "لينا، بوتيك لينا", "Lina, Boutique Lina"),
@@ -252,8 +246,6 @@ const SHOPS = [
       [1, 25.0, L("Fast charger 25W", "شاحن سريع 25W", "Chargeur rapide 25W")],
       [1, 8.0, L("iPhone 15 case", "كفر iPhone 15", "Coque iPhone 15")],
     ],
-    category: L("🎧 Audio", "🎧 سماعات", "🎧 Audio"),
-    add: [1, 29.0, L("Wireless earbuds", "سماعات لاسلكية", "Écouteurs sans fil")],
     photo: "📱",
     photoCaption: L("My screen is broken, can you fix it?", "الشاشة مكسورة، فيكن تصلحوها؟", "Mon écran est cassé, vous pouvez le réparer ?"),
     staffName: L("Rami, Phone City", "رامي، فون سيتي", "Rami, Phone City"),
@@ -279,8 +271,6 @@ const SHOPS = [
       [1, 40.0, L("Bouquet of 20 red roses", "بوكيه 20 وردة حمرا", "Bouquet de 20 roses rouges")],
       [1, 12.0, L("Card and chocolates", "كرت وشوكولا", "Carte et chocolats")],
     ],
-    category: L("🎈 Balloons", "🎈 بالونات", "🎈 Ballons"),
-    add: [3, 2.5, L("Helium balloon", "بالون هيليوم", "Ballon à l'hélium")],
     photo: "💐",
     photoCaption: L("Can you make a bouquet like this?", "فيكن تعملولي بوكيه متل هيدا؟", "Vous pouvez faire un bouquet comme celui-ci ?"),
     staffName: L("Joelle, Fleurs de Lys", "جويل، Fleurs de Lys", "Joëlle, Fleurs de Lys"),
@@ -306,8 +296,6 @@ const SHOPS = [
       [2, 3.0, L("Water gallon 18.9 L", "غالون مي 18.9 ل", "Bonbonne d'eau 18,9 L")],
       [1, 15.0, L("Gas cylinder 10 kg", "قنينة غاز 10 كغ", "Bouteille de gaz 10 kg")],
     ],
-    category: L("🥤 Packs", "🥤 كراتين", "🥤 Packs"),
-    add: [1, 3.0, L("Water pack 6 × 1.5 L", "كرتونة مي 6 × 1.5 ل", "Pack d'eau 6 × 1,5 L")],
     photo: "🔥",
     photoCaption: L("My gas regulator looks like this, do you have it?", "ساعة الغاز عندي هيك، عندكن متلها؟", "Mon détendeur ressemble à ça, vous l'avez ?"),
     staffName: L("Fadi, Abou Fadi Gas", "فادي، غاز أبو فادي", "Fadi, Abou Fadi Gaz"),
@@ -333,8 +321,6 @@ const SHOPS = [
       [3, 2.0, L("Shirt, wash and iron", "قميص، غسيل وكوي", "Chemise, lavage et repassage")],
       [1, 8.0, L("Suit, dry cleaning", "بدلة، تنظيف ناشف", "Costume, nettoyage à sec")],
     ],
-    category: L("🛏 Home", "🛏 البيت", "🛏 Maison"),
-    add: [1, 12.0, L("Duvet cleaning", "تنظيف لحاف", "Nettoyage de couette")],
     photo: "👔",
     photoCaption: L("Can you remove this stain?", "فيكن تشيلوا هالبقعة؟", "Vous pouvez enlever cette tache ?"),
     staffName: L("Hadi, Clean Express", "هادي، كلين إكسبرس", "Hadi, Clean Express"),
@@ -360,8 +346,6 @@ const SHOPS = [
       [1, 6.0, L("Whitening toothpaste", "معجون تبييض", "Dentifrice blanchissant")],
       [1, 12.0, L("Toothbrush heads (4)", "رؤوس فرشاية (4)", "Têtes de brosse (4)")],
     ],
-    category: L("🪥 Care", "🪥 عناية", "🪥 Soins"),
-    add: [1, 5.0, L("Dental floss", "خيط أسنان", "Fil dentaire")],
     photo: "🦷",
     photoCaption: L("My gum looks like this, should I worry?", "لثتي هيك، لازم اقلق؟", "Ma gencive ressemble à ça, c'est grave ?"),
     staffName: L("Dr. Karen, Smile Dental", "د. كارين، سمايل دنتال", "Dr Karen, Smile Dental"),
@@ -387,8 +371,6 @@ const SHOPS = [
       [1, 28.0, L("Cat food 4 kg", "أكل قطط 4 كغ", "Croquettes chat 4 kg")],
       [1, 9.0, L("Cat litter 10 L", "رمل قطط 10 ل", "Litière 10 L")],
     ],
-    category: L("🦴 Toys", "🦴 ألعاب", "🦴 Jouets"),
-    add: [1, 6.0, L("Chew toy", "لعبة عض", "Jouet à mâcher")],
     photo: "🐶",
     photoCaption: L("My dog has this on the skin, what should I use?", "كلبي عندو هيك عالجلد، شو بستعمل؟", "Mon chien a ça sur la peau, que faire ?"),
     staffName: L("Maya, Pet Corner", "مايا، Pet Corner", "Maya, Pet Corner"),
@@ -414,8 +396,6 @@ const SHOPS = [
       [4, 12.0, L("Cushion", "مخدة كنباية", "Coussin")],
       [1, 60.0, L("Table lamp", "لمبة طاولة", "Lampe de table")],
     ],
-    category: L("🍽 Kitchen", "🍽 مطبخ", "🍽 Cuisine"),
-    add: [1, 24.0, L("Plate set", "طقم صحون", "Service d'assiettes")],
     photo: "🛋",
     photoCaption: L("Do you have this sofa in grey?", "عندكن هالكنباية بالرمادي؟", "Vous avez ce canapé en gris ?"),
     staffName: L("Ralph, Casa Deco", "رالف، كازا ديكو", "Ralph, Casa Deco"),
@@ -441,8 +421,6 @@ const SHOPS = [
       [1, 9.0, L("Umbrella", "شمسية", "Parapluie")],
       [2, 4.0, L("A4 notebook", "دفتر A4", "Cahier A4")],
     ],
-    category: L("🧸 Toys", "🧸 ألعاب", "🧸 Jouets"),
-    add: [1, 15.0, L("Puzzle, 500 pieces", "بازل 500 قطعة", "Puzzle 500 pièces")],
     photo: "🎒",
     photoCaption: L("Do you have this school bag?", "عندكن هالشنطة للمدرسة؟", "Vous avez ce cartable ?"),
     staffName: L("Rizk, Bazar Rizk", "رزق، بازار رزق", "Rizk, Bazar Rizk"),
@@ -462,30 +440,16 @@ const SHOPS = [
 // The same day for every shop, in each language. `d` is the shop in that language, `n` formats money.
 const SCRIPT = {
   en: (d, n) => [
-    ["07:58", [
-      ["S", "open"],
-      ["s", `🟢 ${d.shop} is OPEN, the bot is taking orders.`],
-      ["D", "start"],
-      ["d", "✅ Shift started, Karim. New deliveries will come here.\nSend \"stop\" when you finish."],
-    ]],
     ["12:30", [
       ["C", "Hi 👋"],
       ["c", `Hi! 👋 Welcome to ${d.shop}.\nOrder right here: tap the menu, or just type or send a voice note 🎤`, { buttons: [d.menuButton] }],
       ["C", "", { voice: "0:07" }],
       ["c", `Sure! 🙂\n${d.voiceLines}\nAnything else?`, { buttons: ["📋 View menu", "🛒 Checkout"] }],
-    ]],
-    ["12:31", [
-      ["C", "📋 View menu"],
-      ["c", "What would you like? Choose a category 👇", { buttons: [d.menuButton] }],
-      ["C", d.category],
-      ["c", "Choose an item 👇", { buttons: ["📋 See items"] }],
-      ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `✅ Added 1× ${d.addName}\n🛒 Cart: ${d.cartCount} items · ${n(d.subtotal)}`, { buttons: ["➕ Add more", "🛒 Checkout"] }],
       ["C", "🛒 Checkout"],
     ]],
     ["12:32", [
-      ["c", "Which area should we deliver to?", { buttons: ["Choose"], only: "delivery" }],
-      ["C", `${d.town} · Delivery ${n(1)}`, { only: "delivery" }],
+      ["c", "How would you like to get your order?", { buttons: ["🛵 Delivery", "🏪 Pickup"], only: "delivery" }],
+      ["C", "🛵 Delivery", { only: "delivery" }],
       ["c", "📍 Tap the button to send your location, or type your address (street, building, floor).", { only: "delivery" }],
       ["C", d.address, { only: "delivery" }],
       ["c", "How would you like to pay?", { buttons: ["💵 Cash on delivery", "💳 Whish"], only: "delivery" }],
@@ -514,10 +478,8 @@ const SCRIPT = {
       ["d", "🛵 Delivery #128, on the way\n💵 Collect: nothing\nTap “I'm outside” when you arrive.", { buttons: ["📍 I'm outside", "✅ Delivered"] }],
       ["c", "🛵 Your order #128 is on its way with Karim, about 10 min.", { only: "delivery" }],
       ["D", "📍 I'm outside"],
-      ["d", "👍 The customer was told you are outside."],
       ["c", "📍 Karim is outside with your order #128! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ Delivered"],
-      ["d", "✅ Delivery #128 completed. Thanks!"],
       ["c", `✅ Your order #128 was delivered. Thank you for ordering from ${d.shop}!`, { only: "delivery" }],
       ["S", "✅ Ready for pickup", { only: "pickup" }],
       ["c", `📦 Your order #128 is ready! You can pick it up now at ${d.shopAddress}.`, { only: "pickup" }],
@@ -540,6 +502,10 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
+      ["c", `Sure! 🙂\n${d.pickupLine}\nAnything else?`, { buttons: ["📋 View menu", "🛒 Checkout"] }],
+      ["C", "🛒 Checkout"],
+      ["c", "How would you like to get your order?", { buttons: ["🛵 Delivery", "🏪 Pickup"], only: "delivery" }],
+      ["C", "🏪 Pickup", { only: "delivery" }],
       ["c", "How would you like to pay?", { buttons: ["💵 Cash at the shop", "💳 Whish"] }],
       ["C", "💵 Cash at the shop"],
       ["c", "Pay cash in dollars or in lira?", { buttons: ["Dollars", "Lira"] }],
@@ -579,30 +545,16 @@ const SCRIPT = {
   ],
 
   ar: (d, n) => [
-    ["07:58", [
-      ["S", "open"],
-      ["s", `🟢 ${d.shop} مفتوح، البوت عم ياخد طلبات.`],
-      ["D", "start"],
-      ["d", "✅ بدأ دوامك يا كريم. التوصيلات الجديدة رح توصلك هون.\nابعت \"stop\" لما تخلص."],
-    ]],
     ["12:30", [
       ["C", "مرحبا 👋"],
       ["c", `أهلا! 👋 أهلا وسهلا بـ ${d.shop}.\nاطلب من هون: كبس على القائمة، أو اكتب أو ابعت رسالة صوتية 🎤`, { buttons: [d.menuButton] }],
       ["C", "", { voice: "0:07" }],
       ["c", `أكيد! 🙂\n${d.voiceLines}\nبدك شي تاني؟`, { buttons: ["📋 عرض القائمة", "🛒 إتمام الطلب"] }],
-    ]],
-    ["12:31", [
-      ["C", "📋 عرض القائمة"],
-      ["c", "شو بتحب؟ اختار فئة 👇", { buttons: [d.menuButton] }],
-      ["C", d.category],
-      ["c", "اختار صنف 👇", { buttons: ["📋 شوف الأصناف"] }],
-      ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `✅ انضاف 1× ${d.addName}\n🛒 السلة: ${d.cartCount} أصناف · ${n(d.subtotal)}`, { buttons: ["➕ زيد", "🛒 إتمام الطلب"] }],
       ["C", "🛒 إتمام الطلب"],
     ]],
     ["12:32", [
-      ["c", "لأي منطقة منوصّل؟", { buttons: ["اختار"], only: "delivery" }],
-      ["C", `${d.town} · التوصيل ${n(1)}`, { only: "delivery" }],
+      ["c", "كيف تريد استلام طلبك؟", { buttons: ["🛵 توصيل", "🏪 استلام من المحل"], only: "delivery" }],
+      ["C", "🛵 توصيل", { only: "delivery" }],
       ["c", "📍 اضغط الزر لتبعت موقعك، أو اكتب العنوان (الشارع، البناية، الطابق).", { only: "delivery" }],
       ["C", d.address, { only: "delivery" }],
       ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش عند التسليم", "💳 Whish"], only: "delivery" }],
@@ -631,10 +583,8 @@ const SCRIPT = {
       ["d", "🛵 التوصيل رقم 128، في الطريق\n💵 المبلغ: ولا شي\nاضغط «أنا برا» لما توصل.", { buttons: ["📍 أنا برا", "✅ تم التوصيل"] }],
       ["c", "🛵 طلبك رقم 128 في الطريق مع كريم، حوالي 10 دقائق.", { only: "delivery" }],
       ["D", "📍 أنا برا"],
-      ["d", "👍 خبّرنا الزبون إنك برا."],
       ["c", "📍 كريم برا مع طلبك رقم 128! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ تم التوصيل"],
-      ["d", "✅ تم التوصيل رقم 128. شكراً!"],
       ["c", `✅ تم توصيل طلبك رقم 128. شكراً لطلبك من ${d.shop}!`, { only: "delivery" }],
       ["S", "✅ جاهز للاستلام", { only: "pickup" }],
       ["c", `📦 طلبك رقم 128 جاهز! فيك تستلمه هلق من ${d.shopAddress}.`, { only: "pickup" }],
@@ -657,6 +607,10 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
+      ["c", `أكيد! 🙂\n${d.pickupLine}\nبدك شي تاني؟`, { buttons: ["📋 عرض القائمة", "🛒 إتمام الطلب"] }],
+      ["C", "🛒 إتمام الطلب"],
+      ["c", "كيف تريد استلام طلبك؟", { buttons: ["🛵 توصيل", "🏪 استلام من المحل"], only: "delivery" }],
+      ["C", "🏪 استلام من المحل", { only: "delivery" }],
       ["c", "كيف بتحب تدفع؟", { buttons: ["💵 كاش بالمحل", "💳 Whish"] }],
       ["C", "💵 كاش بالمحل"],
       ["c", "بتدفع كاش بالدولار أو بالليرة؟", { buttons: ["دولار", "ليرة"] }],
@@ -696,30 +650,16 @@ const SCRIPT = {
   ],
 
   fr: (d, n) => [
-    ["07:58", [
-      ["S", "open"],
-      ["s", `🟢 ${d.shop} est OUVERT, le bot prend les commandes.`],
-      ["D", "start"],
-      ["d", "✅ Service commencé, Karim. Les nouvelles livraisons arriveront ici.\nEnvoyez \"stop\" à la fin."],
-    ]],
     ["12:30", [
       ["C", "Bonjour 👋"],
       ["c", `Bonjour ! 👋 Bienvenue chez ${d.shop}.\nCommandez ici : touchez le menu, écrivez ou envoyez un vocal 🎤`, { buttons: [d.menuButton] }],
       ["C", "", { voice: "0:07" }],
       ["c", `Bien sûr ! 🙂\n${d.voiceLines}\nAutre chose ?`, { buttons: ["📋 Voir le menu", "🛒 Commander"] }],
-    ]],
-    ["12:31", [
-      ["C", "📋 Voir le menu"],
-      ["c", "Que souhaitez-vous ? Choisissez une catégorie 👇", { buttons: [d.menuButton] }],
-      ["C", d.category],
-      ["c", "Choisissez un article 👇", { buttons: ["📋 Voir les articles"] }],
-      ["C", `${d.addName} · ${n(d.addPrice)}`],
-      ["c", `✅ Ajouté 1× ${d.addName}\n🛒 Panier : ${d.cartCount} articles · ${n(d.subtotal)}`, { buttons: ["➕ Ajouter", "🛒 Commander"] }],
       ["C", "🛒 Commander"],
     ]],
     ["12:32", [
-      ["c", "Dans quelle zone livrer ?", { buttons: ["Choisir"], only: "delivery" }],
-      ["C", `${d.town} · Livraison ${n(1)}`, { only: "delivery" }],
+      ["c", "Comment souhaitez-vous recevoir votre commande ?", { buttons: ["🛵 Livraison", "🏪 À emporter"], only: "delivery" }],
+      ["C", "🛵 Livraison", { only: "delivery" }],
       ["c", "📍 Touchez le bouton pour envoyer votre position, ou écrivez l'adresse (rue, immeuble, étage).", { only: "delivery" }],
       ["C", d.address, { only: "delivery" }],
       ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces à la livraison", "💳 Whish"], only: "delivery" }],
@@ -748,10 +688,8 @@ const SCRIPT = {
       ["d", "🛵 Livraison n° 128, en route\n💵 À encaisser : rien\nTouchez « Je suis devant » en arrivant.", { buttons: ["📍 Je suis devant", "✅ Livrée"] }],
       ["c", "🛵 Votre commande n° 128 est en route avec Karim, environ 10 min.", { only: "delivery" }],
       ["D", "📍 Je suis devant"],
-      ["d", "👍 Le client sait que vous êtes devant."],
       ["c", "📍 Karim est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222", { only: "delivery" }],
       ["D", "✅ Livrée"],
-      ["d", "✅ Livraison n° 128 terminée. Merci !"],
       ["c", `✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez ${d.shop} !`, { only: "delivery" }],
       ["S", "✅ Prête à retirer", { only: "pickup" }],
       ["c", `📦 Votre commande n° 128 est prête ! Vous pouvez la retirer à ${d.shopAddress}.`, { only: "pickup" }],
@@ -774,6 +712,10 @@ const SCRIPT = {
     ]],
     ["16:20", [
       ["C", d.pickupAsk],
+      ["c", `Bien sûr ! 🙂\n${d.pickupLine}\nAutre chose ?`, { buttons: ["📋 Voir le menu", "🛒 Commander"] }],
+      ["C", "🛒 Commander"],
+      ["c", "Comment souhaitez-vous recevoir votre commande ?", { buttons: ["🛵 Livraison", "🏪 À emporter"], only: "delivery" }],
+      ["C", "🏪 À emporter", { only: "delivery" }],
       ["c", "Comment souhaitez-vous payer ?", { buttons: ["💵 Espèces au magasin", "💳 Whish"] }],
       ["C", "💵 Espèces au magasin"],
       ["c", "Payer en dollars ou en livres ?", { buttons: ["Dollars", "Livres"] }],
@@ -829,7 +771,7 @@ function shopIn(shop, lang, delivery) {
   const t = (v) => v[lang];
   const n = MONEY[lang];
   const line = ([qty, price, name]) => `${qty}× ${t(name)}  ${n(qty * price)}`;
-  const cart = [...shop.voice, shop.add];
+  const cart = shop.voice;
   const subtotal = cart.reduce((sum, [qty, price]) => sum + qty * price, 0);
   const pickupTotal = shop.pickup[0] * shop.pickup[1];
   const [hour] = shop.time.split(":").map(Number);
@@ -837,8 +779,7 @@ function shopIn(shop, lang, delivery) {
   return {
     menuButton: UI[lang].menuButtons[shop.menu], shop: t(shop.shop), town: t(shop.town), address: t(shop.address), shopAddress: t(shop.shopAddress), eta: shop.eta,
     voiceLines: shop.voice.map(line).join("\n"),
-    category: t(shop.category), addName: t(shop.add[2]), addPrice: shop.add[1],
-    cartCount: cart.reduce((sum, [qty]) => sum + qty, 0), subtotal, total: subtotal + (delivery ? 1 : 0),
+    total: subtotal + (delivery ? 1 : 0),
     cartLines: cart.map(line).join("\n"),
     cartShort: cart.map(([qty, , name]) => `${qty}× ${t(name)}`).join("\n"),
     photo: shop.photo, photoCaption: t(shop.photoCaption), staffName: t(shop.staffName),
@@ -861,29 +802,42 @@ function shopIn(shop, lang, delivery) {
 function build(shop, lang, delivery) {
   const ui = UI[lang];
   const d = shopIn(shop, lang, delivery);
-  const messages = [];
+  const blocks = SCRIPT[lang](d, MONEY[lang]);
+  const steps = delivery ? ui.steps : ui.pickupSteps;
   let clock = 0;
-  SCRIPT[lang](d, MONEY[lang]).forEach(([at, list], block) => {
-    const step = STEP_OF_BLOCK[block];
-    const [h, m] = at.split(":").map(Number);
-    list.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
-      .forEach(([who, text, extra = {}], k) => {
-      // The booked visit itself is later in the day than the reminder.
-      let minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
-      // The clock never goes back within a day; a date chip starts a new day.
-      minutes = extra.day ? minutes : Math.max(minutes, clock);
-      clock = minutes;
-      messages.push({
-        chat: who.toLowerCase(),
-        out: who !== who.toLowerCase(),
-        step,
-        time: `${Math.floor(minutes / 60) % 24}:${String(minutes % 60).padStart(2, "0")}`,
-        text,
-        ...extra,
+  const run = (list, stepOf) => {
+    const messages = [];
+    list.forEach((block) => {
+      const [at, lines] = blocks[block];
+      const [h, m] = at.split(":").map(Number);
+      lines.filter(([who, , extra = {}]) => (delivery || who.toLowerCase() !== "d") && (!extra.only || (extra.only === "delivery") === delivery))
+        .forEach(([who, text, extra = {}], k) => {
+        // The booked visit itself is later in the day than the reminder.
+        let minutes = extra.late ? (Number(shop.time.split(":")[0]) + 1) * 60 : h * 60 + m + Math.floor(k / 3);
+        // The clock never goes back within a day; a date chip starts a new day.
+        minutes = extra.day ? minutes : Math.max(minutes, clock);
+        clock = minutes;
+        messages.push({
+          chat: who.toLowerCase(),
+          out: who !== who.toLowerCase(),
+          step: stepOf(block),
+          time: `${Math.floor(minutes / 60) % 24}:${String(minutes % 60).padStart(2, "0")}`,
+          text,
+          ...extra,
+        });
       });
     });
+    return messages;
+  };
+  const stepOf = Object.fromEntries(MAIN_BLOCKS);
+  const messages = run(MAIN_BLOCKS.map(([block]) => block), (block) => stepOf[block]);
+  const mainClock = clock;
+  // Every extra continues the day right after the main story, as its own last step.
+  const extras = Object.entries(EXTRA_BLOCKS).map(([id, list]) => {
+    clock = mainClock;
+    return { id, label: ui.extras[id], messages: run(list, () => steps.length) };
   });
-  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, steps: delivery ? ui.steps : ui.pickupSteps, chats: delivery ? ["c", "s", "d"] : ["c", "s"], messages };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: d.shop, steps, chats: delivery ? ["c", "s", "d"] : ["c", "s"], messages, extras };
 }
 
 // Same order as the business types on the sign-up form.
