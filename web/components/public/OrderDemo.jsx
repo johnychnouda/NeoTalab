@@ -21,8 +21,14 @@ const icons = {
   pause: "M6 5h4v14H6zm8 0h4v14h-4z",
   replay: "M12 5V1L7 6l5 5V7a6 6 0 11-6 6H4a8 8 0 108-8z",
   chevron: "M9.3 6.7L10.7 5.3 17.4 12l-6.7 6.7-1.4-1.4L14.6 12z",
+  down: "M7.4 8.6L12 13.2l4.6-4.6L18 10l-6 6-6-6z",
+  check: "M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z",
+  signal: "M2 20h3v-4H2zm5 0h3v-7H7zm5 0h3V9h-3zm5 0h3V4h-3z",
+  battery: "M3 7h14a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm16 3h2v4h-2z",
   ticks: "M11.1.7L5.2 6.6 3.2 4.6 2 5.8l3.2 3.2 7.1-7.1zM14.5.7L8.6 6.6l-.6-.6-1.2 1.2L8.6 9l7.1-7.1z",
 };
+
+const whoIcons = { c: "👤", s: "🏪", d: "🛵" };
 
 function Svg({ d, size = 20, box = "0 0 24 24", className }) {
   return <svg className={className} viewBox={box} width={size} height={size} aria-hidden="true"><path fill="currentColor" d={d} /></svg>;
@@ -40,9 +46,10 @@ export default function OrderDemo({ demo }) {
   const [typing, setTyping] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef(null);
   const stripRef = useRef(null);
-  const tabsRef = useRef(null);
+  const pickerRef = useRef(null);
   const bodyRefs = useRef({});
 
   const shop = demo.scenarios[scenarioIndex];
@@ -105,10 +112,22 @@ export default function OrderDemo({ demo }) {
     }
   }, [count, typing, activeChat, scenarioIndex]);
 
+  // Close the business menu on a click outside it or on Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e) => {
+      if (e.type === "keydown" ? e.key === "Escape" : !pickerRef.current?.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menuOpen]);
+
   function pickScenario(i) {
-    const tabs = tabsRef.current;
-    const tab = tabs?.querySelector(`[data-tab="${i}"]`);
-    if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
+    setMenuOpen(false);
     setScenarioIndex(i);
     setMode(demo.scenarios[i].defaultMode);
     setCount(0);
@@ -123,11 +142,6 @@ export default function OrderDemo({ demo }) {
     setPlaying(true);
   }
 
-  // The arrows beside the shop list pick the previous or next kind of shop.
-  function slideTabs(direction) {
-    pickScenario((scenarioIndex + direction + demo.scenarios.length) % demo.scenarios.length);
-  }
-
   function jumpToStep(step) {
     setCount(messages.findIndex((m) => m.step === step));
     setStarted(true);
@@ -136,49 +150,65 @@ export default function OrderDemo({ demo }) {
 
   return (
     <div className="wa-demo" ref={rootRef}>
-      <div className="wa-tabs-wrap">
-        <button type="button" className="wa-icon-btn wa-prev wa-tabs-arrow" onClick={() => slideTabs(-1)} aria-label={demo.prevShop}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <div className="wa-tabs" role="tablist" ref={tabsRef}>
-          {demo.scenarios.map((s, i) => (
-            <button key={s.id} type="button" role="tab" aria-selected={i === scenarioIndex} data-tab={i}
-              className={i === scenarioIndex ? "active" : ""} onClick={() => pickScenario(i)}>
-              <span aria-hidden="true">{s.icon}</span>{s.label}
+      <div className="wa-console">
+        <div className="wa-console-top">
+          <div className="wa-picker" ref={pickerRef}>
+            <span className="wa-label">{demo.business}</span>
+            <button type="button" className="wa-picker-btn" aria-haspopup="listbox" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+              <span className="wa-picker-icon" aria-hidden="true">{shop.icon}</span>
+              <span className="wa-picker-name">{shop.label}</span>
+              <Svg d={icons.down} size={20} />
             </button>
-          ))}
+            {menuOpen && (
+              <div className="wa-menu" role="listbox" aria-label={demo.business}>
+                {demo.scenarios.map((s, i) => (
+                  <button key={s.id} type="button" role="option" aria-selected={i === scenarioIndex} className={i === scenarioIndex ? "active" : ""}
+                    onClick={() => pickScenario(i)}>
+                    <span aria-hidden="true">{s.icon}</span>{s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="wa-picker">
+            <span className="wa-label">{demo.orders}</span>
+            <div className="wa-modes" role="radiogroup" aria-label={demo.orders}>
+              {["delivery", "pickup"].map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+                  {demo.modes[m]}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <button type="button" className="wa-icon-btn wa-next wa-tabs-arrow" onClick={() => slideTabs(1)} aria-label={demo.nextShop}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-      </div>
 
-      <div className="wa-modes" role="radiogroup">
-        {["delivery", "pickup"].map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
-            {demo.modes[m]}
-          </button>
-        ))}
-      </div>
-      <div className="wa-bar">
-        <button type="button" className="wa-icon-btn" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
-          <Svg d={playing ? icons.pause : icons.play} size={18} />
-        </button>
-        <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <p className="wa-step" aria-live="polite"><span>{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
-        <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
-          <Svg d={icons.replay} size={18} />
-        </button>
-      </div>
-      <div className="wa-progress">
-        {scenario.steps.map((label, i) => (
-          <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
-        ))}
+        <div className="wa-player">
+          <div className="wa-controls">
+            <button type="button" className="wa-icon-btn wa-play" onClick={() => { setStarted(true); setPlaying(!playing); }} aria-label={playing ? demo.pause : demo.play}>
+              <Svg d={playing ? icons.pause : icons.play} size={20} />
+            </button>
+            <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
+              <Svg d={icons.chevron} size={18} />
+            </button>
+            <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
+              <Svg d={icons.chevron} size={18} />
+            </button>
+            <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
+              <Svg d={icons.replay} size={17} />
+            </button>
+          </div>
+          <ol className="wa-steps">
+            {scenario.steps.map((label, i) => (
+              <li key={label} className={i < step ? "done" : i === step ? "current" : ""}>
+                <button type="button" onClick={() => jumpToStep(i)} aria-current={i === step ? "step" : undefined}>
+                  <span className="wa-dot">{i < step ? <Svg d={icons.check} size={13} /> : i + 1}</span>
+                  <span className="wa-step-label">{label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <p className="wa-now" aria-live="polite"><span>{demo.step} {step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
       </div>
 
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef} aria-hidden="true">
@@ -186,8 +216,12 @@ export default function OrderDemo({ demo }) {
           const shown = messages.map((m, i) => ({ ...m, i })).filter((m) => m.chat === chat && m.i < count);
           return (
             <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}`} data-chat={chat}>
-              <p className="wa-who">{demo.who[chat]}</p>
+              <p className="wa-who"><span aria-hidden="true">{whoIcons[chat]}</span>{demo.who[chat]}</p>
               <div className="wa-phone">
+                <div className="wa-status">
+                  <span>{shown.length ? shown[shown.length - 1].time : messages[0].time}</span>
+                  <span className="wa-status-icons"><Svg d={icons.signal} size={13} /><Svg d={icons.battery} size={16} /></span>
+                </div>
                 <div className="wa-head">
                   <Svg d={icons.back} size={20} className="wa-back" />
                   <span className="wa-avatar">
