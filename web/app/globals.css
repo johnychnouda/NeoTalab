@@ -2460,3 +2460,7 @@ button.wa-mic { border: 0; cursor: pointer; }
   .wa-tabs-wrap { margin-bottom: 16px; }
   .wa-phone { height: clamp(360px, calc(100svh - 390px), 560px); }
 }
+/* Tablets held upright: the phones shrink a little when the screen is short, so they fit under the controls. */
+@media (min-width: 661px) and (max-width: 980px) {
+  .wa-phone { height: clamp(400px, calc(100svh - 530px), 520px); }
+}
