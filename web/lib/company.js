@@ -14,7 +14,7 @@ export const company = {
   whatsapp: env(process.env.NEXT_PUBLIC_CONTACT_WHATSAPP),
   siteUrl: env(process.env.NEXT_PUBLIC_SITE_URL, "https://neotalab.com"),
   // Meta Business Settings → Brand safety → Domains → "Meta-tag verification" content value.
-  facebookDomainVerification: env(process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION),
+  facebookDomainVerification: env(process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION, "l993phcdrjslirzrkphkzl4bbsw2vt"),
   // Google Search Console "HTML tag" verification value.
   googleSiteVerification: env(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION),
   // Google Analytics 4 measurement ID (G-XXXXXXX). Loaded only after the visitor accepts cookies.
