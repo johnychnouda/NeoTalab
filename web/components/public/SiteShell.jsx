@@ -66,7 +66,12 @@ function SiteFooter({ lang }) {
           <p><Link href="/data-deletion">{t.deletion}</Link></p>
         </div>
       </div>
-      <div className="site-footer-bottom">© {new Date().getFullYear()} {company.legalName}. {t.rights}</div>
+      <div className="site-footer-bottom">
+        {company.legalName !== company.brand ? (
+          <p>{company.brand} {t.productOf} <bdi>{[company.legalName, p.address].filter(Boolean).join(", ")}</bdi>{lang === "ar" ? "، " : ", "}{p.country}.</p>
+        ) : null}
+        © {new Date().getFullYear()} {company.legalName}. {t.rights}
+      </div>
     </footer>
   );
 }

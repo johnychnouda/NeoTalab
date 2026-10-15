@@ -9,7 +9,7 @@ export const SITE = {
       tagline: "AI WhatsApp ordering and booking for local businesses.",
       company: "Company", contact: "Contact", legal: "Legal",
       privacy: "Privacy policy", terms: "Terms of service", deletion: "Data deletion",
-      rights: "All rights reserved.", updated: "Last updated:",
+      rights: "All rights reserved.", updated: "Last updated:", productOf: "is a product of",
     },
     cookie: {
       text: "We use Google Analytics cookies to understand how visitors use this website. No cookies are set unless you accept.",
@@ -63,7 +63,7 @@ export const SITE = {
       tagline: "طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
       company: "الشركة", contact: "التواصل", legal: "قانوني",
       privacy: "سياسة الخصوصية", terms: "شروط الخدمة", deletion: "حذف البيانات",
-      rights: "جميع الحقوق محفوظة.", updated: "آخر تحديث:",
+      rights: "جميع الحقوق محفوظة.", updated: "آخر تحديث:", productOf: "هو منتج من",
     },
     cookie: {
       text: "نستخدم ملفات تعريف الارتباط من Google Analytics لفهم كيفية استخدام الزوار لهذا الموقع. لا يتم وضع أي ملفات إلا إذا وافقت.",
@@ -117,7 +117,7 @@ export const SITE = {
       tagline: "Commandes et réservations WhatsApp par IA pour les commerces locaux.",
       company: "Société", contact: "Contact", legal: "Mentions légales",
       privacy: "Politique de confidentialité", terms: "Conditions d'utilisation", deletion: "Suppression des données",
-      rights: "Tous droits réservés.", updated: "Dernière mise à jour :",
+      rights: "Tous droits réservés.", updated: "Dernière mise à jour :", productOf: "est un produit de",
     },
     cookie: {
       text: "Nous utilisons les cookies de Google Analytics pour comprendre comment les visiteurs utilisent ce site. Aucun cookie n'est déposé sans votre accord.",
