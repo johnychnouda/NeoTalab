@@ -93,6 +93,22 @@ class BackofficeWiringTest extends TestCase
         $this->assertSame('+96170999999', $profile['ops_whatsapp']);
     }
 
+    public function test_owner_can_fix_the_business_type_and_address(): void
+    {
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['business_type' => 'Restaurant / Café']);
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
+                'businessType' => 'Salon / Barber / Beauty', 'region' => 'Beirut', 'city' => 'Hamra', 'street' => 'Bliss St',
+            ])->assertOk();
+
+        $merchant->refresh();
+        $this->assertSame('Salon / Barber / Beauty', $merchant->business_type);
+        $this->assertSame('services', $merchant->settings['business_kind']);
+        $this->assertSame('appointments', $merchant->settings['business_mode']);
+        $this->assertSame('Hamra', $merchant->settings['city']);
+    }
+
     public function test_admin_update_shop_name_syncs_to_merchant_profile(): void
     {
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
@@ -257,6 +273,7 @@ class BackofficeWiringTest extends TestCase
 
         $this->assertDatabaseHas('merchants', ['name' => 'Jbeil Bites', 'timezone' => 'Asia/Beirut', 'currency' => 'USD']);
         $this->assertSame(89500, (int) Merchant::query()->where('name', 'Jbeil Bites')->sole()->settings['lbp_rate']);
+        $this->assertSame('Main Road, Jbeil', Merchant::query()->where('name', 'Jbeil Bites')->sole()->settings['pickup_address']);
     }
 
     public function test_only_lebanese_shops_can_apply_for_now(): void

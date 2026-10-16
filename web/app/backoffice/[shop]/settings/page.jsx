@@ -9,8 +9,8 @@ import { setToken } from "@/lib/api";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
 import Segmented from "@/components/Segmented";
+import LocationPicker from "@/components/LocationPicker";
 
-const KINDS = { restaurant: "🍽️", grocery: "🛒", pharmacy: "💊", retail: "🛍️", flowers: "💐", water: "💧", laundry: "🧺", services: "✂️", other: "🏪" };
 const LBP_RATE = 89500;
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -21,10 +21,9 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
 const GROUPS = {
   shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "" }),
   orders: (p) => ({
-    business_kind: p.business_kind || "other", business_mode: p.business_mode || "orders",
     appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
     fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
-    timing_unit: p.timing_unit || "minutes", prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
+    prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
     late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
   }),
@@ -179,17 +178,6 @@ function Settings() {
       )}
 
       {tab === "orders" && (<>
-        <Card title={t("db.set.card.business")}>
-          <Field id="o-kind" label={t("mk.kind")} hint={t("mk.kindHint")}>
-            <FormSelect id="o-kind" value={p.business_kind || "other"} onChange={(v) => setP("business_kind", v)}
-              options={Object.entries(KINDS).map(([k, icon]) => ({ value: k, label: t(`mk.kind.${k}`), icon }))} />
-          </Field>
-          <Field id="o-mode" label={t("ops.businessMode")}>
-            <Segmented id="o-mode" cards aria-label={t("ops.businessMode")} value={p.business_mode || "orders"} onChange={(v) => setP("business_mode", v)}
-              options={["orders", "appointments", "both"].map((m) => ({ value: m, icon: { orders: "🛍️", appointments: "📅", both: "✨" }[m], label: t(`ops.bs.${m}`), hint: t(`ops.bs.${m}Hint`) }))} />
-          </Field>
-        </Card>
-
         {p.business_mode && p.business_mode !== "orders" && (
           <Card title={t("db.set.card.bookings")}>
             <div className="sset-grid three">
@@ -220,7 +208,7 @@ function Settings() {
             )}
             {delivers && (
               <Field id="o-loc" label={t("ops.shopLocation")} hint={t("ops.shopLocationHint")}>
-                <input id="o-loc" dir="ltr" value={p.shop_location || ""} onChange={(e) => setP("shop_location", e.target.value)} placeholder="https://maps.app.goo.gl/…" />
+                <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} />
               </Field>
             )}
             {unit === "minutes" && (
@@ -246,16 +234,6 @@ function Settings() {
               <Switch checked={Number(p.late_alert_mins ?? 15) > 0} onChange={(on) => setP("late_alert_mins", on ? "15" : "0")}
                 label={t("ops.late")} hint={t("ops.lateHint")} />
             )}
-            <details className="sset-more">
-              <summary>{t("db.set.more")}</summary>
-              <Field id="o-unit" label={t("ops.timing")}>
-                <Segmented id="o-unit" cards aria-label={t("ops.timing")} value={unit} onChange={(v) => setP("timing_unit", v)}
-                  options={[["minutes", "ops.tMinutes"], ["hours", "ops.tHours"], ["days", "ops.tDays"]].map(([u, key]) => {
-                    const [label, hint] = t(key).split(" — ");
-                    return { value: u, label, hint };
-                  })} />
-              </Field>
-            </details>
           </Card>
 
           <Card title={t("db.set.card.after")}>

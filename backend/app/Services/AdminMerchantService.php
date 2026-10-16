@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Support\BusinessKind;
 use App\Support\Countries;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
@@ -103,6 +104,14 @@ class AdminMerchantService
             );
         }
 
+        // Fixing the type picked at sign-up also resets what depends on it (orders or bookings, time unit).
+        $type = $this->pick($payload, 'businessType', 'business_type');
+        if (is_string($type) && $type !== '' && $type !== $merchant->business_type) {
+            $merchant->business_type = $type;
+            unset($settings['business_kind']);
+            $settings = BusinessKind::applyDefaults($settings, BusinessKind::TYPES[$type] ?? 'other');
+        }
+
         if ($markingPaid && ($settings['subscription_status'] ?? null) === 'paid') {
             $this->appendPayment($settings, $merchant);
         }
@@ -151,6 +160,8 @@ class AdminMerchantService
             'region' => $payload['region'] ?? null,
             'country' => $payload['country'] ?? null,
             'payments' => [],
+            // Pickup customers are sent to the address given at sign-up; the shop can change it.
+            'pickup_address' => implode(', ', array_filter([$payload['street'] ?? null, $payload['city'] ?? null])),
             // Lebanese shops take cash in lira too; the shop can change the rate or turn it off.
             'lbp_rate' => strtoupper((string) ($payload['country'] ?? '')) === 'LB' ? 89500 : null,
             'mode' => 'auto',

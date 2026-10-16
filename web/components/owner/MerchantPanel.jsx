@@ -4,13 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { timeAgo } from "@/lib/api";
 import { logActivity } from "@/lib/activity";
-import { useToast, WhatsAppIcon, generateOtp } from "@/components/ui";
+import { useToast, WhatsAppIcon, generateOtp, Modal } from "@/components/ui";
+import FormSelect from "@/components/FormSelect";
 import { merchantLoginEmail } from "@/lib/merchantLoginEmail";
 import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { PANEL_TABS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
-import { joinOptionLabel } from "@/lib/joinFormOptions";
+import { joinOptionLabel, JOIN_BUSINESS_TYPES, JOIN_LEBANON_REGIONS, JOIN_CITY_OTHER, getLebanonCitiesForRegion } from "@/lib/joinFormOptions";
+import { lebaneseMobileError, toLebaneseWhatsapp } from "@/lib/phone";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 
 /**
@@ -162,6 +164,7 @@ async function sendWelcomeWA(t, api, merchantId, shopName, waNumber, otp, loginE
 
 function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
   const { locale } = useLang();
+  const [editing, setEditing] = useState(false);
   const waClean = (m.whatsapp_number || "").replace(/\D/g, "");
   const location = [m.city, joinOptionLabel(t, m.region)].filter(Boolean).join(", ") || "—";
   const memberSince = m.created_at
@@ -290,6 +293,9 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.business")}</div><div className="pinfo-value">{joinOptionLabel(t, m.business_type) || "—"}</div></div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.location")}</div><div className="pinfo-value">{location}</div></div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.p.since")}</div><div className="pinfo-value">{memberSince}</div></div>
+      <button type="button" className="paction-btn" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
+      {editing && <EditShopModal t={t} m={m} api={api} toast={toast} onClose={() => setEditing(false)}
+        onSaved={(updated) => { setEditing(false); onChanged(updated); }} />}
       <div className="panel-divider" />
 
       {m.status === "suspended" ? (
@@ -762,5 +768,69 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
         </button>
       </div>
     </>
+  );
+}
+
+/** Fix what the shop entered on the join form: name, contact number, type of business, address. */
+function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
+  const knownCity = (region, city) => getLebanonCitiesForRegion(region).some((c) => c.value === city);
+  const [name, setName] = useState(m.shop_name || "");
+  const [wa, setWa] = useState(m.whatsapp_number || "");
+  const [type, setType] = useState(m.business_type || "");
+  const [region, setRegion] = useState(m.region || "");
+  const [city, setCity] = useState(knownCity(m.region, m.city) ? m.city : m.city ? JOIN_CITY_OTHER : "");
+  const [cityOther, setCityOther] = useState(knownCity(m.region, m.city) ? "" : m.city || "");
+  const [street, setStreet] = useState(m.street || "");
+  const [busy, setBusy] = useState(false);
+  const cities = getLebanonCitiesForRegion(region);
+
+  async function save() {
+    const number = lebaneseMobileError(wa) ? wa.trim() : toLebaneseWhatsapp(wa);
+    setBusy(true);
+    try {
+      const data = await api("PATCH", `/admin/merchants/${m.id}`, {
+        shopName: name.trim(), whatsappNumber: number, region, street: street.trim(),
+        city: city === JOIN_CITY_OTHER || !cities.length ? cityOther.trim() : city,
+        ...(type && type !== m.business_type ? { businessType: type } : {}),
+      });
+      toast(t("ow.edit.saved"));
+      onSaved(data?.merchant);
+    } catch (e) { toast(e.message, "error"); }
+    setBusy(false);
+  }
+
+  return (
+    <Modal title={t("ow.edit")} onClose={onClose}
+      footer={<div className="modal-footer-actions">
+        <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
+        <button type="button" className="btn-primary" onClick={save} disabled={busy || !name.trim()}>{busy ? "…" : t("db.save")}</button>
+      </div>}>
+      <div className="field"><label htmlFor="es-name">{t("jn.shopName")}</label>
+        <input id="es-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div className="field"><label htmlFor="es-wa">{t("ow.edit.wa")}</label>
+        <input id="es-wa" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+961 70 123 456" /></div>
+      <div className="field"><label htmlFor="es-type">{t("jn.businessType")}</label>
+        <FormSelect id="es-type" value={type} onChange={setType} aria-label={t("jn.businessType")}
+          options={JOIN_BUSINESS_TYPES.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+        <div className="mk-hint">{t("ow.edit.typeHint")}</div></div>
+      <div className="modal-row">
+        <div className="field"><label htmlFor="es-region">{t("jn.region")}</label>
+          <FormSelect id="es-region" value={region} onChange={(v) => { setRegion(v); setCity(""); }} aria-label={t("jn.region")}
+            options={JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))} /></div>
+        <div className="field"><label htmlFor="es-city">{t("jn.city")}</label>
+          {cities.length ? (
+            <FormSelect id="es-city" value={city} onChange={setCity} aria-label={t("jn.city")}
+              options={cities.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
+          ) : (
+            <input id="es-city" value={cityOther} onChange={(e) => setCityOther(e.target.value)} />
+          )}</div>
+      </div>
+      {city === JOIN_CITY_OTHER && cities.length > 0 && (
+        <div className="field"><label htmlFor="es-city-other">{t("jn.cityOther")}</label>
+          <input id="es-city-other" value={cityOther} onChange={(e) => setCityOther(e.target.value)} /></div>
+      )}
+      <div className="field"><label htmlFor="es-street">{t("jn.street")}</label>
+        <input id="es-street" value={street} onChange={(e) => setStreet(e.target.value)} /></div>
+    </Modal>
   );
 }

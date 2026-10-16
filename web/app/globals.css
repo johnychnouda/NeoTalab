@@ -2607,3 +2607,12 @@ button.wa-mic { border: 0; cursor: pointer; }
 .mk-cell { width: 100%; min-width: 80px; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; font-size: 13px; outline: none; }
 .mk-cell:focus { border-color: var(--green); }
 .mk-cell-num { max-width: 100px; }
+
+/* Shop location picker (Settings → Orders) */
+.lp { display: grid; gap: 8px; }
+.lp-map { display: block; width: 100%; height: 280px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; background: var(--surface2); }
+.lp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lp-actions a { text-decoration: none; }
+.lp-paste label { display: block; margin-bottom: 6px; font-size: 12.5px; color: var(--text-muted); }
+.lp-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lp-status { font-size: 12.5px; color: var(--text-muted); }

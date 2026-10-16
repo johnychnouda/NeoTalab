@@ -39,6 +39,8 @@ class UpdateMerchantRequest extends FormRequest
             'defaultLocale' => ['sometimes', 'string', 'max:5'],
             'default_locale' => ['sometimes', 'string', 'max:5'],
             'locale' => ['sometimes', 'string', 'max:5'],
+            'businessType' => ['sometimes', 'string', 'max:60'],
+            'business_type' => ['sometimes', 'string', 'max:60'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'street' => ['sometimes', 'nullable', 'string', 'max:255'],
