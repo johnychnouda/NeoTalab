@@ -178,6 +178,37 @@ class BackofficeWiringTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_team_numbers_are_saved_in_whatsapp_form_and_members_can_come_back(): void
+    {
+        [, $owner] = $this->merchantWithUser();
+        $token = $this->tokenFor($owner);
+
+        $id = $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '70 123 456', 'role' => 'staff'])
+            ->assertCreated()->json('driver.id');
+        $this->assertDatabaseHas('drivers', ['id' => $id, 'phone' => '+96170123456', 'whatsapp_number' => '+96170123456']);
+
+        $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Again', 'phone' => '+961 70 123 456'])->assertUnprocessable();
+
+        $this->withToken($token)->patchJson("/api/v1/drivers/{$id}", ['name' => 'Rami K.', 'phone' => '03 123 456', 'role' => 'driver'])->assertOk();
+        $this->assertDatabaseHas('drivers', ['id' => $id, 'name' => 'Rami K.', 'phone' => '+9613123456', 'role' => 'driver']);
+
+        $this->withToken($token)->deleteJson("/api/v1/drivers/{$id}")->assertOk();
+        $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '03123456', 'role' => 'staff'])->assertCreated();
+        $this->assertDatabaseHas('drivers', ['id' => $id, 'is_active' => true, 'role' => 'staff']);
+    }
+
+    public function test_the_shop_can_mark_a_drivers_cash_as_received(): void
+    {
+        [, $owner] = $this->merchantWithUser();
+        $token = $this->tokenFor($owner);
+        $id = $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Ali', 'phone' => '71 000 111'])->json('driver.id');
+        \App\Models\Driver::query()->whereKey($id)->update(['cash_on_hand' => 42.5]);
+
+        $this->withToken($token)->postJson("/api/v1/drivers/{$id}/cash-received")->assertOk();
+
+        $this->assertEquals(0, \App\Models\Driver::query()->find($id)->cash_on_hand);
+    }
+
     public function test_admin_onboarding_flow(): void
     {
         $admin = $this->platformAdmin();

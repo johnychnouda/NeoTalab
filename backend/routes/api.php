@@ -82,6 +82,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [DriverController::class, 'index']);
             Route::post('/', [DriverController::class, 'store'])->middleware("role:{$managerRoles}");
             Route::post('{driver}/status', [DriverController::class, 'setStatus'])->middleware("role:{$managerRoles}");
+            Route::patch('{driver}', [DriverController::class, 'update'])->middleware("role:{$managerRoles}");
+            Route::post('{driver}/cash-received', [DriverController::class, 'cashReceived'])->middleware("role:{$managerRoles}");
             Route::delete('{driver}', [DriverController::class, 'destroy'])->middleware("role:{$managerRoles}");
         });
 

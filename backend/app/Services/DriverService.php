@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Driver;
 use App\Models\Merchant;
+use App\Support\Countries;
 use Illuminate\Validation\ValidationException;
 
 class DriverService
@@ -22,17 +23,25 @@ class DriverService
     }
 
     /**
+     * Adds a member. Someone removed earlier comes back with the new name and role.
+     *
      * @param  array<string,mixed>  $data
      */
     public function create(Merchant $merchant, array $data): Driver
     {
-        $phone = trim((string) ($data['phone'] ?? ''));
-        if ($phone === '') {
-            throw ValidationException::withMessages(['phone' => ['Phone is required.']]);
-        }
+        $phone = $this->number($merchant, $data['phone'] ?? '');
+        $existing = $this->withNumber($merchant, $phone);
 
-        if (Driver::query()->where('merchant_id', $merchant->id)->where('phone', $phone)->exists()) {
-            throw ValidationException::withMessages(['phone' => ['Driver with this phone already exists.']]);
+        if ($existing?->is_active) {
+            throw ValidationException::withMessages(['phone' => [__('This number is already in your team.')]]);
+        }
+        if ($existing) {
+            $existing->forceFill([
+                'name' => $data['name'], 'role' => $data['role'] ?? 'driver', 'phone' => $phone, 'whatsapp_number' => $phone,
+                'is_active' => true, 'status' => 'off_duty', 'availability' => 'available', 'cash_on_hand' => 0,
+            ])->save();
+
+            return $existing;
         }
 
         return Driver::create([
@@ -40,11 +49,64 @@ class DriverService
             'name' => $data['name'],
             'role' => $data['role'] ?? 'driver',
             'phone' => $phone,
-            'whatsapp_number' => $data['whatsappNumber'] ?? $data['whatsapp_number'] ?? $phone,
+            'whatsapp_number' => $phone,
             'password' => $data['password'] ?? 'changeme123',
             'status' => 'off_duty',
             'availability' => 'available',
         ]);
+    }
+
+    /**
+     * @param  array<string,mixed>  $data
+     */
+    public function update(Merchant $merchant, string $driverId, array $data): Driver
+    {
+        $driver = Driver::query()->where('merchant_id', $merchant->id)->where('is_active', true)->findOrFail($driverId);
+        $phone = $this->number($merchant, $data['phone'] ?? $driver->phone);
+        $other = $this->withNumber($merchant, $phone);
+        if ($other && $other->id !== $driver->id && $other->is_active) {
+            throw ValidationException::withMessages(['phone' => [__('This number is already in your team.')]]);
+        }
+
+        $driver->forceFill([
+            'name' => $data['name'] ?? $driver->name,
+            'role' => $data['role'] ?? $driver->role,
+            'phone' => $phone,
+            'whatsapp_number' => $phone,
+        ])->save();
+
+        return $driver;
+    }
+
+    /** The shop got the cash the driver was holding from cash orders. */
+    public function cashReceived(Merchant $merchant, string $driverId): Driver
+    {
+        $driver = Driver::query()->where('merchant_id', $merchant->id)->findOrFail($driverId);
+        $driver->forceFill(['cash_on_hand' => 0])->save();
+
+        return $driver;
+    }
+
+    /** Team numbers are kept as +961…, the form incoming WhatsApp messages are matched against. */
+    protected function number(Merchant $merchant, mixed $raw): string
+    {
+        $phone = Countries::toE164((string) $raw, ($merchant->settings ?? [])['country'] ?? 'LB');
+        if ($phone === null) {
+            throw ValidationException::withMessages(['phone' => [__('Enter a valid WhatsApp number, e.g. 70 123 456.')]]);
+        }
+
+        return $phone;
+    }
+
+    protected function withNumber(Merchant $merchant, string $phone): ?Driver
+    {
+        $digits = ltrim($phone, '+');
+
+        return Driver::query()->where('merchant_id', $merchant->id)->get()
+            ->first(fn (Driver $d) => in_array($digits, [
+                preg_replace('/\D+/', '', (string) $d->phone),
+                preg_replace('/\D+/', '', (string) $d->whatsapp_number),
+            ], true));
     }
 
     public function setStatus(Merchant $merchant, string $driverId, string $status): Driver

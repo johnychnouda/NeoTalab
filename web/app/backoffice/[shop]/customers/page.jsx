@@ -6,7 +6,7 @@ import { useLang } from "@/lib/i18n";
 import Segmented from "@/components/Segmented";
 import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
-import { Modal, useToast } from "@/components/ui";
+import { Modal, useToast, WaLink } from "@/components/ui";
 
 export default function CustomersPage() {
   const { api, shop } = useMerchant();
@@ -19,9 +19,10 @@ export default function CustomersPage() {
   const [blockedFilter, setBlockedFilter] = useState("");
   const [blockModal, setBlockModal] = useState(null);
   const [blockReason, setBlockReason] = useState("");
+  const [limit, setLimit] = useState(50);
 
   const load = useCallback(async () => {
-    let url = "/customers?limit=50";
+    let url = `/customers?limit=${limit}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
     if (blockedFilter !== "") url += `&blocked=${blockedFilter}`;
     try {
@@ -29,7 +30,7 @@ export default function CustomersPage() {
       setCustomers(c);
       setError("");
     } catch (e) { setError(e.message); }
-  }, [api, search, blockedFilter]);
+  }, [api, search, blockedFilter, limit]);
 
   useEffect(() => {
     const timer = setTimeout(load, search ? 400 : 0);
@@ -68,7 +69,7 @@ export default function CustomersPage() {
           {customers && customers.map((c) => (
             <tr key={c.id}>
               <td className="stack-title"><strong>{c.name || "—"}</strong></td>
-              <td data-label={t("th.phone")} style={{ fontSize: 12 }}><span dir="ltr">{c.phone}</span></td>
+              <td data-label={t("th.phone")} style={{ fontSize: 12 }}><span dir="ltr"><WaLink number={c.phone} /></span></td>
               <td data-label={t("th.orders")}>{c.total_orders || 0}</td>
               <td data-label={t("th.spent")}>{formatMoney(c.total_spent, shop.currency)}</td>
               <td data-label={t("th.status")}>{c.is_blocked
@@ -82,6 +83,11 @@ export default function CustomersPage() {
         </tbody>
       </table>
       </div>
+      {customers && customers.length >= limit && limit < 500 && (
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          <button type="button" className="btn-sm" onClick={() => setLimit(limit + 50)}>{t("db.cust.more")}</button>
+        </div>
+      )}
 
       {blockModal && (
         <Modal title={t("db.cust.blockTitle")} onClose={() => setBlockModal(null)}>

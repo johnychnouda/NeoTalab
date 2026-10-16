@@ -11,7 +11,7 @@ import { ErrorBanner } from "@/components/owner/ui";
 
 export default function AnalyticsPage() {
   const { api, shop } = useMerchant();
-  const { t } = useLang();
+  const { t, locale } = useLang();
 
   const [days, setDays] = useState("30");
   const [data, setData] = useState(null);
@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
               <td className="stack-title">#{r.number}</td>
               <td data-label={t("th.customer")}><span><WaLink number={r.customer_phone} /> {r.customer_name || ""}</span></td>
               <td data-label={t("db.rep.rating")}><span className="stars" aria-label={`${r.rating} / 5`}>{"★".repeat(r.rating)}<span>{"★".repeat(5 - r.rating)}</span></span></td>
-              <td data-label={t("th.time")} style={{ color: "var(--text-muted)", fontSize: 12 }}>{r.rated_at ? new Date(r.rated_at).toLocaleString() : ""}</td>
+              <td data-label={t("th.time")} style={{ color: "var(--text-muted)", fontSize: 12 }}>{r.rated_at ? new Date(r.rated_at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }) : ""}</td>
             </tr>
           ))}
         </tbody>

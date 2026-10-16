@@ -9,6 +9,7 @@ use App\Models\Merchant;
 use App\Models\Product;
 use App\Models\ShopHour;
 use App\Support\BusinessKind;
+use App\Support\Countries;
 use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\MerchantWhatsAppCredentials;
@@ -165,6 +166,11 @@ class MerchantSettingsService
             && isset(BusinessKind::KINDS[$payload['business_kind']])) {
             $settings = BusinessKind::applyDefaults($settings, (string) $payload['business_kind']);
             unset($payload['timing_unit'], $payload['business_mode']);
+        }
+
+        if (filled($payload['report_whatsapp'] ?? null)) {
+            $payload['report_whatsapp'] = Countries::toE164((string) $payload['report_whatsapp'], $settings['country'] ?? 'LB')
+                ?? throw ValidationException::withMessages(['report_whatsapp' => [__('Enter a valid WhatsApp number, e.g. 70 123 456.')]]);
         }
 
         $ops = Validator::make(

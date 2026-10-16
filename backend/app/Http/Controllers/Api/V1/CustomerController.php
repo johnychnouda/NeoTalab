@@ -19,7 +19,7 @@ class CustomerController extends Controller
                 $request->user()->merchant,
                 $request->query('search'),
                 $blockedFilter,
-                (int) $request->query('limit', 50),
+                max(1, min(500, (int) $request->query('limit', 50))),
             ),
         ]);
     }

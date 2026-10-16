@@ -9,8 +9,6 @@ import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
 
-const STATUS = { on_duty: "db.team.onShift", off_duty: "db.team.offShift", on_break: "db.team.onBreak", paused: "db.team.onBreak" };
-
 /**
  * The shop's team: drivers (get deliveries) and staff (accept orders, open/close the shop).
  * Everyone works from their own WhatsApp; this page only adds or removes them.
@@ -68,27 +66,34 @@ export default function TeamPage() {
                     <div className="mk-hint" style={{ margin: 0 }} dir="ltr">{m.whatsapp_number || m.phone}</div>
                   </div>
                 </div>
-                <div className="tm-status">
-                  <span className={`pill ${m.status === "on_duty" ? "pill-active" : "pill-pending"}`}>{t(STATUS[m.status] || "db.team.offShift")}</span>
-                  {role === "driver" && (m.availability === "busy"
-                    ? <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>
-                    : <span className="pill">{t("db.team.free")}</span>)}
-                </div>
                 {role === "driver" && (
-                  <div className="mk-hint" style={{ marginBottom: 10 }}>
-                    {m.total_deliveries || 0} {t("db.team.deliveries")}{m.cash_on_hand ? ` · ${formatMoney(m.cash_on_hand, shop.currency)} ${t("db.team.cash")}` : ""}
+                  <div className="tm-status">
+                    {m.availability === "busy"
+                      ? <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>
+                      : <span className="pill">{t("db.team.free")}</span>}
+                  </div>
+                )}
+                {role === "driver" && (
+                  <div className="tm-cash">
+                    <span className="mk-hint" style={{ margin: 0 }}>
+                      {m.total_deliveries || 0} {t("db.team.deliveries")}{Number(m.cash_on_hand) > 0 ? ` · ${formatMoney(m.cash_on_hand, shop.currency)} ${t("db.team.cash")}` : ""}
+                    </span>
+                    {Number(m.cash_on_hand) > 0 && (
+                      <button type="button" className="btn-sm" onClick={() => setModal({ type: "cash", member: m })}>✓ {t("db.team.cashReceived")}</button>
+                    )}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 6 }}>
                   <div style={{ flex: 1 }}>
-                    <FormSelect size="sm" value={m.status} onChange={(v) => setStatus(m.id, v)} aria-label={t("db.team.role")}
+                    <FormSelect size="sm" value={m.status} onChange={(v) => setStatus(m.id, v)} aria-label={`${m.name}: ${t("th.status")}`}
                       options={[
                         { value: "on_duty", label: t("db.team.onShift"), icon: "🟢" },
                         { value: "on_break", label: t("db.team.onBreak"), icon: "🟡" },
                         { value: "off_duty", label: t("db.team.offShift"), icon: "⚪" },
                       ]} />
                   </div>
-                  <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "remove", member: m })}>{t("db.remove")}</button>
+                  <button className="btn-sm" onClick={() => setModal({ type: "edit", member: m })}>{t("mk.edit")}</button>
+                  <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "remove", member: m })} aria-label={`${t("db.remove")} ${m.name}`}>✕</button>
                 </div>
               </div>
             ))}
@@ -96,12 +101,24 @@ export default function TeamPage() {
         </section>
       ))}
 
-      {modal?.type === "add" && (
-        <AddMemberModal t={t} onClose={() => setModal(null)} onSubmit={async (vals) => {
+      {(modal?.type === "add" || modal?.type === "edit") && (
+        <MemberModal t={t} member={modal.member} onClose={() => setModal(null)} onSubmit={async (vals) => {
           if (!vals.name || !vals.phone) { toast(t("db.team.required"), "error"); return; }
-          try { await api("POST", "/drivers", vals); setModal(null); load(); toast(t("db.team.added")); }
-          catch (e) { toast(e.message, "error"); }
+          try {
+            if (modal.member) await api("PATCH", `/drivers/${modal.member.id}`, vals);
+            else await api("POST", "/drivers", vals);
+            setModal(null); load(); toast(t(modal.member ? "db.saved" : "db.team.added"));
+          } catch (e) { toast(e.message, "error"); }
         }} />
+      )}
+      {modal?.type === "cash" && (
+        <ConfirmModal title={t("db.team.cashReceived")}
+          message={t("db.team.cashConfirm", { name: modal.member.name, amount: formatMoney(modal.member.cash_on_hand, shop.currency) })}
+          onClose={() => setModal(null)}
+          onConfirm={async () => {
+            try { await api("POST", `/drivers/${modal.member.id}/cash-received`); load(); toast(t("db.saved")); }
+            catch (e) { toast(e.message, "error"); }
+          }} />
       )}
       {modal?.type === "remove" && (
         <ConfirmModal title={t("db.remove")} message={<><strong>{modal.member.name}</strong> {t("db.team.removeConfirm")}</>} danger
@@ -115,15 +132,15 @@ export default function TeamPage() {
   );
 }
 
-function AddMemberModal({ t, onClose, onSubmit }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState("staff");
+function MemberModal({ t, member, onClose, onSubmit }) {
+  const [name, setName] = useState(member?.name || "");
+  const [phone, setPhone] = useState(member?.whatsapp_number || member?.phone || "");
+  const [role, setRole] = useState(member && member.role !== "staff" ? "driver" : "staff");
   return (
-    <Modal title={t("db.team.add")} onClose={onClose} compact
+    <Modal title={t(member ? "db.team.edit" : "db.team.add")} onClose={onClose} compact
       footer={<div className="modal-footer-actions">
         <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), whatsappNumber: phone.trim(), role })}>{t("db.add")}</button>
+        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), role })}>{t(member ? "db.save" : "db.add")}</button>
       </div>}>
       <div className="field"><label>{t("db.team.role")}</label>
         <div className="tm-roles">
@@ -136,7 +153,8 @@ function AddMemberModal({ t, onClose, onSubmit }) {
         </div>
       </div>
       <div className="field"><label htmlFor="tm-name">{t("db.team.name")}</label><input id="tm-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Rami Khalil" /></div>
-      <div className="field"><label htmlFor="tm-phone">{t("db.team.number")}</label><input id="tm-phone" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+96170123456" /></div>
+      <div className="field"><label htmlFor="tm-phone">{t("db.team.number")}</label><input id="tm-phone" dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="70 123 456" />
+        <div className="mk-hint">{t("db.team.numberHint")}</div></div>
     </Modal>
   );
 }

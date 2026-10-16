@@ -61,6 +61,13 @@ export default function MenuPage() {
     return list;
   }, [categories, products]);
 
+  // Sold out / available again, straight from the list (the bot stops offering sold-out items).
+  async function setAvailable(p, on) {
+    setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, is_available: on } : x)));
+    try { await api("PATCH", `/products/${p.id}`, { is_available: on }); }
+    catch (e) { toast(e.message, "error"); load(); }
+  }
+
   async function saveItem(item, vals) {
     const body = {
       name: vals.name, description: vals.description || null, price: vals.price, category_id: vals.categoryId || null,
@@ -102,6 +109,7 @@ export default function MenuPage() {
       {categories && categories.length === 0 && products.length === 0 && (
         <EmptyState icon={EMPTY_ICONS.menu} title={t("mk.empty")} />
       )}
+      {products.length > 0 && <p className="page-intro">{t("mk.soldOutHint")}</p>}
 
       <div className="menu-list">
         {sections.map(({ cat, items }) => (
@@ -116,7 +124,7 @@ export default function MenuPage() {
               </>}
             </div>
             {items.map((p) => (
-              <div key={p.id} className="product-row">
+              <div key={p.id} className={`product-row ${p.is_available === false ? "product-inactive" : ""}`}>
                 <div className="product-info">
                   <span className="product-name">{p.name}</span>
                   {p.description && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.description}</span>}
@@ -129,6 +137,11 @@ export default function MenuPage() {
                   {services && p.duration_mins ? <span className="pill">⏱ {p.duration_mins}m</span> : null}
                 </div>
                 <div className="product-actions">
+                  <button type="button" role="switch" aria-checked={p.is_available !== false} className="mk-avail"
+                    onClick={() => setAvailable(p, p.is_available === false)} aria-label={`${p.name}: ${t("mk.available")}`}>
+                    <span className={`sset-switch ${p.is_available !== false ? "on" : ""}`} aria-hidden="true"><span /></span>
+                    <span>{p.is_available !== false ? t("mk.available") : t("mk.soldOut")}</span>
+                  </button>
                   <button className="btn-sm" onClick={() => setModal({ type: "item", item: p })}>{t("mk.edit")}</button>
                   <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteItem", item: p })} aria-label={t("mk.delete")}>✕</button>
                 </div>
@@ -322,6 +335,8 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
     } catch (e) { toast(e.message, "error"); } finally { setBusy(false); }
   }
 
+  const edit = (i, patch) => setItems(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+
   async function confirm() {
     setBusy(true);
     try {
@@ -336,22 +351,26 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
       {items === null ? (
         <>
           <p className="mk-hint" style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>{t("mk.imp.intro")}</p>
-          <input type="file" accept=".xlsx,.csv,.jpg,.jpeg,.png,.webp" disabled={busy} aria-label={t("mk.import")}
-            onChange={(e) => upload(e.target.files?.[0])} />
+          <label className={`mk-file ${busy ? "is-busy" : ""}`}>
+            <input type="file" accept=".xlsx,.csv,.jpg,.jpeg,.png,.webp" disabled={busy}
+              onChange={(e) => upload(e.target.files?.[0])} />
+            <span aria-hidden="true">📄</span> {t("mk.imp.choose")}
+            <small>Excel · CSV · JPG · PNG</small>
+          </label>
           {busy && <div className="loader" style={{ marginTop: 12 }}>{t("mk.imp.reading")}</div>}
         </>
       ) : (
         <>
-          <p style={{ fontSize: 13, marginBottom: 10 }}>{items.length} {t("mk.imp.found")}</p>
+          <p style={{ fontSize: 13, marginBottom: 10 }}>{items.length} {t("mk.imp.found")} · {t("mk.imp.check")}</p>
           <div className="table-scroll" style={{ maxHeight: "50vh", overflowY: "auto" }}>
             <table className="data-table stack-on-phone">
               <thead><tr><th>{t("mk.category")}</th><th>{t("mk.name")}</th><th>{t("mk.price")}</th><th></th></tr></thead>
               <tbody>
                 {items.map((it, i) => (
                   <tr key={i}>
-                    <td data-label={t("mk.category")}>{it.category}</td>
-                    <td data-label={t("mk.name")}>{it.name}</td>
-                    <td data-label={t("mk.price")}>{it.price}</td>
+                    <td data-label={t("mk.category")}><input className="mk-cell" value={it.category || ""} aria-label={t("mk.category")} onChange={(e) => edit(i, { category: e.target.value })} /></td>
+                    <td data-label={t("mk.name")}><input className="mk-cell" value={it.name || ""} aria-label={t("mk.name")} onChange={(e) => edit(i, { name: e.target.value })} /></td>
+                    <td data-label={t("mk.price")}><input className="mk-cell mk-cell-num" type="number" step="0.01" min="0" value={it.price ?? ""} aria-label={t("mk.price")} onChange={(e) => edit(i, { price: e.target.value })} /></td>
                     <td className="stack-actions"><button className="btn-sm" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button></td>
                   </tr>
                 ))}

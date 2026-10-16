@@ -44,6 +44,27 @@ final class Countries
         return self::ALL[strtoupper((string) $code)]['currency'] ?? 'USD';
     }
 
+    /**
+     * A number as a shop types it ("70 123 456", "03 123456", "00961 70…", "+961 70…") in the
+     * international form WhatsApp uses ("+96170123456"). Null when it can't be a phone number.
+     */
+    public static function toE164(?string $raw, ?string $code = 'LB'): ?string
+    {
+        $raw = trim((string) $raw);
+        $digits = preg_replace('/\D+/', '', $raw);
+        $dial = self::ALL[strtoupper((string) $code)]['dial'] ?? '961';
+
+        if (str_starts_with($raw, '+')) {
+            // already international
+        } elseif (str_starts_with($digits, '00')) {
+            $digits = substr($digits, 2);
+        } elseif (! str_starts_with($digits, $dial) || strlen($digits) <= 8) {
+            $digits = $dial.ltrim($digits, '0'); // a local number: "03 123456" → 9613123456
+        }
+
+        return strlen($digits) >= 9 && strlen($digits) <= 15 ? '+'.$digits : null;
+    }
+
     /** True when the E.164 number starts with the country's dialling code. */
     public static function numberMatches(?string $code, string $e164): bool
     {

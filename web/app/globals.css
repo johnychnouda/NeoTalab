@@ -2596,3 +2596,22 @@ button.wa-mic { border: 0; cursor: pointer; }
   .sset-savebar { bottom: 10px; }
   .sset-savebar > span { font-size: 12px; }
 }
+
+/* Menu: sold-out switch, file picker, editable import rows · Team: cash line */
+.mk-avail { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px; border: none; background: none; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.mk-avail .sset-switch { width: 34px; height: 20px; }
+.mk-avail .sset-switch > span { width: 14px; height: 14px; }
+.mk-avail .sset-switch.on > span { inset-inline-start: 17px; }
+.mk-avail:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 8px; }
+.product-row.product-inactive { opacity: 1; }
+.product-row.product-inactive .product-info, .product-row.product-inactive .product-meta { opacity: 0.45; }
+.mk-file { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px 16px; border: 1.5px dashed var(--border); border-radius: 14px; background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.mk-file:hover { border-color: var(--green); background: var(--green-dim); }
+.mk-file span { font-size: 26px; }
+.mk-file small { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+.mk-file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.mk-file.is-busy { opacity: 0.6; pointer-events: none; }
+.mk-cell { width: 100%; min-width: 80px; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; font-size: 13px; outline: none; }
+.mk-cell:focus { border-color: var(--green); }
+.mk-cell-num { max-width: 100px; }
+.tm-cash { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
