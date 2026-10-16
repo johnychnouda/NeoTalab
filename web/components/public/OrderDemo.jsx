@@ -12,6 +12,7 @@ const AUTO_DELAY = 3000;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
+  video: "M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11z",
   call: "M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z",
   more: "M12 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4zm0 7a2 2 0 110-4 2 2 0 010 4z",
   emoji: "M12 2a10 10 0 100 20 10 10 0 000-20zm-3.5 6a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm7 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM12 18a6 6 0 01-5.3-3.2h10.6A6 6 0 0112 18z",
@@ -266,6 +267,15 @@ export default function OrderDemo({ demo }) {
             <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}`} data-chat={chat}>
               <p className="wa-who">{demo.who[chat]}</p>
               <div className="wa-phone">
+                <div className="wa-status" aria-hidden="true">
+                  <span className="wa-clock">{last?.time || messages[0]?.time || "12:30"}</span>
+                  <span className="wa-island" />
+                  <span className="wa-sys">
+                    <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1" /><rect x="4.5" y="5" width="3" height="6" rx="1" /><rect x="9" y="2.5" width="3" height="8.5" rx="1" /><rect x="13.5" y="0" width="3" height="11" rx="1" /></svg>
+                    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><path d="M7.5 2.2c2.1 0 4 .8 5.4 2.1l1.1-1.1A9.2 9.2 0 007.5.6 9.2 9.2 0 001 3.2l1.1 1.1A7.6 7.6 0 017.5 2.2zm0 3.1c1.2 0 2.4.5 3.2 1.3l1.1-1.1a6.2 6.2 0 00-8.6 0l1.1 1.1c.8-.8 2-1.3 3.2-1.3zm0 3.1c.4 0 .8.2 1.1.5L7.5 10 6.4 8.9c.3-.3.7-.5 1.1-.5z" /></svg>
+                    <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity=".45" /><rect x="2" y="2" width="16" height="8" rx="1.6" fill="currentColor" /><path d="M23 4v4c.8-.3 1.3-1.1 1.3-2S23.8 4.3 23 4z" fill="currentColor" opacity=".45" /></svg>
+                  </span>
+                </div>
                 <div className="wa-head">
                   <Svg d={icons.back} size={20} className="wa-back" />
                   <span className="wa-avatar">
@@ -276,6 +286,7 @@ export default function OrderDemo({ demo }) {
                     <strong>{scenario.shop}</strong>
                     <span>{typing === chat ? demo.typing : demo.online}</span>
                   </div>
+                  <Svg d={icons.video} size={21} />
                   <Svg d={icons.call} size={17} />
                   <Svg d={icons.more} size={18} />
                 </div>
@@ -331,6 +342,7 @@ export default function OrderDemo({ demo }) {
                     <span className="wa-mic"><Svg d={icons.mic} /></span>
                   )}
                 </div>
+                <span className="wa-home" aria-hidden="true" />
               </div>
             </div>
           );
