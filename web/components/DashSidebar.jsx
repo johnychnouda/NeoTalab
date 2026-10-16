@@ -4,12 +4,13 @@ import { useLang } from "@/lib/i18n";
 
 /** Sidebar bits shared by the owner portal and the shop dashboard. */
 
-export function DashLangSwitch() {
+/** `onPick` runs when the user picks a language (the shop dashboard also saves it as the shop's language). */
+export function DashLangSwitch({ onPick }) {
   const { lang, setLang } = useLang();
   return (
     <div className="dash-lang" role="group" aria-label="Language" dir="ltr">
       {[["en", "EN"], ["ar", "عربي"], ["fr", "FR"]].map(([code, label]) => (
-        <button key={code} type="button" className={lang === code ? "active" : ""} aria-pressed={lang === code} onClick={() => setLang(code)}>
+        <button key={code} type="button" className={lang === code ? "active" : ""} aria-pressed={lang === code} onClick={() => { setLang(code); onPick?.(code); }}>
           {label}
         </button>
       ))}

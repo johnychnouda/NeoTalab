@@ -19,7 +19,7 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
  * from the saved profile, and one Save sends every changed tab together.
  */
 const GROUPS = {
-  shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "", defaultLocale: p.default_locale || "ar" }),
+  shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "" }),
   orders: (p) => ({
     business_kind: p.business_kind || "other", business_mode: p.business_mode || "orders",
     appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
@@ -172,15 +172,9 @@ function Settings() {
           <Field id="s-name" label={t("db.set.shopName")}>
             <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" />
           </Field>
-          <div className="sset-grid">
-            <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
-              <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
-            </Field>
-            <Field id="s-lang" label={t("db.set.language")}>
-              <Segmented id="s-lang" block aria-label={t("db.set.language")} value={p.default_locale || "ar"} onChange={(v) => setP("default_locale", v)}
-                options={[{ value: "ar", label: "العربية" }, { value: "en", label: "English" }, { value: "fr", label: "Français" }]} />
-            </Field>
-          </div>
+          <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
+            <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
+          </Field>
         </Card>
       )}
 

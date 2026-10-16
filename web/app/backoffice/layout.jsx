@@ -161,6 +161,14 @@ export default function BackofficeLayout({ children }) {
     }
   }, [authed, shopSlug, pathname, router]);
 
+  // The language the owner reads the dashboard in is also the language of the WhatsApp messages
+  // the shop and its team get (new orders, drivers, nightly report). Customers keep their own.
+  function saveShopLanguage(code) {
+    if (shop.default_locale === code) return;
+    setShop((s) => ({ ...s, default_locale: code }));
+    api("PATCH", "/settings/profile", { defaultLocale: code }).catch(() => { /* staff accounts can't change it */ });
+  }
+
   async function changeMode(newMode) {
     setMode(newMode);
     try { await api("PATCH", "/settings/mode", { mode: newMode }); } catch { /* ignore */ }
@@ -257,7 +265,7 @@ export default function BackofficeLayout({ children }) {
             </a>
           )}
           <div className="dash-side-foot">
-            <DashLangSwitch />
+            <DashLangSwitch onPick={saveShopLanguage} />
             <DashProfile name={shopName || "NeoTalab"} role={t("db.shopOwner")} onLogout={logout} />
           </div>
         </>

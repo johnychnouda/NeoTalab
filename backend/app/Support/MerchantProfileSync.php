@@ -58,7 +58,7 @@ final class MerchantProfileSync
 
     public static function applyLocale(Merchant $merchant, ?string $locale): void
     {
-        if ($locale !== null && $locale !== '') {
+        if (in_array($locale, ['en', 'ar', 'fr'], true)) {
             $merchant->locale = $locale;
         }
     }
