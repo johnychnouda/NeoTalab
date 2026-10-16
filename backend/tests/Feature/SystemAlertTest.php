@@ -83,6 +83,41 @@ class SystemAlertTest extends TestCase
         $this->assertNotNull(SystemAlert::first()->notified_at);
     }
 
+    public function test_a_join_request_emails_and_whatsapps_the_owner(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]], 200)]);
+        $subjects = [];
+        Event::listen(MessageSent::class, function (MessageSent $e) use (&$subjects) {
+            $subjects[] = $e->message->getSubject();
+        });
+        $this->recipients(['wa_phone_id' => '999', 'wa_access_token' => 'EAAX', 'alert_email' => 'neotalab@gmail.com', 'alert_whatsapp' => '+96170161659']);
+
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Join Shop', 'contactName' => 'Ahmad', 'businessType' => 'Restaurant / Café',
+            'whatsapp' => '+96178887777', 'city' => 'Zahle', 'region' => 'Bekaa', 'street' => 'Main road',
+            'country' => 'LB', 'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $this->assertSame(['NeoTalab: new join request from Join Shop'], $subjects);
+        Http::assertSent(fn ($r) => $r['to'] === '96170161659'
+            && str_contains($r['template']['components'][0]['parameters'][0]['text'], 'New join request: Join Shop (Zahle, Bekaa)'));
+        $this->assertSame(0, SystemAlert::count());
+    }
+
+    public function test_a_join_request_is_saved_even_when_the_owner_cannot_be_reached(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['error' => ['code' => 131030]], 400)]);
+        $this->recipients(['wa_phone_id' => '999', 'wa_access_token' => 'EAAX', 'alert_whatsapp' => '+96170161659']);
+
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Join Shop', 'contactName' => 'Ahmad', 'businessType' => 'Restaurant / Café',
+            'whatsapp' => '+96178887777', 'city' => 'Zahle', 'region' => 'Bekaa', 'street' => 'Main road',
+            'country' => 'LB', 'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('onboarding_requests', ['shop_name' => 'Join Shop', 'status' => 'pending']);
+    }
+
     public function test_warnings_stay_in_the_inbox_without_notifying(): void
     {
         Http::fake();

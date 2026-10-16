@@ -112,8 +112,24 @@ class SystemAlertService
      */
     protected function notify(SystemAlert $alert): array
     {
+        $result = $this->sendToOwner($this->summary($alert), 'NeoTalab alert: '.Str::limit($alert->message, 80), 'Open the owner portal → Inbox → System for details.');
+
+        if (in_array('sent', $result, true)) {
+            $alert->forceFill(['notified_at' => now()])->save();
+        }
+
+        return $result;
+    }
+
+    /**
+     * Emails and/or WhatsApps a message to the recipients from Settings → Alerts
+     * (the WhatsApp goes out from the platform number with the "system_alert" template).
+     *
+     * @return array{email: string, whatsapp: string} per channel: sent | off | the error
+     */
+    public function sendToOwner(string $text, string $subject, string $footer): array
+    {
         $extra = PlatformSetting::singleton()->settings ?? [];
-        $text = $this->summary($alert);
         $result = ['email' => 'off', 'whatsapp' => 'off'];
 
         $email = trim((string) ($extra['alert_email'] ?? ''));
@@ -121,8 +137,8 @@ class SystemAlertService
             $result['email'] = 'Email sending is not set up on the server yet (MAIL_MAILER).';
         } elseif ($email !== '') {
             try {
-                Mail::raw($text."\n\nOpen the owner portal → Inbox → System for details.", function ($mail) use ($email, $alert) {
-                    $mail->to($email)->subject('NeoTalab alert: '.Str::limit($alert->message, 80));
+                Mail::raw($text."\n\n".$footer, function ($mail) use ($email, $subject) {
+                    $mail->to($email)->subject($subject);
                 });
                 $result['email'] = 'sent';
             } catch (Throwable $e) {
@@ -153,11 +169,25 @@ class SystemAlertService
             }
         }
 
-        if (in_array('sent', $result, true)) {
-            $alert->forceFill(['notified_at' => now()])->save();
-        }
-
         return $result;
+    }
+
+    /**
+     * A heads-up for the owner that is not a problem (e.g. a new join request), sent to the
+     * Settings → Alerts recipients. Never throws, and a failed send does not become an alert.
+     *
+     * @return array{email: string, whatsapp: string}
+     */
+    public function notice(string $text, string $subject, string $footer): array
+    {
+        self::$busy = true;
+        try {
+            return $this->sendToOwner($text, $subject, $footer);
+        } catch (Throwable) {
+            return ['email' => 'failed', 'whatsapp' => 'failed'];
+        } finally {
+            self::$busy = false;
+        }
     }
 
     /**

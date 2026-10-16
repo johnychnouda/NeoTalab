@@ -13,6 +13,7 @@ class OnboardingService
 {
     public function __construct(
         protected AdminMerchantService $adminMerchants,
+        protected SystemAlertService $alerts,
     ) {}
 
     /**
@@ -96,7 +97,7 @@ class OnboardingService
             ]);
         }
 
-        return OnboardingRequest::create([
+        $request = OnboardingRequest::create([
             'shop_name' => trim((string) ($data['shopName'] ?? $data['shop_name'] ?? '')),
             'contact_name' => $data['contactName'] ?? $data['contact_name'] ?? null,
             'whatsapp' => trim((string) ($data['whatsapp'] ?? $data['whatsappNumber'] ?? '')),
@@ -109,5 +110,20 @@ class OnboardingService
             'message' => $data['message'] ?? null,
             'status' => 'pending',
         ]);
+
+        $this->notifyOwner($request);
+
+        return $request;
+    }
+
+    /** Emails / WhatsApps the owner (Settings → Alerts recipients) that a shop wants to join. */
+    protected function notifyOwner(OnboardingRequest $request): void
+    {
+        $where = implode(', ', array_filter([$request->city, $request->region]));
+        $text = 'New join request: '.$request->shop_name
+            .($where !== '' ? " ({$where})" : '')
+            .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]));
+
+        $this->alerts->notice($text, 'NeoTalab: new join request from '.$request->shop_name, 'Open the owner portal → Merchants → Requests to approve or reject it.');
     }
 }
