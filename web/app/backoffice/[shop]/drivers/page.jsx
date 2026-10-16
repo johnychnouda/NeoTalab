@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
-import FormSelect from "@/components/FormSelect";
 import { useLiveRefresh } from "@/lib/live";
-import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
 
@@ -14,7 +12,7 @@ import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
  * Everyone works from their own WhatsApp; this page only adds or removes them.
  */
 export default function TeamPage() {
-  const { api, shop } = useMerchant();
+  const { api } = useMerchant();
   const { t } = useLang();
   const toast = useToast();
 
@@ -28,10 +26,6 @@ export default function TeamPage() {
 
   useEffect(() => { load(); }, [load]);
   useLiveRefresh(load);
-
-  async function setStatus(id, status) {
-    try { await api("POST", `/drivers/${id}/status`, { status }); load(); } catch (e) { toast(e.message, "error"); }
-  }
 
   const groups = [
     ["staff", (team || []).filter((m) => m.role === "staff")],
@@ -68,30 +62,14 @@ export default function TeamPage() {
                 </div>
                 {role === "driver" && (
                   <div className="tm-status">
-                    {m.availability === "busy"
-                      ? <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>
-                      : <span className="pill">{t("db.team.free")}</span>}
+                    <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>{t(m.status === "on_duty" ? "db.team.onShift" : "db.team.offShift")}</span>
+                    {m.status === "on_duty" && m.availability === "busy" && <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>}
                   </div>
                 )}
                 {role === "driver" && (
-                  <div className="tm-cash">
-                    <span className="mk-hint" style={{ margin: 0 }}>
-                      {m.total_deliveries || 0} {t("db.team.deliveries")}{Number(m.cash_on_hand) > 0 ? ` · ${formatMoney(m.cash_on_hand, shop.currency)} ${t("db.team.cash")}` : ""}
-                    </span>
-                    {Number(m.cash_on_hand) > 0 && (
-                      <button type="button" className="btn-sm" onClick={() => setModal({ type: "cash", member: m })}>✓ {t("db.team.cashReceived")}</button>
-                    )}
-                  </div>
+                  <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t("db.team.deliveries")}</div>
                 )}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <div style={{ flex: 1 }}>
-                    <FormSelect size="sm" value={m.status} onChange={(v) => setStatus(m.id, v)} aria-label={`${m.name}: ${t("th.status")}`}
-                      options={[
-                        { value: "on_duty", label: t("db.team.onShift"), icon: "🟢" },
-                        { value: "on_break", label: t("db.team.onBreak"), icon: "🟡" },
-                        { value: "off_duty", label: t("db.team.offShift"), icon: "⚪" },
-                      ]} />
-                  </div>
+                <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                   <button className="btn-sm" onClick={() => setModal({ type: "edit", member: m })}>{t("mk.edit")}</button>
                   <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "remove", member: m })} aria-label={`${t("db.remove")} ${m.name}`}>✕</button>
                 </div>
@@ -111,15 +89,7 @@ export default function TeamPage() {
           } catch (e) { toast(e.message, "error"); }
         }} />
       )}
-      {modal?.type === "cash" && (
-        <ConfirmModal title={t("db.team.cashReceived")}
-          message={t("db.team.cashConfirm", { name: modal.member.name, amount: formatMoney(modal.member.cash_on_hand, shop.currency) })}
-          onClose={() => setModal(null)}
-          onConfirm={async () => {
-            try { await api("POST", `/drivers/${modal.member.id}/cash-received`); load(); toast(t("db.saved")); }
-            catch (e) { toast(e.message, "error"); }
-          }} />
-      )}
+
       {modal?.type === "remove" && (
         <ConfirmModal title={t("db.remove")} message={<><strong>{modal.member.name}</strong> {t("db.team.removeConfirm")}</>} danger
           onClose={() => setModal(null)}

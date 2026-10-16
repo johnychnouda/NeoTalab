@@ -61,13 +61,6 @@ export default function MenuPage() {
     return list;
   }, [categories, products]);
 
-  // Sold out / available again, straight from the list (the bot stops offering sold-out items).
-  async function setAvailable(p, on) {
-    setProducts((list) => list.map((x) => (x.id === p.id ? { ...x, is_available: on } : x)));
-    try { await api("PATCH", `/products/${p.id}`, { is_available: on }); }
-    catch (e) { toast(e.message, "error"); load(); }
-  }
-
   async function saveItem(item, vals) {
     const body = {
       name: vals.name, description: vals.description || null, price: vals.price, category_id: vals.categoryId || null,
@@ -109,7 +102,7 @@ export default function MenuPage() {
       {categories && categories.length === 0 && products.length === 0 && (
         <EmptyState icon={EMPTY_ICONS.menu} title={t("mk.empty")} />
       )}
-      {products.length > 0 && <p className="page-intro">{t("mk.soldOutHint")}</p>}
+
 
       <div className="menu-list">
         {sections.map(({ cat, items }) => (
@@ -124,7 +117,7 @@ export default function MenuPage() {
               </>}
             </div>
             {items.map((p) => (
-              <div key={p.id} className={`product-row ${p.is_available === false ? "product-inactive" : ""}`}>
+              <div key={p.id} className="product-row">
                 <div className="product-info">
                   <span className="product-name">{p.name}</span>
                   {p.description && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.description}</span>}
@@ -137,11 +130,6 @@ export default function MenuPage() {
                   {services && p.duration_mins ? <span className="pill">⏱ {p.duration_mins}m</span> : null}
                 </div>
                 <div className="product-actions">
-                  <button type="button" role="switch" aria-checked={p.is_available !== false} className="mk-avail"
-                    onClick={() => setAvailable(p, p.is_available === false)} aria-label={`${p.name}: ${t("mk.available")}`}>
-                    <span className={`sset-switch ${p.is_available !== false ? "on" : ""}`} aria-hidden="true"><span /></span>
-                    <span>{p.is_available !== false ? t("mk.available") : t("mk.soldOut")}</span>
-                  </button>
                   <button className="btn-sm" onClick={() => setModal({ type: "item", item: p })}>{t("mk.edit")}</button>
                   <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteItem", item: p })} aria-label={t("mk.delete")}>✕</button>
                 </div>

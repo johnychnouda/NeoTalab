@@ -78,15 +78,6 @@ class DriverService
         return $driver;
     }
 
-    /** The shop got the cash the driver was holding from cash orders. */
-    public function cashReceived(Merchant $merchant, string $driverId): Driver
-    {
-        $driver = Driver::query()->where('merchant_id', $merchant->id)->findOrFail($driverId);
-        $driver->forceFill(['cash_on_hand' => 0])->save();
-
-        return $driver;
-    }
-
     /** Team numbers are kept as +961…, the form incoming WhatsApp messages are matched against. */
     protected function number(Merchant $merchant, mixed $raw): string
     {

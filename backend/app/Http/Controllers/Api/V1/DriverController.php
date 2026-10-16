@@ -40,11 +40,6 @@ class DriverController extends Controller
         return response()->json(['driver' => $drivers->update($request->user()->merchant, $driver, $data)]);
     }
 
-    public function cashReceived(Request $request, DriverService $drivers, string $driver): JsonResponse
-    {
-        return response()->json(['driver' => $drivers->cashReceived($request->user()->merchant, $driver)]);
-    }
-
     public function setStatus(Request $request, DriverService $drivers, string $driver): JsonResponse
     {
         $request->validate(['status' => ['required', 'string']]);

@@ -8,6 +8,7 @@ use App\Models\Merchant;
 use App\Models\OnboardingRequest;
 use App\Models\Order;
 use App\Services\MerchantSettingsService;
+use App\Support\CurrentTenant;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -172,7 +173,7 @@ class BackofficeWiringTest extends TestCase
 
         // The next request is the other shop (each real request starts with a fresh app).
         $this->app['auth']->forgetGuards();
-        $this->app->forgetInstance(\App\Support\CurrentTenant::class);
+        $this->app->forgetInstance(CurrentTenant::class);
         $this->withToken($otherToken)
             ->patchJson("/api/v1/settings/zones/{$id}", ['name' => 'Taken'])
             ->assertNotFound();
@@ -195,18 +196,6 @@ class BackofficeWiringTest extends TestCase
         $this->withToken($token)->deleteJson("/api/v1/drivers/{$id}")->assertOk();
         $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '03123456', 'role' => 'staff'])->assertCreated();
         $this->assertDatabaseHas('drivers', ['id' => $id, 'is_active' => true, 'role' => 'staff']);
-    }
-
-    public function test_the_shop_can_mark_a_drivers_cash_as_received(): void
-    {
-        [, $owner] = $this->merchantWithUser();
-        $token = $this->tokenFor($owner);
-        $id = $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Ali', 'phone' => '71 000 111'])->json('driver.id');
-        \App\Models\Driver::query()->whereKey($id)->update(['cash_on_hand' => 42.5]);
-
-        $this->withToken($token)->postJson("/api/v1/drivers/{$id}/cash-received")->assertOk();
-
-        $this->assertEquals(0, \App\Models\Driver::query()->find($id)->cash_on_hand);
     }
 
     public function test_admin_onboarding_flow(): void
