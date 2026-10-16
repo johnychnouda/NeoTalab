@@ -5,6 +5,7 @@ import { useOwner } from "../layout";
 import { PageHeader, EmptyState, ErrorBanner, EMPTY_ICONS, InfoNote } from "@/components/owner/ui";
 import { Skeleton } from "@/components/ui";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 
 const usd = (n, digits) => { const v = Number(n || 0); return `$${v.toFixed(digits ?? (v > 0 && v < 1 ? 3 : 2))}`; };
 
@@ -35,16 +36,16 @@ export default function UsagePage() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    setData(null);
-    setError("");
     try {
       setData(await api("GET", `/admin/usage?month=${month}`));
+      setError("");
     } catch (e) {
       setError(e.message);
     }
   }, [api, month]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setData(null); load(); }, [load]);
+  useLiveRefresh(load);
 
   const rows = (data?.rows || []).filter((r) => r.orders || r.ai_requests || r.wa_messages || r.wa_templates);
   const t = data?.totals || {};

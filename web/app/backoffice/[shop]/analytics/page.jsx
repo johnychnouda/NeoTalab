@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { WaLink } from "@/components/ui";
 import { ErrorBanner } from "@/components/owner/ui";
@@ -24,6 +25,7 @@ export default function AnalyticsPage() {
   }, [api, days]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   const s = data?.summary || {};
 

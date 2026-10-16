@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { timeAgo } from "@/lib/api";
 import { logActivity } from "@/lib/activity";
@@ -9,6 +9,7 @@ import { merchantLoginEmail } from "@/lib/merchantLoginEmail";
 import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { PANEL_TABS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 
@@ -372,13 +373,15 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
     setYearlyFee(String(m.yearly_fee || 0));
   }, [m.id, m.billing_cycle, m.monthly_fee, m.yearly_fee]);
 
-  useEffect(() => {
-    let cancelled = false;
-    api("GET", `/admin/merchants/${m.id}/payments`)
-      .then((d) => { if (!cancelled) setPayments(d.payments || []); })
-      .catch(() => { if (!cancelled) setPayments([]); });
-    return () => { cancelled = true; };
-  }, [api, m.id]);
+  const loadPayments = useCallback(
+    () => api("GET", `/admin/merchants/${m.id}/payments`)
+      .then((d) => setPayments(d.payments || []))
+      .catch(() => setPayments((cur) => cur ?? [])),
+    [api, m.id],
+  );
+
+  useEffect(() => { setPayments(null); loadPayments(); }, [loadPayments]);
+  useLiveRefresh(loadPayments);
 
   const isYearly = cycle === "yearly";
   const activeFee = isYearly ? (m.yearly_fee || 0) : (m.monthly_fee || 0);

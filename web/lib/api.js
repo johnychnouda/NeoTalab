@@ -2,6 +2,16 @@ export const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001/api
 
 const TOKEN_KEYS = { owner: "nt_owner_token", merchant: "nt_merchant_token" };
 
+/** Saving anything tells every open page to reload (see lib/live.js), in this tab and other tabs. */
+export const DATA_CHANGED_EVENT = "nt:data-changed";
+export const DATA_CHANGED_KEY = "nt_data_changed";
+
+export function announceChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+  try { localStorage.setItem(DATA_CHANGED_KEY, String(Date.now())); } catch { /* storage blocked: this tab still updates */ }
+}
+
 const OWNER_ROLE = "platform-super-admin";
 const MERCHANT_ROLES = ["merchant-owner", "merchant-admin", "merchant-staff"];
 
@@ -200,6 +210,8 @@ export async function apiFetch(role, method, path, body) {
       throw new Error("This account is not a merchant user.");
     }
   }
+
+  if (method !== "GET" && !path.startsWith("/auth/")) announceChange();
 
   return result;
 }

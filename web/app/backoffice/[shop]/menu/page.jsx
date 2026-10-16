@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { formatMoney, currencyLabel } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
@@ -43,6 +44,7 @@ export default function MenuPage() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   async function run(fn, close = true) {
     try { await fn(); if (close) setModal(null); load(); }

@@ -5,6 +5,7 @@ import { useMerchant } from "../../layout";
 import { WaLink } from "@/components/ui";
 import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 
 const STATUS = { booked: "pill-active", completed: "pill-cancelled", no_show: "pill-pending", cancelled: "pill-suspended" };
 
@@ -20,6 +21,7 @@ export default function AppointmentsPage() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   const byDay = (data?.appointments || []).reduce((acc, a) => {
     const day = a.starts_at.slice(0, 10);

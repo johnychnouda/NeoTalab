@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, getToken, setToken, clearToken } from "@/lib/api";
 import { buildInboxAlerts } from "@/lib/inbox";
+import { useLiveRefresh } from "@/lib/live";
 import AppShell from "@/components/AppShell";
 import Brand from "@/components/Brand";
 import { DashLangSwitch, DashProfile } from "@/components/DashSidebar";
@@ -46,26 +47,21 @@ export default function OwnerLayout({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!authed) return;
-    let cancelled = false;
-    async function poll() {
-      try {
-        const [{ merchants = [] }, { requests = [] }, { alerts: system = [] }] = await Promise.all([
-          api("GET", "/admin/merchants"),
-          api("GET", "/admin/onboarding"),
-          api("GET", "/admin/system-alerts").catch(() => ({ alerts: [] })),
-        ]);
-        if (cancelled) return;
-        const alerts = buildInboxAlerts(merchants, requests, (k) => k);
-        setAlertCount(alerts.length + system.length);
-        setRequestCount(alerts.filter((i) => i.category === "requests").length);
-      } catch { /* inbox poll — ignore transient errors */ }
-    }
-    poll();
-    const t = setInterval(poll, 60000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [authed]);
+  // Inbox badge: counts update on their own (see lib/live.js).
+  async function pollInbox() {
+    try {
+      const [{ merchants = [] }, { requests = [] }, { alerts: system = [] }] = await Promise.all([
+        api("GET", "/admin/merchants"),
+        api("GET", "/admin/onboarding"),
+        api("GET", "/admin/system-alerts").catch(() => ({ alerts: [] })),
+      ]);
+      const alerts = buildInboxAlerts(merchants, requests, (k) => k);
+      setAlertCount(alerts.length + system.length);
+      setRequestCount(alerts.filter((i) => i.category === "requests").length);
+    } catch { /* inbox poll — ignore transient errors */ }
+  }
+  useEffect(() => { if (authed) pollInbox(); }, [authed]);
+  useLiveRefresh(pollInbox, { enabled: !!authed });
 
   useEffect(() => {
     const h = (e) => {

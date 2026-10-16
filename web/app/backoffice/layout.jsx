@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, getToken, setToken, clearToken } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import AppShell from "@/components/AppShell";
 import Brand from "@/components/Brand";
 import { DashLangSwitch, DashProfile } from "@/components/DashSidebar";
@@ -130,6 +131,9 @@ export default function BackofficeLayout({ children }) {
 
     bootstrap();
   }, []);
+
+  // Shop name, mode (auto/manual)… follow changes made elsewhere, e.g. from the owner portal.
+  useLiveRefresh(loadProfile, { enabled: authed === true });
 
   // Keep session honest while the tab stays open (e.g. after Resend Access).
   useEffect(() => {

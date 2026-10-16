@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 
 /**
  * Inbox → System: which server settings are in place (AI, WhatsApp, queue, scheduler, email,
@@ -13,13 +14,15 @@ export default function LaunchChecklist({ api }) {
   const [checks, setChecks] = useState(null);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    api("GET", "/admin/system-status")
-      .then((data) => { if (!cancelled) setChecks(data?.checks || []); })
-      .catch(() => { if (!cancelled) setChecks([]); });
-    return () => { cancelled = true; };
-  }, [api]);
+  const load = useCallback(
+    () => api("GET", "/admin/system-status")
+      .then((data) => setChecks(data?.checks || []))
+      .catch(() => setChecks((cur) => cur ?? [])),
+    [api],
+  );
+
+  useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   if (!checks?.length) return null;
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
@@ -27,6 +28,7 @@ export default function TeamPage() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   async function setStatus(id, status) {
     try { await api("POST", `/drivers/${id}/status`, { status }); load(); } catch (e) { toast(e.message, "error"); }

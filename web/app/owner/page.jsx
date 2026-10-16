@@ -10,6 +10,7 @@ import { PageHeader, EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/o
 import MerchantPanel from "@/components/owner/MerchantPanel";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
 import { MERCHANT_FILTERS, pillClass } from "@/lib/pillTones";
 import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
@@ -56,14 +57,12 @@ export default function MerchantsPage() {
       setMerchants(m || []);
     } catch (e) {
       loadError = e.message;
-      setMerchants([]);
     }
 
     try {
       const { requests: r = [] } = await api("GET", "/admin/onboarding");
       setRequests(r);
     } catch (e) {
-      setRequests([]);
       if (!loadError) loadError = e.message;
     }
 
@@ -72,6 +71,7 @@ export default function MerchantsPage() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   // Deep-link: ?m=<id>&tab=bot|billing|info, ?filter=requests, ?req=<requestId>
   useEffect(() => {

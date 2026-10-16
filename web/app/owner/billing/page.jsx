@@ -8,6 +8,7 @@ import { Modal, ConfirmModal, useToast, WhatsAppIcon, Skeleton } from "@/compone
 import { PageHeader } from "@/components/owner/ui";
 import { BILLING_FILTERS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 /** Pending payments this many days past the renewal date count as overdue. */
@@ -43,6 +44,7 @@ export default function BillingPage() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   // Deep-link: ?m=<id> scrolls to merchant row, ?filter=pending|trial pre-selects filter
   useEffect(() => {

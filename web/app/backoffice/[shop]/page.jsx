@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useMerchant } from "../layout";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { ErrorBanner } from "@/components/owner/ui";
 
 /** Where each setup step is done in the dashboard (WhatsApp is connected by NeoTalab). */
@@ -26,6 +27,7 @@ export default function ShopHome() {
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveRefresh(load);
 
   if (error) return <ErrorBanner message={error} />;
   if (!setup) return <div className="loader">{t("db.loading")}</div>;

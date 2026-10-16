@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { timeAgo } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { Skeleton, useToast } from "@/components/ui";
 import { EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
 import LaunchChecklist from "@/components/owner/LaunchChecklist";
@@ -29,12 +30,16 @@ export default function SystemAlerts({ api, onCountChange }) {
       setAlerts(list);
       if (!showFixed) onCountChange?.(list.length);
     } catch (e) {
-      setAlerts([]);
-      toast(e.message, "error");
+      // A failed background refresh keeps the list on screen; only the first load reports it.
+      setAlerts((cur) => {
+        if (cur === null) toast(e.message, "error");
+        return cur ?? [];
+      });
     }
   }, [api, showFixed, onCountChange, toast]);
 
   useEffect(() => { setAlerts(null); load(); }, [load]);
+  useLiveRefresh(load);
 
   async function resolve(id) {
     try { await api("POST", `/admin/system-alerts/${id}/resolve`); load(); } catch (e) { toast(e.message, "error"); }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { Modal, useToast } from "@/components/ui";
 
@@ -26,13 +27,14 @@ export default function CustomersPage() {
       const { customers: c } = await api("GET", url);
       setCustomers(c);
       setError("");
-    } catch (e) { setError(e.message); setCustomers([]); }
+    } catch (e) { setError(e.message); }
   }, [api, search, blockedFilter]);
 
   useEffect(() => {
     const timer = setTimeout(load, search ? 400 : 0);
     return () => clearTimeout(timer);
   }, [load, search]);
+  useLiveRefresh(load);
 
   async function unblock(id) {
     try { await api("POST", `/customers/${id}/unblock`); load(); toast(t("db.saved")); }

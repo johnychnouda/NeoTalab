@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useOwner } from "../layout";
 import { buildInboxAlerts } from "@/lib/inbox";
 import { getActivity } from "@/lib/activity";
+import { useLiveRefresh } from "@/lib/live";
 import { timeAgo } from "@/lib/api";
 import { Skeleton } from "@/components/ui";
 import { PageHeader, EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
@@ -67,16 +68,21 @@ function InboxContent() {
         api("GET", "/admin/onboarding"),
       ]);
       setAlerts(buildInboxAlerts(merchants, requests, t));
-    } catch { setAlerts([]); }
+    } catch { /* keep what is on screen; the next refresh tries again */ }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is rebuilt every render; `lang` is what changes it.
   }, [api, lang]);
 
+  const loadSystemCount = useCallback(
+    () => api("GET", "/admin/system-alerts").then(({ alerts: list = [] }) => setSystemCount(list.length)).catch(() => {}),
+    [api],
+  );
+  const loadHistory = useCallback(() => getActivity().then(setHistory).catch(() => {}), []);
+
   useEffect(() => { loadAlerts(); }, [loadAlerts]);
-  useEffect(() => {
-    api("GET", "/admin/system-alerts").then(({ alerts: list = [] }) => setSystemCount(list.length)).catch(() => {});
-  }, [api]);
-  useEffect(() => { if (tab === "history") getActivity().then(setHistory).catch(() => setHistory([])); }, [tab]);
+  useEffect(() => { loadSystemCount(); }, [loadSystemCount]);
+  useEffect(() => { if (tab === "history") loadHistory(); }, [tab, loadHistory]);
+  useLiveRefresh(() => Promise.all([loadAlerts(), loadSystemCount(), tab === "history" ? loadHistory() : null]));
 
   function setTab(next) {
     const q = next === "alerts" ? "" : `?tab=${next}`;
