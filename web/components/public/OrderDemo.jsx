@@ -286,7 +286,7 @@ export default function OrderDemo({ demo }) {
                     <strong>{scenario.shop}</strong>
                     <span>{typing === chat ? demo.typing : demo.online}</span>
                   </div>
-                  <Svg d={icons.video} size={21} />
+                  <Svg d={icons.video} size={21} className="wa-video" />
                   <Svg d={icons.call} size={17} />
                   <Svg d={icons.more} size={18} />
                 </div>
