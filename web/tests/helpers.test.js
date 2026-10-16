@@ -5,10 +5,10 @@ import { collectedInMonth, monthlyRecurringRevenue, paymentsInMonth, sumPaymentA
 
 describe("money", () => {
   it("formats each currency", () => {
-    expect(formatMoney(12)).toBe("$12.00");
+    expect(formatMoney(12)).toBe("12.00$");
     expect(formatMoney("150000", "LBP")).toBe("150,000 LBP");
     expect(formatMoney(3.5, "EUR")).toBe("3.50 EUR");
-    expect(formatMoney(null)).toBe("$0.00");
+    expect(formatMoney(null)).toBe("0.00$");
     expect(currencyLabel("USD")).toBe("$");
     expect(currencyLabel("LBP")).toBe("LBP");
   });

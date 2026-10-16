@@ -83,25 +83,25 @@ class MenuEditorTest extends TestCase
     {
         $setup = $this->withToken($this->token)->getJson('/api/v1/settings/setup')->assertOk()->json('setup');
         $this->assertFalse($setup['ready']);
-        $this->assertSame(['whatsapp', 'business', 'menu', 'hours', 'zones', 'team', 'whish', 'report'], array_column($setup['steps'], 'key'));
+        $this->assertSame(['menu', 'hours', 'zones', 'team', 'whish', 'report'], array_column($setup['steps'], 'key'));
+        $this->assertFalse($setup['whatsapp_connected']);
 
         Product::factory()->forMerchant($this->merchant)->create();
         $menu = collect($this->withToken($this->token)->getJson('/api/v1/settings/setup')->json('setup.steps'))->firstWhere('key', 'menu');
         $this->assertTrue($menu['done']);
     }
 
-    public function test_business_type_picked_at_sign_up_counts_as_chosen(): void
+    public function test_the_shop_sees_its_trial_and_when_it_ends(): void
     {
-        $step = function () {
-            $this->app['auth']->forgetGuards(); // re-read the merchant on each request
+        $this->merchant->forceFill(['trial_ends_at' => now()->addDays(2), 'settings' => array_merge($this->merchant->settings ?? [], [
+            'subscription_status' => 'trial', 'monthly_fee' => 30,
+        ])])->save();
 
-            return collect($this->withToken($this->token)->getJson('/api/v1/settings/setup')->json('setup.steps'))->firstWhere('key', 'business');
-        };
+        $sub = $this->withToken($this->token)->getJson('/api/v1/settings/profile')->assertOk()->json('profile.subscription');
 
-        $this->merchant->forceFill(['business_type' => 'general', 'settings' => []])->save();
-        $this->assertFalse($step()['done']);
-
-        $this->merchant->forceFill(['business_type' => 'Bakery / Sweets'])->save();
-        $this->assertTrue($step()['done']);
+        $this->assertSame('trial', $sub['status']);
+        $this->assertSame('monthly', $sub['billing_cycle']);
+        $this->assertEquals(30, $sub['fee']);
+        $this->assertSame($this->merchant->fresh()->trial_ends_at->toIso8601String(), $sub['renews_at']);
     }
 }

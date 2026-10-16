@@ -12,6 +12,8 @@ export const company = {
   email: env(process.env.NEXT_PUBLIC_CONTACT_EMAIL, "support@neotalab.com"),
   phone: env(process.env.NEXT_PUBLIC_CONTACT_PHONE),
   whatsapp: env(process.env.NEXT_PUBLIC_CONTACT_WHATSAPP),
+  // Support number shown to signed-in shops only (dashboard help button), not on the public site.
+  supportWhatsapp: env(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP, "+96170207078"),
   siteUrl: env(process.env.NEXT_PUBLIC_SITE_URL, "https://neotalab.com"),
   // Meta Business Settings → Brand safety → Domains → "Meta-tag verification" content value.
   facebookDomainVerification: env(process.env.NEXT_PUBLIC_FB_DOMAIN_VERIFICATION, "l993phcdrjslirzrkphkzl4bbsw2vt"),

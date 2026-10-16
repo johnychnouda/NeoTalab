@@ -56,13 +56,6 @@ final class BusinessKind
         return self::TYPES[(string) $merchant->business_type] ?? 'other';
     }
 
-    /** The shop picked its type, either at sign-up (/join) or later in Settings. */
-    public static function chosen(Merchant $merchant): bool
-    {
-        return isset(($merchant->settings ?? [])['business_kind'])
-            || isset(self::TYPES[(string) $merchant->business_type]);
-    }
-
     public static function menuWord(Merchant $merchant): string
     {
         return self::KINDS[self::of($merchant)][0];

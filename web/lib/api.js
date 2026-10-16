@@ -183,7 +183,8 @@ export async function apiFetch(role, method, path, body) {
   }
 
   if (!r.ok) {
-    if (r.status === 401 && token) {
+    // Sign out only if this token is still the current one (a password change swaps it mid-flight).
+    if (r.status === 401 && token && getToken(role) === token) {
       clearToken(role);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("nt:auth-expired", { detail: { role } }));

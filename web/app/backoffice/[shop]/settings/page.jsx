@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
+import { setToken } from "@/lib/api";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
 import Segmented from "@/components/Segmented";
@@ -138,6 +139,7 @@ function Settings() {
     ["hours", t("db.set.tab.hours"), hoursChanged],
     ...(!bookingsOnly ? [["payments", t("db.set.tab.payments"), changed.includes("payments")]] : []),
     ["alerts", t("db.set.tab.alerts"), changed.includes("alerts")],
+    ["account", t("db.set.tab.account"), false],
   ];
   const tab = tabs.some(([id]) => id === picked) ? picked : "shop"; // a tab this shop doesn't have opens Shop
 
@@ -371,6 +373,8 @@ function Settings() {
         </Card>
       </>)}
 
+      {tab === "account" && <PasswordCard api={api} t={t} toast={toast} />}
+
       {dirty && (
         <div className="sset-savebar" role="region" aria-label={t("db.set.unsaved")}>
           <span>{t("db.set.unsaved")}</span>
@@ -402,6 +406,48 @@ function Settings() {
           }} />
       )}
     </div>
+  );
+}
+
+/** Change password. Saves on its own (not through the unsaved-changes bar); other devices are signed out. */
+function PasswordCard({ api, t, toast }) {
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const mismatch = again.length > 0 && next !== again;
+  const ready = cur && next.length >= 8 && next === again;
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!ready) return;
+    setBusy(true);
+    try {
+      const { token } = await api("PATCH", "/auth/password", { current_password: cur, password: next, password_confirmation: again });
+      if (token) setToken("merchant", token);
+      setCur(""); setNext(""); setAgain("");
+      toast(t("db.acc.changed"));
+    } catch (err) { toast(err.message, "error"); }
+    setBusy(false);
+  }
+
+  return (
+    <Card title={t("db.acc.pw")} desc={t("db.acc.pwDesc")}>
+      <form onSubmit={submit}>
+        <Field id="pw-cur" label={t("db.acc.current")}>
+          <input id="pw-cur" type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />
+        </Field>
+        <div className="sset-grid">
+          <Field id="pw-new" label={t("db.acc.new")} hint={t("db.acc.min")}>
+            <input id="pw-new" type="password" autoComplete="new-password" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} />
+          </Field>
+          <Field id="pw-again" label={t("db.acc.confirm")} hint={mismatch ? t("db.acc.mismatch") : null}>
+            <input id="pw-again" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} aria-invalid={mismatch} />
+          </Field>
+        </div>
+        <button type="submit" className="btn-primary" disabled={!ready || busy}>{busy ? "…" : t("db.acc.pw")}</button>
+      </form>
+    </Card>
   );
 }
 

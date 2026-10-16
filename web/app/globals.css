@@ -2143,6 +2143,17 @@ button.wa-mic { border: 0; cursor: pointer; }
 .gs-banner { display: flex; gap: 18px; align-items: center; padding: 18px 20px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); margin-bottom: 26px; }
 .gs-banner.ok { border-color: #25d36655; background: linear-gradient(180deg, #25d3660f, var(--surface) 70%); }
 .gs-banner strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.gs-wa { font-size: 13px; color: var(--text-muted); }
+.gs-wa.ok { color: var(--text); }
+.gs-plan { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: -14px 0 26px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.gs-plan.soon { border-color: #f59e0b55; background: #f59e0b0d; }
+.gs-plan.due { border-color: #ff4d4d66; background: #ff4d4d10; }
+.gs-plan-label { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+.gs-plan strong { display: block; font-size: 15px; }
+.gs-plan.due strong { color: var(--red); }
+.gs-plan p { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
+.gs-plan a { flex-shrink: 0; text-decoration: none; }
+@media (max-width: 640px) { .gs-plan { flex-direction: column; align-items: flex-start; } }
 .gs-banner p { color: var(--text-muted); font-size: 13px; margin: 0; }
 .gs-ring { --p: 0%; flex: none; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
   background: conic-gradient(var(--green) var(--p), var(--surface2) 0); }
@@ -2380,6 +2391,12 @@ button.wa-mic { border: 0; cursor: pointer; }
 .bot-switch-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .bot-switch-text strong { font-size: 13px; font-weight: 600; }
 .bot-switch-text span { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
+.bot-switch.waiting { border-color: var(--border); background: var(--surface2); cursor: default; }
+.bot-switch.waiting:hover { border-color: var(--border); }
+.bot-switch.waiting .bot-switch-dot { background: var(--text-muted); box-shadow: 0 0 0 4px #93a59b26; animation: waPulse 1.6s ease-in-out infinite; }
+.bot-switch.waiting .bot-switch-track { display: none; }
+@keyframes waPulse { 50% { opacity: 0.35; } }
+.dash-help { width: auto; margin: 0 12px 8px; color: var(--text-muted); }
 .bot-switch-track { position: relative; width: 36px; height: 20px; flex-shrink: 0; border-radius: 999px; background: var(--green); transition: background 0.15s; }
 .bot-switch-track span { position: absolute; top: 2px; inset-inline-start: 18px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: inset-inline-start 0.15s; }
 .bot-switch.off .bot-switch-track { background: #3a4a41; }
@@ -2417,6 +2434,8 @@ button.wa-mic { border: 0; cursor: pointer; }
 .bot-chip.off { border-color: #f59e0b55; background: #f59e0b12; color: var(--orange); }
 .bot-chip .bot-switch-dot { width: 7px; height: 7px; box-shadow: none; }
 .bot-chip.off .bot-switch-dot { background: var(--orange); box-shadow: none; }
+.bot-chip.waiting { border-color: var(--border); background: var(--surface2); color: var(--text-muted); cursor: default; }
+.bot-chip.waiting .bot-switch-dot { background: var(--text-muted); }
 .mobile-topbar-brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Owner Inbox → System alerts */
@@ -2513,6 +2532,7 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset-field label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
 .sset-field input, .sset-field select { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
 .sset-field input:focus, .sset-field select:focus { border-color: var(--green); }
+.sset-field input[aria-invalid="true"] { border-color: var(--red); }
 .sset-field input::placeholder { color: #93a59b80; }
 .sset-field.narrow input, .sset-field.narrow select { max-width: 160px; }
 .sset-hint { margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }

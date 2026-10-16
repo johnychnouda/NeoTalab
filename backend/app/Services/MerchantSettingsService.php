@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Resources\AdminMerchantResource;
 use App\Models\DeliveryZone;
 use App\Models\Driver;
 use App\Models\Merchant;
@@ -12,6 +13,7 @@ use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\MerchantWhatsAppCredentials;
 use App\Support\ShopSettings;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -37,6 +39,9 @@ class MerchantSettingsService
             'wish_timeout_mins' => $settings['wish_timeout_mins'] ?? 15,
             'business_kind' => BusinessKind::of($merchant),
             'menu_profile' => BusinessKind::profile($merchant),
+            'whatsapp_connected' => MerchantWhatsAppCredentials::resolve($merchant) !== null,
+            'whatsapp_display' => $settings['bot']['display_phone_number'] ?? null,
+            'subscription' => $this->subscription($merchant),
         ] + collect(ShopSettings::FIELDS)->keys()
             ->mapWithKeys(fn (string $key) => [$key => ShopSettings::for($merchant)->get($key)])
             ->all();
@@ -55,9 +60,10 @@ class MerchantSettingsService
         $team = Driver::query()->where('merchant_id', $merchant->id)->where('is_active', true)->get(['role']);
         $bot = ($merchant->settings ?? [])['bot'] ?? [];
 
+        // The WhatsApp number is connected by NeoTalab and the type of business comes from the join
+        // form, so neither is a step for the shop; the number shows as a status instead.
+        $connected = MerchantWhatsAppCredentials::resolve($merchant) !== null;
         $steps = [
-            ['key' => 'whatsapp', 'done' => MerchantWhatsAppCredentials::resolve($merchant) !== null, 'required' => true],
-            ['key' => 'business', 'done' => BusinessKind::chosen($merchant), 'required' => true],
             ['key' => 'menu', 'done' => Product::query()->where('merchant_id', $merchant->id)->exists(), 'required' => true],
             ['key' => 'hours', 'done' => ShopHour::query()->where('merchant_id', $merchant->id)->exists(), 'required' => true],
         ];
@@ -73,10 +79,38 @@ class MerchantSettingsService
 
         return [
             'steps' => $steps,
-            'ready' => collect($steps)->where('required', true)->every(fn ($step) => $step['done']),
+            'ready' => $connected && collect($steps)->where('required', true)->every(fn ($step) => $step['done']),
+            'whatsapp_connected' => $connected,
             'whatsapp_number' => $bot['display_phone_number'] ?? null,
             'drivers' => $team->where('role', 'driver')->count(),
             'staff' => $team->where('role', 'staff')->count(),
+        ];
+    }
+
+    /**
+     * The shop's own view of its NeoTalab subscription: trial, paid or payment due, and when the
+     * trial ends or the next payment is due.
+     *
+     * @return array{status: string, trial_ends_at: ?string, renews_at: ?string, billing_cycle: string, fee: float}
+     */
+    protected function subscription(Merchant $merchant): array
+    {
+        $m = (new AdminMerchantResource($merchant))->resolve();
+        $yearly = $m['billing_cycle'] === 'yearly';
+        $lastPaid = $m['last_payment_at'] ? Carbon::parse($m['last_payment_at']) : null;
+        $renews = match (true) {
+            $merchant->trial_ends_at && ! $lastPaid && ! $merchant->subscription_ends_at => $merchant->trial_ends_at,
+            (bool) $merchant->subscription_ends_at => $merchant->subscription_ends_at,
+            (bool) $lastPaid => $yearly ? $lastPaid->copy()->addYear() : $lastPaid->copy()->addMonth(),
+            default => null,
+        };
+
+        return [
+            'status' => (string) $m['subscription_status'],
+            'trial_ends_at' => $merchant->trial_ends_at?->toIso8601String(),
+            'renews_at' => $renews?->toIso8601String(),
+            'billing_cycle' => $yearly ? 'yearly' : 'monthly',
+            'fee' => $yearly ? $m['yearly_fee'] : $m['monthly_fee'],
         ];
     }
 

@@ -22,6 +22,7 @@ const api = (method, path, body) => apiFetch("merchant", method, path, body);
 const SECTIONS = new Set(["menu", "appointments", "drivers", "customers", "analytics", "settings"]);
 
 const ICON = {
+  help: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01" /></svg>,
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>,
   menu: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="3" width="16" height="18" rx="2.5" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>,
   team: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="6" cy="17" r="2.5" /><circle cx="18" cy="17" r="2.5" /><path d="M8.5 17h7M15 6h2.5l2 8.5M15 6v4H9.5l-1 4.5" /></svg>,
@@ -214,14 +215,19 @@ export default function BackofficeLayout({ children }) {
 
   const items = navItems(shopSlug, shop, t);
   const { section } = parseBackofficePath(pathname);
+  // Until NeoTalab connects the shop's number nothing can answer, so the switch can't say "on".
+  const waiting = shop.whatsapp_connected === false;
+  const helpUrl = company.supportWhatsapp
+    ? `https://wa.me/${company.supportWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(t("db.help.msg", { shop: shopName || "" }))}`
+    : "";
 
   return (
     <MerchantContext.Provider value={{ api, shop, shopName, shopSlug, refreshProfile: loadProfile }}>
       <AppShell brand={shopName || "NeoTalab"} className="dash"
         topbarExtra={(
-          <button type="button" role="switch" aria-checked={mode !== "manual"} aria-label={t("mode.toggle")}
-            className={`bot-chip ${mode !== "manual" ? "on" : "off"}`} onClick={() => changeMode(mode === "manual" ? "auto" : "manual")}>
-            <span className="bot-switch-dot" aria-hidden="true" />{mode !== "manual" ? t("mode.chipOn") : t("mode.chipOff")}
+          <button type="button" role="switch" aria-checked={!waiting && mode !== "manual"} aria-label={t("mode.toggle")} disabled={waiting}
+            className={`bot-chip ${waiting ? "waiting" : mode !== "manual" ? "on" : "off"}`} onClick={() => changeMode(mode === "manual" ? "auto" : "manual")}>
+            <span className="bot-switch-dot" aria-hidden="true" />{waiting ? t("mode.chipWaiting") : mode !== "manual" ? t("mode.chipOn") : t("mode.chipOff")}
           </button>
         )}
         sidebar={(
@@ -230,7 +236,7 @@ export default function BackofficeLayout({ children }) {
             <Brand size={30} />
           </div>
 
-          <BotSwitch on={mode !== "manual"} t={t} onChange={(on) => changeMode(on ? "auto" : "manual")} />
+          <BotSwitch on={mode !== "manual"} waiting={waiting} t={t} onChange={(on) => changeMode(on ? "auto" : "manual")} />
 
           <nav aria-label={shopName || "NeoTalab"}>
             {items.map((item) => {
@@ -244,6 +250,12 @@ export default function BackofficeLayout({ children }) {
             })}
           </nav>
           <div className="sidebar-spacer" />
+          {helpUrl && (
+            <a className="nav-item dash-help" href={helpUrl} target="_blank" rel="noopener noreferrer">
+              {ICON.help}
+              <span>{t("db.help")}</span>
+            </a>
+          )}
           <div className="dash-side-foot">
             <DashLangSwitch />
             <DashProfile name={shopName || "NeoTalab"} role={t("db.shopOwner")} onLogout={logout} />
@@ -259,14 +271,14 @@ export default function BackofficeLayout({ children }) {
 const SUPPORT_WA = company.whatsapp ? `https://wa.me/${company.whatsapp.replace(/\D/g, "")}` : "";
 
 /** Big, clear on/off switch for the WhatsApp bot (auto = on, manual = the merchant replies). */
-function BotSwitch({ on, onChange, t }) {
+function BotSwitch({ on, waiting, onChange, t }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={t("mode.toggle")}
-      className={`bot-switch ${on ? "on" : "off"}`} onClick={() => onChange(!on)}>
+    <button type="button" role="switch" aria-checked={!waiting && on} aria-label={t("mode.toggle")} disabled={waiting}
+      className={`bot-switch ${waiting ? "waiting off" : on ? "on" : "off"}`} onClick={() => onChange(!on)}>
       <span className="bot-switch-dot" aria-hidden="true" />
       <span className="bot-switch-text">
-        <strong>{on ? t("mode.on") : t("mode.off")}</strong>
-        <span>{on ? t("mode.onSub") : t("mode.offSub")}</span>
+        <strong>{waiting ? t("mode.waiting") : on ? t("mode.on") : t("mode.off")}</strong>
+        <span>{waiting ? t("mode.waitingSub") : on ? t("mode.onSub") : t("mode.offSub")}</span>
       </span>
       <span className="bot-switch-track" aria-hidden="true"><span /></span>
     </button>
