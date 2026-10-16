@@ -8,15 +8,39 @@ import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 
 const KINDS = ["restaurant", "grocery", "pharmacy", "retail", "flowers", "water", "laundry", "services", "other"];
+const LBP_RATE = 89500;
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+
+/**
+ * What each tab sends to PATCH /settings/profile. A tab counts as changed when its body differs
+ * from the saved profile, and one Save sends every changed tab together.
+ */
+const GROUPS = {
+  shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "", defaultLocale: p.default_locale || "ar" }),
+  orders: (p) => ({
+    business_kind: p.business_kind || "other", business_mode: p.business_mode || "orders",
+    appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
+    fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
+    timing_unit: p.timing_unit || "minutes", prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
+    delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
+    late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
+  }),
+  payments: (p) => ({
+    whish_channel: p.whish_channel || "", ...(p.whish_secret_new ? { whish_secret: p.whish_secret_new } : {}),
+    whish_sandbox: !!p.whish_sandbox, wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
+  }),
+  alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
+};
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function SettingsPage() {
   return <Suspense fallback={null}><Settings /></Suspense>;
 }
 
 /**
- * Shop setup, in sections: Shop · Orders · Delivery areas · Opening hours · Payments · Reports & chats.
- * ?tab= opens a section directly (links from the Get started checklist).
+ * Shop setup, in tabs: Shop · Orders · Delivery areas · Opening hours · Payments · Reports & chats.
+ * Edits on any tab wait in one "unsaved changes" bar; delivery areas save as soon as they are added.
+ * ?tab= opens a tab directly (links from the Get started checklist).
  */
 function Settings() {
   const { api, refreshProfile, shop } = useMerchant();
@@ -25,7 +49,9 @@ function Settings() {
   const params = useSearchParams();
 
   const [picked, setTab] = useState(params.get("tab") || "shop");
+  const [saved, setSaved] = useState(null);
   const [p, setProfile] = useState(null);
+  const [savedHours, setSavedHours] = useState([]);
   const [hours, setHours] = useState([]);
   const [zones, setZones] = useState([]);
   const [modal, setModal] = useState(null);
@@ -38,248 +64,350 @@ function Settings() {
         api("GET", "/settings/hours"),
         api("GET", "/settings/zones"),
       ]);
-      setProfile(profile || {});
-      setHours((h || []).map((x) => ({
+      const rows = (h || []).map((x) => ({
         dayOfWeek: x.day_of_week, opensAt: x.opens_at?.slice(0, 5) || "09:00", closesAt: x.closes_at?.slice(0, 5) || "23:00", isClosed: !!x.is_closed,
-      })));
+      }));
+      setSaved(profile || {});
+      setProfile(profile || {});
+      setSavedHours(rows);
+      setHours(rows);
       setZones(z || []);
     } catch (e) { toast(e.message, "error"); }
   }, [api, toast]);
 
+  const loadZones = useCallback(async () => {
+    try { setZones((await api("GET", "/settings/zones")).zones || []); } catch (e) { toast(e.message, "error"); }
+  }, [api, toast]);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { const q = params.get("tab"); if (q) setTab(q); }, [params]);
+
+  const changed = p && saved ? Object.keys(GROUPS).filter((g) => !same(GROUPS[g](p), GROUPS[g](saved))) : [];
+  const hoursChanged = !same(hours, savedHours);
+  const dirty = changed.length > 0 || hoursChanged;
+
+  // Leaving the page (refresh, close, typing a new address) with unsaved edits asks first.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   if (!p) return <div className="loader">{t("db.loading")}</div>;
 
   const setP = (key, val) => setProfile((x) => ({ ...x, [key]: val }));
   const bookingsOnly = p.business_mode === "appointments";
   const delivers = !bookingsOnly && (p.fulfillment || "delivery") !== "pickup";
+  const pickup = !bookingsOnly && ["pickup", "both"].includes(p.fulfillment);
+  const unit = p.timing_unit || "minutes";
+  const lbpOn = Number(p.lbp_rate) > 0;
 
-  async function save(body, reload = false) {
+  async function saveAll() {
     setBusy(true);
     try {
-      await api("PATCH", "/settings/profile", body);
+      if (changed.length) {
+        await api("PATCH", "/settings/profile", Object.assign({}, ...changed.map((g) => GROUPS[g](p))));
+      }
+      if (hoursChanged) await api("PUT", "/settings/hours", { hours });
       await refreshProfile?.();
+      await load();
       toast(t("db.saved"));
-      if (reload) load();
     } catch (e) { toast(e.message, "error"); }
     setBusy(false);
   }
 
+  function discard() {
+    setProfile(saved);
+    setHours(savedHours);
+  }
+
+  function copyHours() {
+    const from = hours.find((h) => !h.isClosed);
+    if (!from) return;
+    setHours(hours.map((h) => (h.isClosed ? h : { ...h, opensAt: from.opensAt, closesAt: from.closesAt })));
+    toast(t("db.set.copied", { day: t(`db.day.${from.dayOfWeek}`) }));
+  }
+
   const tabs = [
-    ["shop", t("db.set.tab.shop")],
-    ["orders", t("db.set.tab.orders")],
-    ...(delivers ? [["areas", t("db.set.tab.areas")]] : []),
-    ["hours", t("db.set.tab.hours")],
-    ...(!bookingsOnly ? [["payments", t("db.set.tab.payments")]] : []),
-    ["alerts", t("db.set.tab.alerts")],
+    ["shop", t("db.set.tab.shop"), changed.includes("shop")],
+    ["orders", t("db.set.tab.orders"), changed.includes("orders")],
+    ...(delivers ? [["areas", t("db.set.tab.areas"), false]] : []),
+    ["hours", t("db.set.tab.hours"), hoursChanged],
+    ...(!bookingsOnly ? [["payments", t("db.set.tab.payments"), changed.includes("payments")]] : []),
+    ["alerts", t("db.set.tab.alerts"), changed.includes("alerts")],
   ];
   const tab = tabs.some(([id]) => id === picked) ? picked : "shop"; // a tab this shop doesn't have opens Shop
-  const hint = (text) => <div className="mk-hint">{text}</div>;
-  const yesNo = (key, on = "15") => (
-    <select style={{ maxWidth: 140 }} value={Number(p[key] ?? on) > 0 ? on : "0"} onChange={(e) => setP(key, e.target.value)}>
-      <option value={on}>{t("ops.yes")}</option>
-      <option value="0">{t("ops.no")}</option>
-    </select>
-  );
+
+  const warnings = [
+    delivers && zones.length === 0 && { text: t("db.set.warnZones"), go: "areas" },
+    pickup && !p.pickup_address?.trim() && { text: t("db.set.warnPickup"), go: "orders" },
+  ].filter(Boolean);
 
   return (
-    <div className="set">
+    <div className="sset">
       <div className="page-header"><h1>{t("settings.title")}</h1></div>
 
-      <div className="bo-htabs" role="tablist">
-        {tabs.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`bo-htab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
+      {warnings.map((w) => (
+        <div className="sset-warn" key={w.text} role="status">
+          <span>{w.text}</span>
+          {tab !== w.go && <button type="button" className="btn-sm" onClick={() => setTab(w.go)}>{t("db.set.fix")}</button>}
+        </div>
+      ))}
+
+      <div className="sset-tabs" role="tablist">
+        {tabs.map(([id, label, edited]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={`sset-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
+            {label}{edited && <span className="sset-dot" aria-label={t("db.set.unsaved")} />}
+          </button>
         ))}
       </div>
 
       {tab === "shop" && (
-        <section className="settings-section">
-          <div className="field"><label htmlFor="s-name">{t("db.set.shopName")}</label>
-            <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" /></div>
-          <div className="field"><label htmlFor="s-kind">{t("mk.kind")}</label>
-            <select id="s-kind" value={p.business_kind || "other"} onChange={(e) => setP("business_kind", e.target.value)}>
-              {KINDS.map((k) => <option key={k} value={k}>{t(`mk.kind.${k}`)}</option>)}
-            </select>{hint(t("mk.kindHint"))}</div>
-          <div className="field"><label htmlFor="s-wa">{t("db.set.waNumber")}</label>
-            <input id="s-wa" dir="ltr" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+96170123456" /></div>
-          <div className="field"><label htmlFor="s-lang">{t("db.set.language")}</label>
-            <select id="s-lang" value={p.default_locale || "ar"} onChange={(e) => setP("default_locale", e.target.value)}>
-              <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
-            </select></div>
-          {delivers && (
-            <div className="field"><label htmlFor="s-loc">{t("ops.shopLocation")}</label>
-              <input id="s-loc" dir="ltr" value={p.shop_location || ""} onChange={(e) => setP("shop_location", e.target.value)} placeholder="https://maps.app.goo.gl/…" />
-              {hint(t("ops.shopLocationHint"))}</div>
-          )}
-          <button className="btn-primary" disabled={busy} onClick={() => save({
-            shopName: p.shop_name, opsWhatsapp: p.ops_whatsapp, defaultLocale: p.default_locale,
-            business_kind: p.business_kind, shop_location: p.shop_location || null,
-          }, true)}>{t("db.save")}</button>
-        </section>
+        <Card title={t("db.set.card.shop")} desc={t("db.set.card.shopDesc")}>
+          <Field id="s-name" label={t("db.set.shopName")}>
+            <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" />
+          </Field>
+          <div className="sset-grid">
+            <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
+              <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
+            </Field>
+            <Field id="s-lang" label={t("db.set.language")}>
+              <select id="s-lang" value={p.default_locale || "ar"} onChange={(e) => setP("default_locale", e.target.value)}>
+                <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
+              </select>
+            </Field>
+          </div>
+        </Card>
       )}
 
-      {tab === "orders" && (
-        <section className="settings-section">
-          <div className="field"><label htmlFor="o-mode">{t("ops.businessMode")}</label>
-            <select id="o-mode" value={p.business_mode || "orders"} onChange={(e) => setP("business_mode", e.target.value)}>
-              <option value="orders">{t("ops.bmOrders")}</option>
-              <option value="appointments">{t("ops.bmAppointments")}</option>
-              <option value="both">{t("ops.bmBoth")}</option>
-            </select></div>
-          {p.business_mode && p.business_mode !== "orders" && (<>
-            <div className="field"><label htmlFor="o-cap">{t("ops.capacity")}</label>
-              <input id="o-cap" type="number" min="1" max="50" style={{ maxWidth: 120 }} value={p.appointment_capacity ?? 1} onChange={(e) => setP("appointment_capacity", e.target.value)} /></div>
-            <div className="field"><label htmlFor="o-step">{t("ops.slotStep")}</label>
-              <select id="o-step" style={{ maxWidth: 160 }} value={p.slot_step_mins ?? 30} onChange={(e) => setP("slot_step_mins", e.target.value)}>
-                {[10, 15, 20, 30, 45, 60].map((m) => <option key={m} value={m}>{m} min</option>)}
-              </select></div>
-            <div className="field"><label htmlFor="o-rem">{t("ops.reminder")}</label>
-              <input id="o-rem" type="number" min="0" max="2880" style={{ maxWidth: 120 }} value={p.reminder_mins ?? 120} onChange={(e) => setP("reminder_mins", e.target.value)} /></div>
-          </>)}
-          {!bookingsOnly && (<>
-            <div className="field"><label htmlFor="o-ful">{t("ops.fulfillment")}</label>
+      {tab === "orders" && (<>
+        <Card title={t("db.set.card.business")}>
+          <div className="sset-grid">
+            <Field id="o-kind" label={t("mk.kind")} hint={t("mk.kindHint")}>
+              <select id="o-kind" value={p.business_kind || "other"} onChange={(e) => setP("business_kind", e.target.value)}>
+                {KINDS.map((k) => <option key={k} value={k}>{t(`mk.kind.${k}`)}</option>)}
+              </select>
+            </Field>
+            <Field id="o-mode" label={t("ops.businessMode")}>
+              <select id="o-mode" value={p.business_mode || "orders"} onChange={(e) => setP("business_mode", e.target.value)}>
+                <option value="orders">{t("ops.bmOrders")}</option>
+                <option value="appointments">{t("ops.bmAppointments")}</option>
+                <option value="both">{t("ops.bmBoth")}</option>
+              </select>
+            </Field>
+          </div>
+        </Card>
+
+        {p.business_mode && p.business_mode !== "orders" && (
+          <Card title={t("db.set.card.bookings")}>
+            <div className="sset-grid three">
+              <Field id="o-cap" label={t("ops.capacity")}>
+                <input id="o-cap" type="number" min="1" max="50" value={p.appointment_capacity ?? 1} onChange={(e) => setP("appointment_capacity", e.target.value)} />
+              </Field>
+              <Field id="o-step" label={t("ops.slotStep")}>
+                <select id="o-step" value={p.slot_step_mins ?? 30} onChange={(e) => setP("slot_step_mins", e.target.value)}>
+                  {[10, 15, 20, 30, 45, 60].map((m) => <option key={m} value={m}>{m} min</option>)}
+                </select>
+              </Field>
+              <Field id="o-rem" label={t("ops.reminder")}>
+                <input id="o-rem" type="number" min="0" max="2880" value={p.reminder_mins ?? 120} onChange={(e) => setP("reminder_mins", e.target.value)} />
+              </Field>
+            </div>
+          </Card>
+        )}
+
+        {!bookingsOnly && (<>
+          <Card title={t("db.set.card.getting")}>
+            <Field id="o-ful" label={t("ops.fulfillment")}>
               <select id="o-ful" value={p.fulfillment || "delivery"} onChange={(e) => setP("fulfillment", e.target.value)}>
                 <option value="delivery">{t("ops.fDelivery")}</option>
                 <option value="pickup">{t("ops.fPickup")}</option>
                 <option value="both">{t("ops.fBoth")}</option>
-              </select></div>
-            {(p.fulfillment === "pickup" || p.fulfillment === "both") && (
-              <div className="field"><label htmlFor="o-pick">{t("ops.pickupAddress")}</label>
-                <input id="o-pick" value={p.pickup_address || ""} onChange={(e) => setP("pickup_address", e.target.value)} /></div>
+              </select>
+            </Field>
+            {pickup && (
+              <Field id="o-pick" label={t("ops.pickupAddress")}>
+                <input id="o-pick" value={p.pickup_address || ""} onChange={(e) => setP("pickup_address", e.target.value)} />
+              </Field>
             )}
-            <div className="field"><label htmlFor="o-unit">{t("ops.timing")}</label>
-              <select id="o-unit" value={p.timing_unit || "minutes"} onChange={(e) => setP("timing_unit", e.target.value)}>
-                <option value="minutes">{t("ops.tMinutes")}</option>
-                <option value="hours">{t("ops.tHours")}</option>
-                <option value="days">{t("ops.tDays")}</option>
-              </select></div>
-            {(p.timing_unit || "minutes") === "minutes" && (
-              <div className="field"><label htmlFor="o-prep">{t("ops.prep")}</label>
-                <input id="o-prep" type="number" min="1" max="240" style={{ maxWidth: 120 }} value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />
-                {hint(t("ops.prepHint"))}</div>
+            {delivers && (
+              <Field id="o-loc" label={t("ops.shopLocation")} hint={t("ops.shopLocationHint")}>
+                <input id="o-loc" dir="ltr" value={p.shop_location || ""} onChange={(e) => setP("shop_location", e.target.value)} placeholder="https://maps.app.goo.gl/…" />
+              </Field>
             )}
-            {p.timing_unit === "hours" && (
-              <div className="field"><label htmlFor="o-ph">{t("ops.prepHours")}</label>
-                <input id="o-ph" type="number" min="1" max="72" style={{ maxWidth: 120 }} value={p.prep_hours ?? 2} onChange={(e) => setP("prep_hours", e.target.value)} />
-                {hint(t("ops.prepHint"))}</div>
+            {unit === "minutes" && (
+              <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>
+                <input id="o-prep" type="number" min="1" max="240" value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />
+              </Field>
             )}
-            {p.timing_unit === "days" && (
-              <div className="field"><label htmlFor="o-dmin">{t("ops.days")}</label>
-                <div className="mk-row">
-                  <input id="o-dmin" type="number" min="0" max="60" style={{ maxWidth: 90 }} value={p.delivery_days_min ?? 1} onChange={(e) => setP("delivery_days_min", e.target.value)} />
+            {unit === "hours" && (
+              <Field id="o-ph" label={t("ops.prepHours")} hint={t("ops.prepHint")} narrow>
+                <input id="o-ph" type="number" min="1" max="72" value={p.prep_hours ?? 2} onChange={(e) => setP("prep_hours", e.target.value)} />
+              </Field>
+            )}
+            {unit === "days" && (
+              <Field id="o-dmin" label={t("ops.days")} hint={t("ops.daysHint")}>
+                <div className="sset-inline">
+                  <input id="o-dmin" type="number" min="0" max="60" value={p.delivery_days_min ?? 1} onChange={(e) => setP("delivery_days_min", e.target.value)} />
                   <span>{t("ops.daysTo")}</span>
-                  <input type="number" min="0" max="60" style={{ maxWidth: 90 }} value={p.delivery_days_max ?? 2} onChange={(e) => setP("delivery_days_max", e.target.value)} aria-label={t("ops.daysTo")} />
-                </div>{hint(t("ops.daysHint"))}</div>
+                  <input type="number" min="0" max="60" value={p.delivery_days_max ?? 2} onChange={(e) => setP("delivery_days_max", e.target.value)} aria-label={t("ops.daysTo")} />
+                </div>
+              </Field>
             )}
-            {p.timing_unit !== "days" && (
-              <div className="field"><label>{t("ops.late")}</label>{yesNo("late_alert_mins")}{hint(t("ops.lateHint"))}</div>
+            {unit !== "days" && (
+              <Switch checked={Number(p.late_alert_mins ?? 15) > 0} onChange={(on) => setP("late_alert_mins", on ? "15" : "0")}
+                label={t("ops.late")} hint={t("ops.lateHint")} />
             )}
-            <div className="field"><label htmlFor="o-lbp">{t("ops.lbp")}</label>
-              <input id="o-lbp" type="number" min="0" step="100" style={{ maxWidth: 180 }} value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} placeholder="89500" />
-              {hint(t("ops.lbpHint"))}</div>
-            <div className="field"><label>{t("ops.rating")}</label>{yesNo("rating_delay_mins", "30")}{hint(t("ops.ratingHint"))}</div>
-          </>)}
-          <button className="btn-primary" disabled={busy} onClick={() => save({
-            business_mode: p.business_mode || "orders", appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
-            fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null,
-            timing_unit: p.timing_unit || "minutes", prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
-            delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
-            late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
-          }, true)}>{t("db.save")}</button>
-        </section>
-      )}
+            <details className="sset-more">
+              <summary>{t("db.set.more")}</summary>
+              <Field id="o-unit" label={t("ops.timing")}>
+                <select id="o-unit" value={unit} onChange={(e) => setP("timing_unit", e.target.value)}>
+                  <option value="minutes">{t("ops.tMinutes")}</option>
+                  <option value="hours">{t("ops.tHours")}</option>
+                  <option value="days">{t("ops.tDays")}</option>
+                </select>
+              </Field>
+            </details>
+          </Card>
+
+          <Card title={t("db.set.card.after")}>
+            <Switch checked={lbpOn} onChange={(on) => setP("lbp_rate", on ? String(Number(saved.lbp_rate) > 0 ? saved.lbp_rate : LBP_RATE) : "")}
+              label={t("db.set.lbpOn")} hint={t("db.set.lbpOnHint")} />
+            {lbpOn && (
+              <Field id="o-lbp" label={t("ops.lbp")} narrow>
+                <input id="o-lbp" type="number" min="1" step="100" value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} />
+              </Field>
+            )}
+            <Switch checked={Number(p.rating_delay_mins ?? 30) > 0} onChange={(on) => setP("rating_delay_mins", on ? "30" : "0")}
+              label={t("ops.rating")} hint={t("ops.ratingHint")} />
+          </Card>
+        </>)}
+      </>)}
 
       {tab === "areas" && (
-        <section className="settings-section">
-          {zones.length === 0 && <p className="mk-hint">{t("db.zone.empty")}</p>}
-          {zones.map((z) => (
-            <div className="zone-row" key={z.id}>
-              <span className="zone-name">{z.name}</span>
-              <span className="zone-fee">{formatMoney(z.delivery_fee, shop.currency)}</span>
-              <span className="mk-hint" style={{ margin: 0 }}>{t("db.zone.minShort")} {formatMoney(z.minimum_order, shop.currency)} · {z.delivery_mins ?? 15} {t("zones.driveShort")}</span>
-              <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteZone", zone: z })} aria-label={t("db.remove")}>✕</button>
+        <Card title={t("db.set.tab.areas")} desc={t("db.zone.emptyDesc")}
+          action={zones.length > 0 && <button type="button" className="btn-primary" onClick={() => setModal({ type: "zone" })}>+ {t("db.zone.add")}</button>}>
+          {zones.length === 0 ? (
+            <div className="sset-empty">
+              <p>{t("db.zone.empty")}</p>
+              <button type="button" className="btn-primary" onClick={() => setModal({ type: "zone" })}>+ {t("db.zone.add")}</button>
             </div>
-          ))}
-          <button className="btn-primary" style={{ marginTop: 12 }} onClick={() => setModal({ type: "addZone" })}>+ {t("db.zone.add")}</button>
-        </section>
+          ) : (
+            <ul className="sset-list">
+              {zones.map((z) => (
+                <li key={z.id}>
+                  <div className="sset-list-main">
+                    <strong>{z.name}</strong>
+                    <span>
+                      {formatMoney(z.delivery_fee, shop.currency)} {t("db.zone.fee.short")} · {t("db.zone.minShort")} {formatMoney(z.minimum_order, shop.currency)} · {z.delivery_mins ?? 15} {t("zones.driveShort")}
+                    </span>
+                  </div>
+                  <button type="button" className="btn-sm" onClick={() => setModal({ type: "zone", zone: z })}>{t("mk.edit")}</button>
+                  <button type="button" className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteZone", zone: z })} aria-label={`${t("db.remove")} ${z.name}`}>✕</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       )}
 
       {tab === "hours" && (
-        <section className="settings-section">
-          <div className="hours-grid">
-            {hours.map((h) => (
-              <div className="hours-row" key={h.dayOfWeek}>
-                <span className="hours-day">{t(`db.day.${h.dayOfWeek}`)}</span>
-                <label className="mk-check"><input type="checkbox" checked={h.isClosed}
-                  onChange={(e) => setHours(hours.map((x) => (x.dayOfWeek === h.dayOfWeek ? { ...x, isClosed: e.target.checked } : x)))} /> {t("db.set.closed")}</label>
-                <input type="time" className="time-input" value={h.opensAt} disabled={h.isClosed} aria-label={t(`db.day.${h.dayOfWeek}`)}
-                  onChange={(e) => setHours(hours.map((x) => (x.dayOfWeek === h.dayOfWeek ? { ...x, opensAt: e.target.value } : x)))} />
-                <span className="mk-hint" style={{ margin: 0 }}>–</span>
-                <input type="time" className="time-input" value={h.closesAt} disabled={h.isClosed} aria-label={t(`db.day.${h.dayOfWeek}`)}
-                  onChange={(e) => setHours(hours.map((x) => (x.dayOfWeek === h.dayOfWeek ? { ...x, closesAt: e.target.value } : x)))} />
-              </div>
-            ))}
-          </div>
-          <button className="btn-primary" style={{ marginTop: 16 }} disabled={busy} onClick={async () => {
-            setBusy(true);
-            try { await api("PUT", "/settings/hours", { hours }); toast(t("db.saved")); } catch (e) { toast(e.message, "error"); }
-            setBusy(false);
-          }}>{t("db.save")}</button>
-        </section>
+        <Card title={t("db.set.tab.hours")} desc={t("db.set.hoursDesc")}
+          action={<button type="button" className="btn-sm" onClick={copyHours} disabled={!hours.some((h) => !h.isClosed)}>{t("db.set.copyAll")}</button>}>
+          <ul className="sset-hours">
+            {hours.map((h) => {
+              const update = (patch) => setHours(hours.map((x) => (x.dayOfWeek === h.dayOfWeek ? { ...x, ...patch } : x)));
+              const day = t(`db.day.${h.dayOfWeek}`);
+              return (
+                <li key={h.dayOfWeek} className={h.isClosed ? "closed" : ""}>
+                  <span className="sset-hours-day">{day}</span>
+                  <button type="button" role="switch" aria-checked={!h.isClosed} aria-label={`${day}: ${t("db.set.open")}`}
+                    className={`sset-switch ${h.isClosed ? "" : "on"}`} onClick={() => update({ isClosed: !h.isClosed })}><span /></button>
+                  {h.isClosed ? (
+                    <span className="sset-hours-closed">{t("db.set.closed")}</span>
+                  ) : (
+                    <span className="sset-hours-times">
+                      <input type="time" value={h.opensAt} aria-label={day} onChange={(e) => update({ opensAt: e.target.value })} />
+                      <span aria-hidden="true">–</span>
+                      <input type="time" value={h.closesAt} aria-label={day} onChange={(e) => update({ closesAt: e.target.value })} />
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       )}
 
       {tab === "payments" && (
-        <section className="settings-section">
-          <p className="mk-hint" style={{ fontSize: 13, lineHeight: 1.6 }}>{t("db.whish.intro")}</p>
-          <p><strong>{p.whish_connected ? t("db.whish.connected") : t("db.whish.notConnected")}</strong></p>
-          <div className="field"><label htmlFor="w-ch">{t("db.whish.channel")}</label>
-            <input id="w-ch" dir="ltr" value={p.whish_channel || ""} onChange={(e) => setP("whish_channel", e.target.value)} placeholder="10199" /></div>
-          <div className="field"><label htmlFor="w-sec">{t("db.whish.secret")}</label>
-            <input id="w-sec" dir="ltr" type="password" autoComplete="new-password" value={p.whish_secret_new || ""}
-              onChange={(e) => setP("whish_secret_new", e.target.value)} placeholder={p.whish_connected ? t("db.whish.secretSaved") : t("db.whish.secretPh")} /></div>
+        <Card title="Whish Pay" desc={t("db.whish.intro")}
+          action={<span className={`sset-badge ${p.whish_connected ? "ok" : ""}`}>{p.whish_connected ? t("db.whish.ok") : t("db.whish.notConnected")}</span>}>
+          <div className="sset-grid">
+            <Field id="w-ch" label={t("db.whish.channel")}>
+              <input id="w-ch" dir="ltr" value={p.whish_channel || ""} onChange={(e) => setP("whish_channel", e.target.value)} placeholder={t("db.whish.channelPh")} />
+            </Field>
+            <Field id="w-sec" label={t("db.whish.secret")}>
+              <input id="w-sec" dir="ltr" type="password" autoComplete="new-password" value={p.whish_secret_new || ""}
+                onChange={(e) => setP("whish_secret_new", e.target.value)} placeholder={p.whish_connected ? t("db.whish.secretSaved") : t("db.whish.secretPh")} />
+            </Field>
+          </div>
+          <Field id="w-to" label={t("db.whish.timeout")} narrow>
+            <input id="w-to" type="number" min="5" max="120" value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} />
+          </Field>
           {p.whish_sandbox_allowed && (
-            <label className="mk-check" style={{ marginBottom: 14 }}><input type="checkbox" checked={!!p.whish_sandbox} onChange={(e) => setP("whish_sandbox", e.target.checked)} /> {t("db.whish.test")}</label>
+            <Switch checked={!!p.whish_sandbox} onChange={(on) => setP("whish_sandbox", on)} label={t("db.whish.test")} />
           )}
-          <div className="field"><label htmlFor="w-to">{t("db.whish.timeout")}</label>
-            <input id="w-to" type="number" min="5" max="120" style={{ maxWidth: 100 }} value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} /></div>
-          <button className="btn-primary" disabled={busy} onClick={() => save({
-            whish_channel: p.whish_channel || "", ...(p.whish_secret_new ? { whish_secret: p.whish_secret_new } : {}),
-            whish_sandbox: !!p.whish_sandbox, wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
-          }, true)}>{t("db.save")}</button>
-        </section>
+        </Card>
       )}
 
-      {tab === "alerts" && (
-        <section className="settings-section">
-          <div className="field"><label htmlFor="a-rep">{t("ops.report")}</label>
-            <input id="a-rep" dir="ltr" value={p.report_whatsapp || ""} onChange={(e) => setP("report_whatsapp", e.target.value)} placeholder="+96170123456" />
-            {hint(t("ops.reportHint"))}</div>
-          <div className="field"><label htmlFor="a-hour">{t("ops.reportHour")}</label>
-            <select id="a-hour" style={{ maxWidth: 140 }} value={p.report_hour ?? 23} onChange={(e) => setP("report_hour", e.target.value)}>
-              {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
-            </select></div>
-          <div className="field"><label htmlFor="a-pause">{t("ops.pause")}</label>
-            <input id="a-pause" type="number" min="1" max="1440" style={{ maxWidth: 120 }} value={p.bot_pause_mins ?? 60} onChange={(e) => setP("bot_pause_mins", e.target.value)} />
-            {hint(t("ops.pauseHint"))}</div>
-          <button className="btn-primary" disabled={busy} onClick={() => save({
-            report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins),
-          })}>{t("db.save")}</button>
-        </section>
+      {tab === "alerts" && (<>
+        <Card title={t("db.set.card.report")}>
+          <div className="sset-grid wide-first">
+            <Field id="a-rep" label={t("ops.report")} hint={t("ops.reportHint")}>
+              <input id="a-rep" dir="ltr" inputMode="tel" value={p.report_whatsapp || ""} onChange={(e) => setP("report_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
+            </Field>
+            <Field id="a-hour" label={t("ops.reportHour")}>
+              <select id="a-hour" value={p.report_hour ?? 23} onChange={(e) => setP("report_hour", e.target.value)}>
+                {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+              </select>
+            </Field>
+          </div>
+        </Card>
+        <Card title={t("db.set.card.chats")}>
+          <Field id="a-pause" label={t("ops.pause")} hint={t("ops.pauseHint")} narrow>
+            <input id="a-pause" type="number" min="1" max="1440" value={p.bot_pause_mins ?? 60} onChange={(e) => setP("bot_pause_mins", e.target.value)} />
+          </Field>
+        </Card>
+      </>)}
+
+      {dirty && (
+        <div className="sset-savebar" role="region" aria-label={t("db.set.unsaved")}>
+          <span>{t("db.set.unsaved")}</span>
+          <div>
+            <button type="button" className="btn-sm" onClick={discard} disabled={busy}>{t("db.set.discard")}</button>
+            <button type="button" className="btn-primary" onClick={saveAll} disabled={busy}>{busy ? "…" : t("db.save")}</button>
+          </div>
+        </div>
       )}
 
-      {modal?.type === "addZone" && (
-        <ZoneModal t={t} onClose={() => setModal(null)} onSubmit={async (vals) => {
+      {modal?.type === "zone" && (
+        <ZoneModal t={t} zone={modal.zone} onClose={() => setModal(null)} onSubmit={async (vals) => {
           if (!vals.name) { toast(t("db.zone.nameRequired"), "error"); return; }
-          try { await api("POST", "/settings/zones", vals); setModal(null); load(); toast(t("db.saved")); }
-          catch (e) { toast(e.message, "error"); }
+          try {
+            if (modal.zone) await api("PATCH", `/settings/zones/${modal.zone.id}`, vals);
+            else await api("POST", "/settings/zones", vals);
+            setModal(null);
+            loadZones();
+            toast(t("db.saved"));
+          } catch (e) { toast(e.message, "error"); }
         }} />
       )}
       {modal?.type === "deleteZone" && (
         <ConfirmModal title={t("db.remove")} message={<><strong>{modal.zone.name}</strong> — {t("db.zone.remove")}</>} danger
           onClose={() => setModal(null)}
           onConfirm={async () => {
-            try { await api("DELETE", `/settings/zones/${modal.zone.id}`); load(); toast(t("db.saved")); }
+            try { await api("DELETE", `/settings/zones/${modal.zone.id}`); loadZones(); toast(t("db.saved")); }
             catch (e) { toast(e.message, "error"); }
           }} />
       )}
@@ -287,18 +415,56 @@ function Settings() {
   );
 }
 
-function ZoneModal({ t, onClose, onSubmit }) {
-  const [name, setName] = useState("");
-  const [fee, setFee] = useState("");
-  const [min, setMin] = useState("");
-  const [drive, setDrive] = useState("15");
+function Card({ title, desc, action, children }) {
   return (
-    <Modal title={t("db.zone.add")} onClose={onClose} compact
+    <section className="sset-card">
+      <header>
+        <div>
+          <h2>{title}</h2>
+          {desc && <p>{desc}</p>}
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function Field({ id, label, hint, narrow, children }) {
+  return (
+    <div className={`sset-field ${narrow ? "narrow" : ""}`}>
+      <label htmlFor={id}>{label}</label>
+      {children}
+      {hint && <p className="sset-hint">{hint}</p>}
+    </div>
+  );
+}
+
+/** A yes/no setting as one row: the words on one side, the switch on the other. */
+function Switch({ checked, onChange, label, hint }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} className="sset-switch-row" onClick={() => onChange(!checked)}>
+      <span className="sset-switch-text">
+        <strong>{label}</strong>
+        {hint && <span>{hint}</span>}
+      </span>
+      <span className={`sset-switch ${checked ? "on" : ""}`} aria-hidden="true"><span /></span>
+    </button>
+  );
+}
+
+function ZoneModal({ t, zone, onClose, onSubmit }) {
+  const [name, setName] = useState(zone?.name || "");
+  const [fee, setFee] = useState(zone ? String(Number(zone.delivery_fee)) : "");
+  const [min, setMin] = useState(zone ? String(Number(zone.minimum_order)) : "");
+  const [drive, setDrive] = useState(String(zone?.delivery_mins ?? 15));
+  return (
+    <Modal title={zone ? t("db.zone.edit") : t("db.zone.add")} onClose={onClose} compact
       footer={<div className="modal-footer-actions">
         <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
         <button type="button" className="btn-primary" onClick={() => onSubmit({
           name: name.trim(), deliveryFee: parseFloat(fee) || 0, minimumOrder: parseFloat(min) || 0, deliveryMins: parseInt(drive, 10) || 15,
-        })}>{t("db.add")}</button>
+        })}>{zone ? t("db.save") : t("db.add")}</button>
       </div>}>
       <div className="field"><label htmlFor="z-name">{t("db.zone.name")}</label><input id="z-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jbeil · جبيل" autoFocus /></div>
       <div className="modal-row">

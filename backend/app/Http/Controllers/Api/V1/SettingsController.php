@@ -84,6 +84,18 @@ class SettingsController extends Controller
         return response()->json(['zone' => $zone], 201);
     }
 
+    public function updateZone(Request $request, MerchantSettingsService $settings, string $zone): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'deliveryFee' => ['nullable', 'numeric', 'min:0'],
+            'minimumOrder' => ['nullable', 'numeric', 'min:0'],
+            'deliveryMins' => ['nullable', 'integer', 'min:1', 'max:240'],
+        ]);
+
+        return response()->json(['zone' => $settings->updateZone($request->user()->merchant, $zone, $data)]);
+    }
+
     public function destroyZone(Request $request, MerchantSettingsService $settings, string $zone): JsonResponse
     {
         $settings->deleteZone($request->user()->merchant, $zone);

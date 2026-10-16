@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Resources\AdminMerchantResource;
 use App\Models\Customer;
+use App\Models\Merchant;
 use App\Models\OnboardingRequest;
 use App\Models\Order;
 use App\Services\MerchantSettingsService;
@@ -155,6 +156,28 @@ class BackofficeWiringTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/analytics/dashboard?days=30')->assertOk()->assertJsonStructure(['summary']);
     }
 
+    public function test_a_shop_can_edit_its_delivery_area_but_not_another_shops(): void
+    {
+        [, $owner] = $this->merchantWithUser();
+        [, $other] = $this->merchantWithUser();
+        $token = $this->tokenFor($owner);
+        $otherToken = $this->tokenFor($other);
+
+        $id = $this->withToken($token)->postJson('/api/v1/settings/zones', ['name' => 'Jbeil', 'deliveryFee' => 1.5])->json('zone.id');
+
+        $this->withToken($token)
+            ->patchJson("/api/v1/settings/zones/{$id}", ['name' => 'Jbeil centre', 'deliveryFee' => 2, 'minimumOrder' => 5, 'deliveryMins' => 20])
+            ->assertOk()->assertJsonPath('zone.name', 'Jbeil centre');
+        $this->assertDatabaseHas('delivery_zones', ['id' => $id, 'delivery_fee' => 2, 'minimum_order' => 5, 'delivery_mins' => 20]);
+
+        // The next request is the other shop (each real request starts with a fresh app).
+        $this->app['auth']->forgetGuards();
+        $this->app->forgetInstance(\App\Support\CurrentTenant::class);
+        $this->withToken($otherToken)
+            ->patchJson("/api/v1/settings/zones/{$id}", ['name' => 'Taken'])
+            ->assertNotFound();
+    }
+
     public function test_admin_onboarding_flow(): void
     {
         $admin = $this->platformAdmin();
@@ -213,6 +236,7 @@ class BackofficeWiringTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseHas('merchants', ['name' => 'Jbeil Bites', 'timezone' => 'Asia/Beirut', 'currency' => 'USD']);
+        $this->assertSame(89500, (int) Merchant::query()->where('name', 'Jbeil Bites')->sole()->settings['lbp_rate']);
     }
 
     public function test_only_lebanese_shops_can_apply_for_now(): void

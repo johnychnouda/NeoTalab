@@ -235,6 +235,24 @@ class MerchantSettingsService
         ]);
     }
 
+    /**
+     * Orders already placed keep the fee they were charged; only new orders use the change.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    public function updateZone(Merchant $merchant, string $zoneId, array $data): DeliveryZone
+    {
+        $zone = DeliveryZone::query()->where('merchant_id', $merchant->id)->where('is_active', true)->findOrFail($zoneId);
+        $zone->forceFill([
+            'name' => $data['name'],
+            'delivery_fee' => $data['deliveryFee'] ?? 0,
+            'minimum_order' => $data['minimumOrder'] ?? 0,
+            'delivery_mins' => $data['deliveryMins'] ?? 15,
+        ])->save();
+
+        return $zone;
+    }
+
     public function deleteZone(Merchant $merchant, string $zoneId): void
     {
         $zone = DeliveryZone::query()->where('merchant_id', $merchant->id)->findOrFail($zoneId);

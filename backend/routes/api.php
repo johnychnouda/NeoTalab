@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::put('hours', [SettingsController::class, 'replaceHours'])->middleware("role:{$managerRoles}");
             Route::get('zones', [SettingsController::class, 'zones']);
             Route::post('zones', [SettingsController::class, 'storeZone'])->middleware("role:{$managerRoles}");
+            Route::patch('zones/{zone}', [SettingsController::class, 'updateZone'])->middleware("role:{$managerRoles}");
             Route::delete('zones/{zone}', [SettingsController::class, 'destroyZone'])->middleware("role:{$managerRoles}");
         });
 

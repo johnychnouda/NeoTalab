@@ -151,6 +151,8 @@ class AdminMerchantService
             'region' => $payload['region'] ?? null,
             'country' => $payload['country'] ?? null,
             'payments' => [],
+            // Lebanese shops take cash in lira too; the shop can change the rate or turn it off.
+            'lbp_rate' => strtoupper((string) ($payload['country'] ?? '')) === 'LB' ? 89500 : null,
             'mode' => 'auto',
             'bot' => [
                 'status' => 'inactive',

@@ -2465,3 +2465,88 @@ button.wa-mic { border: 0; cursor: pointer; }
 @media (min-width: 661px) and (max-width: 980px) {
   .wa-phone { height: clamp(400px, calc(100svh - 530px), 520px); }
 }
+
+/* ── SHOP SETTINGS (backoffice) ──── */
+.sset { max-width: 780px; padding-bottom: 96px; }
+.sset-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; scrollbar-width: none; }
+.sset-tabs::-webkit-scrollbar { display: none; }
+.sset-tab { position: relative; flex: 1 0 auto; padding: 9px 14px; border: none; border-radius: 9px; background: none; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.sset-tab:hover { color: var(--text); }
+.sset-tab.active { background: var(--green-dim); color: var(--green); font-weight: 600; }
+.sset-dot { display: inline-block; width: 7px; height: 7px; margin-inline-start: 6px; border-radius: 50%; background: var(--orange); vertical-align: middle; }
+
+.sset-warn { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #f59e0b55; border-radius: 12px; background: #f59e0b14; color: var(--text); font-size: 13px; line-height: 1.5; }
+
+.sset-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin-bottom: 14px; }
+.sset-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.sset-card > header h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.sset-card > header p { margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.55; max-width: 60ch; }
+
+.sset-field { margin-bottom: 16px; min-width: 0; }
+.sset-field:last-child { margin-bottom: 0; }
+.sset-field label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.sset-field input, .sset-field select { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
+.sset-field input:focus, .sset-field select:focus { border-color: var(--green); }
+.sset-field input::placeholder { color: #93a59b80; }
+.sset-field.narrow input, .sset-field.narrow select { max-width: 160px; }
+.sset-hint { margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.sset-inline { display: flex; align-items: center; gap: 10px; color: var(--text-muted); }
+.sset-inline input { max-width: 90px; }
+
+.sset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.sset-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sset-grid.wide-first { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.sset-grid > .sset-field { margin-bottom: 16px; }
+.sset-card > .sset-grid:last-child > .sset-field { margin-bottom: 0; }
+
+.sset-switch { position: relative; flex-shrink: 0; width: 40px; height: 22px; padding: 0; border: none; border-radius: 999px; background: #3a4a41; cursor: pointer; transition: background 0.15s; }
+.sset-switch > span { position: absolute; top: 3px; inset-inline-start: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: inset-inline-start 0.15s; }
+.sset-switch.on { background: var(--green); }
+.sset-switch.on > span { inset-inline-start: 21px; }
+.sset-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 14px 0; border: none; border-top: 1px solid var(--border); background: none; color: var(--text); text-align: start; cursor: pointer; font: inherit; }
+.sset-switch-row:last-child { padding-bottom: 0; }
+.sset-card > header + .sset-switch-row { border-top: none; padding-top: 0; }
+.sset-switch-text strong { display: block; font-size: 14px; font-weight: 600; }
+.sset-switch-text span { display: block; margin-top: 2px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.sset-switch-row:focus-visible, .sset-switch:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 8px; }
+
+.sset-more { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sset-more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); list-style-position: inside; }
+.sset-more[open] summary { margin-bottom: 12px; }
+
+.sset-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border: 1px dashed var(--border); border-radius: 12px; color: var(--text-muted); font-size: 13px; }
+.sset-list { list-style: none; }
+.sset-list li { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid var(--border); }
+.sset-list li:first-child { border-top: none; padding-top: 0; }
+.sset-list-main { flex: 1; min-width: 0; }
+.sset-list-main strong { display: block; font-size: 14px; }
+.sset-list-main span { font-size: 12px; color: var(--text-muted); }
+
+.sset-hours { list-style: none; }
+.sset-hours li { display: flex; align-items: center; gap: 14px; min-height: 52px; border-top: 1px solid var(--border); }
+.sset-hours li:first-child { border-top: none; }
+.sset-hours-day { width: 96px; flex-shrink: 0; font-size: 14px; font-weight: 600; }
+.sset-hours li.closed .sset-hours-day { color: var(--text-muted); }
+.sset-hours-closed { font-size: 13px; color: var(--text-muted); }
+.sset-hours-times { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.sset-hours-times input { padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; color-scheme: dark; outline: none; }
+.sset-hours-times input:focus { border-color: var(--green); }
+
+.sset-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #ff4d4d1f; color: var(--red); border: 1px solid #ff4d4d55; white-space: nowrap; }
+.sset-badge.ok { background: var(--green-dim); color: var(--green); border-color: #25d36655; }
+
+.sset-savebar { position: sticky; bottom: 16px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 12px 14px 12px 18px; background: var(--surface2); border: 1px solid #25d36655; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); font-size: 13px; font-weight: 600; animation: fadeInUp 0.25s var(--ease-out) both; }
+.sset-savebar > div { display: flex; gap: 8px; }
+.sset-savebar .btn-sm { padding: 9px 14px; }
+
+@media (max-width: 640px) {
+  .sset-card { padding: 18px 16px; }
+  .sset-grid, .sset-grid.three, .sset-grid.wide-first { grid-template-columns: 1fr; }
+  .sset-card > header { flex-direction: column; }
+  .sset-hours li { flex-wrap: wrap; gap: 10px; padding: 10px 0; }
+  .sset-hours-day { width: auto; flex: 1; }
+  .sset-hours-times { width: 100%; }
+  .sset-hours-times input { flex: 1; }
+  .sset-savebar { bottom: 10px; }
+  .sset-savebar > span { font-size: 12px; }
+}
