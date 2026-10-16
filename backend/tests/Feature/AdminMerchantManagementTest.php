@@ -160,6 +160,8 @@ class AdminMerchantManagementTest extends TestCase
             ->assertJsonStructure(['token', 'merchant']);
 
         $this->assertTrue($owner->hasRole(Roles::MERCHANT_OWNER));
+        $expires = $owner->tokens()->where('name', 'impersonation')->first()->expires_at;
+        $this->assertTrue($expires->between(now()->addHours(7), now()->addHours(9)));
     }
 
     public function test_admin_can_create_merchant_from_owner_portal_payload(): void

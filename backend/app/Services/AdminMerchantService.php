@@ -220,7 +220,8 @@ class AdminMerchantService
             ]);
         }
 
-        $token = $owner->createToken('impersonation')->plainTextToken;
+        // Short-lived: the owner portal only needs it for one support session.
+        $token = $owner->createToken('impersonation', ['*'], now()->addHours(8))->plainTextToken;
 
         return ['token' => $token, 'merchant' => $merchant, 'user' => $owner];
     }

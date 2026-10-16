@@ -7,6 +7,7 @@ use App\Models\OnboardingRequest;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 class OnboardingService
@@ -123,6 +124,11 @@ class OnboardingService
         $text = 'New join request: '.$request->shop_name
             .($where !== '' ? " ({$where})" : '')
             .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]));
+
+        // Someone flooding the public form from many IPs must not flood the owner's inbox too.
+        if (! RateLimiter::attempt('join-request-notify', 20, fn () => true, 3600)) {
+            return;
+        }
 
         $this->alerts->notice($text, 'NeoTalab: new join request from '.$request->shop_name, 'Open the owner portal → Merchants → Requests to approve or reject it.');
     }

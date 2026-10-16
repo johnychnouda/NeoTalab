@@ -30,4 +30,9 @@ return [
     */
     'verify_signature' => env('WHATSAPP_VERIFY_SIGNATURE', true),
 
+    // Flood guard: past these, a number's messages to a shop are stored but get no AI reply
+    // (each reply costs an AI call). Real customers stay far below them.
+    'customer_limit_per_10_minutes' => (int) env('WHATSAPP_CUSTOMER_LIMIT_10MIN', 40),
+    'customer_limit_per_day' => (int) env('WHATSAPP_CUSTOMER_LIMIT_DAY', 300),
+
 ];

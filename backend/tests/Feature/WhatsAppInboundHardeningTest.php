@@ -121,6 +121,21 @@ class WhatsAppInboundHardeningTest extends TestCase
         $this->assertSame([], $this->sentTexts());
     }
 
+    public function test_a_number_flooding_a_shop_stops_getting_replies(): void
+    {
+        config(['whatsapp.customer_limit_per_10_minutes' => 3]);
+        $this->merchant('111');
+
+        foreach (range(1, 5) as $i) {
+            app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message("wamid.F{$i}")])]]]]);
+        }
+        // Another customer of the same shop is not affected.
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.OTHER', 'hi', '96170999999')])]]]]);
+
+        $this->assertCount(4, $this->sentTexts());
+        $this->assertDatabaseHas('whatsapp_messages', ['wa_message_id' => 'wamid.F5']);
+    }
+
     public function test_ai_failure_sends_fallback_message_instead_of_failing_the_job(): void
     {
         $this->merchant('111');

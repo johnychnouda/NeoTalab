@@ -27,6 +27,7 @@ class SystemAlertTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         $this->seed(PlatformSettingsSeeder::class);
         RateLimiter::clear('system-alert-notify');
+        RateLimiter::clear('join-request-notify');
     }
 
     private function recipients(array $settings): void

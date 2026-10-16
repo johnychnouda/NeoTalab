@@ -23,6 +23,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Handles inbound WhatsApp webhook payloads: idempotency, tenant binding, AI reply.
@@ -152,6 +153,27 @@ class WhatsAppInboundService
     }
 
     /**
+     * True when this number sent the shop more messages than any real customer would; those get
+     * no AI reply, so a spammer cannot run up the AI bill. Logged once per number and day.
+     */
+    protected function isFlooding(Merchant $merchant, string $fromPhone): bool
+    {
+        $key = "wa-flood:{$merchant->id}:{$fromPhone}";
+        $burst = RateLimiter::attempt($key.':10m', (int) config('whatsapp.customer_limit_per_10_minutes'), fn () => true, 600);
+        $daily = RateLimiter::attempt($key.':day', (int) config('whatsapp.customer_limit_per_day'), fn () => true, 86400);
+
+        if ($burst && $daily) {
+            return false;
+        }
+
+        if (Cache::add($key.':logged', true, 86400)) {
+            Log::warning('WhatsApp inbound: a number is flooding a shop, its messages get no reply for now', ['merchant_id' => $merchant->id]);
+        }
+
+        return true;
+    }
+
+    /**
      * @param  array<string,mixed>  $msg
      */
     protected function handleMessage(Merchant $merchant, array $msg, string $phoneNumberId, string $fromPhone, WhatsAppMessage $record): void
@@ -179,6 +201,10 @@ class WhatsAppInboundService
 
         // Bot switched off: the merchant answers every chat personally.
         if ($mode === 'manual') {
+            return;
+        }
+
+        if ($this->isFlooding($merchant, $fromPhone)) {
             return;
         }
 
