@@ -6,6 +6,7 @@ use App\Models\PlatformSetting;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\StoredSecret;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -73,7 +74,8 @@ class WhatsAppEmbeddedSignupTest extends TestCase
         $merchant->refresh();
         $this->assertSame('embedded_signup', $merchant->settings['bot']['connected_via']);
         $this->assertSame('987654321012345', $merchant->settings['bot']['phone_id']);
-        $this->assertSame('EAAX_embedded_token', $merchant->settings['bot']['access_token']);
+        $this->assertNotSame('EAAX_embedded_token', $merchant->settings['bot']['access_token']); // stored encrypted
+        $this->assertSame('EAAX_embedded_token', StoredSecret::open($merchant->settings['bot']['access_token']));
 
         // A new number is registered for Cloud API messaging with a PIN that is kept (encrypted).
         $pin = Crypt::decryptString($merchant->settings['bot']['registration_pin']);

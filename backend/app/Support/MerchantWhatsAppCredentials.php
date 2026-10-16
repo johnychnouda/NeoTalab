@@ -25,7 +25,7 @@ final class MerchantWhatsAppCredentials
             return null;
         }
 
-        $token = trim((string) ($bot['access_token'] ?? ''));
+        $token = StoredSecret::open($bot['access_token'] ?? null);
         if ($token === '') {
             $token = self::platformAccessToken();
         }
@@ -67,7 +67,7 @@ final class MerchantWhatsAppCredentials
 
         $platform = PlatformSetting::singleton()->settings ?? [];
 
-        return trim((string) ($platform['wa_access_token'] ?? ''));
+        return StoredSecret::open($platform['wa_access_token'] ?? null);
     }
 
     public static function verifyToken(): string

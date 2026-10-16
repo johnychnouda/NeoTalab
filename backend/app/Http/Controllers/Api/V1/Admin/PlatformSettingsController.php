@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\UpdatePlatformSettingsRequest;
 use App\Http\Resources\PlatformSettingsResource;
 use App\Services\PlatformSettingsService;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\StoredSecret;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -36,7 +37,7 @@ class PlatformSettingsController extends Controller
     public function revealWhatsAppAccessToken(): JsonResponse
     {
         $platform = $this->settings->get()->settings ?? [];
-        $fromSettings = trim((string) ($platform['wa_access_token'] ?? ''));
+        $fromSettings = StoredSecret::open($platform['wa_access_token'] ?? null);
         $token = $fromSettings !== ''
             ? $fromSettings
             : MerchantWhatsAppCredentials::platformAccessToken();

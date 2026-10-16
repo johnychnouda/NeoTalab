@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformSetting;
+use App\Support\StoredSecret;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,7 +65,8 @@ class PlatformSettingsTest extends TestCase
             ->assertJsonPath('data.waTokenConfigured', true);
 
         $settings = PlatformSetting::singleton()->fresh()->settings ?? [];
-        $this->assertSame('EAAX_real_token', $settings['wa_access_token'] ?? null);
+        $this->assertNotSame('EAAX_real_token', $settings['wa_access_token'] ?? null); // stored encrypted
+        $this->assertSame('EAAX_real_token', StoredSecret::open($settings['wa_access_token'] ?? null));
     }
 
     public function test_platform_admin_can_reveal_whatsapp_access_token(): void

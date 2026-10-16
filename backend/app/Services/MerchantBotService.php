@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Merchant;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\StoredSecret;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -41,7 +42,7 @@ class MerchantBotService
         $bot = $settings['bot'] ?? [];
         $bot['phone_id'] = $phoneId;
         if ($token !== '') {
-            $bot['access_token'] = $token;
+            $bot['access_token'] = StoredSecret::seal($token);
         } elseif (! isset($bot['access_token'])) {
             unset($bot['access_token']);
         }
@@ -77,7 +78,7 @@ class MerchantBotService
         $settings = $merchant->settings ?? [];
         $bot = $settings['bot'] ?? [];
         $bot['phone_id'] = $phoneId;
-        $bot['access_token'] = $token;
+        $bot['access_token'] = StoredSecret::seal($token);
         $bot['waba_id'] = $wabaId !== '' ? $wabaId : ($bot['waba_id'] ?? null);
         $bot['connected_via'] = 'embedded_signup';
         $bot['token_expires'] = null;
