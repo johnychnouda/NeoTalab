@@ -2493,18 +2493,19 @@ button.wa-mic { border: 0; cursor: pointer; }
 .launch-level { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .launch-fix { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-top: 2px; word-break: break-word; }
 
-/* Desktop: the shop pickers and the player share one row and the phones follow the screen height,
-   so the whole demo (choices, controls and the newest messages) fits on a laptop screen. */
+/* Desktop: the visitor's choices first, the step player centered under them, and the phones follow
+   the screen height so the whole demo (choices, controls and the newest messages) fits on a laptop. */
 @media (min-width: 981px) {
   #demo { padding-top: 20px; }
   #demo .section-head { max-width: 920px; margin-bottom: 18px; }
-  .wa-controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 14px 36px; margin-bottom: 16px; }
+  .wa-controls { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .wa-player { padding-top: 14px; border-top: 1px solid var(--site-line); min-width: 420px; }
   .wa-who { margin-bottom: 6px; }
   .wa-controls .wa-choices { margin: 0; }
   .wa-player .wa-bar { margin-bottom: 8px; }
   .wa-player .wa-progress { margin-bottom: 0; }
   .wa-tabs-wrap { margin-bottom: 16px; }
-  .wa-phone { height: clamp(360px, calc(100svh - 390px), 560px); }
+  .wa-phone { height: clamp(360px, calc(100svh - 440px), 560px); }
 }
 /* Tablets held upright: the phones shrink a little when the screen is short, so they fit under the controls. */
 @media (min-width: 661px) and (max-width: 980px) {
