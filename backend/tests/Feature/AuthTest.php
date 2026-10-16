@@ -67,6 +67,26 @@ class AuthTest extends TestCase
             ->assertJsonPath('merchant.id', $merchant->id);
     }
 
+    public function test_login_never_sends_the_shop_secrets_to_the_browser(): void
+    {
+        [$merchant, $user] = $this->merchantWithUser();
+        $user->update(['email' => 'a@b.com', 'password' => 'secret123']);
+        $merchant->update(['settings' => [
+            'bot' => ['phone_id' => '123', 'access_token' => 'EAAG-shop-token', 'registration_pin' => 'enc-pin'],
+            'whish' => ['channel' => 'ch', 'secret' => 'enc-secret'],
+        ]]);
+
+        $res = $this->postJson('/api/v1/auth/login', ['email' => 'a@b.com', 'password' => 'secret123'])
+            ->assertOk()
+            ->assertJsonPath('merchant.settings.bot.phone_id', '123')
+            ->assertJsonPath('merchant.settings.whish.channel', 'ch');
+
+        $this->assertStringNotContainsString('EAAG-shop-token', $res->getContent());
+        $this->assertStringNotContainsString('enc-pin', $res->getContent());
+        $this->assertStringNotContainsString('enc-secret', $res->getContent());
+        $this->assertStringNotContainsString('EAAG-shop-token', $this->withToken($res->json('token'))->getJson('/api/v1/merchant')->getContent());
+    }
+
     public function test_login_rejects_bad_credentials(): void
     {
         $this->merchantWithUser();

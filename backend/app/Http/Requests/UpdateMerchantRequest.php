@@ -33,7 +33,8 @@ class UpdateMerchantRequest extends FormRequest
             'locale' => ['sometimes', 'string', 'max:5'],
             'currency' => ['sometimes', 'string', 'size:3'],
             'timezone' => ['sometimes', 'string', 'max:60'],
-            'settings' => ['nullable', 'array'],
+            // No 'settings': shop settings change only through their own endpoints (/settings/*), never
+            // wholesale here, or a shop could repoint its WhatsApp phone ID at another shop's number.
         ];
     }
 }

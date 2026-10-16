@@ -32,8 +32,17 @@ class MerchantResource extends JsonResource
             'billing_cycle' => $this->billing_cycle,
             'trial_ends_at' => $this->trial_ends_at,
             'subscription_ends_at' => $this->subscription_ends_at,
-            'settings' => $this->settings,
+            'settings' => $this->publicSettings(),
             'created_at' => $this->created_at,
         ];
+    }
+
+    /** Shop settings without the secrets (WhatsApp token and PIN, Whish secret); the dashboard never needs them. */
+    protected function publicSettings(): array
+    {
+        $settings = $this->settings ?? [];
+        unset($settings['bot']['access_token'], $settings['bot']['registration_pin'], $settings['whish']['secret']);
+
+        return $settings;
     }
 }

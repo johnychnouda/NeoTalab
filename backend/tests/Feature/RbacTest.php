@@ -40,4 +40,18 @@ class RbacTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/merchant')->assertOk();
         $this->withToken($token)->patchJson('/api/v1/merchant', ['name' => 'Nope'])->assertForbidden();
     }
+
+    public function test_a_shop_cannot_rewrite_its_settings_through_the_profile_update(): void
+    {
+        [$merchant, $user] = $this->merchantWithUser();
+        $merchant->update(['settings' => ['bot' => ['phone_id' => 'mine']]]);
+
+        $this->withToken($this->tokenFor($user))->patchJson('/api/v1/merchant', [
+            'name' => 'New name',
+            'settings' => ['bot' => ['phone_id' => 'another-shops-number']],
+        ])->assertOk();
+
+        $this->assertSame('New name', $merchant->fresh()->name);
+        $this->assertSame('mine', $merchant->fresh()->settings['bot']['phone_id']);
+    }
 }
