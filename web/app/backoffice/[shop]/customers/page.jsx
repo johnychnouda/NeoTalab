@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import Segmented from "@/components/Segmented";
 import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { Modal, useToast } from "@/components/ui";
@@ -49,11 +50,8 @@ export default function CustomersPage() {
       <div className="filters">
         <input type="text" className="search-input" placeholder={t("db.cust.search")}
           value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="filter-select" value={blockedFilter} onChange={(e) => setBlockedFilter(e.target.value)}>
-          <option value="">{t("db.cust.all")}</option>
-          <option value="false">{t("db.cust.active")}</option>
-          <option value="true">{t("db.cust.blocked")}</option>
-        </select>
+        <Segmented aria-label={t("db.cust.all")} value={blockedFilter} onChange={setBlockedFilter}
+          options={[{ value: "", label: t("db.cust.all") }, { value: "false", label: t("db.cust.active") }, { value: "true", label: t("db.cust.blocked") }]} />
       </div>
       <div className="table-scroll">
 <table className="data-table stack-on-phone">

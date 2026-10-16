@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import FormSelect from "@/components/FormSelect";
 import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
@@ -79,12 +80,14 @@ export default function TeamPage() {
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <select className="filter-select" style={{ flex: 1, fontSize: 12, padding: "6px 8px" }} value={m.status}
-                    onChange={(e) => setStatus(m.id, e.target.value)} aria-label={t("db.team.role")}>
-                    <option value="on_duty">{t("db.team.onShift")}</option>
-                    <option value="off_duty">{t("db.team.offShift")}</option>
-                    <option value="on_break">{t("db.team.onBreak")}</option>
-                  </select>
+                  <div style={{ flex: 1 }}>
+                    <FormSelect size="sm" value={m.status} onChange={(v) => setStatus(m.id, v)} aria-label={t("db.team.role")}
+                      options={[
+                        { value: "on_duty", label: t("db.team.onShift"), icon: "🟢" },
+                        { value: "on_break", label: t("db.team.onBreak"), icon: "🟡" },
+                        { value: "off_duty", label: t("db.team.offShift"), icon: "⚪" },
+                      ]} />
+                  </div>
                   <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "remove", member: m })}>{t("db.remove")}</button>
                 </div>
               </div>

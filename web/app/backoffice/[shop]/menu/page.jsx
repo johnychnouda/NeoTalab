@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import FormSelect from "@/components/FormSelect";
 import { useLiveRefresh } from "@/lib/live";
 import { formatMoney, currencyLabel } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
@@ -232,18 +233,14 @@ function ItemModal({ t, currency, item, categories, defaultCategoryId, profile, 
         ) : (
           <div className="field">
             <label htmlFor="it-unit">{t("mk.unit")}</label>
-            <select id="it-unit" value={unit} onChange={(e) => setUnit(e.target.value)}>
-              <option value="">{t("mk.unit.none")}</option>
-              {[...new Set([...(profile.units || []), ...(unit ? [unit] : [])])].map((u) => <option key={u} value={u}>{t(`mk.unit.${u}`)}</option>)}
-            </select>
+            <FormSelect id="it-unit" value={unit} onChange={setUnit}
+              options={[{ value: "", label: t("mk.unit.none") }, ...[...new Set([...(profile.units || []), ...(unit ? [unit] : [])])].map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
           </div>
         )}
         <div className="field span-2">
           <label htmlFor="it-cat">{t("mk.category")}</label>
-          <select id="it-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">{t("mk.noCategory")}</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
+            options={[{ value: "", label: t("mk.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
         </div>
         <div className="field span-2">
           <label htmlFor="it-desc">{t("mk.description")}</label>

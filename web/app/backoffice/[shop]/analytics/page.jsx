@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
+import Segmented from "@/components/Segmented";
 import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { WaLink } from "@/components/ui";
@@ -33,11 +34,8 @@ export default function AnalyticsPage() {
     <div>
       <div className="page-header">
         <h1>{t("db.nav.reports")}</h1>
-        <select className="filter-select" value={days} onChange={(e) => setDays(e.target.value)}>
-          <option value="7">7 {t("db.rep.days")}</option>
-          <option value="30">30 {t("db.rep.days")}</option>
-          <option value="90">90 {t("db.rep.days")}</option>
-        </select>
+        <Segmented aria-label={t("db.rep.days")} value={days} onChange={setDays}
+          options={["7", "30", "90"].map((d) => ({ value: d, label: `${d} ${t("db.rep.days")}` }))} />
       </div>
 
       <ErrorBanner message={error} />

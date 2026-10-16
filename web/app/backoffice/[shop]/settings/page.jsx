@@ -6,8 +6,10 @@ import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
+import FormSelect from "@/components/FormSelect";
+import Segmented from "@/components/Segmented";
 
-const KINDS = ["restaurant", "grocery", "pharmacy", "retail", "flowers", "water", "laundry", "services", "other"];
+const KINDS = { restaurant: "🍽️", grocery: "🛒", pharmacy: "💊", retail: "🛍️", flowers: "💐", water: "💧", laundry: "🧺", services: "✂️", other: "🏪" };
 const LBP_RATE = 89500;
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -173,9 +175,8 @@ function Settings() {
               <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
             </Field>
             <Field id="s-lang" label={t("db.set.language")}>
-              <select id="s-lang" value={p.default_locale || "ar"} onChange={(e) => setP("default_locale", e.target.value)}>
-                <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
-              </select>
+              <Segmented id="s-lang" block aria-label={t("db.set.language")} value={p.default_locale || "ar"} onChange={(v) => setP("default_locale", v)}
+                options={[{ value: "ar", label: "العربية" }, { value: "en", label: "English" }, { value: "fr", label: "Français" }]} />
             </Field>
           </div>
         </Card>
@@ -183,20 +184,14 @@ function Settings() {
 
       {tab === "orders" && (<>
         <Card title={t("db.set.card.business")}>
-          <div className="sset-grid">
-            <Field id="o-kind" label={t("mk.kind")} hint={t("mk.kindHint")}>
-              <select id="o-kind" value={p.business_kind || "other"} onChange={(e) => setP("business_kind", e.target.value)}>
-                {KINDS.map((k) => <option key={k} value={k}>{t(`mk.kind.${k}`)}</option>)}
-              </select>
-            </Field>
-            <Field id="o-mode" label={t("ops.businessMode")}>
-              <select id="o-mode" value={p.business_mode || "orders"} onChange={(e) => setP("business_mode", e.target.value)}>
-                <option value="orders">{t("ops.bmOrders")}</option>
-                <option value="appointments">{t("ops.bmAppointments")}</option>
-                <option value="both">{t("ops.bmBoth")}</option>
-              </select>
-            </Field>
-          </div>
+          <Field id="o-kind" label={t("mk.kind")} hint={t("mk.kindHint")}>
+            <FormSelect id="o-kind" value={p.business_kind || "other"} onChange={(v) => setP("business_kind", v)}
+              options={Object.entries(KINDS).map(([k, icon]) => ({ value: k, label: t(`mk.kind.${k}`), icon }))} />
+          </Field>
+          <Field id="o-mode" label={t("ops.businessMode")}>
+            <Segmented id="o-mode" cards aria-label={t("ops.businessMode")} value={p.business_mode || "orders"} onChange={(v) => setP("business_mode", v)}
+              options={["orders", "appointments", "both"].map((m) => ({ value: m, icon: { orders: "🛍️", appointments: "📅", both: "✨" }[m], label: t(`ops.bs.${m}`), hint: t(`ops.bs.${m}Hint`) }))} />
+          </Field>
         </Card>
 
         {p.business_mode && p.business_mode !== "orders" && (
@@ -206,9 +201,8 @@ function Settings() {
                 <input id="o-cap" type="number" min="1" max="50" value={p.appointment_capacity ?? 1} onChange={(e) => setP("appointment_capacity", e.target.value)} />
               </Field>
               <Field id="o-step" label={t("ops.slotStep")}>
-                <select id="o-step" value={p.slot_step_mins ?? 30} onChange={(e) => setP("slot_step_mins", e.target.value)}>
-                  {[10, 15, 20, 30, 45, 60].map((m) => <option key={m} value={m}>{m} min</option>)}
-                </select>
+                <FormSelect id="o-step" value={p.slot_step_mins ?? 30} onChange={(v) => setP("slot_step_mins", v)}
+                  options={[10, 15, 20, 30, 45, 60].map((m) => ({ value: m, label: `${m} min` }))} />
               </Field>
               <Field id="o-rem" label={t("ops.reminder")}>
                 <input id="o-rem" type="number" min="0" max="2880" value={p.reminder_mins ?? 120} onChange={(e) => setP("reminder_mins", e.target.value)} />
@@ -220,11 +214,8 @@ function Settings() {
         {!bookingsOnly && (<>
           <Card title={t("db.set.card.getting")}>
             <Field id="o-ful" label={t("ops.fulfillment")}>
-              <select id="o-ful" value={p.fulfillment || "delivery"} onChange={(e) => setP("fulfillment", e.target.value)}>
-                <option value="delivery">{t("ops.fDelivery")}</option>
-                <option value="pickup">{t("ops.fPickup")}</option>
-                <option value="both">{t("ops.fBoth")}</option>
-              </select>
+              <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
+                options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: { delivery: "🛵", pickup: "🏪", both: "🔁" }[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
             </Field>
             {pickup && (
               <Field id="o-pick" label={t("ops.pickupAddress")}>
@@ -262,11 +253,11 @@ function Settings() {
             <details className="sset-more">
               <summary>{t("db.set.more")}</summary>
               <Field id="o-unit" label={t("ops.timing")}>
-                <select id="o-unit" value={unit} onChange={(e) => setP("timing_unit", e.target.value)}>
-                  <option value="minutes">{t("ops.tMinutes")}</option>
-                  <option value="hours">{t("ops.tHours")}</option>
-                  <option value="days">{t("ops.tDays")}</option>
-                </select>
+                <Segmented id="o-unit" cards aria-label={t("ops.timing")} value={unit} onChange={(v) => setP("timing_unit", v)}
+                  options={[["minutes", "ops.tMinutes"], ["hours", "ops.tHours"], ["days", "ops.tDays"]].map(([u, key]) => {
+                    const [label, hint] = t(key).split(" — ");
+                    return { value: u, label, hint };
+                  })} />
               </Field>
             </details>
           </Card>
@@ -368,9 +359,8 @@ function Settings() {
               <input id="a-rep" dir="ltr" inputMode="tel" value={p.report_whatsapp || ""} onChange={(e) => setP("report_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
             </Field>
             <Field id="a-hour" label={t("ops.reportHour")}>
-              <select id="a-hour" value={p.report_hour ?? 23} onChange={(e) => setP("report_hour", e.target.value)}>
-                {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
-              </select>
+              <FormSelect id="a-hour" value={p.report_hour ?? 23} onChange={(v) => setP("report_hour", v)}
+                options={Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${String(h).padStart(2, "0")}:00` }))} />
             </Field>
           </div>
         </Card>
