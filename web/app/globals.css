@@ -2728,7 +2728,7 @@ button.wa-mic { border: 0; cursor: pointer; }
 @media (max-width: 660px) { .wa-demo { --wa-h: clamp(440px, calc(100svh - 230px), 640px); --wa-w: min(88vw, 340px); } }
 
 /* ── Item editor: one calm page; extras open in place ─── */
-.modal.modal-editor { max-width: 560px; }
+.modal.modal-editor { max-width: 780px; }
 .ie { display: grid; gap: 16px; }
 .ie .field { margin-bottom: 0; }
 .ie .field > label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -2749,12 +2749,20 @@ button.wa-mic { border: 0; cursor: pointer; }
 .price-eq { color: var(--text-muted); font-weight: 700; }
 .price-pair.is-compact .price-box input { padding-top: 8px; padding-bottom: 8px; }
 
-.ie-extras { display: flex; flex-wrap: wrap; gap: 8px; }
-.ie-extra { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 7px 12px; border: 1px dashed var(--border); border-radius: 999px; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
-.ie-extra:hover { border-color: var(--green); color: var(--green); }
-.ie-extra.is-set { border-style: solid; border-color: var(--green); background: var(--green-dim); color: var(--text); }
-.ie-extra-label { font-weight: 600; }
-.ie-extra-value { color: var(--green); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.ie-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; }
+.ie-fields { display: grid; gap: 14px; align-content: start; }
+.ie-fields textarea { min-height: 0; height: 66px; scrollbar-width: none; }
+.ie-side { display: grid; gap: 8px; align-content: start; padding-inline-start: 24px; border-inline-start: 1px solid var(--border); }
+.ie-side-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.ie-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.ie-row:hover { border-color: var(--green); }
+.ie-row-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--surface); color: var(--text-muted); }
+.ie-row.is-set .ie-row-icon { background: var(--green-dim); color: var(--green); }
+.ie-row-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.ie-row-label { font-size: 14px; font-weight: 600; }
+.ie-row-value { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ie-row.is-set .ie-row-value { color: var(--green); }
+.ie-row-go { flex: none; font-size: 12px; font-weight: 600; color: var(--green); }
 [dir="rtl"] .ie-back span { transform: scaleX(-1); display: inline-block; }
 
 .ie-sub { display: grid; gap: 12px; min-height: 280px; max-height: calc(100vh - 220px); overflow-y: auto; align-content: start; }
@@ -2787,6 +2795,18 @@ button.wa-mic { border: 0; cursor: pointer; }
   .ie input:not([type="checkbox"]) { padding-top: 9px; padding-bottom: 9px; }
   .ie-list > .mk-hint { display: none; }
 }
+@media (max-width: 720px) {
+  .ie-main { grid-template-columns: 1fr; gap: 18px; }
+  .ie-side { padding-inline-start: 0; border-inline-start: 0; padding-top: 14px; border-top: 1px solid var(--border); gap: 6px; }
+  .ie-side-title { display: none; }
+  .ie-fields { gap: 12px; }
+  .ie-fields textarea { height: 52px; }
+  .ie-row { padding: 8px 10px; }
+  .ie-row-icon { width: 30px; height: 30px; }
+  .modal-editor .modal-footer { flex-direction: row; }
+  .modal-editor .modal-footer-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; width: 100%; }
+  .modal-editor .modal-footer-actions button { width: 100%; }
+}
 @media (max-width: 640px) {
   .ie-line { flex-wrap: wrap; }
   .ie-line > .price-pair { flex: 1 1 100%; order: 3; }
@@ -2798,4 +2818,4 @@ button.wa-mic { border: 0; cursor: pointer; }
 .product-price { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
 .product-lbp { font-size: 12px; font-weight: 500; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 /* Amounts read left to right in Arabic too: "350,000 LBP", "-20%". */
-.product-lbp, .ie-extra-value, .price-box input, .product-meta .pill { unicode-bidi: plaintext; }
+.product-lbp, .ie-row-value, .price-box input, .product-meta .pill { unicode-bidi: plaintext; }

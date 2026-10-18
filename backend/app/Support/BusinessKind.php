@@ -10,17 +10,17 @@ use App\Models\Merchant;
  */
 final class BusinessKind
 {
-    /** kind => [menu word, timing unit, business mode, suggested option groups, units] */
+    /** kind => [menu word, timing unit, business mode, suggested option groups, units]; sizes have their own section, never an option group. */
     public const KINDS = [
-        'restaurant' => ['menu', 'minutes', 'orders', ['Size', 'Extras'], []],
-        'grocery' => ['products', 'minutes', 'orders', ['Size'], ['piece', 'kg', 'pack']],
-        'pharmacy' => ['products', 'minutes', 'orders', ['Size'], ['piece', 'box', 'pack']],
-        'retail' => ['catalogue', 'days', 'orders', ['Size', 'Color'], []],
-        'flowers' => ['products', 'hours', 'orders', ['Size', 'Color'], []],
+        'restaurant' => ['menu', 'minutes', 'orders', ['Extras'], []],
+        'grocery' => ['products', 'minutes', 'orders', [], ['piece', 'kg', 'pack']],
+        'pharmacy' => ['products', 'minutes', 'orders', [], ['piece', 'box', 'pack']],
+        'retail' => ['catalogue', 'days', 'orders', ['Color'], []],
+        'flowers' => ['products', 'hours', 'orders', ['Color'], []],
         'water' => ['products', 'hours', 'orders', [], ['gallon', 'cylinder', 'pack']],
         'laundry' => ['price_list', 'days', 'orders', ['Service'], ['piece', 'kg']],
         'services' => ['services', 'minutes', 'appointments', [], []],
-        'other' => ['products', 'minutes', 'orders', ['Size'], []],
+        'other' => ['products', 'minutes', 'orders', [], []],
     ];
 
     /** Business types offered at sign-up (stored in merchants.business_type) and their kind. */

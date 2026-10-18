@@ -25,7 +25,7 @@ export default function MenuPage() {
 
   const [categories, setCategories] = useState(null);
   const [products, setProducts] = useState([]);
-  const [profile, setProfile] = useState({ word: "menu", option_suggestions: ["Size", "Extras"], units: [] });
+  const [profile, setProfile] = useState({ word: "menu", option_suggestions: ["Extras"], units: [] });
   const [kind, setKind] = useState("restaurant");
   const [lbpRate, setLbpRate] = useState(null);
   const [error, setError] = useState("");
@@ -204,6 +204,12 @@ function CategoryModal({ t, initial, onClose, onSubmit }) {
   );
 }
 
+const ROW_ICONS = {
+  sizes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17h18M6 17V7M10 17v-6M14 17V9M18 17v-4" /></svg>,
+  options: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>,
+  offer: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></svg>,
+};
+
 /** A price in the shop currency with its lira twin: type in either, the other follows (1,000 LBP steps). */
 function PriceInput({ value, onChange, rate, currency, compact = false, label, placeholder = "0.00" }) {
   const [lbpText, setLbpText] = useState(null);
@@ -271,13 +277,14 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
   const plain = (key) => t(key).replace(/^\p{Extended_Pictographic}\s*/u, "");
   const filledSizes = sizes.filter((s) => s.name.trim());
   const filledGroups = groups.filter((g) => g.name.trim());
-  const tiles = [
-    { key: "description", label: plain("mk.description").replace(/\s*\(.*\)$/, ""), value: description.trim() },
-    ...(services ? [] : [
-      { key: "sizes", label: t("mk.sizes"), value: filledSizes.map((s) => s.name.trim()).join(", ") },
-      { key: "options", label: t("mk.options"), value: filledGroups.map((g) => `${g.name.trim()} (${g.modifiers.filter((m) => m.name.trim()).length})`).join(", ") },
-    ]),
-    { key: "offer", label: plain("mk.offer"), value: pct > 0 ? `-${pct}%${offerEndsOn ? ` · ${t("mk.offerTo")} ${offerEndsOn}` : ""}` : "" },
+  // Food shops call their option groups "Extras"; shops selling colors or services say "Options".
+  const optionsWord = profile.word === "menu" ? t("mk.extras") : t("mk.options");
+  const tiles = services ? [
+    { key: "offer", label: plain("mk.offer"), hint: t("mk.offerShort"), value: pct > 0 ? `-${pct}%` : "" },
+  ] : [
+    { key: "sizes", label: t("mk.sizes"), hint: t("mk.sizesShort"), value: filledSizes.map((s) => s.name.trim()).join(", ") },
+    { key: "options", label: optionsWord, hint: t("mk.optionsShort"), value: filledGroups.flatMap((g) => g.modifiers.map((m) => m.name.trim()).filter(Boolean)).join(", ") },
+    { key: "offer", label: plain("mk.offer"), hint: t("mk.offerShort"), value: pct > 0 ? `-${pct}%${offerEndsOn ? ` · ${t("mk.offerTo")} ${offerEndsOn}` : ""}` : "" },
   ];
   const current = tiles.find((x) => x.key === view);
   const save = () => {
@@ -297,51 +304,61 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
       </div>}>
       <div className="ie">
         {view === "main" ? (
-          <>
-            <div className="field">
-              <label htmlFor="it-name">{t("mk.name")}</label>
-              <input id="it-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shawarma · شاورما" autoFocus />
-            </div>
-            <div className="field">
-              <label>{t("mk.price")}</label>
-              <PriceInput value={price} onChange={setPrice} rate={rate} currency={currency} label={t("mk.price")} />
-            </div>
-            <div className={unitOptions.length || services ? "ie-two" : ""}>
+          <div className="ie-main">
+            <div className="ie-fields">
               <div className="field">
-                <label htmlFor="it-cat">{t("mk.category")}</label>
-                <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
-                  options={[{ value: "", label: t("mk.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
+                <label htmlFor="it-name">{t("mk.name")}</label>
+                <input id="it-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shawarma · شاورما" autoFocus />
               </div>
-              {services ? (
+              <div className="field">
+                <label>{t("mk.price")}</label>
+                <PriceInput value={price} onChange={setPrice} rate={rate} currency={currency} label={t("mk.price")} />
+              </div>
+              <div className={unitOptions.length || services ? "ie-two" : ""}>
                 <div className="field">
-                  <label htmlFor="it-dur">{t("mk.duration")}</label>
-                  <input id="it-dur" type="number" min="5" max="1440" value={duration} onChange={(e) => setDuration(e.target.value)} />
+                  <label htmlFor="it-cat">{t("mk.category")}</label>
+                  <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
+                    options={[{ value: "", label: t("mk.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
                 </div>
-              ) : unitOptions.length > 0 && (
-                <div className="field">
-                  <label htmlFor="it-unit">{t("mk.unit")}</label>
-                  <FormSelect id="it-unit" value={unit} onChange={setUnit}
-                    options={[{ value: "", label: t("mk.unit.none") }, ...unitOptions.map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
-                </div>
-              )}
+                {services ? (
+                  <div className="field">
+                    <label htmlFor="it-dur">{t("mk.duration")}</label>
+                    <input id="it-dur" type="number" min="5" max="1440" value={duration} onChange={(e) => setDuration(e.target.value)} />
+                  </div>
+                ) : unitOptions.length > 0 && (
+                  <div className="field">
+                    <label htmlFor="it-unit">{t("mk.unit")}</label>
+                    <FormSelect id="it-unit" value={unit} onChange={setUnit}
+                      options={[{ value: "", label: t("mk.unit.none") }, ...unitOptions.map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
+                  </div>
+                )}
+              </div>
+              <div className="field">
+                <label htmlFor="it-desc">{t("mk.description")}</label>
+                <textarea id="it-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("mk.descHint")} />
+              </div>
             </div>
-            <div className="ie-extras">
+
+            <div className="ie-side">
+              <div className="ie-side-title">{t("mk.optional")}</div>
               {tiles.map((x) => (
-                <button key={x.key} type="button" className={`ie-extra ${x.value ? "is-set" : ""}`} onClick={() => setView(x.key)}>
-                  {x.value ? <><span className="ie-extra-label">{x.label}</span><span className="ie-extra-value">{x.value}</span></> : `+ ${x.label}`}
+                <button key={x.key} type="button" className={`ie-row ${x.value ? "is-set" : ""}`} onClick={() => setView(x.key)}>
+                  <span className="ie-row-icon" aria-hidden="true">{ROW_ICONS[x.key]}</span>
+                  <span className="ie-row-text">
+                    <span className="ie-row-label">{x.label}</span>
+                    <span className="ie-row-value">{x.value || x.hint}</span>
+                  </span>
+                  <span className="ie-row-go" aria-hidden="true">{x.value ? t("mk.edit") : `+ ${t("mk.add")}`}</span>
                 </button>
               ))}
             </div>
-          </>
+          </div>
         ) : (
           <div className="ie-sub">
             <button type="button" className="ie-back" onClick={() => setView("main")}>
               <span aria-hidden="true">‹</span> {current?.label}
             </button>
 
-            {view === "description" && (
-              <textarea id="it-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("mk.descHint")} autoFocus />
-            )}
 
             {view === "sizes" && (
               <div className="ie-list">
