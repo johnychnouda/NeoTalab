@@ -2727,69 +2727,86 @@ button.wa-mic { border: 0; cursor: pointer; }
 .wa-who { margin-bottom: 6px; font-size: 12px; }
 @media (max-width: 660px) { .wa-demo { --wa-h: clamp(440px, calc(100svh - 230px), 640px); --wa-w: min(88vw, 340px); } }
 
-/* ── Item editor ────────────────────────────────────────── */
-.ie { display: grid; gap: 14px; }
-.ie-card { border: 1px solid var(--border); border-radius: 14px; background: var(--surface2); padding: 16px; display: grid; gap: 12px; }
-.ie-card h3 { font-size: 15px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
-.ie-card .mk-hint { margin: -6px 0 0; }
-.ie-card .field { margin-bottom: 0; }
-.ie-opt { font-size: 11px; font-weight: 500; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
-.ie-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.ie-three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-.ie input:not([type="checkbox"]), .ie textarea { width: 100%; padding: 11px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: inherit; font-size: 14px; outline: none; }
+/* ── Item editor: tabs, no page-long scrolling ─────────── */
+.modal.modal-editor { max-width: 900px; }
+.modal-editor .modal-body { padding: 0; overflow: hidden; display: flex; min-height: 0; }
+.ie { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+.ie-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; flex: none; }
+.ie-tab { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px 12px; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.ie-tab:hover { color: var(--text); }
+.ie-tab.is-on { color: var(--text); }
+.ie-tab.is-on::after { content: ""; position: absolute; inset-inline: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--green); }
+.ie-badge { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--green-dim); color: var(--green); }
+.ie-panel { padding: 16px 20px; height: 310px; overflow-y: auto; }
+
+.ie-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px 16px; }
+.ie-full { grid-column: 1 / -1; }
+.ie .field { margin-bottom: 0; }
+.ie .field > label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ie-rate { font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+.ie input:not([type="checkbox"]), .ie textarea { width: 100%; padding: 10px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: inherit; font-size: 14px; outline: none; }
 .ie input:focus, .ie textarea:focus { border-color: var(--green); }
 .ie input[type="checkbox"] { accent-color: var(--green); width: 16px; height: 16px; }
 .ie input[type="date"] { color-scheme: dark; }
-.ie textarea { min-height: 64px; resize: vertical; }
+.ie textarea { min-height: 0; height: 58px; resize: none; }
+.ie-list { display: grid; gap: 10px; align-content: start; }
+.ie-list > .mk-hint { margin: 0 0 2px; }
+.ie-three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 
 .price-pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
-.price-pair.is-single { grid-template-columns: 1fr; max-width: 260px; }
-.price-box { position: relative; display: block; margin: 0; }
-.price-box input { padding-inline-end: 52px !important; font-size: 17px !important; font-weight: 700; font-variant-numeric: tabular-nums; }
+.price-pair.is-single { grid-template-columns: 1fr; }
+.price-box { position: relative; display: block; margin: 0 !important; text-transform: none !important; }
+.price-box input { padding-inline-end: 48px !important; font-weight: 700; font-variant-numeric: tabular-nums; }
 .price-unit { position: absolute; inset-inline-end: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--text-muted); pointer-events: none; }
 .price-eq { color: var(--text-muted); font-weight: 700; }
-.price-pair.is-compact { flex: 0 1 300px; }
-.price-pair.is-compact .price-box input { font-size: 14px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+.price-pair.is-compact .price-box input { padding-top: 8px; padding-bottom: 8px; }
 
 .ie-line { display: flex; align-items: center; gap: 8px; }
 .ie-line > input { flex: 1 1 140px; min-width: 0; }
 .ie-line > .price-pair { flex: 0 1 300px; }
+.ie-line .mk-num { width: 60px !important; padding: 7px 8px !important; }
 .ie-x { flex: none; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }
 .ie-x:hover { color: var(--red); border-color: var(--red); }
 .ie-add { justify-self: start; border: 1px dashed var(--border); background: transparent; color: var(--green); font: inherit; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
 .ie-add:hover { border-color: var(--green); background: var(--green-dim); }
 .ie-add-sm { padding: 6px 12px; font-size: 12px; margin-inline-start: 16px; }
-.ie-group { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px; display: grid; gap: 8px; }
-.ie-group input:not([type="checkbox"]) { background: var(--surface2); }
+.ie-group { border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); padding: 10px; display: grid; gap: 8px; }
+.ie-group input:not([type="checkbox"]) { background: var(--surface); }
 .ie-strong { font-weight: 700; }
-.ie-rules { display: flex; gap: 16px; flex-wrap: wrap; padding-inline-start: 2px; }
 .ie-choice { padding-inline-start: 16px; }
 .ie-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.ie-chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.ie-chip { border: 1px solid var(--border); background: var(--surface2); color: var(--text); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
 .ie-chip:hover { border-color: var(--green); color: var(--green); }
 
-.ie-preview { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--green-dim); border: 1px solid var(--border); }
-.ie-preview-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--green); white-space: nowrap; }
-.ie-bubble { display: grid; gap: 2px; background: var(--surface); border-radius: 4px 12px 12px 12px; padding: 8px 12px; min-width: 0; font-size: 14px; }
-.ie-bubble strong { overflow-wrap: anywhere; }
-.ie-bubble span { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; }
-.ie-bubble s { color: var(--text-muted); font-weight: 400; }
-.ie-bubble small { color: var(--text-muted); font-size: 12px; }
+.ie-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
+.ie-preview { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ie-preview-label { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.ie-preview-text { display: flex; flex-direction: column; min-width: 0; padding: 6px 12px; border-radius: 4px 12px 12px 12px; background: var(--green-dim); font-size: 13px; line-height: 1.35; }
+.ie-preview-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ie-preview-price { color: var(--green); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ie-preview-price s { color: var(--text-muted); font-weight: 400; }
 
 .product-price { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
 .product-lbp { font-size: 12px; font-weight: 500; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-@media (max-width: 640px) {
-  .ie-two, .ie-three { grid-template-columns: 1fr; }
+@media (max-height: 640px) {
+  .modal-editor .modal-header { padding-top: 14px; padding-bottom: 14px; }
+  .modal-editor .modal-footer { padding-top: 12px; padding-bottom: 12px; }
+  .ie-panel { height: calc(100vh - 220px); min-height: 200px; }
+}
+@media (max-width: 720px) {
+  .modal-editor .modal-body { overflow-y: auto; }
+  .ie-grid, .ie-three { grid-template-columns: 1fr; }
+  .ie-panel { height: auto; min-height: 0; overflow: visible; padding: 14px 16px 16px; }
+  .ie-tabs { padding: 6px 8px 0; gap: 0; }
+  .ie-tab { padding: 10px 9px 12px; font-size: 13px; gap: 5px; }
   .ie-line { flex-wrap: wrap; }
   .ie-line > .price-pair { flex: 1 1 100%; order: 3; }
-  .ie-preview { flex-direction: column; align-items: stretch; }
-  .ie-card { padding: 12px; }
-  .ie-group { padding: 10px; }
   .ie-choice { padding-inline-start: 0; }
   .ie-add-sm { margin-inline-start: 0; }
+  .ie-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+  .ie-preview-label { display: none; }
   .price-pair { gap: 6px; }
-  .price-pair.is-single { max-width: none; }
   .price-box input { padding-inline-start: 10px !important; padding-inline-end: 38px !important; }
   .price-unit { inset-inline-end: 9px; font-size: 11px; }
 }

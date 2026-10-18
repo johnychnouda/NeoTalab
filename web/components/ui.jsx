@@ -45,7 +45,7 @@ export function useToast() {
 
 /* ── Modal ──────────────────────────────────────────────── */
 
-export function Modal({ title, onClose, children, footer, wide = false, compact = false, closeOnOutside = true }) {
+export function Modal({ title, onClose, children, footer, wide = false, compact = false, closeOnOutside = true, className = "" }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function Modal({ title, onClose, children, footer, wide = false, compact 
       onClick={dismissOutside}
     >
       <div
-        className={`modal${wide ? " modal-wide" : ""}${compact ? " modal-compact" : ""}`}
+        className={`modal${wide ? " modal-wide" : ""}${compact ? " modal-compact" : ""}${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
