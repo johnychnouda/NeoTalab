@@ -129,20 +129,27 @@ class OnboardingService
     /** Emails / WhatsApps the owner (Settings → Alerts recipients) that a shop wants to join. */
     protected function notifyOwner(OnboardingRequest $request): void
     {
-        $where = $request->location
-            ? (MapLocation::mapsUrl($request->location) ?? '')
-            : implode(', ', array_filter([$request->city, $request->region]));
-        $text = 'New join request: '.$request->shop_name
-            .($where !== '' ? " ({$where})" : '')
-            .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]))
-            // One tap from the email or WhatsApp alert to the request in Owner portal → Merchants.
-            .'. Review it: '.rtrim((string) config('app.frontend_url'), '/').'/owner?req='.$request->id;
-
         // Someone flooding the public form from many IPs must not flood the owner's inbox too.
         if (! RateLimiter::attempt('join-request-notify', 20, fn () => true, 3600)) {
             return;
         }
 
-        $this->alerts->notice($text, 'NeoTalab: new join request from '.$request->shop_name, 'Approve or reject it in the owner portal (Merchants → Requests).');
+        $area = implode(', ', array_filter([$request->city, $request->region]));
+        $link = rtrim((string) config('app.frontend_url'), '/').'/owner?req='.$request->id;
+        $lines = array_filter([
+            'Shop: '.$request->shop_name,
+            $request->business_type ? 'Type: '.$request->business_type : null,
+            $area !== '' ? 'Area: '.$area : null,
+            'Contact: '.implode(' · ', array_filter([$request->contact_name, $request->whatsapp, $request->email])),
+        ]);
+
+        // One tap from the email or the WhatsApp alert to the request in Owner portal → Merchants.
+        $email = "A new shop wants to join NeoTalab.\n\n".implode("\n", $lines)."\n\nReview it: {$link}";
+        $whatsapp = 'New shop request: '.$request->shop_name
+            .(($about = implode(', ', array_filter([$request->business_type, $area]))) !== '' ? " ({$about})" : '')
+            .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]))
+            .". Review it: {$link}";
+
+        $this->alerts->notice($email, 'New shop request: '.$request->shop_name, '', $whatsapp);
     }
 }

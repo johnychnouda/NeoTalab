@@ -125,9 +125,11 @@ class SystemAlertService
      * Emails and/or WhatsApps a message to the recipients from Settings → Alerts
      * (the WhatsApp goes out from the platform number with the "system_alert" template).
      *
+     * $whatsappText replaces $text on WhatsApp (one line, no footer) when given.
+     *
      * @return array{email: string, whatsapp: string} per channel: sent | off | the error
      */
-    public function sendToOwner(string $text, string $subject, string $footer): array
+    public function sendToOwner(string $text, string $subject, string $footer, ?string $whatsappText = null): array
     {
         $extra = PlatformSetting::singleton()->settings ?? [];
         $result = ['email' => 'off', 'whatsapp' => 'off'];
@@ -137,7 +139,7 @@ class SystemAlertService
             $result['email'] = 'Email sending is not set up on the server yet (MAIL_MAILER).';
         } elseif ($email !== '') {
             try {
-                Mail::raw($text."\n\n".$footer, function ($mail) use ($email, $subject) {
+                Mail::raw(trim($text."\n\n".$footer), function ($mail) use ($email, $subject) {
                     $mail->to($email)->subject($subject);
                 });
                 $result['email'] = 'sent';
@@ -157,7 +159,7 @@ class SystemAlertService
                         'components' => [[
                             'type' => 'body',
                             // Template variables may not contain new lines or long runs of spaces.
-                            'parameters' => [['type' => 'text', 'text' => Str::limit(preg_replace('/\s+/', ' ', $text), 900)]],
+                            'parameters' => [['type' => 'text', 'text' => Str::limit(preg_replace('/\s+/', ' ', $whatsappText ?? $text), 900)]],
                         ]],
                     ],
                 ]);
@@ -178,11 +180,11 @@ class SystemAlertService
      *
      * @return array{email: string, whatsapp: string}
      */
-    public function notice(string $text, string $subject, string $footer): array
+    public function notice(string $text, string $subject, string $footer = '', ?string $whatsappText = null): array
     {
         self::$busy = true;
         try {
-            return $this->sendToOwner($text, $subject, $footer);
+            return $this->sendToOwner($text, $subject, $footer, $whatsappText);
         } catch (Throwable) {
             return ['email' => 'failed', 'whatsapp' => 'failed'];
         } finally {
