@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
 import Segmented from "@/components/Segmented";
 import LocationPicker, { mapPin } from "@/components/LocationPicker";
+import { ICONS } from "@/components/auth/AuthShell";
 import ZoneEditor from "@/components/ZoneEditor";
 
 const LBP_RATE = 89500;
@@ -340,8 +341,15 @@ function PasswordCard({ api, t, toast }) {
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
   const mismatch = again.length > 0 && next !== again;
   const ready = cur && next.length >= 8 && next === again;
+
+  function close() {
+    setOpen(false); setShown(false);
+    setCur(""); setNext(""); setAgain("");
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -350,7 +358,7 @@ function PasswordCard({ api, t, toast }) {
     try {
       const { token } = await api("PATCH", "/auth/password", { current_password: cur, password: next, password_confirmation: again });
       if (token) setToken("merchant", token);
-      setCur(""); setNext(""); setAgain("");
+      close();
       toast(t("db.acc.changed"));
     } catch (err) { toast(err.message, "error"); }
     setBusy(false);
@@ -358,21 +366,42 @@ function PasswordCard({ api, t, toast }) {
 
   return (
     <Card title={t("db.acc.pw")} desc={t("db.acc.pwDesc")}>
+      {!open && <button type="button" className="btn-sm" onClick={() => setOpen(true)}>{t("db.acc.pw")}</button>}
+      {open && (
       <form onSubmit={submit}>
         <Field id="pw-cur" label={t("db.acc.current")}>
-          <input id="pw-cur" type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} />
+          <PwInput id="pw-cur" autoComplete="current-password" value={cur} onChange={setCur} shown={shown} onToggle={() => setShown((v) => !v)} t={t} />
         </Field>
         <div className="sset-grid">
           <Field id="pw-new" label={t("db.acc.new")} hint={t("db.acc.min")}>
-            <input id="pw-new" type="password" autoComplete="new-password" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} />
+            <PwInput id="pw-new" autoComplete="new-password" value={next} onChange={setNext} shown={shown} onToggle={() => setShown((v) => !v)} t={t} />
           </Field>
           <Field id="pw-again" label={t("db.acc.confirm")} hint={mismatch ? t("db.acc.mismatch") : null}>
-            <input id="pw-again" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} aria-invalid={mismatch} />
+            <PwInput id="pw-again" autoComplete="new-password" value={again} onChange={setAgain} shown={shown} onToggle={() => setShown((v) => !v)} t={t} invalid={mismatch} />
           </Field>
         </div>
-        <button type="submit" className="btn-primary" disabled={!ready || busy}>{busy ? "…" : t("db.acc.pw")}</button>
+        <div className="set-inline-actions">
+          <button type="submit" className="btn-primary btn-sm" disabled={!ready || busy}>{busy ? "…" : t("db.save")}</button>
+          <button type="button" className="btn-sm" onClick={close}>{t("db.cancel")}</button>
+        </div>
       </form>
+      )}
     </Card>
+  );
+}
+
+/** Password box with an eye icon that appears once something is typed. */
+function PwInput({ id, value, onChange, shown, onToggle, autoComplete, invalid, t }) {
+  return (
+    <div className="set-pass">
+      <input id={id} dir="ltr" type={shown ? "text" : "password"} autoComplete={autoComplete} value={value}
+        onChange={(e) => onChange(e.target.value)} aria-invalid={invalid || undefined} />
+      {value && (
+        <button type="button" onClick={onToggle} aria-label={t(shown ? "auth.hide" : "auth.show")} aria-pressed={shown}>
+          {shown ? ICONS.eyeOff : ICONS.eye}
+        </button>
+      )}
+    </div>
   );
 }
 
