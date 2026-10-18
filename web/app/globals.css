@@ -2720,3 +2720,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 #demo .section-head { margin-bottom: 14px; }
 .wa-tabs-wrap { margin-bottom: 12px; }
 .wa-caption { margin-top: 16px; }
+/* Phones fit the screen under the caption: the height follows the window (a whole phone is visible
+   on a short laptop), the width follows the height within readable limits. */
+.wa-demo { --wa-h: clamp(340px, calc(100svh - 200px), 600px); --wa-w: min(84vw, clamp(220px, calc(var(--wa-h) * .52), 300px)); }
+.wa-phone { aspect-ratio: auto; height: var(--wa-h); }
+.wa-who { margin-bottom: 6px; font-size: 12px; }
+@media (max-width: 660px) { .wa-demo { --wa-h: clamp(440px, calc(100svh - 230px), 640px); --wa-w: min(88vw, 340px); } }
