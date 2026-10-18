@@ -1278,6 +1278,7 @@ code.approve-login-value {
 /* Notifications tab */
 .set-form-block-spaced { margin-top: 24px; }
 .set-email-btn { margin-top: 12px; }
+.set-inline-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
 .set-security-meta {
   font-size: 13px;

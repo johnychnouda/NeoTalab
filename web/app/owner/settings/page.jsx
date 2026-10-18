@@ -144,6 +144,7 @@ function OwnerSettingsContent() {
   const [alertTest, setAlertTest] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
+  const [pwOpen, setPwOpen] = useState(false);
   const [currentPass, setCurrentPass] = useState("");
   const [passwordChangedAt, setPasswordChangedAt] = useState(null);
   const [loginEmail, setLoginEmail] = useState("");
@@ -227,9 +228,14 @@ function OwnerSettingsContent() {
       const res = await api("PATCH", "/auth/password", { current_password: currentPass, password: newPass, password_confirmation: newPass });
       if (res.token) setToken("owner", res.token);
       if (res.passwordChangedAt) setPasswordChangedAt(res.passwordChangedAt);
-      setCurrentPass(""); setNewPass(""); setConfirmPass("");
+      closePassword();
       toast(t("ow.pw.updated"));
     }).catch((e) => toast(e.message, "error"));
+  }
+
+  function closePassword() {
+    setPwOpen(false);
+    setCurrentPass(""); setNewPass(""); setConfirmPass("");
   }
 
   async function changeEmail() {
@@ -347,6 +353,7 @@ function OwnerSettingsContent() {
     }
   }
 
+  const emailEdited = !!loginEmail && newEmail.trim().toLowerCase() !== loginEmail;
   const monthly = parseFloat(s.price) || 0;
   const yearly = parseFloat(s.yearlyPrice) || 0;
   const pricing = calcPricing(monthly, yearly);
@@ -356,7 +363,6 @@ function OwnerSettingsContent() {
     tab === "pricing" ? <SaveBtn saving={saving} label={t("db.save")} onClick={savePricing} />
     : tab === "whatsapp" ? <SaveBtn saving={saving} label={t("db.save")} onClick={saveWhatsApp} />
     : tab === "alerts" ? <SaveBtn saving={saving} label={t("db.save")} onClick={saveAlerts} />
-    : tab === "account" ? <SaveBtn saving={saving} label={t("ow.pw.update")} onClick={changePassword} />
     : null
   );
 
@@ -542,13 +548,20 @@ function OwnerSettingsContent() {
                     <SetField label={t("login.email")} htmlFor="login-email">
                       <input id="login-email" type="email" dir="ltr" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email" />
                     </SetField>
-                    <SetField label={t("ow.pw.current")} htmlFor="email-pass">
-                      <PassInput id="email-pass" value={emailPass} onChange={(e) => setEmailPass(e.target.value)} show={showEmailPass} onToggle={() => setShowEmailPass((v) => !v)} autoComplete="current-password" />
-                    </SetField>
+                    {emailEdited && (
+                      <SetField label={t("ow.pw.current")} htmlFor="email-pass">
+                        <PassInput id="email-pass" value={emailPass} onChange={(e) => setEmailPass(e.target.value)} show={showEmailPass} onToggle={() => setShowEmailPass((v) => !v)} autoComplete="current-password" />
+                      </SetField>
+                    )}
                   </div>
-                  <button type="button" className="btn-sm set-email-btn" onClick={changeEmail} disabled={saving === "email" || !newEmail.trim() || newEmail.trim().toLowerCase() === loginEmail}>
-                    {saving === "email" ? t("ow.saving") : t("ow.em.update")}
-                  </button>
+                  {emailEdited && (
+                    <div className="set-inline-actions">
+                      <button type="button" className="btn-primary btn-sm" onClick={changeEmail} disabled={saving === "email" || !newEmail.trim()}>
+                        {saving === "email" ? t("ow.saving") : t("ow.em.update")}
+                      </button>
+                      <button type="button" className="btn-sm" onClick={() => { setNewEmail(loginEmail); setEmailPass(""); }}>{t("db.cancel")}</button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="set-form-block set-form-block-spaced">
@@ -556,6 +569,10 @@ function OwnerSettingsContent() {
                   <p className="set-security-meta">
                     {t("ow.pw.lastChanged")}: <strong>{fmtPasswordChanged(passwordChangedAt, t, locale)}</strong>
                   </p>
+                  {!pwOpen && (
+                    <button type="button" className="btn-sm" onClick={() => setPwOpen(true)}>{t("ow.pw.update")}</button>
+                  )}
+                  {pwOpen && (<>
                   <div className="set-grid">
                     <SetField label={t("ow.pw.current")} className="span-full set-field-narrow" htmlFor="current-pass">
                       <PassInput id="current-pass" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)} show={showCurrentPass} onToggle={() => setShowCurrentPass((v) => !v)} autoComplete="current-password" />
@@ -577,6 +594,13 @@ function OwnerSettingsContent() {
                       {passMismatch && <p className="set-hint set-hint-err">{t("ow.pw.mismatch")}</p>}
                     </SetField>
                   </div>
+                  <div className="set-inline-actions">
+                    <button type="button" className="btn-primary btn-sm" onClick={changePassword} disabled={saving === "save"}>
+                      {saving === "save" ? t("ow.saving") : t("db.save")}
+                    </button>
+                    <button type="button" className="btn-sm" onClick={closePassword}>{t("db.cancel")}</button>
+                  </div>
+                  </>)}
                 </div>
 
                 <div className="set-form-block set-form-block-spaced">
