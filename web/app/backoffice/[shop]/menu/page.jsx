@@ -266,6 +266,8 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
 
   // One page: the essentials, plus a tile per extra that opens in place (← back).
   const [view, setView] = useState("main");
+  // "Sold by" only where shops sell by weight or pack; a restaurant only sells items.
+  const unitOptions = [...new Set([...(profile.units || []), ...(unit ? [unit] : [])])];
   const plain = (key) => t(key).replace(/^\p{Extended_Pictographic}\s*/u, "");
   const filledSizes = sizes.filter((s) => s.name.trim());
   const filledGroups = groups.filter((g) => g.name.trim());
@@ -301,10 +303,10 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
               <input id="it-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shawarma · شاورما" autoFocus />
             </div>
             <div className="field">
-              <label>{t("mk.price")}{rate ? <span className="ie-rate">1$ = {Number(rate).toLocaleString("en-US")} LBP</span> : null}</label>
+              <label>{t("mk.price")}</label>
               <PriceInput value={price} onChange={setPrice} rate={rate} currency={currency} label={t("mk.price")} />
             </div>
-            <div className="ie-two">
+            <div className={unitOptions.length || services ? "ie-two" : ""}>
               <div className="field">
                 <label htmlFor="it-cat">{t("mk.category")}</label>
                 <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
@@ -315,20 +317,18 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
                   <label htmlFor="it-dur">{t("mk.duration")}</label>
                   <input id="it-dur" type="number" min="5" max="1440" value={duration} onChange={(e) => setDuration(e.target.value)} />
                 </div>
-              ) : (
+              ) : unitOptions.length > 0 && (
                 <div className="field">
                   <label htmlFor="it-unit">{t("mk.unit")}</label>
                   <FormSelect id="it-unit" value={unit} onChange={setUnit}
-                    options={[{ value: "", label: t("mk.unit.none") }, ...[...new Set([...(profile.units || []), ...(unit ? [unit] : [])])].map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
+                    options={[{ value: "", label: t("mk.unit.none") }, ...unitOptions.map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
                 </div>
               )}
             </div>
-            <div className={`ie-tiles is-${tiles.length}`}>
+            <div className="ie-extras">
               {tiles.map((x) => (
-                <button key={x.key} type="button" className={`ie-tile ${x.value ? "is-set" : ""}`} onClick={() => setView(x.key)}>
-                  <span className="ie-tile-label">{x.label}</span>
-                  <span className="ie-tile-value">{x.value || `+ ${t("mk.add")}`}</span>
-                  <span className="ie-tile-go" aria-hidden="true">›</span>
+                <button key={x.key} type="button" className={`ie-extra ${x.value ? "is-set" : ""}`} onClick={() => setView(x.key)}>
+                  {x.value ? <><span className="ie-extra-label">{x.label}</span><span className="ie-extra-value">{x.value}</span></> : `+ ${x.label}`}
                 </button>
               ))}
             </div>
