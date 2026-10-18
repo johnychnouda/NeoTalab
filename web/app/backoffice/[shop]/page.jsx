@@ -77,6 +77,7 @@ export default function ShopHome() {
       </section>
 
       <Plan sub={shop.subscription} shopName={shopName} t={t} locale={locale} />
+      <MetaFees t={t} />
 
       <h2 className="gs-h">{t("db.home.required")}</h2>
       <ol className="gs-list">{required.map(row)}</ol>
@@ -84,6 +85,28 @@ export default function ShopHome() {
       <h2 className="gs-h">{t("db.home.optional")}</h2>
       <ol className="gs-list">{optional.map(row)}</ol>
     </div>
+  );
+}
+
+/**
+ * Meta bills the shop's own WhatsApp account for the few paid messages (nightly report, staff
+ * alerts outside 24h), so the shop needs a card there: how to add the Whish digital Visa.
+ */
+function MetaFees({ t }) {
+  return (
+    <section className="gs-plan gs-fees">
+      <div>
+        <span className="gs-plan-label">{t("db.fees.title")}</span>
+        <p>{t("db.fees.line")}</p>
+        <details>
+          <summary>{t("db.fees.how")}</summary>
+          <ol>
+            {["s1", "s2", "s3", "s4"].map((k) => <li key={k}>{t(`db.fees.${k}`)}</li>)}
+          </ol>
+          <a className="btn-sm" href="https://business.facebook.com/" target="_blank" rel="noopener noreferrer">{t("db.fees.open")}</a>
+        </details>
+      </div>
+    </section>
   );
 }
 
