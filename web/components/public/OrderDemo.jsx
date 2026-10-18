@@ -246,24 +246,13 @@ export default function OrderDemo({ demo }) {
           </div>
         )}
         <div className="wa-player">
-          <div className="wa-bar">
-            <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
-              <Svg d={playing ? icons.pause : icons.play} size={18} />
-            </button>
-            <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
-              <Svg d={icons.chevron} size={18} />
-            </button>
-            <p className="wa-step"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
-            <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
-              <Svg d={icons.chevron} size={18} />
-            </button>
-            <button type="button" className="wa-icon-btn" onClick={() => jumpToStep(0)} aria-label={demo.replay}>
-              <Svg d={icons.replay} size={18} />
-            </button>
-          </div>
+          <button type="button" className="wa-icon-btn" onClick={finished ? () => jumpToStep(0) : togglePlay}
+            aria-label={finished ? demo.replay : playing ? demo.pause : demo.play}>
+            <Svg d={finished ? icons.replay : playing ? icons.pause : icons.play} size={18} />
+          </button>
           <div className="wa-progress">
             {scenario.steps.map((label, i) => (
-              <button key={label} type="button" className={i < step ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
+              <button key={label} type="button" className={i < step || finished ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
             ))}
           </div>
         </div>

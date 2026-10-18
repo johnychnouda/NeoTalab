@@ -63,7 +63,6 @@ export default async function Home() {
       <section className="section" id="demo">
         <div className="section-head">
           <h2>{demo.title}</h2>
-          <p className="lead">{demo.lead}</p>
         </div>
         <OrderDemo demo={demo} />
       </section>

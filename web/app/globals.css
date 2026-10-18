@@ -2713,3 +2713,10 @@ button.wa-mic { border: 0; cursor: pointer; }
   .wa-options { gap: 6px; }
   .wa-options .wa-modes button { padding: 6px 9px; font-size: 12.5px; }
 }
+/* One quiet player line: play/pause (replay at the end) and the step bar. */
+.wa-player, .wa-controls .wa-player { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 360px; min-width: 0; margin: 0 auto; padding: 0; border: 0; }
+.wa-player .wa-progress, .wa-progress { flex: 1; max-width: none; margin: 0; }
+.wa-player .wa-icon-btn { flex: none; width: 34px; height: 34px; }
+#demo .section-head { margin-bottom: 14px; }
+.wa-tabs-wrap { margin-bottom: 12px; }
+.wa-caption { margin-top: 16px; }
