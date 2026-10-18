@@ -9,6 +9,7 @@ use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use App\Services\CatalogService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -38,11 +39,18 @@ class CategoryController extends Controller
         return new CategoryResource($this->catalog->updateCategory($model, $request->validated()));
     }
 
-    public function destroy(string $category): JsonResponse
+    /** ?with_items=1 deletes its items too; otherwise they stay, without a category. */
+    public function destroy(Request $request, string $category): JsonResponse
     {
         $model = Category::query()->findOrFail($category);
-        $this->catalog->deleteCategory($model);
+        $this->catalog->deleteCategory($model, $request->boolean('with_items'));
 
         return response()->json(['message' => 'Category deleted.']);
+    }
+
+    /** Clear the whole menu, or (?only=uncategorized) just the items without a category. */
+    public function clear(Request $request): JsonResponse
+    {
+        return response()->json(['deleted' => $this->catalog->clearMenu($request->query('only') === 'uncategorized')]);
     }
 }

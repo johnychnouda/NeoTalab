@@ -127,6 +127,73 @@ class MenuImportTest extends TestCase
         $this->assertEquals(3, (float) $theirs->fresh()->price);
     }
 
+    public function test_lira_prices_with_subcategories_are_spotted_and_saved_in_dollars(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['lbp_rate' => 89500])])->save();
+        $this->app['auth']->forgetGuards();
+
+        $res = $this->preview($this->csv("Main Category,Sub Category,Item Name,Price\nDrinks,Cold,Iced Coffee,80000\nPizza,Pepperoni,Small,700000\n,,.,0\n"))->assertOk();
+        $res->assertJsonPath('prices_in_lbp', true)->assertJsonPath('lbp_rate', 89500);
+        $items = $res->json('items');
+        $this->assertSame(['Drinks - Cold', 'Pizza - Pepperoni'], array_column($items, 'category'), 'a "." row is not an item');
+        $this->assertSame('Iced Coffee', $items[0]['name']);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => $items, 'prices_in_lbp' => true])->assertOk();
+        $coffee = Product::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->where('name', 'Iced Coffee')->sole();
+        $this->assertEquals(0.89, (float) $coffee->price);
+    }
+
+    public function test_a_shop_without_lira_never_gets_its_prices_converted(): void
+    {
+        $this->preview($this->csv("Name,Price\nSofa,1200\n"))->assertOk()->assertJsonPath('prices_in_lbp', false);
+    }
+
+    public function test_reimport_moves_items_out_of_the_default_menu_category(): void
+    {
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [['name' => 'Iced Tea', 'price' => 80000]]])->assertOk();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [['category' => 'Drinks', 'name' => 'Iced Tea', 'price' => 1]]])
+            ->assertJsonPath('result', ['categories' => 1, 'created' => 0, 'updated' => 1]);
+
+        $tea = Product::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->sole();
+        $this->assertSame('Drinks', Category::query()->withoutGlobalScopes()->find($tea->category_id)->name);
+        $this->assertEquals(1, (float) $tea->price);
+    }
+
+    public function test_a_category_can_go_with_its_items_and_the_menu_can_be_cleared(): void
+    {
+        [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+        $theirs = Product::factory()->forMerchant($other)->create();
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [
+            ['category' => 'Pizza', 'name' => 'Margherita', 'price' => 8],
+            ['category' => 'Drinks', 'name' => 'Pepsi', 'price' => 1],
+            ['category' => 'Drinks', 'name' => 'Water', 'price' => 1],
+        ]])->assertOk();
+        $mine = fn () => Product::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id);
+        $pizza = Category::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->where('name', 'Pizza')->sole();
+        $drinks = Category::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->where('name', 'Drinks')->sole();
+
+        $this->withToken($this->token)->deleteJson("/api/v1/categories/{$pizza->id}?with_items=1")->assertOk();
+        $this->assertSame(['Pepsi', 'Water'], $mine()->orderBy('name')->pluck('name')->all());
+
+        $this->withToken($this->token)->deleteJson("/api/v1/categories/{$drinks->id}")->assertOk();
+        $this->assertSame(2, $mine()->whereNull('category_id')->count(), 'kept, without a category');
+        $this->withToken($this->token)->deleteJson('/api/v1/menu?only=uncategorized')->assertOk()->assertJsonPath('deleted', 2);
+
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [['category' => 'Sweets', 'name' => 'Knefe', 'price' => 3]]])->assertOk();
+        $this->withToken($this->token)->deleteJson('/api/v1/menu')->assertOk()->assertJsonPath('deleted', 1);
+        $this->assertSame(0, $mine()->count());
+        $this->assertSame(0, Category::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->count());
+        $this->assertNotNull($theirs->fresh(), 'another shop keeps its menu');
+    }
+
+    public function test_staff_cannot_clear_the_menu(): void
+    {
+        [, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);
+        $this->withToken($this->tokenFor($staff))->deleteJson('/api/v1/menu')->assertForbidden();
+    }
+
     public function test_staff_cannot_import(): void
     {
         [, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);

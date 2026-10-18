@@ -40,12 +40,29 @@ class CatalogService
         return $category;
     }
 
-    public function deleteCategory(Category $category): void
+    public function deleteCategory(Category $category, bool $withItems = false): void
     {
-        DB::transaction(function () use ($category) {
-            // Products survive their category; they just become uncategorized.
+        DB::transaction(function () use ($category, $withItems) {
+            if ($withItems) {
+                $this->deleteProducts(Product::where('category_id', $category->id)->pluck('id')->all());
+            }
+            // Otherwise products survive their category; they just become uncategorized.
             Product::where('category_id', $category->id)->update(['category_id' => null]);
             $category->delete();
+        });
+    }
+
+    /** Start the menu over: every item and category, or only the items without a category. */
+    public function clearMenu(bool $onlyUncategorized = false): int
+    {
+        return DB::transaction(function () use ($onlyUncategorized) {
+            $ids = Product::query()->when($onlyUncategorized, fn ($q) => $q->whereNull('category_id'))->pluck('id')->all();
+            $this->deleteProducts($ids);
+            if (! $onlyUncategorized) {
+                Category::query()->delete();
+            }
+
+            return count($ids);
         });
     }
 
@@ -140,13 +157,19 @@ class CatalogService
 
     public function deleteProduct(Product $product): void
     {
-        DB::transaction(function () use ($product) {
-            $groupIds = ModifierGroup::where('product_id', $product->id)->pluck('id');
+        DB::transaction(fn () => $this->deleteProducts([$product->id]));
+    }
+
+    /** @param  list<string>  $ids  products of the current shop, removed with their sizes and options */
+    private function deleteProducts(array $ids): void
+    {
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $groupIds = ModifierGroup::whereIn('product_id', $chunk)->pluck('id');
             Modifier::whereIn('modifier_group_id', $groupIds)->delete();
             ModifierGroup::whereKey($groupIds)->delete();
-            ProductVariant::where('product_id', $product->id)->delete();
-            $product->delete();
-        });
+            ProductVariant::whereIn('product_id', $chunk)->delete();
+            Product::whereKey($chunk)->delete();
+        }
     }
 
     // ── Variants ─────────────────────────────────────────────

@@ -91,6 +91,7 @@ export default function MenuPage() {
       <div className="page-header">
         <h1>{t(`mk.title.${profile.word}`)}</h1>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {products.length > 0 && <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
           {!services && <button className="btn-sm" onClick={() => setModal({ type: "import" })}>{t("mk.import")}</button>}
           <button className="btn-sm" onClick={() => setModal({ type: "category" })}>+ {t("mk.addCategory")}</button>
           <button className="btn-primary" onClick={() => setModal({ type: "item" })}>+ {t(services ? "mk.addService" : "mk.addItem")}</button>
@@ -115,6 +116,7 @@ export default function MenuPage() {
                 <button className="btn-sm" onClick={() => setModal({ type: "category", cat })}>{t("mk.edit")}</button>
                 <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteCategory", cat })}>{t("mk.delete")}</button>
               </>}
+              {!cat && items.length > 0 && <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "clearUncategorized", count: items.length })}>{t("mk.deleteAll")}</button>}
             </div>
             {items.map((p) => (
               <div key={p.id} className="product-row">
@@ -146,9 +148,25 @@ export default function MenuPage() {
             : api("POST", "/categories", { name })))} />
       )}
       {modal?.type === "deleteCategory" && (
-        <ConfirmModal title={t("mk.delete")} message={<><strong>{modal.cat.name}</strong> — {t("mk.deleteCategory")}</>}
-          danger onClose={() => setModal(null)}
-          onConfirm={() => run(() => api("DELETE", `/categories/${modal.cat.id}`))} />
+        <Modal title={t("mk.delete")} onClose={() => setModal(null)}>
+          <div style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>
+            <strong>{modal.cat.name}</strong> — {t("mk.deleteCategoryAsk")}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-sm" onClick={() => { setModal(null); run(() => api("DELETE", `/categories/${modal.cat.id}`)); }}>{t("mk.keepItems")}</button>
+            <button className="btn-danger" onClick={() => { setModal(null); run(() => api("DELETE", `/categories/${modal.cat.id}?with_items=1`)); }}>{t("mk.withItems")}</button>
+          </div>
+        </Modal>
+      )}
+      {modal?.type === "clearUncategorized" && (
+        <ConfirmModal title={t("mk.deleteAll")} message={<><strong>{modal.count}</strong> {t("mk.deleteAllNone")}</>}
+          danger confirmLabel={t("mk.deleteAll")} onClose={() => setModal(null)}
+          onConfirm={() => run(() => api("DELETE", "/menu?only=uncategorized"))} />
+      )}
+      {modal?.type === "clear" && (
+        <ConfirmModal title={t("mk.clear")} message={t("mk.clearAsk")}
+          danger confirmLabel={t("mk.clear")} onClose={() => setModal(null)}
+          onConfirm={() => run(() => api("DELETE", "/menu"))} />
       )}
       {modal?.type === "deleteItem" && (
         <ConfirmModal title={t("mk.delete")} message={<><strong>{modal.item.name}</strong> — {t("mk.deleteItem")}</>}
@@ -311,6 +329,8 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
   const { t } = useLang();
   const [items, setItems] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [lbpRate, setLbpRate] = useState(null);
+  const [inLbp, setInLbp] = useState(false);
 
   async function upload(file) {
     if (!file) return;
@@ -320,6 +340,8 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
     try {
       const data = await api("POST", "/menu/import/preview", form);
       setItems(data.items || []);
+      setLbpRate(data.lbp_rate || null);
+      setInLbp(!!data.prices_in_lbp);
     } catch (e) { toast(e.message, "error"); } finally { setBusy(false); }
   }
 
@@ -328,7 +350,7 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
   async function confirm() {
     setBusy(true);
     try {
-      const { result } = await api("POST", "/menu/import", { items });
+      const { result } = await api("POST", "/menu/import", { items, prices_in_lbp: inLbp });
       toast(`${t("mk.imp.done")} ${result.created + result.updated}`);
       onDone();
     } catch (e) { toast(e.message, "error"); } finally { setBusy(false); }
@@ -350,6 +372,14 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
       ) : (
         <>
           <p style={{ fontSize: 13, marginBottom: 10 }}>{items.length} {t("mk.imp.found")} · {t("mk.imp.check")}</p>
+          {lbpRate && (
+            <div className="mk-row" style={{ alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
+              <span>{t("mk.imp.pricesIn")}</span>
+              <button className={inLbp ? "btn-sm" : "btn-primary"} onClick={() => setInLbp(false)}>$</button>
+              <button className={inLbp ? "btn-primary" : "btn-sm"} onClick={() => setInLbp(true)}>LBP</button>
+              {inLbp && <span className="mk-hint">{t("mk.imp.lbpNote")} {Number(lbpRate).toLocaleString("en-US")} LBP</span>}
+            </div>
+          )}
           <div className="table-scroll" style={{ maxHeight: "50vh", overflowY: "auto" }}>
             <table className="data-table stack-on-phone">
               <thead><tr><th>{t("mk.category")}</th><th>{t("mk.name")}</th><th>{t("mk.price")}</th><th></th></tr></thead>
@@ -358,7 +388,8 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
                   <tr key={i}>
                     <td data-label={t("mk.category")}><input className="mk-cell" value={it.category || ""} aria-label={t("mk.category")} onChange={(e) => edit(i, { category: e.target.value })} /></td>
                     <td data-label={t("mk.name")}><input className="mk-cell" value={it.name || ""} aria-label={t("mk.name")} onChange={(e) => edit(i, { name: e.target.value })} /></td>
-                    <td data-label={t("mk.price")}><input className="mk-cell mk-cell-num" type="number" step="0.01" min="0" value={it.price ?? ""} aria-label={t("mk.price")} onChange={(e) => edit(i, { price: e.target.value })} /></td>
+                    <td data-label={t("mk.price")}><input className="mk-cell mk-cell-num" type="number" step="0.01" min="0" value={it.price ?? ""} aria-label={t("mk.price")} onChange={(e) => edit(i, { price: e.target.value })} />
+                      {inLbp && <small className="mk-hint"> = {formatMoney(Math.round((Number(it.price) / lbpRate) * 100) / 100)}</small>}</td>
                     <td className="stack-actions"><button className="btn-sm" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button></td>
                   </tr>
                 ))}

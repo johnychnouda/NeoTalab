@@ -23,12 +23,30 @@ class MenuImportService
     /** Header names recognised in EN / AR / FR. */
     private const HEADERS = [
         'category' => ['category', 'categories', 'section', 'type', 'الفئة', 'القسم', 'الصنف', 'catégorie', 'categorie', 'rubrique'],
+        'subcategory' => ['subcategory', 'sub category', 'subsection', 'sub section', 'الفئة الفرعية', 'القسم الفرعي', 'sous catégorie', 'sous categorie'],
         'name' => ['name', 'product', 'item', 'title', 'الاسم', 'المنتج', 'اسم', 'nom', 'produit', 'article'],
         'price' => ['price', 'cost', 'السعر', 'سعر', 'prix', 'tarif'],
         'description' => ['description', 'details', 'desc', 'الوصف', 'وصف', 'détails'],
         'name_ar' => ['name_ar', 'arabic', 'arabic name', 'الاسم بالعربي', 'بالعربي'],
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
     ];
+
+    /** Set by preview(): true when the file's prices are written in Lebanese lira. */
+    public bool $pricesInLbp = false;
+
+    /** Header label words, checked in this order when no exact header name matches ("Main Category", "Price (LBP)"…). */
+    private const HEADER_WORDS = [
+        'subcategory' => ['sub', 'فرعي', 'sous'],
+        'category' => ['categ', 'section', 'group', 'قسم', 'فئة', 'صنف'],
+        'price' => ['price', 'prix', 'tarif', 'سعر'],
+        'description' => ['desc', 'detail', 'وصف'],
+        'name_ar' => ['arab', 'عربي'],
+        'name_fr' => ['french', 'franç', 'franc'],
+        'name' => ['name', 'item', 'product', 'title', 'nom', 'produit', 'article', 'اسم', 'منتج'],
+    ];
+
+    /** "LBP", "L.L", "ل.ل", "ليرة"… in a price or its header. */
+    private const LBP_PATTERN = '/lbp|\bl\.?\s?l\b|lira|livre|ل\.?\s?ل|ليرة|ليره/iu';
 
     /**
      * @return list<array{category: string, name: string, price: float, description: ?string, name_ar: ?string, name_fr: ?string}>
@@ -49,16 +67,26 @@ class MenuImportService
             throw ValidationException::withMessages(['file' => ['No products found. Each row needs at least a product name and a price.']]);
         }
 
+        // Lira prices: marked "LBP" in the file, or amounts no dollar menu has (half the items at 1,000 or more).
+        $prices = collect($items)->pluck('price')->sort()->values();
+        $this->pricesInLbp = $this->pricesInLbp
+            || collect($rows)->contains(fn ($r) => is_string($r['price'] ?? null) && preg_match(self::LBP_PATTERN, $r['price']))
+            || $prices[intdiv($prices->count(), 2)] >= 1000;
+
         return $items;
     }
 
     /**
      * @param  list<array<string, mixed>>  $items  rows from preview(), possibly edited by the merchant
+     * @param  float|null  $lbpRate  set when the prices are in lira: each becomes rate-converted to the shop currency
      * @return array{categories: int, created: int, updated: int}
      */
-    public function import(array $items): array
+    public function import(array $items, ?float $lbpRate = null): array
     {
         $items = $this->normalize($items);
+        if ($lbpRate) {
+            $items = array_map(fn ($i) => ['price' => round($i['price'] / $lbpRate, 2)] + $i, $items);
+        }
         $result = ['categories' => 0, 'created' => 0, 'updated' => 0];
 
         DB::transaction(function () use ($items, &$result) {
@@ -73,12 +101,15 @@ class MenuImportService
                 }
                 $category = $categories->get($key);
 
-                $existing = Product::query()
-                    ->where('category_id', $category->id)
-                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($item['name'])])
-                    ->first();
+                $named = fn () => Product::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($item['name'])]);
+                // Same name in the same category; else one left in "Menu" or without a category by an
+                // earlier import, which moves into its right category.
+                $existing = $named()->where('category_id', $category->id)->first()
+                    ?? $named()->where(fn ($q) => $q->whereNull('category_id')
+                        ->orWhere('category_id', $categories->get('menu')?->id))->first();
 
                 $fields = array_filter([
+                    'category_id' => $category->id,
                     'price' => $item['price'],
                     'description' => $item['description'],
                     'name_ar' => $item['name_ar'],
@@ -140,14 +171,30 @@ class MenuImportService
             return [];
         }
 
+        $labels = array_map(fn ($cell) => trim(preg_replace('/\s+/u', ' ', str_replace(['_', '-', '(', ')', ':'], ' ', mb_strtolower((string) $cell)))), $rows[0]);
         $map = [];
-        foreach ($rows[0] as $i => $cell) {
-            $label = mb_strtolower(trim((string) $cell));
+        foreach ($labels as $i => $label) {
             foreach (self::HEADERS as $field => $names) {
                 if (! isset($map[$field]) && in_array($label, $names, true)) {
                     $map[$field] = $i;
+
+                    continue 2;
                 }
             }
+        }
+        foreach ($labels as $i => $label) {
+            if ($label === '' || in_array($i, $map, true)) {
+                continue;
+            }
+            foreach (self::HEADER_WORDS as $field => $words) {
+                if (! isset($map[$field]) && collect($words)->contains(fn ($w) => str_contains($label, $w))) {
+                    $map[$field] = $i;
+                    break;
+                }
+            }
+        }
+        if (isset($map['price']) && preg_match(self::LBP_PATTERN, $labels[$map['price']])) {
+            $this->pricesInLbp = true;
         }
 
         if (isset($map['name'], $map['price'])) {
@@ -217,13 +264,15 @@ class MenuImportService
         foreach (array_slice($rows, 0, self::MAX_ROWS) as $row) {
             $name = trim((string) ($row['name'] ?? ''));
             $price = $this->price($row['price'] ?? null);
-            if ($name === '' || $price === null) {
-                continue;
+            if (! preg_match('/[\p{L}\p{N}]/u', $name) || $price === null) {
+                continue; // no real name (empty, ".", "-")
             }
 
             $text = fn ($v) => ($v = trim((string) $v)) === '' ? null : mb_substr($v, 0, 500);
+            // A subcategory joins its category: "Pizza - Small".
+            $category = implode(' - ', array_filter([$text($row['category'] ?? null), $text($row['subcategory'] ?? null)]));
             $items[] = [
-                'category' => mb_substr(trim((string) ($row['category'] ?? '')) ?: 'Menu', 0, 120),
+                'category' => mb_substr($category ?: 'Menu', 0, 120),
                 'name' => mb_substr($name, 0, 190),
                 'price' => $price,
                 'description' => $text($row['description'] ?? null),
