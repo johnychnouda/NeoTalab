@@ -19,29 +19,24 @@ export function useMerchant() {
 
 const api = (method, path, body) => apiFetch("merchant", method, path, body);
 
-const SECTIONS = new Set(["menu", "appointments", "drivers", "customers", "analytics", "settings"]);
+const SECTIONS = new Set(["menu", "drivers", "analytics", "settings"]);
 
 const ICON = {
   help: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01" /></svg>,
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>,
   menu: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="3" width="16" height="18" rx="2.5" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>,
   team: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="6" cy="17" r="2.5" /><circle cx="18" cy="17" r="2.5" /><path d="M8.5 17h7M15 6h2.5l2 8.5M15 6v4H9.5l-1 4.5" /></svg>,
-  customers: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>,
-  bookings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
   reports: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>,
   settings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>,
 };
 
-/** Sidebar: Get started, the shop's menu (named for its type), team, customers, bookings (if any), reports, settings. */
+/** Sidebar: Get started, the shop's menu (named for its type), team, reports, settings. */
 function navItems(shopSlug, shop, t) {
   const base = shopSlug ? `/backoffice/${shopSlug}` : "/backoffice";
-  const bookings = shop.business_mode === "appointments" || shop.business_mode === "both";
   return [
     { href: base, section: "", label: t("db.nav.home"), icon: ICON.home },
     { href: `${base}/menu`, section: "menu", label: t(`mk.title.${shop.menu_profile?.word || "menu"}`), icon: ICON.menu },
     { href: `${base}/drivers`, section: "drivers", label: t("db.nav.team"), icon: ICON.team },
-    { href: `${base}/customers`, section: "customers", label: t("db.cust.title"), icon: ICON.customers },
-    ...(bookings ? [{ href: `${base}/appointments`, section: "appointments", label: t("db.nav.bookings"), icon: ICON.bookings }] : []),
     { href: `${base}/analytics`, section: "analytics", label: t("db.nav.reports"), icon: ICON.reports },
     { href: `${base}/settings`, section: "settings", label: t("nav.settings"), icon: ICON.settings },
   ];

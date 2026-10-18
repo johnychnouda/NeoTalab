@@ -1,4 +1,5 @@
 import { getRenewalDate } from "@/lib/api";
+import { mapPin } from "@/components/LocationPicker";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
 
 /** Renewals this close (in days) show up as "renews soon". */
@@ -17,7 +18,7 @@ export function buildInboxAlerts(merchants, requests, t) {
       color: "var(--blue)",
       title: r.shop_name,
       sub: joinOptionLabel(t, r.business_type) || t("ow.inbox.joinRequest"),
-      detail: r.message || [r.street, r.city, joinOptionLabel(t, r.region)].filter(Boolean).join(", "),
+      detail: r.message || (mapPin(r.location) ? `https://www.google.com/maps?q=${mapPin(r.location)}` : [r.street, r.city, joinOptionLabel(t, r.region)].filter(Boolean).join(", ")),
       actionUrl: `/owner?filter=requests&req=${r.id}`,
       requestId: r.id,
     });

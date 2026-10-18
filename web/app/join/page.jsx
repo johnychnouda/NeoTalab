@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import FormSelect from "@/components/FormSelect";
+import LocationPicker from "@/components/LocationPicker";
 import { getTrialDays, submitOnboardingApplication } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
-import { JOIN_BUSINESS_TYPES, JOIN_BUSINESS_TYPE_OTHER, JOIN_CITY_OTHER, JOIN_LEBANON_REGIONS, getLebanonCitiesForRegion } from "@/lib/joinFormOptions";
+import { JOIN_BUSINESS_TYPES, JOIN_BUSINESS_TYPE_OTHER } from "@/lib/joinFormOptions";
 import { COUNTRIES, DEFAULT_COUNTRY, getCountry, mobileError, toWhatsapp, formatMobile } from "@/lib/countries";
 
 const STEPS = ["jn.step.shop", "jn.step.place", "jn.step.contact"];
@@ -34,10 +35,7 @@ const INITIAL = {
   businessType: "",
   businessTypeOther: "",
   country: DEFAULT_COUNTRY,
-  region: "",
-  city: "",
-  cityOther: "",
-  street: "",
+  location: "",
   contactName: "",
   phone: "",
   message: "",
@@ -53,17 +51,7 @@ function stepErrors(step, v) {
     if (!v.businessType) e.businessType = "jn.err.businessType";
     else if (v.businessType === JOIN_BUSINESS_TYPE_OTHER && !v.businessTypeOther.trim()) e.businessTypeOther = "jn.err.businessTypeOther";
   }
-  if (step === 1) {
-    if (v.country === "LB") {
-      if (!v.region) e.region = "jn.err.region";
-      if (!v.city) e.city = "jn.err.city";
-      else if (v.city === JOIN_CITY_OTHER && !v.cityOther.trim()) e.cityOther = "jn.err.cityOther";
-    } else {
-      if (!v.region.trim()) e.region = "jn.err.regionIntl";
-      if (!v.city.trim()) e.city = "jn.err.cityIntl";
-    }
-    if (!v.street.trim()) e.street = "jn.err.street";
-  }
+  if (step === 1 && !v.location.trim()) e.location = "jn.err.location";
   if (step === 2) {
     if (!v.contactName.trim()) e.contactName = "jn.err.contactName";
     const phoneErr = mobileError(v.country, v.phone);
@@ -127,9 +115,7 @@ export default function JoinPage() {
         shopName: vals.shopName.trim(),
         businessType: vals.businessType === JOIN_BUSINESS_TYPE_OTHER ? vals.businessTypeOther.trim() : vals.businessType,
         country: vals.country,
-        region: vals.region.trim(),
-        city: vals.country === "LB" && vals.city === JOIN_CITY_OTHER ? vals.cityOther.trim() : vals.city.trim(),
-        street: vals.street.trim(),
+        location: vals.location.trim(),
         contactName: vals.contactName.trim(),
         whatsapp: toWhatsapp(vals.country, vals.phone),
         message: vals.message.trim() || undefined,
@@ -206,41 +192,11 @@ export default function JoinPage() {
                   <Field id="country" label={t("jn.country")} t={t}>
                     <FormSelect id="jn-country" value={vals.country} aria-label={t("jn.country")}
                       options={COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} ${c.name[lang] || c.name.en}` }))}
-                      onChange={(v) => { setVals((x) => ({ ...x, country: v, region: "", city: "", cityOther: "" })); setErrors({}); }} />
+                      onChange={(v) => set("country", v)} />
                   </Field>
                 )}
-                {vals.country === "LB" ? (<>
-                  <Field id="region" label={t("jn.region")} error={errors.region} t={t}>
-                    <FormSelect id="jn-region" value={vals.region} invalid={!!errors.region} aria-label={t("jn.region")}
-                      placeholder={t("jn.ph.region")}
-                      options={JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
-                      onChange={(v) => { setVals((x) => ({ ...x, region: v, city: "", cityOther: "" })); setErrors((e) => ({ ...e, region: undefined, city: undefined })); }} />
-                  </Field>
-                  <Field id="city" label={t("jn.city")} error={errors.city} t={t}>
-                    <FormSelect id="jn-city" value={vals.city} invalid={!!errors.city} aria-label={t("jn.city")} disabled={!vals.region}
-                      placeholder={vals.region ? t("jn.ph.city") : t("jn.ph.cityFirst")}
-                      options={getLebanonCitiesForRegion(vals.region).map((o) => ({ value: o.value, label: t(o.labelKey) }))}
-                      onChange={(v) => set("city", v)} />
-                  </Field>
-                  {vals.city === JOIN_CITY_OTHER && (
-                    <Field id="cityOther" label={t("jn.cityOther")} error={errors.cityOther} t={t}>
-                      <input id="jn-cityOther" value={vals.cityOther} maxLength={80}
-                        onChange={(e) => set("cityOther", e.target.value)} placeholder={t("jn.ph.cityOther")} />
-                    </Field>
-                  )}
-                </>) : (<>
-                  <Field id="region" label={t("jn.regionIntl")} error={errors.region} t={t}>
-                    <input id="jn-region" value={vals.region} maxLength={80} autoComplete="address-level1"
-                      onChange={(e) => set("region", e.target.value)} placeholder={t("jn.ph.regionIntl")} />
-                  </Field>
-                  <Field id="city" label={t("jn.cityOther")} error={errors.city} t={t}>
-                    <input id="jn-city" value={vals.city} maxLength={80} autoComplete="address-level2"
-                      onChange={(e) => set("city", e.target.value)} placeholder={t("jn.ph.cityIntl")} />
-                  </Field>
-                </>)}
-                <Field id="street" label={t("jn.street")} hint={t("jn.hint.street")} error={errors.street} t={t}>
-                  <input id="jn-street" value={vals.street} maxLength={190} autoComplete="street-address"
-                    onChange={(e) => set("street", e.target.value)} placeholder={t("jn.ph.street")} />
+                <Field id="location" label={t("jn.loc")} hint={errors.location ? undefined : t("jn.loc.hint")} error={errors.location} t={t}>
+                  <LocationPicker value={vals.location} onChange={(v) => set("location", v)} t={t} inputId="jn-location" compact />
                 </Field>
               </div>
             )}

@@ -19,6 +19,7 @@ class OnboardingRequestResource extends JsonResource
             'email' => $this->email,
             'business_type' => $this->business_type,
             'country' => $this->country,
+            'location' => $this->location,
             'street' => $this->street,
             'city' => $this->city,
             'region' => $this->region,

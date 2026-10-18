@@ -7,6 +7,7 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Support\BusinessKind;
 use App\Support\Countries;
+use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
 use Carbon\Carbon;
@@ -160,8 +161,10 @@ class AdminMerchantService
             'region' => $payload['region'] ?? null,
             'country' => $payload['country'] ?? null,
             'payments' => [],
-            // Pickup customers are sent to the address given at sign-up; the shop can change it.
-            'pickup_address' => implode(', ', array_filter([$payload['street'] ?? null, $payload['city'] ?? null])),
+            // The join pin is where the shop delivers from and where customers pick up.
+            'shop_location' => filled($payload['location'] ?? null) ? (string) $payload['location'] : null,
+            'pickup_address' => MapLocation::mapsUrl((string) ($payload['location'] ?? ''))
+                ?: implode(', ', array_filter([$payload['street'] ?? null, $payload['city'] ?? null])),
             // Lebanese shops take cash in lira too; the shop can change the rate or turn it off.
             'lbp_rate' => strtoupper((string) ($payload['country'] ?? '')) === 'LB' ? 89500 : null,
             'mode' => 'auto',

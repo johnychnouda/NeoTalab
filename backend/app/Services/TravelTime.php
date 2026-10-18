@@ -41,11 +41,27 @@ class TravelTime
         return max(1, (int) ($zone->delivery_mins ?? self::FALLBACK_MINS));
     }
 
+    /** Driving minutes from the shop pin to a point, or null when Google Maps can't answer. */
+    public function between(Merchant $merchant, float $lat, float $lng): ?int
+    {
+        $shop = $this->shopLocation($merchant);
+
+        return $shop ? $this->driveMinutes($shop[0], $shop[1], $lat, $lng) : null;
+    }
+
     protected function fromGoogle(Merchant $merchant, Order $order): ?int
     {
+        if ($order->delivery_lat === null || $order->delivery_lng === null) {
+            return null;
+        }
+
+        return $this->between($merchant, (float) $order->delivery_lat, (float) $order->delivery_lng);
+    }
+
+    protected function driveMinutes(float $fromLat, float $fromLng, float $toLat, float $toLng): ?int
+    {
         $key = (string) config('services.google_maps.key');
-        $shop = $this->shopLocation($merchant);
-        if ($key === '' || ! $shop || $order->delivery_lat === null || $order->delivery_lng === null) {
+        if ($key === '') {
             return null;
         }
 
@@ -54,8 +70,8 @@ class TravelTime
                 'X-Goog-Api-Key' => $key,
                 'X-Goog-FieldMask' => 'routes.duration',
             ])->post('https://routes.googleapis.com/directions/v2:computeRoutes', [
-                'origin' => ['location' => ['latLng' => ['latitude' => $shop[0], 'longitude' => $shop[1]]]],
-                'destination' => ['location' => ['latLng' => ['latitude' => (float) $order->delivery_lat, 'longitude' => (float) $order->delivery_lng]]],
+                'origin' => ['location' => ['latLng' => ['latitude' => $fromLat, 'longitude' => $fromLng]]],
+                'destination' => ['location' => ['latLng' => ['latitude' => $toLat, 'longitude' => $toLng]]],
                 'travelMode' => 'DRIVE',
                 'routingPreference' => 'TRAFFIC_UNAWARE',
             ]);
@@ -63,7 +79,7 @@ class TravelTime
 
             return $response->successful() && $seconds > 0 ? max(1, (int) ceil($seconds / 60)) : null;
         } catch (\Throwable $e) {
-            Log::info('Google travel time unavailable, using the area time', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            Log::info('Google travel time unavailable, using the area time', ['error' => $e->getMessage()]);
 
             return null;
         }

@@ -85,6 +85,13 @@ class CheckoutFlow
                     if ($value === 'new') {
                         $state['new_address'] = true;
                     } elseif ($saved = collect($conversation->customer->addresses ?? [])->firstWhere('id', $value)) {
+                        if (($pin = $saved['location'] ?? null) && DeliveryZone::mapped()) {
+                            $zone = DeliveryZone::at((float) $pin['lat'], (float) $pin['lng']);
+                            if (! $zone) {
+                                return $this->outOfArea($merchant, $conversation, $state, $locale);
+                            }
+                            $saved['zone'] = $zone->name;
+                        }
                         $state['zone'] = $saved['zone'] ?? null;
                         $state['address'] = $saved['address'] ?? '';
                         $state['location'] = $saved['location'] ?? null;
@@ -132,6 +139,16 @@ class CheckoutFlow
         // Free input: a location pin or typed address while we wait for one, or address details.
         if ($step === 'location' && ($location || ($text !== null && mb_strlen(trim($text)) >= 5))) {
             if ($location) {
+                if (DeliveryZone::mapped()) {
+                    $zone = DeliveryZone::at((float) $location['lat'], (float) $location['lng']);
+                    if (! $zone) {
+                        return $this->outOfArea($merchant, $conversation, $state, $locale);
+                    }
+                    $state['zone'] = $zone->name;
+                    if ($refusal = $this->belowMinimum($merchant, $conversation, $state, $locale)) {
+                        return $refusal;
+                    }
+                }
                 $state['location'] = $location;
                 $state['address'] = trim((string) ($location['address'] ?? ''));
                 $state['step'] = 'details';
@@ -201,6 +218,10 @@ class CheckoutFlow
             }
 
             $zones = DeliveryZone::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
+            if ($zones->whereNotNull('area')->isNotEmpty()) {
+                // Zones drawn on the map: the customer's pin decides the zone, fee and minimum.
+                return $this->ask($conversation, $state, 'location', $this->location($this->t('location_pin', $locale)));
+            }
             if (empty($state['zone']) && $zones->count() > 1) {
                 $rows = $zones->take(10)->map(fn (DeliveryZone $z) => [
                     'id' => "co:zone:{$z->id}",
@@ -218,6 +239,17 @@ class CheckoutFlow
             }
 
             return $this->ask($conversation, $state, 'location', $this->location($this->t('location', $locale)));
+        }
+
+        // A typed address with zones on the map: the customer picks the zone from the list.
+        if ($state['fulfillment'] === 'delivery' && empty($state['zone']) && empty($state['location'])) {
+            $zones = DeliveryZone::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
+            if ($zones->count() > 1) {
+                return $this->ask($conversation, $state, 'zone', $this->list($this->t('which_area', $locale), $this->t('btn_choose', $locale), $this->zoneRows($merchant, $zones, $locale)));
+            }
+            if ($zones->count() === 1) {
+                $state['zone'] = $zones->first()->name;
+            }
         }
 
         if (empty($state['payment'])) {
@@ -478,6 +510,38 @@ class CheckoutFlow
     }
 
     /** @return array<string, mixed> */
+    /** @return list<array{id: string, title: string, description: string}> */
+    protected function zoneRows(Merchant $merchant, $zones, string $locale): array
+    {
+        return $zones->take(10)->map(fn (DeliveryZone $z) => [
+            'id' => "co:zone:{$z->id}",
+            'title' => Str::limit($z->name, 21, '…'),
+            'description' => $this->t('zone_fee', $locale, [
+                'fee' => $this->money($merchant, (float) $z->delivery_fee),
+                'minimum' => (float) $z->minimum_order > 0 ? $this->t('zone_min', $locale, ['minimum' => $this->money($merchant, (float) $z->minimum_order)]) : '',
+            ]),
+        ])->values()->all();
+    }
+
+    /**
+     * The pin is outside every zone the shop drew: say so, and offer pickup when the shop has it.
+     *
+     * @param  array<string, mixed>  $state
+     * @return array<string, mixed>
+     */
+    protected function outOfArea(Merchant $merchant, Conversation $conversation, array $state, string $locale): array
+    {
+        $state['step'] = 'location';
+        unset($state['zone'], $state['location']);
+        $this->save($conversation, $state);
+        $pickup = ShopSettings::for($merchant)->fulfillment() === 'both';
+        $text = $this->t($pickup ? 'out_of_area_pickup' : 'out_of_area', $locale, ['shop' => $merchant->name]);
+
+        return $pickup
+            ? $this->buttons($text, [['co:ful:pickup', $this->t('btn_pickup', $locale)]])
+            : $this->location($text);
+    }
+
     protected function location(string $body): array
     {
         return ['type' => 'interactive', 'interactive' => [

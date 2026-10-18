@@ -100,6 +100,43 @@ class CheckoutFlowTest extends TestCase
         return Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->latest('number')->firstOrFail();
     }
 
+    /** Zones drawn on the map: an inner ring around the shop and a wider one. */
+    private function drawRings(): void
+    {
+        DeliveryZone::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->delete();
+        DeliveryZone::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Up to 2 km', 'delivery_fee' => 1, 'minimum_order' => 0, 'is_active' => true,
+            'area' => ['type' => 'circle', 'center' => [34.1210, 35.6480], 'radius' => 2000]]);
+        DeliveryZone::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => '2 to 6 km', 'delivery_fee' => 3, 'minimum_order' => 0, 'is_active' => true,
+            'area' => ['type' => 'circle', 'center' => [34.1210, 35.6480], 'radius' => 6000]]);
+    }
+
+    public function test_zones_on_the_map_ask_for_the_pin_and_pick_the_zone_from_it(): void
+    {
+        $this->drawRings();
+        $this->menuOrder();
+        $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'no area list: the pin decides');
+
+        // About 1 km from the shop: the inner ring, even though the wider ring covers it too.
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.1290, 'longitude' => 35.6480]]);
+        $this->tap('co:skip:');
+        $this->tap('co:cur:USD');
+        $this->assertStringContainsString('Up to 2 km', $this->last()['interactive']['body']['text']);
+        $this->assertStringContainsString('1.00$', $this->last()['interactive']['body']['text']);
+    }
+
+    public function test_a_pin_outside_every_zone_is_told_the_shop_does_not_deliver_there(): void
+    {
+        $this->drawRings();
+        $this->menuOrder();
+
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 33.8938, 'longitude' => 35.5018]]); // Beirut, far away
+        $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'asks for another location');
+        $this->assertStringContainsString("doesn't deliver to this location", $this->last()['interactive']['body']['text']);
+
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.1600, 'longitude' => 35.6480]]); // about 4 km
+        $this->assertSame(['co:skip:'], $this->buttonIds(), 'inside the wider ring: on to the details');
+    }
+
     public function test_full_delivery_checkout_with_buttons(): void
     {
         $this->menuOrder();

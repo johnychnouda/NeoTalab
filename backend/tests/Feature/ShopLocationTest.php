@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Merchant;
+use App\Models\OnboardingRequest;
 use App\Support\MapLocation;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,5 +88,66 @@ class ShopLocationTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('shop_location');
         $this->assertSame('33.8938,35.5018', $merchant->refresh()->settings['shop_location']);
+    }
+
+    public function test_pickup_customers_get_the_shop_pin_as_a_google_maps_link(): void
+    {
+        [$merchant, $owner] = $this->merchantWithUser();
+
+        $this->withToken($this->tokenFor($owner))
+            ->patchJson('/api/v1/settings/profile', [
+                'fulfillment' => 'pickup',
+                'shop_location' => '33.8938, 35.5018',
+            ])
+            ->assertOk();
+
+        $merchant->refresh();
+        $this->assertSame('33.8938,35.5018', $merchant->settings['shop_location']);
+        $this->assertSame('https://www.google.com/maps?q=33.8938,35.5018', $merchant->settings['pickup_address']);
+    }
+
+    public function test_a_delivery_area_pin_gets_its_driving_time_from_google_maps(): void
+    {
+        [$merchant, $owner] = $this->merchantWithUser();
+        $merchant->forceFill(['settings' => ['shop_location' => '33.8938,35.5018']])->save();
+        config(['services.google_maps.key' => 'test-key']);
+        Http::fake([
+            'routes.googleapis.com/*' => Http::response(['routes' => [['duration' => '720s']]]),
+        ]);
+
+        $this->withToken($this->tokenFor($owner))
+            ->postJson('/api/v1/settings/zones', [
+                'name' => 'Hamra',
+                'location' => 'https://maps.google.com/?q=33.8959,35.4784',
+                'deliveryFee' => 3,
+                'deliveryMins' => 15,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('zone.location', '33.8959,35.4784')
+            ->assertJsonPath('zone.delivery_mins', 12);
+    }
+
+    public function test_a_join_application_keeps_the_shop_pin_for_the_new_shop(): void
+    {
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Pin Shop',
+            'contactName' => 'Nora',
+            'businessType' => 'Restaurant / Café',
+            'whatsapp' => '+96170999888',
+            'country' => 'LB',
+            'location' => '33.8959, 35.4784',
+            'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $request = OnboardingRequest::query()->where('shop_name', 'Pin Shop')->sole();
+        $this->assertSame('33.8959,35.4784', $request->location);
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->postJson("/api/v1/admin/onboarding/{$request->id}/approve", ['password' => '123456', 'subscriptionStatus' => 'trial'])
+            ->assertOk();
+
+        $settings = Merchant::query()->where('name', 'Pin Shop')->sole()->settings;
+        $this->assertSame('33.8959,35.4784', $settings['shop_location']);
+        $this->assertSame('https://www.google.com/maps?q=33.8959,35.4784', $settings['pickup_address']);
     }
 }

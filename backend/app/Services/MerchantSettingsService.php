@@ -14,6 +14,7 @@ use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\MerchantWhatsAppCredentials;
 use App\Support\ShopSettings;
+use App\Support\ZoneArea;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -72,7 +73,8 @@ class MerchantSettingsService
             $steps[] = ['key' => 'zones', 'done' => DeliveryZone::query()->where('merchant_id', $merchant->id)->where('is_active', true)->exists(), 'required' => true];
         }
         if (! $bookings && $s->fulfillment() !== 'delivery') {
-            $steps[] = ['key' => 'pickup', 'done' => $s->pickupAddress() !== '', 'required' => true];
+            $pin = app(TravelTime::class)->shopLocation($merchant) !== null;
+            $steps[] = ['key' => 'pickup', 'done' => $pin || $s->pickupAddress() !== '', 'required' => true];
         }
         $steps[] = ['key' => 'team', 'done' => $team->isNotEmpty(), 'required' => false];
         $steps[] = ['key' => 'whish', 'done' => app(WhishPayService::class)->enabled($merchant), 'required' => false];
@@ -186,6 +188,13 @@ class MerchantSettingsService
         foreach ($ops as $key => $value) {
             $settings[$key] = $value;
         }
+        // Pickup customers open the shop pin in Google Maps. A typed address is kept until a pin exists.
+        if (in_array($settings['fulfillment'] ?? 'delivery', ['pickup', 'both'], true)) {
+            $maps = MapLocation::mapsUrl((string) ($settings['shop_location'] ?? ''));
+            if ($maps) {
+                $settings['pickup_address'] = $maps;
+            }
+        }
 
         $merchant->settings = $settings;
         $merchant->save();
@@ -264,12 +273,17 @@ class MerchantSettingsService
      */
     public function createZone(Merchant $merchant, array $data): DeliveryZone
     {
+        $location = $this->zonePin($data['location'] ?? null);
+
         return DeliveryZone::create([
             'merchant_id' => $merchant->id,
             'name' => $data['name'],
+            'location' => $location,
+            'area' => ZoneArea::clean($data['area'] ?? null),
+            'color' => $data['color'] ?? null,
             'delivery_fee' => $data['deliveryFee'] ?? $data['delivery_fee'] ?? 0,
             'minimum_order' => $data['minimumOrder'] ?? $data['minimum_order'] ?? 0,
-            'delivery_mins' => $data['deliveryMins'] ?? $data['delivery_mins'] ?? 15,
+            'delivery_mins' => $this->driveMins($merchant, $location, (int) ($data['deliveryMins'] ?? $data['delivery_mins'] ?? 15)),
             'sort_order' => $data['sortOrder'] ?? $data['sort_order'] ?? 0,
             'is_active' => true,
         ]);
@@ -283,11 +297,15 @@ class MerchantSettingsService
     public function updateZone(Merchant $merchant, string $zoneId, array $data): DeliveryZone
     {
         $zone = DeliveryZone::query()->where('merchant_id', $merchant->id)->where('is_active', true)->findOrFail($zoneId);
+        $location = array_key_exists('location', $data) ? $this->zonePin($data['location']) : $zone->location;
         $zone->forceFill([
             'name' => $data['name'],
+            'location' => $location,
+            'area' => array_key_exists('area', $data) ? ZoneArea::clean($data['area']) : $zone->area,
+            'color' => $data['color'] ?? $zone->color,
             'delivery_fee' => $data['deliveryFee'] ?? 0,
             'minimum_order' => $data['minimumOrder'] ?? 0,
-            'delivery_mins' => $data['deliveryMins'] ?? 15,
+            'delivery_mins' => $this->driveMins($merchant, $location, (int) ($data['deliveryMins'] ?? $zone->delivery_mins ?? 15)),
         ])->save();
 
         return $zone;
@@ -302,6 +320,31 @@ class MerchantSettingsService
     /**
      * @return list<ShopHour>
      */
+    /** A delivery area's Google Maps pin ("lat,lng"), or null when none was given. */
+    protected function zonePin(mixed $input): ?string
+    {
+        if (! filled($input)) {
+            return null;
+        }
+
+        return MapLocation::resolve((string) $input) ?? throw ValidationException::withMessages([
+            'location' => [__('No location found in this link. In Google Maps, press and hold to drop a pin, then paste the link or the numbers (e.g. 33.8938, 35.5018).')],
+        ]);
+    }
+
+    /** Google Maps driving time from the shop to this area, or the shop's own fallback minutes. */
+    protected function driveMins(Merchant $merchant, ?string $location, int $fallback): int
+    {
+        if ($location && preg_match('/^(-?\d+\.\d+),(-?\d+\.\d+)$/', $location, $m)) {
+            $google = app(TravelTime::class)->between($merchant, (float) $m[1], (float) $m[2]);
+            if ($google) {
+                return $google;
+            }
+        }
+
+        return max(1, $fallback);
+    }
+
     protected function defaultHours(Merchant $merchant): array
     {
         $rows = [];

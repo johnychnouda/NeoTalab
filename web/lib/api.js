@@ -125,7 +125,6 @@ function normalizeResponse(method, path, raw) {
     if (route === "/settings/profile") return { profile: raw?.profile ?? data?.profile ?? data };
     if (route === "/settings/hours") return { hours: raw?.hours ?? unwrapList(data) };
     if (route === "/settings/zones") return { zones: raw?.zones ?? unwrapList(data) };
-    if (route === "/customers") return { customers: raw?.customers ?? unwrapList(data) };
     if (route === "/drivers") return { drivers: raw?.drivers ?? unwrapList(data) };
     if (route === "/categories") return { categories: Array.isArray(data) ? data : [] };
   }

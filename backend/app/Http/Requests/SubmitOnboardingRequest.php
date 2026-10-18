@@ -50,9 +50,10 @@ class SubmitOnboardingRequest extends FormRequest
                 }
             }],
             'email' => ['nullable', 'email', 'max:190'],
-            'city' => ['required', 'string', 'max:80'],
-            'street' => ['required', 'string', 'max:190'],
-            'region' => ['required', 'string', 'max:80'],
+            'location' => ['required_without:street', 'nullable', 'string', 'max:500'],
+            'city' => ['required_without:location', 'nullable', 'string', 'max:80'],
+            'street' => ['required_without:location', 'nullable', 'string', 'max:190'],
+            'region' => ['required_without:location', 'nullable', 'string', 'max:80'],
             'message' => ['nullable', 'string', 'max:2000'],
             'acceptedTerms' => ['required', 'accepted'],
             'accepted_terms' => ['required_without:acceptedTerms', 'accepted'],

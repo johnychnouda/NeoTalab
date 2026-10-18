@@ -11,6 +11,7 @@ import MerchantPanel from "@/components/owner/MerchantPanel";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
+import { mapPin } from "@/components/LocationPicker";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
 import { MERCHANT_FILTERS, pillClass } from "@/lib/pillTones";
 import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
@@ -373,7 +374,13 @@ function MerchantCard({ t, m, onClick }) {
   );
 }
 
+function requestMapsHref(request) {
+  const pin = mapPin(request.location);
+  return pin ? `https://www.google.com/maps?q=${pin}` : "";
+}
+
 function requestLocationSummary(t, request) {
+  if (requestMapsHref(request)) return "";
   return [request.street, request.city, joinOptionLabel(t, request.region)].filter(Boolean).join(", ");
 }
 
@@ -395,6 +402,7 @@ function RequestCard({ t, request: r, highlighted, onApprove, onReject }) {
   const { locale } = useLang();
   const daysWaiting = Math.floor((Date.now() - new Date(r.created_at)) / 86400000);
   const waitingColor = daysWaiting >= 5 ? "var(--red)" : daysWaiting >= 2 ? "#f59e0b" : "var(--text-muted)";
+  const maps = requestMapsHref(r);
   const locationLine = [r.city, joinOptionLabel(t, r.region)].filter(Boolean).join(", ");
 
   return (
@@ -412,8 +420,10 @@ function RequestCard({ t, request: r, highlighted, onApprove, onReject }) {
       <div className="pipeline-meta">
         <RequestMetaRow label="WhatsApp"><WaLink number={r.whatsapp} /></RequestMetaRow>
         <RequestMetaRow label={t("ow.m.business")}>{joinOptionLabel(t, r.business_type) || "—"}</RequestMetaRow>
-        {locationLine && <RequestMetaRow label={t("ow.m.location")}>{locationLine}</RequestMetaRow>}
-        {r.street && <RequestMetaRow label={t("ow.m.street")}>{r.street}</RequestMetaRow>}
+        {maps
+          ? <RequestMetaRow label={t("ow.m.location")}><a href={maps} target="_blank" rel="noopener noreferrer">{t("db.zone.maps")}</a></RequestMetaRow>
+          : locationLine && <RequestMetaRow label={t("ow.m.location")}>{locationLine}</RequestMetaRow>}
+        {r.street && !maps && <RequestMetaRow label={t("ow.m.street")}>{r.street}</RequestMetaRow>}
         {r.message && (
           <RequestMetaRow label={t("ow.m.notes")} stack>
             <span className="pipeline-meta-notes">&ldquo;{r.message}&rdquo;</span>
@@ -567,7 +577,9 @@ function ApproveModal({ request, onClose, onSubmit, onApproved, toast }) {
             <WaLink number={request.whatsapp} />
             {request.business_type && <span>{joinOptionLabel(t, request.business_type)}</span>}
           </div>
-          {locationSummary && <div className="approve-summary-loc">{locationSummary}</div>}
+          {requestMapsHref(request)
+            ? <div className="approve-summary-loc"><a href={requestMapsHref(request)} target="_blank" rel="noopener noreferrer">{t("db.zone.maps")}</a></div>
+            : locationSummary && <div className="approve-summary-loc">{locationSummary}</div>}
           {request.message && <div className="approve-summary-notes">&ldquo;{request.message}&rdquo;</div>}
         </div>
         <button type="button" className="approve-summary-toggle" onClick={() => setShowDetails((v) => !v)}>

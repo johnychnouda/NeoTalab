@@ -53,6 +53,10 @@ groceries, retail, salons, clinics, services).
   templates (new order, customer needs a person, new booking, due today, refund needed).
 - **Drivers** start and end shifts by sending "start" / "stop", get deliveries automatically
   (the driver free the longest), and tap Picked up / Delivered.
+- **Delivery zones on Google Maps:** each zone is a circle or a shape drawn on the map with its fee,
+  minimum and time (quick setup: rings around the shop). At checkout the customer sends a location pin
+  first; the zone it falls in sets the fee (the smallest zone when they overlap), and a pin outside
+  every zone is told the shop doesn't deliver there. Zones without a shape still work by name.
 - **Time units per shop:** minutes (food), hours, or working days (retail, made to order).
 - **Big menus:** above 80 items the AI only receives the items that match the conversation.
 - **Customer photos** pause the assistant in that chat and alert the staff.

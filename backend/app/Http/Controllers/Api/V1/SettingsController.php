@@ -74,6 +74,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'location' => ['nullable', 'string', 'max:500'],
+            'area' => ['nullable', 'array'],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'deliveryFee' => ['nullable', 'numeric', 'min:0'],
             'minimumOrder' => ['nullable', 'numeric', 'min:0'],
             'deliveryMins' => ['nullable', 'integer', 'min:1', 'max:240'],
@@ -88,6 +91,9 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'location' => ['nullable', 'string', 'max:500'],
+            'area' => ['nullable', 'array'],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'deliveryFee' => ['nullable', 'numeric', 'min:0'],
             'minimumOrder' => ['nullable', 'numeric', 'min:0'],
             'deliveryMins' => ['nullable', 'integer', 'min:1', 'max:240'],

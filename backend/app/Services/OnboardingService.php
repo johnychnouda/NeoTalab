@@ -6,6 +6,7 @@ use App\Models\Merchant;
 use App\Models\OnboardingRequest;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Support\MapLocation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -64,6 +65,7 @@ class OnboardingService
                 'street' => $request->street,
                 'city' => $request->city,
                 'region' => $request->region,
+                'location' => $request->location,
                 'subscriptionStatus' => $payload['subscriptionStatus'] ?? $payload['subscription_status'] ?? 'pending',
                 // A trial lasts the number of days set in the owner portal (Settings → Pricing).
                 'trialEndsAt' => $payload['trialEndsAt'] ?? $payload['trial_ends_at']
@@ -98,6 +100,12 @@ class OnboardingService
             ]);
         }
 
+        $location = filled($data['location'] ?? null)
+            ? (MapLocation::resolve((string) $data['location']) ?? throw ValidationException::withMessages([
+                'location' => [__('No location found in this link. In Google Maps, press and hold on your shop to drop a pin, then paste the link or the numbers (e.g. 33.8938, 35.5018).')],
+            ]))
+            : null;
+
         $request = OnboardingRequest::create([
             'shop_name' => trim((string) ($data['shopName'] ?? $data['shop_name'] ?? '')),
             'contact_name' => $data['contactName'] ?? $data['contact_name'] ?? null,
@@ -105,6 +113,7 @@ class OnboardingService
             'email' => $data['email'] ?? null,
             'business_type' => $data['businessType'] ?? $data['business_type'] ?? null,
             'country' => strtoupper((string) ($data['country'] ?? '')),
+            'location' => $location,
             'street' => $data['street'] ?? null,
             'city' => $data['city'] ?? null,
             'region' => $data['region'] ?? null,
@@ -120,7 +129,9 @@ class OnboardingService
     /** Emails / WhatsApps the owner (Settings → Alerts recipients) that a shop wants to join. */
     protected function notifyOwner(OnboardingRequest $request): void
     {
-        $where = implode(', ', array_filter([$request->city, $request->region]));
+        $where = $request->location
+            ? (MapLocation::mapsUrl($request->location) ?? '')
+            : implode(', ', array_filter([$request->city, $request->region]));
         $text = 'New join request: '.$request->shop_name
             .($where !== '' ? " ({$where})" : '')
             .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]));

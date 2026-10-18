@@ -4,12 +4,12 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
-import { formatMoney } from "@/lib/money";
 import { setToken } from "@/lib/api";
-import { Modal, ConfirmModal, useToast } from "@/components/ui";
+import { useToast } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
 import Segmented from "@/components/Segmented";
-import LocationPicker from "@/components/LocationPicker";
+import LocationPicker, { mapPin } from "@/components/LocationPicker";
+import ZoneEditor from "@/components/ZoneEditor";
 
 const LBP_RATE = 89500;
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
@@ -56,7 +56,6 @@ function Settings() {
   const [savedHours, setSavedHours] = useState([]);
   const [hours, setHours] = useState([]);
   const [zones, setZones] = useState([]);
-  const [modal, setModal] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -144,11 +143,11 @@ function Settings() {
 
   const warnings = [
     delivers && zones.length === 0 && { text: t("db.set.warnZones"), go: "areas" },
-    pickup && !p.pickup_address?.trim() && { text: t("db.set.warnPickup"), go: "orders" },
+    pickup && !mapPin(p.shop_location) && { text: t("db.set.warnPickup"), go: "orders" },
   ].filter(Boolean);
 
   return (
-    <div className="sset">
+    <div className={`sset${tab === "areas" ? " sset-wide" : ""}`}>
       <div className="page-header"><h1>{t("settings.title")}</h1></div>
 
       {warnings.map((w) => (
@@ -201,16 +200,10 @@ function Settings() {
               <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
                 options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: { delivery: "🛵", pickup: "🏪", both: "🔁" }[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
             </Field>
-            {pickup && (
-              <Field id="o-pick" label={t("ops.pickupAddress")}>
-                <input id="o-pick" value={p.pickup_address || ""} onChange={(e) => setP("pickup_address", e.target.value)} />
-              </Field>
-            )}
-            {delivers && (
-              <Field id="o-loc" label={t("ops.shopLocation")} hint={t("ops.shopLocationHint")}>
-                <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} />
-              </Field>
-            )}
+            <Field id="o-loc" label={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
+              hint={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupMapHint" : "ops.shopLocationHint")}>
+              <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} />
+            </Field>
             {unit === "minutes" && (
               <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>
                 <input id="o-prep" type="number" min="1" max="240" value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />
@@ -251,29 +244,9 @@ function Settings() {
       </>)}
 
       {tab === "areas" && (
-        <Card title={t("db.set.tab.areas")} desc={t("db.zone.emptyDesc")}
-          action={zones.length > 0 && <button type="button" className="btn-primary" onClick={() => setModal({ type: "zone" })}>+ {t("db.zone.add")}</button>}>
-          {zones.length === 0 ? (
-            <div className="sset-empty">
-              <p>{t("db.zone.empty")}</p>
-              <button type="button" className="btn-primary" onClick={() => setModal({ type: "zone" })}>+ {t("db.zone.add")}</button>
-            </div>
-          ) : (
-            <ul className="sset-list">
-              {zones.map((z) => (
-                <li key={z.id}>
-                  <div className="sset-list-main">
-                    <strong>{z.name}</strong>
-                    <span>
-                      {formatMoney(z.delivery_fee, shop.currency)} {t("db.zone.fee.short")} · {t("db.zone.minShort")} {formatMoney(z.minimum_order, shop.currency)} · {z.delivery_mins ?? 15} {t("zones.driveShort")}
-                    </span>
-                  </div>
-                  <button type="button" className="btn-sm" onClick={() => setModal({ type: "zone", zone: z })}>{t("mk.edit")}</button>
-                  <button type="button" className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteZone", zone: z })} aria-label={`${t("db.remove")} ${z.name}`}>✕</button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <Card title={t("db.zone.title")} desc={t("db.zone.intro")}>
+          <ZoneEditor api={api} toast={toast} t={t} currency={shop.currency} shopPin={saved?.shop_location || ""}
+            zones={zones} onChanged={loadZones} onSetShopLocation={() => setTab("orders")} />
         </Card>
       )}
 
@@ -357,26 +330,6 @@ function Settings() {
         </div>
       )}
 
-      {modal?.type === "zone" && (
-        <ZoneModal t={t} zone={modal.zone} onClose={() => setModal(null)} onSubmit={async (vals) => {
-          if (!vals.name) { toast(t("db.zone.nameRequired"), "error"); return; }
-          try {
-            if (modal.zone) await api("PATCH", `/settings/zones/${modal.zone.id}`, vals);
-            else await api("POST", "/settings/zones", vals);
-            setModal(null);
-            loadZones();
-            toast(t("db.saved"));
-          } catch (e) { toast(e.message, "error"); }
-        }} />
-      )}
-      {modal?.type === "deleteZone" && (
-        <ConfirmModal title={t("db.remove")} message={<><strong>{modal.zone.name}</strong> — {t("db.zone.remove")}</>} danger
-          onClose={() => setModal(null)}
-          onConfirm={async () => {
-            try { await api("DELETE", `/settings/zones/${modal.zone.id}`); loadZones(); toast(t("db.saved")); }
-            catch (e) { toast(e.message, "error"); }
-          }} />
-      )}
     </div>
   );
 }
@@ -458,28 +411,5 @@ function Switch({ checked, onChange, label, hint }) {
       </span>
       <span className={`sset-switch ${checked ? "on" : ""}`} aria-hidden="true"><span /></span>
     </button>
-  );
-}
-
-function ZoneModal({ t, zone, onClose, onSubmit }) {
-  const [name, setName] = useState(zone?.name || "");
-  const [fee, setFee] = useState(zone ? String(Number(zone.delivery_fee)) : "");
-  const [min, setMin] = useState(zone ? String(Number(zone.minimum_order)) : "");
-  const [drive, setDrive] = useState(String(zone?.delivery_mins ?? 15));
-  return (
-    <Modal title={zone ? t("db.zone.edit") : t("db.zone.add")} onClose={onClose} compact
-      footer={<div className="modal-footer-actions">
-        <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="btn-primary" onClick={() => onSubmit({
-          name: name.trim(), deliveryFee: parseFloat(fee) || 0, minimumOrder: parseFloat(min) || 0, deliveryMins: parseInt(drive, 10) || 15,
-        })}>{zone ? t("db.save") : t("db.add")}</button>
-      </div>}>
-      <div className="field"><label htmlFor="z-name">{t("db.zone.name")}</label><input id="z-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jbeil · جبيل" autoFocus /></div>
-      <div className="modal-row">
-        <div className="field"><label htmlFor="z-fee">{t("db.zone.fee")}</label><input id="z-fee" type="number" step="0.5" min="0" value={fee} onChange={(e) => setFee(e.target.value)} placeholder="1.50" /></div>
-        <div className="field"><label htmlFor="z-min">{t("db.zone.min")}</label><input id="z-min" type="number" step="0.5" min="0" value={min} onChange={(e) => setMin(e.target.value)} placeholder="5.00" /></div>
-      </div>
-      <div className="field"><label htmlFor="z-drive">{t("zones.drive")}</label><input id="z-drive" type="number" min="1" max="240" style={{ maxWidth: 120 }} value={drive} onChange={(e) => setDrive(e.target.value)} /></div>
-    </Modal>
   );
 }

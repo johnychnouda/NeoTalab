@@ -2619,8 +2619,59 @@ button.wa-mic { border: 0; cursor: pointer; }
 /* Shop location picker (Settings → Orders) */
 .lp { display: grid; gap: 8px; }
 .lp-map { display: block; width: 100%; height: 280px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; background: var(--surface2); }
+.lp.compact .lp-map { height: 200px; }
 .lp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .lp-actions a { text-decoration: none; }
 .lp-paste label { display: block; margin-bottom: 6px; font-size: 12.5px; color: var(--text-muted); }
 .lp-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .lp-status { font-size: 12.5px; color: var(--text-muted); }
+
+/* Delivery zones on Google Maps (Settings → Delivery areas) */
+.sset.sset-wide { max-width: 1180px; }
+.zn-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+.zn-map-wrap { position: relative; }
+.zn-map { height: min(620px, calc(100svh - 260px)); min-height: 420px; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; background: #16221c; }
+.zn-nomap { display: grid; place-items: center; padding: 24px; color: var(--text-muted); text-align: center; font-size: 13px; }
+.zn-drawbar { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: 12px; background: #0c1511f0; border: 1px solid #25d36655; font-size: 13px; box-shadow: 0 10px 30px #0008; }
+.zn-drawbar > div { display: flex; gap: 6px; }
+.zn-side { display: grid; gap: 12px; }
+.zn-side h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.zn-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 3px #ffffff14; }
+.zn-list ul { list-style: none; display: grid; gap: 6px; margin-bottom: 12px; }
+.zn-list li button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2);
+  color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: border-color .15s; }
+.zn-list li button:hover { border-color: #25d36666; }
+.zn-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.zn-main strong { font-size: 14px; }
+.zn-main small { font-size: 12.5px; color: var(--text-muted); }
+.zn-main em { font-style: normal; font-size: 12px; color: var(--orange); }
+.zn-edit { color: var(--text-muted); font-size: 20px; }
+.zn-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.zn-add .btn-sm { flex: 1; padding: 9px 12px; }
+.zn-form, .zn-quick { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface2); }
+.zn-field { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.zn-field input, .zn-rings input { width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-weight: 400; outline: none; }
+.zn-field input:focus, .zn-rings input:focus { border-color: var(--green); }
+.zn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.zn-colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.zn-colors button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; box-shadow: 0 0 0 1px #ffffff22; }
+.zn-colors button.on { border-color: #fff; box-shadow: 0 0 0 2px #0c1511, 0 0 0 4px #ffffffaa; }
+.zn-actions { display: flex; align-items: center; gap: 8px; }
+.zn-actions > span { flex: 1; }
+.zn-choose { display: grid; gap: 8px; padding: 10px; border-radius: 10px; border: 1px dashed #f59e0b66; }
+.zn-rings { display: grid; grid-template-columns: 1.1fr 1fr 1fr 24px; gap: 6px 8px; align-items: center; font-size: 12px; color: var(--text-muted); }
+.zn-ring-km { display: flex; align-items: center; gap: 6px; }
+.zn-ring-km i { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.zn-x { border: 0; background: none; color: var(--text-muted); cursor: pointer; font-size: 13px; }
+.zn-wide { width: 100%; }
+.zn-or { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 12px; }
+.zn-or::before, .zn-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.zn-label { text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+@media (max-width: 980px) {
+  .zn-layout { grid-template-columns: 1fr; }
+  .zn-map { height: 380px; min-height: 0; }
+}
+/* Search box on the location map (Google Places). */
+.lp-search gmp-place-autocomplete { width: 100%; color-scheme: dark; }
+.lp-search:empty { display: none; }

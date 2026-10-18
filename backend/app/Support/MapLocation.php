@@ -52,6 +52,14 @@ class MapLocation
         return null;
     }
 
+    /** A link that opens this pin in Google Maps, or null when the text has no coordinates. */
+    public static function mapsUrl(string $latLng): ?string
+    {
+        $pin = self::resolve(trim($latLng));
+
+        return $pin ? 'https://www.google.com/maps?q='.str_replace(' ', '', $pin) : null;
+    }
+
     /** Coordinates written in a link or text, most precise first (the place pin, then the map view). */
     protected static function fromText(string $text, bool $pinOnly = false): ?string
     {
