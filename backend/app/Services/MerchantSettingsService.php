@@ -8,6 +8,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Product;
 use App\Models\ShopHour;
+use App\Services\WhatsApp\WhatsAppService;
 use App\Support\BusinessKind;
 use App\Support\Countries;
 use App\Support\MapLocation;
@@ -16,6 +17,8 @@ use App\Support\MerchantWhatsAppCredentials;
 use App\Support\ShopSettings;
 use App\Support\ZoneArea;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -85,9 +88,44 @@ class MerchantSettingsService
             'ready' => $connected && collect($steps)->where('required', true)->every(fn ($step) => $step['done']),
             'whatsapp_connected' => $connected,
             'whatsapp_number' => $bot['display_phone_number'] ?? null,
+            'meta_payment_url' => $connected ? $this->metaPaymentUrl($merchant) : null,
             'drivers' => $team->where('role', 'driver')->count(),
             'staff' => $team->where('role', 'staff')->count(),
         ];
+    }
+
+    /**
+     * Meta bills the shop's own WhatsApp account for its few paid messages: this opens that
+     * account's payment methods (after the Meta login), on the shop's Meta business when known.
+     */
+    public function metaPaymentUrl(Merchant $merchant): ?string
+    {
+        $bot = ($merchant->settings ?? [])['bot'] ?? [];
+        $wabaId = trim((string) ($bot['waba_id'] ?? ''));
+        if ($wabaId === '') {
+            return null;
+        }
+
+        $businessId = (string) ($bot['business_id'] ?? '');
+        // Looked up once from Meta (at most hourly when it fails) and kept with the shop.
+        if ($businessId === '' && Cache::add("meta-business-lookup:{$merchant->id}", true, 3600)
+            && ($creds = MerchantWhatsAppCredentials::resolve($merchant))) {
+            try {
+                $businessId = (string) Http::withToken($creds['access_token'])->acceptJson()->timeout(5)
+                    ->get(app(WhatsAppService::class)->graphUrl($wabaId), ['fields' => 'owner_business_info'])
+                    ->json('owner_business_info.id');
+            } catch (\Throwable) {
+                $businessId = '';
+            }
+            if ($businessId !== '') {
+                $settings = $merchant->settings;
+                $settings['bot']['business_id'] = $businessId;
+                $merchant->forceFill(['settings' => $settings])->saveQuietly();
+            }
+        }
+
+        return 'https://business.facebook.com/latest/billing_hub/payment_methods'
+            .($businessId !== '' ? '?business_id='.rawurlencode($businessId) : '');
     }
 
     /**

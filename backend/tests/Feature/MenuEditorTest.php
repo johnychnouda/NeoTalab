@@ -8,6 +8,7 @@ use App\Services\TenantProvisioningService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -89,6 +90,25 @@ class MenuEditorTest extends TestCase
         Product::factory()->forMerchant($this->merchant)->create();
         $menu = collect($this->withToken($this->token)->getJson('/api/v1/settings/setup')->json('setup.steps'))->firstWhere('key', 'menu');
         $this->assertTrue($menu['done']);
+    }
+
+    public function test_a_connected_shop_gets_a_direct_link_to_pay_its_whatsapp_fees(): void
+    {
+        $this->assertNull($this->withToken($this->token)->getJson('/api/v1/settings/setup')->json('setup.meta_payment_url'), 'no WhatsApp yet, nothing to pay');
+
+        $this->app['auth']->forgetGuards(); // the next request loads the shop again
+        config(['whatsapp.platform_access_token' => 'test-token']);
+        Http::fake(['graph.facebook.com/*' => Http::response(['owner_business_info' => ['id' => '987654', 'name' => 'Shop']])]);
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], [
+            'bot' => ['phone_id' => '555', 'waba_id' => '123'],
+        ])])->save();
+
+        foreach (range(1, 2) as $_) {
+            $url = $this->withToken($this->token)->getJson('/api/v1/settings/setup')->json('setup.meta_payment_url');
+            $this->assertSame('https://business.facebook.com/latest/billing_hub/payment_methods?business_id=987654', $url);
+        }
+        Http::assertSentCount(1); // the Meta business is looked up once, then kept with the shop
+        $this->assertSame('987654', $this->merchant->fresh()->settings['bot']['business_id']);
     }
 
     public function test_the_shop_sees_its_trial_and_when_it_ends(): void
