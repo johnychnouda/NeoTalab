@@ -11,6 +11,7 @@ import { setToken } from "@/lib/api";
 import { PageHeader } from "@/components/owner/ui";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { useLang } from "@/lib/i18n";
+import { ICONS } from "@/components/auth/AuthShell";
 import {
   SetCard,
   SetCardHeader,
@@ -68,7 +69,11 @@ function PassInput({ value, onChange, placeholder, show, onToggle, autoComplete,
   return (
     <div className="set-pass">
       <input id={id} dir="ltr" type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
-      <button type="button" onClick={onToggle}>{show ? t("ow.hide") : t("ow.show")}</button>
+      {value && (
+        <button type="button" onClick={onToggle} aria-label={show ? t("ow.hide") : t("ow.show")} aria-pressed={show}>
+          {show ? ICONS.eyeOff : ICONS.eye}
+        </button>
+      )}
     </div>
   );
 }

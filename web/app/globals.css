@@ -1220,7 +1220,7 @@ code.approve-login-value {
 }
 .set-pass:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px #25d36618; }
 .set-pass input { flex: 1; min-width: 0; border: none !important; background: transparent !important; border-radius: 0 !important; box-shadow: none !important; padding: 11px 14px; font-size: 14px; color: var(--text); outline: none; font-family: inherit; }
-.set-pass button { border: none; border-left: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 0 14px; cursor: pointer; font-family: inherit; transition: color 0.12s, background 0.12s; }
+.set-pass button { display: flex; align-items: center; border: none; background: transparent; color: var(--text-muted); padding: 0 14px; cursor: pointer; font-family: inherit; transition: color 0.12s, background 0.12s; }
 .set-pass button:hover { color: var(--text); background: var(--bg); }
 
 .set-strength { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
@@ -2677,3 +2677,4 @@ button.wa-mic { border: 0; cursor: pointer; }
 .lp-search:empty { display: none; }
 .usage-month { width: 220px; max-width: 100%; }
 @media (max-width: 640px) { .usage-month { width: 100%; } }
+.set-pass button svg { width: 18px; height: 18px; }
