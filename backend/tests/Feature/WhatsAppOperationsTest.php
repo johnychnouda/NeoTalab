@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\BillingReminderService;
 use App\Services\DailyReportService;
+use App\Services\OrderService;
 use App\Services\TrialExpiryService;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
@@ -436,6 +437,24 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertStringContainsString('was cancelled', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('cancelled by the customer', $this->lastTo($rami->whatsapp_number));
         $this->assertNull($rami->fresh()->active_order_id);
+    }
+
+    public function test_cancelling_an_order_already_in_the_works_hands_the_chat_to_the_shop(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        app(OrderService::class)->transition($this->merchant, $order->id, 'preparing');
+
+        $this->say('cancel order');
+
+        $this->assertSame('preparing', $order->fresh()->status, 'the food is not wasted');
+        $this->assertStringContainsString("Order #{$order->number} is already being prepared", $this->lastTo(self::CUSTOMER));
+        $this->assertNotNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->value('bot_paused_until'));
+        $this->assertSame($order->id, $rami->fresh()->active_order_id);
+
+        $before = count($this->sentTo(self::CUSTOMER));
+        $this->say('hello?');
+        $this->assertCount($before, $this->sentTo(self::CUSTOMER), 'the shop answers now');
     }
 
     public function test_customer_cannot_cancel_once_the_driver_has_it(): void

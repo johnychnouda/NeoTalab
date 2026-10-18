@@ -136,6 +136,7 @@ return [
         'split' => ' — vous payez :payment',
         'cancelled' => '✅ Votre commande n° :number a été annulée.',
         'cancel_too_late' => 'Désolé, la commande n° :number est déjà en route et ne peut plus être annulée. Répondez « humain » pour parler à la boutique.',
+        'cancel_ask_shop' => 'La commande n° :number est déjà en préparation, l\'équipe :shop décidera donc de son annulation. Elle vous répondra ici sous peu.',
         'cancel_none' => "Vous n'avez aucune commande en cours à annuler.",
         'handoff' => "👋 Un membre de l'équipe :shop va vous répondre ici très vite.",
         'whish_link' => "💳 Commande n° :number — payez :amount avec Whish ici :\n:url\nVotre commande démarre dès que le paiement est confirmé (lien valable :minutes minutes).",

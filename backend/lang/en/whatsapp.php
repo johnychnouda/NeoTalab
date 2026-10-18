@@ -139,6 +139,7 @@ return [
         'split' => ' — you pay :payment',
         'cancelled' => '✅ Your order #:number has been cancelled.',
         'cancel_too_late' => 'Sorry, order #:number is already on its way, so it can no longer be cancelled. Reply "human" to talk to the shop.',
+        'cancel_ask_shop' => 'Order #:number is already being prepared, so the :shop team will decide about cancelling it. They will reply to you here shortly.',
         'cancel_none' => 'You have no open order to cancel.',
         'handoff' => '👋 A member of the :shop team will reply to you here shortly.',
         'whish_link' => "💳 Order #:number — pay :amount with Whish here:\n:url\nYour order starts as soon as the payment is confirmed (link valid :minutes minutes).",

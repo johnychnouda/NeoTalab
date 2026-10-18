@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Modifier;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\AI\CatalogResolver;
 use App\Services\AI\DTO\CartAction;
 use App\Services\AI\DTO\CartLineSnapshot;
@@ -115,6 +118,8 @@ class CartService
             throw new InvalidArgumentException('One or more modifiers are invalid for this product.');
         }
 
+        $this->requireChoices($product, $variant, $modifiers);
+
         $qty = max(1, min(self::MAX_LINE_QUANTITY, $action->quantity));
         $unitPrice = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);
         $lineTotal = number_format((float) $unitPrice * $qty, 2, '.', '');
@@ -129,6 +134,32 @@ class CartService
             'line_total' => $lineTotal,
             'notes' => $action->notes,
         ]);
+    }
+
+    /**
+     * Same rules as the chat menu (ChatMenu::nextStep): a product with sizes needs one, and a
+     * required option group needs its minimum, otherwise the line would be priced wrong.
+     *
+     * @param  Collection<int, Modifier>  $modifiers
+     */
+    private function requireChoices(Product $product, ?ProductVariant $variant, Collection $modifiers): void
+    {
+        $variants = $product->variants->filter(fn ($v) => ($v->is_active ?? true) && ($v->is_available ?? true));
+        if ($variants->isNotEmpty() && ! $variant) {
+            throw new InvalidArgumentException('This product has sizes: ask the customer which one (variant_id).');
+        }
+
+        $chosen = $modifiers->pluck('id')->all();
+        foreach ($product->modifierGroups as $group) {
+            $offered = $group->modifiers->filter(fn ($m) => ($m->is_active ?? true) && ($m->is_available ?? true));
+            if (! $group->required || $offered->isEmpty()) {
+                continue;
+            }
+            $picked = count(array_intersect($chosen, $group->modifiers->pluck('id')->all()));
+            if ($picked < max(1, (int) $group->min_select)) {
+                throw new InvalidArgumentException("Option \"{$group->name}\" is required: ask the customer to choose.");
+            }
+        }
     }
 
     private function updateItem(Cart $cart, CartAction $action): void

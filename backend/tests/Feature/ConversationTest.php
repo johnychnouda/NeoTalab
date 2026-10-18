@@ -135,6 +135,67 @@ class ConversationTest extends TestCase
         $this->assertSame('6.50', number_format((float) $cart->items->first()->line_total, 2, '.', ''));
     }
 
+    public function test_cart_rejects_a_product_with_sizes_added_without_a_size(): void
+    {
+        [$merchant] = $this->merchantWithUser();
+        $product = Product::factory()->forMerchant($merchant)->create(['name' => 'Coffee', 'price' => 4.00]);
+        $large = ProductVariant::factory()->forProduct($product)->create(['name' => 'Large', 'price' => 5.50]);
+        app(CurrentTenant::class)->set($merchant);
+        $cart = app(ConversationService::class)->startOrResume(['phone' => '+96170444444'])->cart;
+        $carts = app(CartService::class);
+
+        $result = $carts->applyActions($cart, [new CartAction(action: 'add', productId: $product->id, quantity: 1)]);
+
+        $this->assertSame(0, $result['applied']);
+        $this->assertStringContainsString('variant_id', $result['rejected'][0]['reason']);
+        $this->assertSame(0, $cart->items()->count(), 'never priced at the base price');
+
+        $result = $carts->applyActions($cart, [new CartAction(action: 'add', productId: $product->id, variantId: $large->id, quantity: 1)]);
+        $this->assertSame(1, $result['applied']);
+        $this->assertSame('5.50', number_format((float) $cart->fresh()->subtotal, 2, '.', ''));
+    }
+
+    public function test_cart_rejects_an_add_missing_a_required_option(): void
+    {
+        [$merchant] = $this->merchantWithUser();
+        $product = Product::factory()->forMerchant($merchant)->create(['name' => 'Pizza', 'price' => 8.00]);
+        $sauces = ModifierGroup::factory()->forProduct($product)->create(['name' => 'Sauces', 'required' => true, 'min_select' => 2]);
+        [$garlic, $bbq] = [
+            Modifier::factory()->forGroup($sauces)->create(['name' => 'Garlic', 'price_delta' => 0]),
+            Modifier::factory()->forGroup($sauces)->create(['name' => 'BBQ', 'price_delta' => 0.5]),
+        ];
+        $extras = ModifierGroup::factory()->forProduct($product)->create(['name' => 'Extras']);
+        Modifier::factory()->forGroup($extras)->create(['name' => 'Olives']);
+        app(CurrentTenant::class)->set($merchant);
+        $cart = app(ConversationService::class)->startOrResume(['phone' => '+96170555555'])->cart;
+        $carts = app(CartService::class);
+
+        foreach ([[], [$garlic->id]] as $mods) {
+            $result = $carts->applyActions($cart, [new CartAction(action: 'add', productId: $product->id, quantity: 1, modifierIds: $mods)]);
+            $this->assertSame(0, $result['applied']);
+            $this->assertStringContainsString('Sauces', $result['rejected'][0]['reason']);
+        }
+
+        $result = $carts->applyActions($cart, [new CartAction(action: 'add', productId: $product->id, quantity: 1, modifierIds: [$garlic->id, $bbq->id])]);
+        $this->assertSame(1, $result['applied'], 'optional groups can stay empty');
+        $this->assertSame('8.50', number_format((float) $cart->fresh()->subtotal, 2, '.', ''));
+    }
+
+    public function test_cart_ignores_sizes_and_required_options_that_are_all_switched_off(): void
+    {
+        [$merchant] = $this->merchantWithUser();
+        $product = Product::factory()->forMerchant($merchant)->create(['name' => 'Tea', 'price' => 2.00]);
+        ProductVariant::factory()->forProduct($product)->create(['name' => 'Large', 'price' => 3, 'is_active' => false]);
+        $group = ModifierGroup::factory()->forProduct($product)->create(['required' => true, 'min_select' => 1]);
+        Modifier::factory()->forGroup($group)->create(['is_active' => false]);
+        app(CurrentTenant::class)->set($merchant);
+        $cart = app(ConversationService::class)->startOrResume(['phone' => '+96170666666'])->cart;
+
+        $result = app(CartService::class)->applyActions($cart, [new CartAction(action: 'add', productId: $product->id, quantity: 1)]);
+
+        $this->assertSame(1, $result['applied']);
+    }
+
     public function test_cart_rejects_foreign_product_id(): void
     {
         [$merchantA] = $this->merchantWithUser();

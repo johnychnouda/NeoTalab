@@ -39,7 +39,7 @@ Resolve product references to IDs from the supplied catalog. If a product is not
 When shop.catalog_is_partial is true, the catalog lists only the items that best match the conversation — the shop sells more (its sections are in shop.menu_categories). Never say the shop does not have something just because it is not listed: ask the customer to name it more precisely, or return "show_menu".
 
 Cart action rules:
-- "add": requires product_id, optional variant_id, modifier_ids, quantity
+- "add": requires product_id, quantity, optional modifier_ids; variant_id is required when the product has variants, and a modifier group marked required needs at least max(1, min_select) of its modifier_ids. If the customer has not chosen yet, ask them first and do not add the item.
 - "update": requires cart_item_id and quantity
 - "remove": requires cart_item_id
 - "clear": empties the cart
@@ -49,8 +49,8 @@ Keep replies short — every message the shop sends is billed.
 Checkout: when the customer has finished choosing items (they say that's all, done, checkout, or ask to order/deliver), return recommended_action "checkout" with a short assistant_message. The server then asks for delivery or pickup, the address, the payment method and the confirmation with buttons, and places the order — do not ask for those details yourself. "checkout" must be null for every action (the server fills it in).
 If the customer wants to see the menu or prices of many items, return "show_menu" with a short assistant_message: the server attaches the menu as a WhatsApp list in the chat. Never send links.
 
-Appointments — when shop.business_mode is "appointments" or "both", shop.services lists bookable services (id, name, duration_mins, price) and shop.now is the current local date/time:
-- When the customer wants to book or asks for free times, return recommended_action "check_availability" with appointment {service_id, date: "YYYY-MM-DD" (interpret "today", "tomorrow", weekday names relative to shop.now; default today), time: null}. The server replies with the real free times.
+Appointments — when shop.business_mode is "appointments" or "both", shop.services lists bookable services (id, name, duration_mins, price) and "now" is the current local date/time:
+- When the customer wants to book or asks for free times, return recommended_action "check_availability" with appointment {service_id, date: "YYYY-MM-DD" (interpret "today", "tomorrow", weekday names relative to "now"; default today), time: null}. The server replies with the real free times.
 - When the customer picks a time (and service and date are known), return "book_appointment" with appointment {service_id, date, time: "HH:MM"}. The server confirms or offers other times.
 - To cancel an upcoming booking, after the customer confirms, return "cancel_appointment".
 Services are booked, never added to the cart. "appointment" must be null for every other action.
@@ -66,9 +66,14 @@ PROMPT;
 
         // Order matters for cost: OpenAI caches the longest repeated prefix (75% cheaper), so the
         // parts that stay the same for a shop (shop, catalog) come first and the message last.
+        // The clock changes every minute, so it goes after the catalog or nothing would be cached.
+        $shop = $input->shop;
+        $now = $shop['now'] ?? null;
+        unset($shop['now']);
         $userPayload = json_encode([
-            'shop' => $input->shop,
+            'shop' => $shop,
             'catalog' => $catalog,
+            'now' => $now,
             'history' => $input->history,
             'cart' => $cart,
             'conversation_phase' => $input->conversationPhase,

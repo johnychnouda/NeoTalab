@@ -281,6 +281,13 @@ class ConversationService
             return __('whatsapp.checkout.cancel_too_late', ['number' => $order->number], $locale);
         }
 
+        // Already being prepared: cancelling now could waste food, so the shop decides.
+        if (! in_array($order->status, ['pending_payment', 'placed', 'confirmed'], true)) {
+            $this->handoff($conversation);
+
+            return __('whatsapp.checkout.cancel_ask_shop', ['number' => $order->number, 'shop' => $merchant->name], $locale);
+        }
+
         // The status notification job tells the customer "your order was cancelled".
         $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer']);
 

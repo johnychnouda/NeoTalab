@@ -262,6 +262,38 @@ class CheckoutTest extends TestCase
         }
     }
 
+    public function test_openai_payload_keeps_the_clock_after_the_catalog_so_the_prefix_is_cached(): void
+    {
+        config(['ai.driver' => 'openai', 'ai.openai.api_key' => 'sk-test']);
+        Http::fake(['api.openai.com/*' => Http::response(['model' => 'gpt-4o-mini', 'usage' => [], 'choices' => [['message' => ['content' => json_encode([
+            'assistant_message' => 'Hi!', 'intent' => 'greeting', 'recommended_action' => 'none',
+        ])]]]])]);
+
+        $payloads = [];
+        foreach (['10:00', '10:07'] as $time) {
+            Carbon::setTestNow(Carbon::parse("2026-10-18 {$time}", 'Asia/Beirut'));
+            $this->say('hello');
+        }
+        Carbon::setTestNow();
+
+        foreach (Http::recorded() as [$request]) {
+            if (str_contains($request->url(), 'api.openai.com')) {
+                $payloads[] = $request['messages'][1]['content'];
+            }
+        }
+        $this->assertCount(2, $payloads);
+
+        $data = json_decode($payloads[0], true);
+        $this->assertSame(['shop', 'catalog', 'now', 'history'], array_slice(array_keys($data), 0, 4));
+        $this->assertArrayNotHasKey('now', $data['shop']);
+        $this->assertStringStartsWith('2026-10-18 10:00', $data['now']);
+
+        // Everything up to the clock is identical between turns minutes apart.
+        $prefix = fn (string $p) => substr($p, 0, strpos($p, '"now"'));
+        $this->assertSame($prefix($payloads[0]), $prefix($payloads[1]));
+        $this->assertNotSame($payloads[0], $payloads[1]);
+    }
+
     public function test_openai_schema_satisfies_strict_mode(): void
     {
         $schema = (new ReflectionMethod(OpenAiCompatibleChatProvider::class, 'responseSchema'))

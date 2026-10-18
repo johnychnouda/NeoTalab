@@ -108,6 +108,7 @@ class CatalogResolver
             modifierGroups: $product->modifierGroups->map(fn ($g) => [
                 'id' => $g->id,
                 'name' => $g->name,
+                'required' => (bool) $g->required,
                 'min_select' => $g->min_select,
                 'max_select' => $g->max_select,
                 'modifiers' => $g->modifiers->map(fn (Modifier $m) => [
