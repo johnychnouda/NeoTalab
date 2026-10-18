@@ -38,9 +38,11 @@ class CheckoutFlow
     }
 
     /**
+     * @param  array<string, mixed>|null  $known  what the customer already said, from the assistant:
+     *                                            fulfillment and delivery_address (a typed address)
      * @return array<string, mixed>
      */
-    public function start(Merchant $merchant, Conversation $conversation, string $locale): array
+    public function start(Merchant $merchant, Conversation $conversation, string $locale, ?array $known = null): array
     {
         $conversation->load('cart.items');
         if (! $conversation->cart || $conversation->cart->items->isEmpty()) {
@@ -51,9 +53,34 @@ class CheckoutFlow
             return $this->text(__('whatsapp.checkout.shop_closed', ['shop' => $merchant->name], $locale));
         }
 
-        $this->save($conversation, []);
+        $this->save($conversation, $this->known($merchant, $known ?? []));
 
         return $this->next($merchant, $conversation, $locale);
+    }
+
+    /**
+     * A customer who typed "deliver to Sassine, bldg Rizk" is not asked Delivery or Pickup, nor
+     * for the address again; the area, fee and minimum are still checked by the next steps.
+     *
+     * @param  array<string, mixed>  $known
+     * @return array<string, mixed>
+     */
+    protected function known(Merchant $merchant, array $known): array
+    {
+        $offered = ShopSettings::for($merchant)->fulfillment();
+        $address = trim((string) ($known['delivery_address'] ?? ''));
+        $wanted = ($known['fulfillment'] ?? null) ?: ($address !== '' ? 'delivery' : null);
+        if (! in_array($wanted, ['delivery', 'pickup'], true) || ($offered !== 'both' && $offered !== $wanted)) {
+            return [];
+        }
+
+        $state = ['fulfillment' => $wanted];
+        if ($wanted === 'delivery' && mb_strlen($address) >= 5) {
+            $state['address'] = $address;
+            $state['address_done'] = true;
+        }
+
+        return $state;
     }
 
     /**

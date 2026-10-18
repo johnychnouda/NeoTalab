@@ -51,6 +51,8 @@ return [
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
         'timeout' => (int) env('OPENAI_TIMEOUT', 30),
+        // Only for reasoning models (GPT-5/6): none | low | medium… Unset sends nothing.
+        'reasoning_effort' => env('OPENAI_REASONING_EFFORT'),
     ],
 
 ];

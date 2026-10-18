@@ -46,7 +46,7 @@ Cart action rules:
 
 Keep replies short — every message the shop sends is billed.
 
-Checkout: when the customer has finished choosing items (they say that's all, done, checkout, or ask to order/deliver), return recommended_action "checkout" with a short assistant_message. The server then asks for delivery or pickup, the address, the payment method and the confirmation with buttons, and places the order — do not ask for those details yourself. "checkout" must be null for every action (the server fills it in).
+Checkout: when the customer has finished choosing items (they say that's all, done, checkout, or ask to order/deliver), return recommended_action "checkout" with a short assistant_message. The server then asks for delivery or pickup, the address, the payment method and the confirmation with buttons, and places the order — do not ask for those details yourself. With "checkout", set checkout.fulfillment ("delivery" or "pickup") and checkout.delivery_address only when the customer clearly said them (for example they typed their address), else null; every other checkout field is null. "checkout" must be null for every other action.
 If the customer wants to see the menu or prices of many items, return "show_menu" with a short assistant_message: the server attaches the menu as a WhatsApp list in the chat. Never send links.
 
 Appointments — when shop.business_mode is "appointments" or "both", shop.services lists bookable services (id, name, duration_mins, price) and "now" is the current local date/time:
@@ -80,14 +80,17 @@ PROMPT;
             'locale' => $input->locale,
             'customer_message' => $input->message,
         ], JSON_UNESCAPED_UNICODE);
+        [$userPayload, $ids] = $this->shortenIds((string) $userPayload);
 
         $schema = $this->responseSchema();
 
         try {
             $response = Http::withToken($apiKey)
                 ->timeout(config('ai.openai.timeout', 30))
-                ->post(rtrim(config('ai.openai.base_url'), '/').'/chat/completions', [
+                ->post(rtrim(config('ai.openai.base_url'), '/').'/chat/completions', array_filter([
                     'model' => config('ai.openai.model'),
+                    // Reasoning models (GPT-5/6) think before answering; a chat reply needs little of it.
+                    'reasoning_effort' => config('ai.openai.reasoning_effort') ?: null,
                     // Keeps one shop's turns on the same cache.
                     'prompt_cache_key' => 'shop-'.substr(md5((string) json_encode($input->shop['name'] ?? '')), 0, 16),
                     'messages' => [
@@ -102,7 +105,7 @@ PROMPT;
                             'schema' => $schema,
                         ],
                     ],
-                ])
+                ], fn ($v) => $v !== null))
                 ->throw();
         } catch (RequestException $e) {
             throw new RuntimeException('AI provider request failed: '.$e->getMessage(), 0, $e);
@@ -124,7 +127,45 @@ PROMPT;
             throw new RuntimeException('AI provider returned invalid JSON.');
         }
 
-        return StructuredTurnOutput::fromArray($decoded);
+        return StructuredTurnOutput::fromArray($this->restoreIds($decoded, $ids));
+    }
+
+    /**
+     * Items, sizes and options created together get UUIDs that differ only in their last few
+     * characters, and the model then copies the wrong one ("fries" becomes "Pepsi"). It sees
+     * short ids instead (i1, i2…, numbered in order of appearance, so the catalog prefix stays
+     * cacheable), and they are mapped back to the real ids in its answer.
+     *
+     * @return array{0: string, 1: array<string, string>} payload, short id => real id
+     */
+    private function shortenIds(string $payload): array
+    {
+        $short = [];
+        $payload = preg_replace_callback(
+            '/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i',
+            function (array $m) use (&$short) {
+                return $short[strtolower($m[0])] ??= 'i'.(count($short) + 1);
+            },
+            $payload,
+        );
+
+        return [$payload, array_flip($short)];
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     * @param  array<string, string>  $ids
+     * @return array<string, mixed>
+     */
+    private function restoreIds(array $output, array $ids): array
+    {
+        array_walk_recursive($output, function (&$value) use ($ids) {
+            if (is_string($value) && isset($ids[$value])) {
+                $value = $ids[$value];
+            }
+        });
+
+        return $output;
     }
 
     /**

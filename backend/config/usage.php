@@ -14,6 +14,10 @@ return [
         'gpt-4o-mini' => ['input' => 0.15, 'cached' => 0.075, 'output' => 0.60],
         'gpt-5-mini' => ['input' => 0.25, 'cached' => 0.025, 'output' => 2.00],
         'gpt-5-nano' => ['input' => 0.05, 'cached' => 0.005, 'output' => 0.40],
+        'gpt-5.4-mini' => ['input' => 0.75, 'cached' => 0.075, 'output' => 4.50],
+        'gpt-5.6-luna' => ['input' => 0.20, 'cached' => 0.02, 'output' => 1.20],
+        'gpt-6-luna' => ['input' => 0.10, 'cached' => 0.01, 'output' => 0.50],
+        'gpt-6.1-sol' => ['input' => 2.00, 'cached' => 0.10, 'output' => 10.00],
         // Voice notes: input = audio tokens (about $0.003 per minute).
         'gpt-4o-mini-transcribe' => ['input' => 3.00, 'cached' => 3.00, 'output' => 5.00],
     ],

@@ -290,7 +290,7 @@ class WhatsAppInboundService
                 if ($reply !== '') {
                     $this->reply($merchant, $fromPhone, $reply);
                 }
-                $this->send($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale));
+                $this->send($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
 
                 return;
             }
@@ -310,6 +310,9 @@ class WhatsAppInboundService
             $this->send($merchant, $fromPhone, $this->chatMenu->categories($merchant, $locale, 1, $reply));
         } elseif ($reply !== '') {
             $this->reply($merchant, $fromPhone, $reply);
+        } elseif ($result['output']->recommendedAction !== RecommendedAction::CancelOrder) {
+            // The assistant had nothing to say (cancelling is answered by the status message).
+            $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('not_understood', $locale, $merchant->name));
         }
     }
 

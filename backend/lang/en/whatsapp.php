@@ -10,6 +10,7 @@ return [
     'media_unsupported' => "Sorry, I can't open photos, stickers or files here 🙏 Please type what you'd like, or pick from the menu below.",
     'voice_failed' => "Sorry, I couldn't hear that voice note clearly 🙏 Please send it again or type your order — you can also pick from the menu below.",
     'error' => 'Sorry, we could not process your message right now. Please try again in a moment.',
+    'not_understood' => "Sorry, I didn't catch that 🙏 Could you say it again, or pick from the menu below?",
 
     'timing' => [
         'mins_short' => ':n min',

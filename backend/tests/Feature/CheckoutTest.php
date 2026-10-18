@@ -294,6 +294,71 @@ class CheckoutTest extends TestCase
         $this->assertNotSame($payloads[0], $payloads[1]);
     }
 
+    public function test_openai_sees_short_ids_and_its_answer_maps_back_to_the_real_item(): void
+    {
+        config(['ai.driver' => 'openai', 'ai.openai.api_key' => 'sk-test']);
+        $fries = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Fries', 'price' => 2.5]);
+
+        Http::fake(['api.openai.com/*' => function (Request $request) {
+            $catalog = json_decode($request['messages'][1]['content'], true)['catalog'];
+            $short = collect($catalog)->firstWhere('name', 'Fries')['id'];
+
+            return Http::response(['model' => 'gpt-4o-mini', 'usage' => [], 'choices' => [['message' => ['content' => json_encode([
+                'assistant_message' => 'Added!', 'intent' => 'order', 'recommended_action' => 'none',
+                'cart_actions' => [['action' => 'add', 'product_id' => $short, 'variant_id' => null, 'cart_item_id' => null, 'quantity' => 2, 'modifier_ids' => [], 'notes' => null]],
+            ])]]]]);
+        }]);
+
+        $this->say('2 fries');
+
+        $payload = collect(Http::recorded())->map(fn ($r) => $r[0])->first(fn ($r) => str_contains($r->url(), 'api.openai.com'))['messages'][1]['content'];
+        $this->assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-/', $payload, 'no UUIDs reach the model');
+        $this->assertMatchesRegularExpression('/"id":"i\d+"/', $payload);
+
+        $item = Cart::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->latest()->first()->items()->first();
+        $this->assertSame($fries->id, $item->product_id);
+        $this->assertSame(2, (int) $item->quantity);
+    }
+
+    /** The OpenAI fake answers every turn with this output (null fields filled in). */
+    private function aiAnswers(array $output): void
+    {
+        config(['ai.driver' => 'openai', 'ai.openai.api_key' => 'sk-test']);
+        Http::fake(['api.openai.com/*' => function (Request $request) use ($output) {
+            $catalog = json_decode($request['messages'][1]['content'], true)['catalog'];
+            $output = json_decode(str_replace('{shawarma}', collect($catalog)->firstWhere('name', 'Shawarma')['id'], json_encode($output)), true);
+
+            return Http::response(['model' => 'gpt-6-luna', 'usage' => [], 'choices' => [['message' => ['content' => json_encode($output + [
+                'intent' => 'order', 'cart_actions' => [], 'checkout' => null, 'appointment' => null,
+            ])]]]]);
+        }]);
+    }
+
+    public function test_a_typed_address_skips_the_delivery_or_pickup_question(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings, ['fulfillment' => 'both'])])->save();
+        $this->aiAnswers([
+            'assistant_message' => 'Got it!', 'recommended_action' => 'checkout',
+            'cart_actions' => [['action' => 'add', 'product_id' => '{shawarma}', 'variant_id' => null, 'cart_item_id' => null, 'quantity' => 1, 'modifier_ids' => [], 'notes' => null]],
+            'checkout' => ['fulfillment' => null, 'delivery_zone' => null, 'delivery_address' => 'Sassine street, bldg Rizk, 3rd floor', 'payment_method' => null, 'payment_currency' => null, 'cash_main' => null, 'notes' => null],
+        ]);
+
+        $this->say('1 shawarma to Sassine street, bldg Rizk, 3rd floor, that is all');
+
+        $reply = $this->lastReply();
+        $this->assertStringNotContainsString('How would you like to get your order', $reply);
+        $this->assertStringContainsString('Sassine street, bldg Rizk', $reply, 'straight to the receipt with the typed address');
+    }
+
+    public function test_an_empty_answer_from_the_assistant_still_gets_the_customer_a_reply(): void
+    {
+        $this->aiAnswers(['assistant_message' => '', 'recommended_action' => 'none']);
+
+        $this->say('hmm');
+
+        $this->assertStringContainsString("didn't catch that", $this->lastReply());
+    }
+
     public function test_openai_schema_satisfies_strict_mode(): void
     {
         $schema = (new ReflectionMethod(OpenAiCompatibleChatProvider::class, 'responseSchema'))

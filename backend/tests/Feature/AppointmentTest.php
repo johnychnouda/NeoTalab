@@ -6,6 +6,7 @@ use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\SendAppointmentReminder;
 use App\Models\Appointment;
 use App\Models\CartItem;
+use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Product;
@@ -86,6 +87,17 @@ class AppointmentTest extends TestCase
         $this->assertStringContainsString('09:00, 09:30, 10:00', $reply);
         $this->assertStringContainsString('17:30', $reply, 'last 30-min slot before 18:00');
         $this->assertStringNotContainsString('18:00', $reply);
+    }
+
+    public function test_dates_are_written_in_the_customers_language(): void
+    {
+        Customer::query()->withoutGlobalScopes()->forceCreate(['merchant_id' => $this->merchant->id, 'phone' => self::CUSTOMER, 'locale' => 'ar']);
+
+        $this->say('slots haircut 2026-10-06');
+
+        $reply = $this->lastTo(self::CUSTOMER);
+        $this->assertStringContainsString('6 أكتوبر', $reply);
+        $this->assertStringNotContainsString('Oct', $reply);
     }
 
     public function test_booking_confirms_notifies_staff_and_schedules_a_reminder(): void

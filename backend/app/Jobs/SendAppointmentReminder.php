@@ -30,7 +30,7 @@ class SendAppointmentReminder implements ShouldQueue
         $locale = $appointment->customer?->locale ?? $merchant->locale ?? 'en';
 
         try {
-            $this->sendAs($merchant, (string) $appointment->customer?->phone, __('whatsapp.appointment.reminder', $this->appointmentParams($appointment, $merchant), $locale));
+            $this->sendAs($merchant, (string) $appointment->customer?->phone, __('whatsapp.appointment.reminder', $this->appointmentParams($appointment, $merchant, $locale), $locale));
         } catch (\Throwable $e) {
             Log::warning('Appointment reminder failed', ['appointment_id' => $appointment->id, 'error' => $e->getMessage()]);
         }

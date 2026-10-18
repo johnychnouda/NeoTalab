@@ -327,7 +327,7 @@ class ConversationService
 
         if ($slots !== []) {
             return __('whatsapp.appointment.slots', [
-                'service' => $service->name, 'date' => $date->format('D j M'), 'slots' => implode(', ', array_slice($slots, 0, 24)),
+                'service' => $service->name, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($slots, 0, 24)),
             ], $locale);
         }
 
@@ -335,8 +335,8 @@ class ConversationService
 
         return $next
             ? __('whatsapp.appointment.none_that_day', [
-                'service' => $service->name, 'date' => $date->format('D j M'),
-                'next' => $next[0]->format('D j M'), 'slots' => implode(', ', array_slice($next[1], 0, 24)),
+                'service' => $service->name, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'),
+                'next' => $next[0]->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($next[1], 0, 24)),
             ], $locale)
             : __('whatsapp.appointment.fully_booked', ['service' => $service->name], $locale);
     }
@@ -367,7 +367,7 @@ class ConversationService
         $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.booked', [
-            'service' => $appointment->service_name, 'date' => $local->format('D j M'), 'time' => $local->format('H:i'),
+            'service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i'),
             'price' => Money::format((float) $appointment->price, $merchant->currency), 'shop' => $merchant->name,
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
         ], $locale);
@@ -384,7 +384,7 @@ class ConversationService
         $appointment->forceFill(['status' => 'cancelled', 'cancelled_by' => 'customer'])->save();
         $local = $appointment->starts_at->copy()->setTimezone($this->appointments->tz(app(CurrentTenant::class)->get()));
 
-        return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->format('D j M'), 'time' => $local->format('H:i')], $locale);
+        return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);
     }
 
     private function resolveService(?string $id): ?Product

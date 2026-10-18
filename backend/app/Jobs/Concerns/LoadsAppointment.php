@@ -28,14 +28,14 @@ trait LoadsAppointment
     /**
      * @return array<string, string>
      */
-    protected function appointmentParams(Appointment $appointment, Merchant $merchant): array
+    protected function appointmentParams(Appointment $appointment, Merchant $merchant, ?string $locale = null): array
     {
         $local = $appointment->starts_at->copy()->setTimezone($merchant->timezone ?: config('app.timezone'));
 
         return [
             'shop' => $merchant->name,
             'service' => $appointment->service_name,
-            'date' => $local->format('D j M'),
+            'date' => $local->locale($locale ?? $merchant->locale ?? 'en')->isoFormat('ddd D MMM'),
             'time' => $local->format('H:i'),
             'price' => Money::format((float) $appointment->price, $merchant->currency),
             'phone' => OrderMessage::phone($appointment->customer?->phone),

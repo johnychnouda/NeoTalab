@@ -7,6 +7,7 @@ return [
     'media_unsupported' => 'Désolé, je ne peux pas ouvrir les photos, stickers ou fichiers ici 🙏 Écrivez ce que vous souhaitez, ou choisissez dans le menu ci-dessous.',
     'voice_failed' => "Désolé, je n'ai pas bien entendu ce message vocal 🙏 Renvoyez-le ou écrivez votre commande — vous pouvez aussi choisir dans le menu ci-dessous.",
     'error' => "Désolé, nous n'avons pas pu traiter votre message. Veuillez réessayer dans un instant.",
+    'not_understood' => "Désolé, je n'ai pas bien compris 🙏 Pouvez-vous reformuler, ou choisir dans le menu ci-dessous ?",
 
     'timing' => [
         'mins_short' => ':n min',
