@@ -51,9 +51,17 @@ export function parsePin(value) {
 }
 export const formatPin = ({ lat, lng }) => `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
-/** The shop pin drawn on the map: a green circle with the NeoTalab shop mark. */
+/** The shop on the map: a green map pin with a shop front inside; its tip sits on the shop's spot. */
+const SHOP_PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">`
+  + `<path d="M20 51C20 51 38 31 38 19A18 18 0 0 0 2 19C2 31 20 51 20 51Z" fill="#25d366" stroke="#fff" stroke-width="2.5"/>`
+  + `<circle cx="20" cy="19" r="11" fill="#fff"/>`
+  + `<path d="M13 16h14l-1.5-4h-11zM14 16v8h12v-8M18 24v-4h4v4" fill="none" stroke="#128c4a" stroke-width="1.8" stroke-linejoin="round"/>`
+  + `</svg>`;
+
 export function shopMarkerIcon(maps) {
   return {
-    path: maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#25d366", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3,
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(SHOP_PIN_SVG)}`,
+    scaledSize: new maps.Size(40, 52),
+    anchor: new maps.Point(20, 51),
   };
 }
