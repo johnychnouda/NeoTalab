@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformSetting;
 use App\Models\SystemAlert;
+use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Mail;
@@ -129,7 +130,7 @@ class SystemAlertService
      *
      * @return array{email: string, whatsapp: string} per channel: sent | off | the error
      */
-    public function sendToOwner(string $text, string $subject, string $footer, ?string $whatsappText = null): array
+    public function sendToOwner(string $text, string $subject, string $footer, ?string $whatsappText = null, ?string $template = null): array
     {
         $extra = PlatformSetting::singleton()->settings ?? [];
         $result = ['email' => 'off', 'whatsapp' => 'off'];
@@ -154,7 +155,7 @@ class SystemAlertService
                 $this->whatsapp->sendPlatform($phone, [
                     'type' => 'template',
                     'template' => [
-                        'name' => config('alerts.whatsapp_template'),
+                        'name' => $template ?? config('alerts.whatsapp_template'),
                         'language' => ['code' => config('alerts.whatsapp_language')],
                         'components' => [[
                             'type' => 'body',
@@ -184,7 +185,7 @@ class SystemAlertService
     {
         self::$busy = true;
         try {
-            return $this->sendToOwner($text, $subject, $footer, $whatsappText);
+            return $this->sendToOwner($text, $subject, $footer, $whatsappText, app(PlatformTemplateService::class)->noticeTemplate());
         } catch (Throwable) {
             return ['email' => 'failed', 'whatsapp' => 'failed'];
         } finally {

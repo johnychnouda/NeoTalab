@@ -180,10 +180,11 @@ MAIL_FROM_ADDRESS=alerts@neotalab.com
 MAIL_FROM_NAME=NeoTalab
 ```
 
-- **WhatsApp** is sent from the platform number (Owner portal → Settings → WhatsApp) with an approved
-  **Utility** template named `system_alert`, language English, body e.g.
-  `NeoTalab problem: {{1}}. Open the owner portal → Inbox → System for details.`
-  (another name/language: `ALERT_WHATSAPP_TEMPLATE`, `ALERT_WHATSAPP_LANGUAGE`).
+- **WhatsApp** is sent from the platform number (Owner portal → Settings → WhatsApp) with two
+  **Utility** templates that NeoTalab submits itself (when the number connects, then hourly in
+  `templates:sync`): `system_alert` for problems and `neotalab_update` for good news such as a new
+  join request (which uses `system_alert` until `neotalab_update` is approved). Other names/language:
+  `ALERT_WHATSAPP_TEMPLATE`, `ALERT_WHATSAPP_NOTICE_TEMPLATE`, `ALERT_WHATSAPP_LANGUAGE`.
 
 **Error alerts, Sentry (optional, more detail)**
 1. Create a free account at sentry.io → *Create project* → platform **Laravel**.

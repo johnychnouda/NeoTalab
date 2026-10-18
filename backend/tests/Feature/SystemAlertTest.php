@@ -9,6 +9,7 @@ use App\Support\Roles;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -109,6 +110,45 @@ class SystemAlertTest extends TestCase
         Http::assertSent(fn ($r) => $r['to'] === '96170161659' && $r['template']['components'][0]['parameters'][0]['text']
             === "New shop request: Join Shop (Restaurant / Café, Zahle, Bekaa). Contact: Ahmad +96178887777. Review it: {$link}");
         $this->assertSame(0, SystemAlert::count());
+    }
+
+    public function test_the_hourly_sync_submits_the_good_news_template_and_join_requests_use_it_once_approved(): void
+    {
+        $this->recipients(['wa_phone_id' => '999', 'wa_waba_id' => 'WABA1', 'wa_access_token' => 'EAAX', 'alert_whatsapp' => '+96170161659']);
+        $approved = false;
+        Http::fake(function (Request $r) use (&$approved) {
+            if ($r->method() === 'GET' && str_contains($r->url(), 'WABA1/message_templates')) {
+                return Http::response(['data' => match (true) {
+                    str_contains($r->url(), 'system_alert') => [['name' => 'system_alert', 'status' => 'APPROVED']],
+                    $approved => [['name' => 'neotalab_update', 'status' => 'APPROVED']],
+                    default => [],
+                }]);
+            }
+            if ($r->method() === 'POST' && str_contains($r->url(), 'WABA1/message_templates')) {
+                return Http::response(['id' => 't1', 'status' => 'PENDING']);
+            }
+
+            return Http::response(['messages' => [['id' => 'wamid.1']]]);
+        });
+
+        $this->artisan('templates:sync')->assertSuccessful();
+        Http::assertSent(fn ($r) => $r->method() === 'POST' && ($r['name'] ?? null) === 'neotalab_update'
+            && str_contains($r['components'][0]['text'], 'Good news from NeoTalab: {{1}}'));
+        Http::assertNotSent(fn ($r) => $r->method() === 'POST' && ($r['name'] ?? null) === 'system_alert');
+
+        $join = fn (string $phone) => $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Join Shop', 'contactName' => 'Ahmad', 'businessType' => 'Restaurant / Café',
+            'whatsapp' => $phone, 'city' => 'Zahle', 'region' => 'Bekaa', 'street' => 'Main road',
+            'country' => 'LB', 'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $join('+96178887777'); // still pending at Meta: the alert template carries it
+        Http::assertSent(fn ($r) => ($r['template']['name'] ?? null) === 'system_alert' && str_contains($r['template']['components'][0]['parameters'][0]['text'], 'Join Shop'));
+
+        $approved = true;
+        $this->artisan('templates:sync')->assertSuccessful();
+        $join('+96178887788');
+        Http::assertSent(fn ($r) => ($r['template']['name'] ?? null) === 'neotalab_update');
     }
 
     public function test_a_join_request_is_saved_even_when_the_owner_cannot_be_reached(): void

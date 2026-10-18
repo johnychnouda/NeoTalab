@@ -12,5 +12,7 @@ return [
 
     // Approved Utility template on the platform WhatsApp number, with one body variable {{1}}.
     'whatsapp_template' => env('ALERT_WHATSAPP_TEMPLATE', 'system_alert'),
+    // Good news for the owner (new join request); falls back to whatsapp_template until approved.
+    'notice_template' => env('ALERT_WHATSAPP_NOTICE_TEMPLATE', 'neotalab_update'),
     'whatsapp_language' => env('ALERT_WHATSAPP_LANGUAGE', 'en'),
 ];

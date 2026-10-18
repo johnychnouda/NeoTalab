@@ -144,32 +144,9 @@ class WhatsAppEmbeddedSignupService
         $platform->settings = $settings;
         $platform->save();
 
-        $this->submitAlertTemplate($wabaId, $accessToken);
+        app(PlatformTemplateService::class)->submitAll($wabaId, $accessToken);
 
         return $platform;
-    }
-
-    /**
-     * The problem-alert template the platform number sends ("system_alert"). Meta may file it
-     * under another category; that is allowed so it still gets approved.
-     */
-    protected function submitAlertTemplate(string $wabaId, string $accessToken): void
-    {
-        $response = Http::withToken($accessToken)->acceptJson()->post($this->whatsapp->graphUrl("{$wabaId}/message_templates"), [
-            'name' => config('alerts.whatsapp_template'),
-            'language' => config('alerts.whatsapp_language'),
-            'category' => 'UTILITY',
-            'allow_category_change' => true,
-            'components' => [[
-                'type' => 'BODY',
-                'text' => 'Account notice for your NeoTalab platform: {{1}}. Please review it in your owner portal under Inbox → System.',
-                'example' => ['body_text' => [['the nightly database backup failed']]],
-            ]],
-        ]);
-
-        if (! $response->successful()) {
-            Log::warning('Alert template submission failed', ['waba_id' => $wabaId, 'body' => $response->json()]);
-        }
     }
 
     protected function exchangeCode(string $code): string
