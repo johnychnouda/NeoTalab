@@ -5,7 +5,7 @@ import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import FormSelect from "@/components/FormSelect";
 import { useLiveRefresh } from "@/lib/live";
-import { formatMoney, currencyLabel } from "@/lib/money";
+import { formatMoney, currencyLabel, toLbp, formatLbp } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
 
@@ -27,6 +27,7 @@ export default function MenuPage() {
   const [products, setProducts] = useState([]);
   const [profile, setProfile] = useState({ word: "menu", option_suggestions: ["Size", "Extras"], units: [] });
   const [kind, setKind] = useState("restaurant");
+  const [lbpRate, setLbpRate] = useState(null);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null);
 
@@ -41,6 +42,7 @@ export default function MenuPage() {
       setProducts(prods);
       if (shop?.menu_profile) setProfile(shop.menu_profile);
       if (shop?.business_kind) setKind(shop.business_kind);
+      setLbpRate(Number(shop?.lbp_rate) > 0 && shop?.currency !== "LBP" ? Number(shop.lbp_rate) : null);
     } catch (e) { setError(e.message); }
   }, [api]);
 
@@ -125,7 +127,7 @@ export default function MenuPage() {
                   {p.description && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.description}</span>}
                 </div>
                 <div className="product-meta">
-                  <span className="product-price">{money(p.price)}{p.unit ? ` / ${t(`mk.unit.${p.unit}`)}` : ""}</span>
+                  <span className="product-price">{money(p.price)}{p.unit ? ` / ${t(`mk.unit.${p.unit}`)}` : ""}{lbpRate && <small className="product-lbp">{formatLbp(toLbp(p.price, lbpRate))}</small>}</span>
                   {p.variants?.length > 0 && <span className="pill">{p.variants.length} {t("mk.sizesCount")}</span>}
                   {p.modifier_groups?.length > 0 && <span className="pill">{p.modifier_groups.reduce((n, g) => n + (g.modifiers?.length || 0), 0)} {t("mk.optionsCount")}</span>}
                   {p.offer_percent ? <span className={`pill ${offerOn(p) ? "pill-active" : "pill-pending"}`}>-{p.offer_percent}%{p.offer_ends_on ? ` → ${p.offer_ends_on}` : ""}</span> : null}
@@ -174,7 +176,7 @@ export default function MenuPage() {
           onConfirm={() => run(() => api("DELETE", `/products/${modal.item.id}`))} />
       )}
       {modal?.type === "item" && (
-        <ItemModal t={t} currency={shop.currency} item={modal.item} categories={categories || []} defaultCategoryId={modal.categoryId}
+        <ItemModal t={t} currency={shop.currency} rate={lbpRate} item={modal.item} categories={categories || []} defaultCategoryId={modal.categoryId}
           profile={profile} services={services} onClose={() => setModal(null)}
           onSubmit={(vals) => {
             if (!vals.name || Number.isNaN(vals.price)) { toast(t("mk.required_name_price"), "error"); return; }
@@ -202,7 +204,36 @@ function CategoryModal({ t, initial, onClose, onSubmit }) {
   );
 }
 
-function ItemModal({ t, currency, item, categories, defaultCategoryId, profile, services, onClose, onSubmit }) {
+/** A price in the shop currency with its lira twin: type in either, the other follows (1,000 LBP steps). */
+function PriceInput({ value, onChange, rate, currency, compact = false, label, placeholder = "0.00" }) {
+  const [lbpText, setLbpText] = useState(null);
+  const lbp = toLbp(value, rate);
+  const shown = lbpText ?? (lbp === null ? "" : lbp.toLocaleString("en-US"));
+  const typeLbp = (raw) => {
+    const digits = raw.replace(/[^0-9]/g, "");
+    setLbpText(digits ? Number(digits).toLocaleString("en-US") : "");
+    onChange(digits ? String(Math.round((Number(digits) / rate) * 100) / 100) : "");
+  };
+  return (
+    <div className={`price-pair ${compact ? "is-compact" : ""} ${rate ? "" : "is-single"}`}>
+      <label className="price-box">
+        <input type="number" inputMode="decimal" step="0.01" min="0" value={value} placeholder={placeholder}
+          onChange={(e) => { setLbpText(null); onChange(e.target.value); }} aria-label={label} />
+        <span className="price-unit">{currencyLabel(currency)}</span>
+      </label>
+      {rate && <>
+        <span className="price-eq" aria-hidden="true">=</span>
+        <label className="price-box">
+          <input type="text" inputMode="numeric" value={shown} placeholder="0" onBlur={() => setLbpText(null)}
+            onChange={(e) => typeLbp(e.target.value)} aria-label={`${label} LBP`} />
+          <span className="price-unit">LBP</span>
+        </label>
+      </>}
+    </div>
+  );
+}
+
+function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, profile, services, onClose, onSubmit }) {
   const [name, setName] = useState(item?.name || "");
   const [price, setPrice] = useState(item?.price ?? "");
   const [description, setDescription] = useState(item?.description || "");
@@ -224,8 +255,17 @@ function ItemModal({ t, currency, item, categories, defaultCategoryId, profile, 
   const suggestions = (profile.option_suggestions || []).map((s) => t(`mk.sug.${s}`))
     .filter((s) => !groups.some((g) => g.name.toLowerCase() === s.toLowerCase()));
 
+  // What the customer reads in WhatsApp: "3.91$ (350,000 LBP)", with the offer price when there is one.
+  const both = (v) => {
+    const lbp = toLbp(v, rate);
+    return `${formatMoney(v, currency)}${lbp !== null ? ` (${formatLbp(lbp)})` : ""}`;
+  };
+  const pct = parseInt(offerPercent, 10) || 0;
+  const hasPrice = price !== "" && !Number.isNaN(Number(price));
+  const offerPrice = hasPrice && pct > 0 ? Math.round(Number(price) * (100 - pct)) / 100 : null;
+
   return (
-    <Modal title={item ? item.name : t(services ? "mk.addService" : "mk.addItem")} onClose={onClose} wide
+    <Modal title={item ? t("mk.editItem") : t(services ? "mk.addService" : "mk.addItem")} onClose={onClose} wide
       footer={<div className="modal-footer-actions">
         <button type="button" className="btn-sm" onClick={onClose}>{t("mk.cancel")}</button>
         <button type="button" className="btn-primary" onClick={() => onSubmit({
@@ -234,93 +274,124 @@ function ItemModal({ t, currency, item, categories, defaultCategoryId, profile, 
           offerPercent: parseInt(offerPercent, 10) || null, offerStartsOn, offerEndsOn,
         })}>{t("mk.save")}</button>
       </div>}>
-      <div className="modal-form-grid">
-        <div className="field span-2">
-          <label htmlFor="it-name">{t("mk.name")}</label>
-          <input id="it-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shawarma · شاورما" autoFocus />
-          <div className="mk-hint">{t("mk.nameHint")}</div>
-        </div>
-        <div className="field">
-          <label htmlFor="it-price">{t("mk.price")} ({currencyLabel(currency)})</label>
-          <input id="it-price" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="6.00" />
-        </div>
-        {services ? (
-          <div className="field">
-            <label htmlFor="it-dur">{t("mk.duration")}</label>
-            <input id="it-dur" type="number" min="5" max="1440" value={duration} onChange={(e) => setDuration(e.target.value)} />
+      <div className="ie">
+        <div className="ie-preview" aria-live="polite">
+          <span className="ie-preview-label">{t("mk.preview")}</span>
+          <div className="ie-bubble">
+            <strong>{name.trim() || t("mk.name")}</strong>
+            <span>
+              {offerPrice !== null ? <><s>{both(price)}</s> {both(offerPrice)}</> : hasPrice ? both(price) : "—"}
+              {unit ? ` / ${t(`mk.unit.${unit}`)}` : ""}
+            </span>
+            {description.trim() && <small>{description.trim()}</small>}
           </div>
-        ) : (
-          <div className="field">
-            <label htmlFor="it-unit">{t("mk.unit")}</label>
-            <FormSelect id="it-unit" value={unit} onChange={setUnit}
-              options={[{ value: "", label: t("mk.unit.none") }, ...[...new Set([...(profile.units || []), ...(unit ? [unit] : [])])].map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
-          </div>
-        )}
-        <div className="field span-2">
-          <label htmlFor="it-cat">{t("mk.category")}</label>
-          <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
-            options={[{ value: "", label: t("mk.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
         </div>
-        <div className="field span-2">
-          <label htmlFor="it-desc">{t("mk.description")}</label>
-          <textarea id="it-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-      </div>
 
-      {!services && (
-        <section className="mk-block">
-          <h3>{t("mk.sizes")}</h3>
-          <p className="mk-hint">{t("mk.sizesHint")}</p>
-          {sizes.map((s, i) => (
-            <div className="mk-row" key={s.id || `n${i}`}>
-              <input value={s.name} onChange={(e) => setSizes(sizes.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder={t("mk.sizeName")} aria-label={t("mk.sizeName")} />
-              <input type="number" step="0.01" min="0" value={s.price} onChange={(e) => setSizes(sizes.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} placeholder="0.00" aria-label={t("mk.price")} className="mk-price" />
-              <button type="button" className="btn-sm btn-sm-red" onClick={() => setSizes(sizes.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button>
+        <section className="ie-card">
+          <h3>{t("mk.details")}</h3>
+          <div className="field">
+            <label htmlFor="it-name">{t("mk.name")}</label>
+            <input id="it-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Shawarma · شاورما" autoFocus />
+            <div className="mk-hint">{t("mk.nameHint")}</div>
+          </div>
+          <div className="ie-two">
+            <div className="field">
+              <label htmlFor="it-cat">{t("mk.category")}</label>
+              <FormSelect id="it-cat" value={categoryId} onChange={setCategoryId}
+                options={[{ value: "", label: t("mk.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
             </div>
-          ))}
-          <button type="button" className="btn-sm" onClick={() => setSizes([...sizes, { name: "", price: price || "" }])}>{t("mk.addSize")}</button>
-        </section>
-      )}
-
-      {!services && (
-        <section className="mk-block">
-          <h3>{t("mk.options")}</h3>
-          <p className="mk-hint">{t("mk.optionsHint")}</p>
-          {groups.map((g, i) => (
-            <div className="mk-group" key={g.id || `g${i}`}>
-              <div className="mk-row">
-                <input value={g.name} onChange={(e) => setGroup(i, { name: e.target.value })} placeholder={t("mk.groupName")} aria-label={t("mk.groupName")} />
-                <label className="mk-check"><input type="checkbox" checked={g.required} onChange={(e) => setGroup(i, { required: e.target.checked })} /> {t("mk.required")}</label>
-                <label className="mk-check">{t("mk.maxChoices")} <input type="number" min="1" max="20" value={g.max_select} onChange={(e) => setGroup(i, { max_select: e.target.value })} className="mk-num" /></label>
-                <button type="button" className="btn-sm btn-sm-red" onClick={() => setGroups(groups.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button>
+            {services ? (
+              <div className="field">
+                <label htmlFor="it-dur">{t("mk.duration")}</label>
+                <input id="it-dur" type="number" min="5" max="1440" value={duration} onChange={(e) => setDuration(e.target.value)} />
               </div>
-              {g.modifiers.map((m, k) => (
-                <div className="mk-row mk-choice" key={m.id || `m${k}`}>
-                  <input value={m.name} onChange={(e) => setChoice(i, k, { name: e.target.value })} placeholder={t("mk.choice")} aria-label={t("mk.choice")} />
-                  <input type="number" step="0.01" min="0" value={m.price_delta} onChange={(e) => setChoice(i, k, { price_delta: e.target.value })} placeholder={t("mk.extraPrice")} aria-label={t("mk.extraPrice")} className="mk-price" />
-                  <button type="button" className="btn-sm btn-sm-red" onClick={() => setGroup(i, { modifiers: g.modifiers.filter((_, j) => j !== k) })} aria-label={t("mk.delete")}>✕</button>
-                </div>
-              ))}
-              <button type="button" className="btn-sm" onClick={() => setGroup(i, { modifiers: [...g.modifiers, { name: "", price_delta: "" }] })}>{t("mk.addChoice")}</button>
-            </div>
-          ))}
-          <div className="mk-row">
-            <button type="button" className="btn-sm" onClick={() => addGroup()}>{t("mk.addGroup")}</button>
-            {suggestions.length > 0 && <span className="mk-hint">{t("mk.quickAdd")}</span>}
-            {suggestions.map((s) => <button type="button" key={s} className="btn-sm" onClick={() => addGroup(s)}>+ {s}</button>)}
+            ) : (
+              <div className="field">
+                <label htmlFor="it-unit">{t("mk.unit")}</label>
+                <FormSelect id="it-unit" value={unit} onChange={setUnit}
+                  options={[{ value: "", label: t("mk.unit.none") }, ...[...new Set([...(profile.units || []), ...(unit ? [unit] : [])])].map((u) => ({ value: u, label: t(`mk.unit.${u}`) }))]} />
+              </div>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="it-desc">{t("mk.description")}</label>
+            <textarea id="it-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("mk.descHint")} />
           </div>
         </section>
-      )}
 
-      <section className="mk-block">
-        <h3>{t("mk.offer")}</h3>
-        <p className="mk-hint">{t("mk.offerHint")}</p>
-        <div className="mk-row">
-          <label className="mk-check">{t("mk.offerPercent")} <input type="number" min="1" max="90" value={offerPercent} onChange={(e) => setOfferPercent(e.target.value)} className="mk-num" /></label>
-          <label className="mk-check">{t("mk.offerFrom")} <input type="date" value={offerStartsOn} min={item ? undefined : today()} onChange={(e) => setOfferStartsOn(e.target.value)} /></label>
-          <label className="mk-check">{t("mk.offerTo")} <input type="date" value={offerEndsOn} min={offerStartsOn || undefined} onChange={(e) => setOfferEndsOn(e.target.value)} /></label>
-        </div>
-      </section>
+        <section className="ie-card">
+          <h3>{t("mk.price")}</h3>
+          <PriceInput value={price} onChange={setPrice} rate={rate} currency={currency} label={t("mk.price")} />
+          <p className="mk-hint">{rate ? `${t("mk.priceBoth")} 1$ = ${Number(rate).toLocaleString("en-US")} LBP` : t("mk.priceOne")}</p>
+        </section>
+
+        {!services && (
+          <section className="ie-card">
+            <h3>{t("mk.sizes")} <span className="ie-opt">{t("mk.optional")}</span></h3>
+            <p className="mk-hint">{t("mk.sizesHint")}</p>
+            {sizes.map((s, i) => (
+              <div className="ie-line" key={s.id || `n${i}`}>
+                <input value={s.name} onChange={(e) => setSizes(sizes.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder={t("mk.sizeName")} aria-label={t("mk.sizeName")} />
+                <PriceInput compact value={s.price} rate={rate} currency={currency} label={t("mk.price")}
+                  onChange={(v) => setSizes(sizes.map((x, j) => (j === i ? { ...x, price: v } : x)))} />
+                <button type="button" className="ie-x" onClick={() => setSizes(sizes.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="ie-add" onClick={() => setSizes([...sizes, { name: "", price: price || "" }])}>{t("mk.addSize")}</button>
+          </section>
+        )}
+
+        {!services && (
+          <section className="ie-card">
+            <h3>{t("mk.options")} <span className="ie-opt">{t("mk.optional")}</span></h3>
+            <p className="mk-hint">{t("mk.optionsHint")}</p>
+            {groups.map((g, i) => (
+              <div className="ie-group" key={g.id || `g${i}`}>
+                <div className="ie-line">
+                  <input value={g.name} onChange={(e) => setGroup(i, { name: e.target.value })} placeholder={t("mk.groupName")} aria-label={t("mk.groupName")} className="ie-strong" />
+                  <button type="button" className="ie-x" onClick={() => setGroups(groups.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button>
+                </div>
+                <div className="ie-rules">
+                  <label className="mk-check"><input type="checkbox" checked={g.required} onChange={(e) => setGroup(i, { required: e.target.checked })} /> {t("mk.required")}</label>
+                  <label className="mk-check">{t("mk.maxChoices")} <input type="number" min="1" max="20" value={g.max_select} onChange={(e) => setGroup(i, { max_select: e.target.value })} className="mk-num" /></label>
+                </div>
+                {g.modifiers.map((m, k) => (
+                  <div className="ie-line ie-choice" key={m.id || `m${k}`}>
+                    <input value={m.name} onChange={(e) => setChoice(i, k, { name: e.target.value })} placeholder={t("mk.choice")} aria-label={t("mk.choice")} />
+                    <PriceInput compact value={m.price_delta} rate={rate} currency={currency} label={t("mk.extraPrice")} placeholder="+0"
+                      onChange={(v) => setChoice(i, k, { price_delta: v })} />
+                    <button type="button" className="ie-x" onClick={() => setGroup(i, { modifiers: g.modifiers.filter((_, j) => j !== k) })} aria-label={t("mk.delete")}>✕</button>
+                  </div>
+                ))}
+                <button type="button" className="ie-add ie-add-sm" onClick={() => setGroup(i, { modifiers: [...g.modifiers, { name: "", price_delta: "" }] })}>{t("mk.addChoice")}</button>
+              </div>
+            ))}
+            <div className="ie-chips">
+              <button type="button" className="ie-add" onClick={() => addGroup()}>{t("mk.addGroup")}</button>
+              {suggestions.map((s) => <button type="button" key={s} className="ie-chip" onClick={() => addGroup(s)}>+ {s}</button>)}
+            </div>
+          </section>
+        )}
+
+        <section className="ie-card">
+          <h3>{t("mk.offer")} <span className="ie-opt">{t("mk.optional")}</span></h3>
+          <p className="mk-hint">{t("mk.offerHint")}</p>
+          <div className="ie-three">
+            <div className="field">
+              <label htmlFor="it-off">{t("mk.offerPercent")}</label>
+              <label className="price-box"><input id="it-off" type="number" min="1" max="90" value={offerPercent} placeholder="0" onChange={(e) => setOfferPercent(e.target.value)} /><span className="price-unit">%</span></label>
+            </div>
+            <div className="field">
+              <label htmlFor="it-from">{t("mk.offerFrom")}</label>
+              <input id="it-from" type="date" value={offerStartsOn} min={item ? undefined : today()} onChange={(e) => setOfferStartsOn(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="it-to">{t("mk.offerTo")}</label>
+              <input id="it-to" type="date" value={offerEndsOn} min={offerStartsOn || undefined} onChange={(e) => setOfferEndsOn(e.target.value)} />
+            </div>
+          </div>
+        </section>
+      </div>
     </Modal>
   );
 }

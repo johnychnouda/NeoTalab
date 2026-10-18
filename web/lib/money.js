@@ -10,3 +10,12 @@ export function formatMoney(value, currency = "USD") {
 export function currencyLabel(currency = "USD") {
   return !currency || currency === "USD" ? "$" : currency;
 }
+
+/** Lira for a price, rounded up to the next 1,000 like the WhatsApp chat does; null without a rate. */
+export function toLbp(value, rate) {
+  const n = Number(value);
+  if (!rate || value === "" || value === null || value === undefined || Number.isNaN(n)) return null;
+  return Math.ceil((n * rate) / 1000) * 1000;
+}
+
+export const formatLbp = (n) => `${Math.round(n).toLocaleString("en-US")} LBP`;
