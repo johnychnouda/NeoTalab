@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useOwner } from "../layout";
 import { PageHeader, EmptyState, ErrorBanner, EMPTY_ICONS, InfoNote } from "@/components/owner/ui";
 import { Skeleton } from "@/components/ui";
+import FormSelect from "@/components/FormSelect";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
 
@@ -53,9 +54,9 @@ export default function UsagePage() {
   return (
     <div>
       <PageHeader title={tr("ow.nav.usage")} subtitle={tr("ow.u.sub")}>
-        <select className="mode-select" value={month} onChange={(e) => setMonth(e.target.value)} aria-label={tr("ow.u.month")}>
-          {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-        </select>
+        <div className="usage-month">
+          <FormSelect size="sm" value={month} onChange={setMonth} options={months} aria-label={tr("ow.u.month")} />
+        </div>
       </PageHeader>
 
       <ErrorBanner message={error} />

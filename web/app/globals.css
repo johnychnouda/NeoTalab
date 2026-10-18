@@ -2675,3 +2675,5 @@ button.wa-mic { border: 0; cursor: pointer; }
 /* Search box on the location map (Google Places). */
 .lp-search gmp-place-autocomplete { width: 100%; color-scheme: dark; }
 .lp-search:empty { display: none; }
+.usage-month { width: 220px; max-width: 100%; }
+@media (max-width: 640px) { .usage-month { width: 100%; } }
