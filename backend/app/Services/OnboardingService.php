@@ -134,13 +134,15 @@ class OnboardingService
             : implode(', ', array_filter([$request->city, $request->region]));
         $text = 'New join request: '.$request->shop_name
             .($where !== '' ? " ({$where})" : '')
-            .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]));
+            .'. Contact: '.implode(' ', array_filter([$request->contact_name, $request->whatsapp]))
+            // One tap from the email or WhatsApp alert to the request in Owner portal → Merchants.
+            .'. Review it: '.rtrim((string) config('app.frontend_url'), '/').'/owner?req='.$request->id;
 
         // Someone flooding the public form from many IPs must not flood the owner's inbox too.
         if (! RateLimiter::attempt('join-request-notify', 20, fn () => true, 3600)) {
             return;
         }
 
-        $this->alerts->notice($text, 'NeoTalab: new join request from '.$request->shop_name, 'Open the owner portal → Merchants → Requests to approve or reject it.');
+        $this->alerts->notice($text, 'NeoTalab: new join request from '.$request->shop_name, 'Approve or reject it in the owner portal (Merchants → Requests).');
     }
 }

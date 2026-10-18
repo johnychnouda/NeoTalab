@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\OnboardingRequest;
 use App\Models\PlatformSetting;
 use App\Models\SystemAlert;
 use App\Support\Roles;
@@ -102,6 +103,8 @@ class SystemAlertTest extends TestCase
         $this->assertSame(['NeoTalab: new join request from Join Shop'], $subjects);
         Http::assertSent(fn ($r) => $r['to'] === '96170161659'
             && str_contains($r['template']['components'][0]['parameters'][0]['text'], 'New join request: Join Shop (Zahle, Bekaa)'));
+        $id = OnboardingRequest::query()->latest()->value('id');
+        Http::assertSent(fn ($r) => str_contains($r['template']['components'][0]['parameters'][0]['text'] ?? '', rtrim(config('app.frontend_url'), '/')."/owner?req={$id}"));
         $this->assertSame(0, SystemAlert::count());
     }
 
