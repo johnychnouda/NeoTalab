@@ -2679,3 +2679,36 @@ button.wa-mic { border: 0; cursor: pointer; }
 .usage-month { width: 220px; max-width: 100%; }
 @media (max-width: 640px) { .usage-month { width: 100%; } }
 .set-pass button svg { width: 18px; height: 18px; }
+
+/* Live demo: one caption per step, the acting phone in focus, the end card, and the delivery/payment
+   switches as small options under the phones. On a phone screen one chat shows at a time, with tabs. */
+.wa-caption { margin: 14px auto 0; max-width: 640px; text-align: center; font-size: clamp(19px, 2.2vw, 24px); font-weight: 800; letter-spacing: -.3px; color: #eef3f0; line-height: 1.3; }
+.wa-step { min-width: 0; font-size: 13px; font-weight: 600; color: var(--site-muted); }
+.wa-strip { align-items: center; }
+.wa-col { transition: opacity .35s, transform .35s; }
+.wa-col:not(.is-active) { opacity: .38; transform: scale(.9); }
+.wa-phone-tabs { display: none; }
+.wa-end { margin: 26px auto 0; max-width: 560px; padding: 22px 20px; text-align: center; border: 1px solid #25d36655; border-radius: 18px; background: #25d3660f; animation: wa-end-in .4s ease-out; }
+.wa-end p { margin: 0 0 14px; font-size: 19px; font-weight: 800; color: #eef3f0; }
+.wa-end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+@keyframes wa-end-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.wa-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin: 22px auto 0; }
+.wa-options .wa-choice { flex-direction: row; gap: 10px; }
+.wa-options .wa-choice > span { font-size: 12px; font-weight: 600; }
+.wa-options .wa-modes button { min-width: 0; padding: 5px 11px; font-size: 12.5px; }
+.wa-options.wa-booking-note { display: flex; width: fit-content; font-size: 13px; }
+@media (min-width: 981px) {
+  .wa-controls { gap: 0; }
+  .wa-player { border-top: 0; padding-top: 0; }
+}
+@media (max-width: 660px) {
+  .wa-phone-tabs { display: flex; gap: 4px; width: fit-content; max-width: 100%; margin: 14px auto 12px; padding: 4px; border-radius: 12px; border: 1px solid var(--site-line); background: var(--site-card); }
+  .wa-phone-tabs button { position: relative; padding: 7px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--site-muted); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .wa-phone-tabs button.active { background: #25d36622; color: #eef3f0; box-shadow: inset 0 0 0 1px #25d36655; }
+  .wa-phone-tab-dot { position: absolute; top: 5px; inset-inline-end: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .wa-strip { justify-content: center; overflow: visible; }
+  .wa-col:not(.is-shown) { display: none; }
+  .wa-col, .wa-col:not(.is-active) { opacity: 1; transform: none; }
+  .wa-col .wa-who { display: none; }
+  .wa-options .wa-choice { flex-direction: column; gap: 6px; }
+}

@@ -18,6 +18,8 @@ const UI = {
     bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Products", catalogue: "📋 Catalogue", price_list: "📋 Price list", services: "📋 Services" },
     steps: { order: "Order", accept: "Shop accepts", whish: "Whish payment", delivery: "Delivery", pickup: "Pickup", rating: "Rating", book: "Booking", remind: "Reminder", visit: "Visit" },
+    captions: { order: "The customer orders on WhatsApp", accept: "The shop taps ✅ to accept", whish: "The customer pays with Whish", delivery: "The order is on its way", pickup: "The customer picks it up at the shop", rating: "The customer rates the order", book: "The customer books a time on WhatsApp", remind: "NeoTalab reminds them before the visit", visit: "The visit, then a rating" },
+    end: { title: "That's it. No app, no website, just WhatsApp.", cta: "Start your free trial", again: "Watch again" },
     bookingNote: "🗓 This shop works by appointment",
     choose: { mode: "How the customer gets it", pay: "How the customer pays" },
     pays: { whish: "💳 Whish", cash: "💵 Cash" },
@@ -31,6 +33,8 @@ const UI = {
     bot: "NeoTalab",
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
     steps: { order: "الطلب", accept: "المحل بيقبل", whish: "دفع Whish", delivery: "التوصيل", pickup: "الاستلام", rating: "التقييم", book: "الحجز", remind: "التذكير", visit: "الزيارة" },
+    captions: { order: "الزبون بيطلب على واتساب", accept: "المحل بيكبس ✅ ليقبل الطلب", whish: "الزبون بيدفع بـ Whish", delivery: "الطلب عالطريق", pickup: "الزبون بياخد طلبه من المحل", rating: "الزبون بيقيّم الطلب", book: "الزبون بيحجز موعد على واتساب", remind: "NeoTalab بيذكّره قبل الموعد", visit: "الزيارة، وبعدها التقييم" },
+    end: { title: "وهيك بس. لا تطبيق ولا موقع، بس واتساب.", cta: "ابدأ تجربتك المجانية", again: "شوف مرة تانية" },
     bookingNote: "🗓 هالمحل بيشتغل بالمواعيد",
     choose: { mode: "كيف بياخد الزبون طلبه", pay: "كيف بيدفع الزبون" },
     pays: { whish: "💳 Whish", cash: "💵 كاش" },
@@ -44,6 +48,8 @@ const UI = {
     bot: "NeoTalab",
     menuButtons: { menu: "📋 Menu", products: "📋 Produits", catalogue: "📋 Catalogue", price_list: "📋 Tarifs", services: "📋 Services" },
     steps: { order: "Commande", accept: "Le commerce accepte", whish: "Paiement Whish", delivery: "Livraison", pickup: "Retrait", rating: "Note", book: "Réservation", remind: "Rappel", visit: "Visite" },
+    captions: { order: "Le client commande sur WhatsApp", accept: "Le commerce appuie sur ✅ pour accepter", whish: "Le client paie avec Whish", delivery: "La commande est en route", pickup: "Le client récupère sa commande", rating: "Le client note la commande", book: "Le client réserve sur WhatsApp", remind: "NeoTalab lui rappelle le rendez-vous", visit: "La visite, puis la note" },
+    end: { title: "C'est tout. Ni appli, ni site : juste WhatsApp.", cta: "Commencer l'essai gratuit", again: "Revoir" },
     bookingNote: "🗓 Ce commerce fonctionne sur rendez-vous",
     choose: { mode: "Comment le client la reçoit", pay: "Comment le client paie" },
     pays: { whish: "💳 Whish", cash: "💵 Espèces" },
@@ -581,7 +587,7 @@ function build(shop, lang, delivery, whish) {
     });
   });
   const chats = [...new Set(messages.map((msg) => msg.chat))].sort((a, b) => "csd".indexOf(a) - "csd".indexOf(b));
-  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: shop.shop[lang], steps: steps.map((key) => ui.steps[key]), chats, messages };
+  return { id: shop.id, icon: shop.icon, label: shop.label[lang], shop: shop.shop[lang], steps: steps.map((key) => ui.steps[key]), captions: steps.map((key) => ui.captions[key]), chats, messages };
 }
 
 // Same order as the business types on the sign-up form.

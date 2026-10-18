@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const OUT_DELAY = 2600;
 const TYPING_DELAY = 1600;
@@ -76,6 +77,8 @@ export default function OrderDemo({ demo }) {
   const [typing, setTyping] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+  // On a phone screen one chat shows at a time; a tab the visitor picks holds until the next message.
+  const [view, setView] = useState(null);
   const rootRef = useRef(null);
   const stripRef = useRef(null);
   const tabsRef = useRef(null);
@@ -133,6 +136,8 @@ export default function OrderDemo({ demo }) {
   const next = messages[count];
   const action = started && next?.chat === "c" && next.out ? customerAction(messages, count) : null;
   const activeChat = typing || (action ? "c" : last?.chat) || chats[0];
+  const shownChat = view && view.at === count && chats.includes(view.chat) ? view.chat : activeChat;
+  const finished = messages.length > 0 && count >= messages.length;
 
   useEffect(() => {
     Object.values(bodyRefs.current).forEach((el) => {
@@ -144,7 +149,7 @@ export default function OrderDemo({ demo }) {
     if (strip && phone && strip.scrollWidth > strip.clientWidth + 4) {
       strip.scrollTo({ left: phone.offsetLeft - (strip.clientWidth - phone.clientWidth) / 2, behavior: "smooth" });
     }
-  }, [count, typing, activeChat, scenarioIndex]);
+  }, [count, typing, activeChat, shownChat, scenarioIndex]);
 
   function pickScenario(i) {
     const tabs = tabsRef.current;
@@ -214,32 +219,6 @@ export default function OrderDemo({ demo }) {
       </div>
 
       <div className="wa-controls">
-        {shop.booking ? (
-          <p className="wa-choices wa-booking-note">{demo.bookingNote}</p>
-        ) : (
-          <div className="wa-choices">
-            <div className="wa-choice">
-              <span id="wa-mode-label">{demo.choose.mode}</span>
-              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
-                {["delivery", "pickup"].map((m) => (
-                  <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
-                    {demo.modes[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="wa-choice">
-              <span id="wa-pay-label">{demo.choose.pay}</span>
-              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
-                {["whish", "cash"].map((p) => (
-                  <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
-                    {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
         <div className="wa-player">
           <div className="wa-bar">
             <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
@@ -248,7 +227,7 @@ export default function OrderDemo({ demo }) {
             <button type="button" className="wa-icon-btn wa-prev" onClick={() => jumpToStep(Math.max(step - 1, 0))} disabled={step === 0} aria-label={demo.prev}>
               <Svg d={icons.chevron} size={18} />
             </button>
-            <p className="wa-step" aria-live="polite"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
+            <p className="wa-step"><span dir="ltr">{step + 1} / {scenario.steps.length}</span>{scenario.steps[step]}</p>
             <button type="button" className="wa-icon-btn wa-next" onClick={() => jumpToStep(Math.min(step + 1, scenario.steps.length - 1))} disabled={step === scenario.steps.length - 1} aria-label={demo.next}>
               <Svg d={icons.chevron} size={18} />
             </button>
@@ -262,13 +241,26 @@ export default function OrderDemo({ demo }) {
             ))}
           </div>
         </div>
+        <p className="wa-caption" aria-live="polite">{scenario.captions[step]}</p>
       </div>
+
+      {chats.length > 1 && (
+        <div className="wa-phone-tabs" role="tablist" aria-label={demo.title}>
+          {chats.map((chat) => (
+            <button key={chat} type="button" role="tab" aria-selected={shownChat === chat} className={shownChat === chat ? "active" : ""}
+              onClick={() => setView({ chat, at: count })}>
+              {demo.who[chat]}
+              {activeChat === chat && shownChat !== chat && <i className="wa-phone-tab-dot" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>
         {chats.map((chat) => {
           const shown = messages.map((m, i) => ({ ...m, i })).filter((m) => m.chat === chat && m.i < count);
           return (
-            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}`} data-chat={chat}>
+            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}${shownChat === chat ? " is-shown" : ""}`} data-chat={chat}>
               <p className="wa-who">{demo.who[chat]}</p>
               <div className="wa-phone">
                 <div className="wa-status" aria-hidden="true">
@@ -352,6 +344,43 @@ export default function OrderDemo({ demo }) {
           );
         })}
       </div>
+
+      {finished && (
+        <div className="wa-end">
+          <p>{demo.end.title}</p>
+          <div className="wa-end-actions">
+            <Link href="/join" className="btn-hero primary">{demo.end.cta}</Link>
+            <button type="button" className="btn-hero ghost" onClick={() => jumpToStep(0)}>{demo.end.again}</button>
+          </div>
+        </div>
+      )}
+
+        {shop.booking ? (
+          <p className="wa-options wa-booking-note">{demo.bookingNote}</p>
+        ) : (
+          <div className="wa-options">
+            <div className="wa-choice">
+              <span id="wa-mode-label">{demo.choose.mode}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
+                {["delivery", "pickup"].map((m) => (
+                  <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+                    {demo.modes[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="wa-choice">
+              <span id="wa-pay-label">{demo.choose.pay}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
+                {["whish", "cash"].map((p) => (
+                  <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
+                    {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
