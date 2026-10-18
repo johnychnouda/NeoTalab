@@ -8,35 +8,52 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * The templates the platform number sends to the owner: problem alerts ("system_alert") and good
- * news such as a new join request ("neotalab_update"). Submitted when the number connects and
- * checked hourly by templates:sync; a notice uses the alert template until its own is approved.
+ * The templates the platform number sends: problem alerts ("system_alert") and good news such as a
+ * new join request ("neotalab_update") to the owner, and login details to approved shops. Submitted
+ * when the number connects and checked hourly by templates:sync; until a template is approved the
+ * old way is used (the alert template, or plain text).
  */
 class PlatformTemplateService
 {
     public function __construct(protected WhatsAppService $whatsapp) {}
 
-    /** @return array<string, array{text: string, example: string}> */
+    public const WELCOME = 'neotalab_welcome';
+
+    public const ACCESS = 'neotalab_access';
+
+    /** @return array<string, array{text: string, examples: list<string>}> */
     public static function definitions(): array
     {
         return [
             config('alerts.whatsapp_template') => [
                 'text' => 'Account notice for your NeoTalab platform: {{1}}. Please review it in your owner portal under Inbox → System.',
-                'example' => 'the nightly database backup failed',
+                'examples' => ['the nightly database backup failed'],
             ],
             config('alerts.notice_template') => [
                 'text' => '🎉 Good news from NeoTalab: {{1}}. Tap the link to open it in your owner portal.',
-                'example' => 'New shop request: Abou Ali Snack (Restaurant, Beirut). Contact: Ali +96170000000. Review it: https://neotalab.com/owner?req=1',
+                'examples' => ['New shop request: Abou Ali Snack (Restaurant, Beirut). Contact: Ali +96170000000. Review it: https://neotalab.com/owner?req=1'],
+            ],
+            // Login details for a newly approved shop, which has never written to the platform number.
+            self::WELCOME => [
+                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nLog in: {{2}}\nEmail: {{3}}\nActivation code: {{4}}\n\nUse the code as your first password, then choose your own.",
+                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab', '482913'],
+            ],
+            self::ACCESS => [
+                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\nTemporary code: {{4}}\n\nSign in with this code, then set a new password right away.",
+                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab', '482913'],
             ],
         ];
+    }
+
+    public function approved(string $name): bool
+    {
+        return (((PlatformSetting::singleton()->settings ?? [])['wa_templates'] ?? [])[$name] ?? null) === 'APPROVED';
     }
 
     /** The template a good-news message goes out with: its own once approved, else the alert one. */
     public function noticeTemplate(): string
     {
-        $status = ((PlatformSetting::singleton()->settings ?? [])['wa_templates'] ?? [])[config('alerts.notice_template')] ?? null;
-
-        return $status === 'APPROVED' ? config('alerts.notice_template') : config('alerts.whatsapp_template');
+        return $this->approved(config('alerts.notice_template')) ? config('alerts.notice_template') : config('alerts.whatsapp_template');
     }
 
     /** Right after the platform number connects. */
@@ -86,7 +103,7 @@ class PlatformTemplateService
             'components' => [[
                 'type' => 'BODY',
                 'text' => $def['text'],
-                'example' => ['body_text' => [[$def['example']]]],
+                'example' => ['body_text' => [$def['examples']]],
             ]],
         ]);
 

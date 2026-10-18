@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Merchant;
 use App\Models\User;
+use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
@@ -89,11 +90,22 @@ class MerchantWelcomeService
             ? $this->regainAccessBody($merchant->name, $loginUrl, $email, $otp)
             : $this->welcomeBody($merchant->name, $loginUrl, $email, $otp);
 
+        // A new shop has never written to the platform number, so outside WhatsApp's 24-hour window
+        // only an approved template is delivered (Meta drops plain text without an error).
+        $template = $variant === 'regain' ? PlatformTemplateService::ACCESS : PlatformTemplateService::WELCOME;
+        $message = $otp && app(PlatformTemplateService::class)->approved($template)
+            ? ['type' => 'template', 'template' => [
+                'name' => $template,
+                'language' => ['code' => config('alerts.whatsapp_language')],
+                'components' => [['type' => 'body', 'parameters' => array_map(
+                    fn (string $v) => ['type' => 'text', 'text' => $v],
+                    [$merchant->name, $loginUrl, $email, $otp],
+                )]],
+            ]]
+            : ['type' => 'text', 'text' => $body];
+
         try {
-            $this->whatsapp->sendPlatform($to, [
-                'type' => 'text',
-                'text' => $body,
-            ]);
+            $this->whatsapp->sendPlatform($to, $message);
         } catch (RuntimeException $e) {
             throw ValidationException::withMessages([
                 'whatsapp' => [$e->getMessage()],
