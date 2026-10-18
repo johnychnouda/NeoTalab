@@ -144,6 +144,18 @@ class MenuImportTest extends TestCase
         $this->assertEquals(0.89, (float) $coffee->price);
     }
 
+    public function test_an_exported_menu_imports_back_as_it_was(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['lbp_rate' => 89500])])->save();
+        $this->app['auth']->forgetGuards();
+
+        $res = $this->preview($this->csv("\u{FEFF}Category,Name,Price,Description,LBP\r\nMan2oushe,Zaatar,1.00,\"Fresh zaatar, olive oil\",90000\r\nDrinks,Pepsi,0.75,,68000\r\n"))->assertOk();
+
+        $res->assertJsonPath('prices_in_lbp', false);
+        $this->assertSame([['Man2oushe', 'Zaatar', 1, 'Fresh zaatar, olive oil'], ['Drinks', 'Pepsi', 0.75, null]], array_map(
+            fn ($i) => [$i['category'], $i['name'], $i['price'], $i['description']], $res->json('items')));
+    }
+
     public function test_a_shop_without_lira_never_gets_its_prices_converted(): void
     {
         $this->preview($this->csv("Name,Price\nSofa,1200\n"))->assertOk()->assertJsonPath('prices_in_lbp', false);

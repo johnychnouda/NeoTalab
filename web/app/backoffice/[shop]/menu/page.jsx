@@ -11,6 +11,9 @@ import { EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const offerOn = (p) => Boolean(p.offer_active);
+// Search ignores case, Arabic vowel marks and spelling variants (أ/إ/آ → ا, ة → ه, ى → ي).
+const norm = (v) => String(v || "").toLowerCase().normalize("NFKD").replace(/[\u064B-\u065F\u0670\u0300-\u036f]/g, "")
+  .replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").trim();
 
 /**
  * The shop's menu / products / catalogue / services / price list, depending on its type of
@@ -30,6 +33,8 @@ export default function MenuPage() {
   const [lbpRate, setLbpRate] = useState(null);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null);
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState("all"); // "all", a category id, or "none"
 
   const load = useCallback(async () => {
     try {
@@ -55,13 +60,24 @@ export default function MenuPage() {
   }
 
   const services = kind === "services";
-  const sections = useMemo(() => {
+  const allSections = useMemo(() => {
     if (!categories) return [];
-    const list = categories.map((c) => ({ cat: c, items: products.filter((p) => p.category_id === c.id) }));
+    const list = categories.map((c) => ({ key: c.id, cat: c, items: products.filter((p) => p.category_id === c.id) }));
     const loose = products.filter((p) => !p.category_id || !categories.some((c) => c.id === p.category_id));
-    if (loose.length) list.push({ cat: null, items: loose });
+    if (loose.length) list.push({ key: "none", cat: null, items: loose });
     return list;
   }, [categories, products]);
+  // A search looks through every category; otherwise the picked category (or all of them) shows.
+  const sections = useMemo(() => {
+    const q = norm(query);
+    if (q) {
+      return allSections
+        .map((sec) => ({ ...sec, items: sec.items.filter((p) => norm(`${p.name} ${p.description || ""}`).includes(q)) }))
+        .filter((sec) => sec.items.length > 0);
+    }
+    const picked = allSections.filter((sec) => active === "all" || sec.key === active);
+    return picked.length ? picked : allSections;
+  }, [allSections, query, active]);
 
   async function saveItem(item, vals) {
     const body = {
@@ -88,15 +104,40 @@ export default function MenuPage() {
     toast(t("mk.saved"));
   }
 
+  // The same columns Import reads, so a shop can edit the file in Excel and import it back.
+  function exportCsv() {
+    const cell = (v) => {
+      const text = String(v ?? "");
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const rows = [["Category", "Name", "Price", "Description"]];
+    if (lbpRate) rows[0].push("LBP");
+    allSections.forEach(({ cat, items }) => items.forEach((p) => {
+      const row = [cat ? cat.name : "", p.name, Number(p.price).toFixed(2), p.description || ""];
+      if (lbpRate) row.push(toLbp(p.price, lbpRate));
+      rows.push(row);
+    }));
+    // BOM so Excel opens Arabic names correctly.
+    const blob = new Blob(["\uFEFF" + rows.map((r) => r.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${shop.slug || "menu"}-menu.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
     <div>
-      <div className="page-header">
-        <h1>{t(`mk.title.${profile.word}`)}</h1>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {products.length > 0 && <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
+      <div className="page-header menu-head">
+        <div>
+          <h1>{t(`mk.title.${profile.word}`)}</h1>
+          {products.length > 0 && <p className="menu-sub">{products.length} {t("mk.itemsCount")} · {categories?.length || 0} {t("mk.categoriesCount")}</p>}
+        </div>
+        <div className="menu-head-actions">
           {!services && <button className="btn-sm" onClick={() => setModal({ type: "import" })}>{t("mk.import")}</button>}
+          {products.length > 0 && <button className="btn-sm" onClick={exportCsv}>{t("mk.export")}</button>}
           <button className="btn-sm" onClick={() => setModal({ type: "category" })}>+ {t("mk.addCategory")}</button>
-          <button className="btn-primary" onClick={() => setModal({ type: "item" })}>+ {t(services ? "mk.addService" : "mk.addItem")}</button>
+          <button className="btn-primary" onClick={() => setModal({ type: "item", categoryId: active !== "all" && active !== "none" ? active : undefined })}>+ {t(services ? "mk.addService" : "mk.addItem")}</button>
         </div>
       </div>
 
@@ -106,42 +147,82 @@ export default function MenuPage() {
         <EmptyState icon={EMPTY_ICONS.menu} title={t("mk.empty")} />
       )}
 
-
-      <div className="menu-list">
-        {sections.map(({ cat, items }) => (
-          <div className="menu-category" key={cat?.id || "none"}>
-            <div className="menu-cat-header">
-              <span className="menu-cat-name">{cat ? cat.name : t("mk.noCategory")}</span>
-              <span className="menu-cat-count">{items.length} {t("mk.itemsCount")}</span>
-              {cat && <>
-                <button className="btn-sm" onClick={() => setModal({ type: "item", categoryId: cat.id })}>+</button>
-                <button className="btn-sm" onClick={() => setModal({ type: "category", cat })}>{t("mk.edit")}</button>
-                <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteCategory", cat })}>{t("mk.delete")}</button>
-              </>}
-              {!cat && items.length > 0 && <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "clearUncategorized", count: items.length })}>{t("mk.deleteAll")}</button>}
-            </div>
-            {items.map((p) => (
-              <div key={p.id} className="product-row">
-                <div className="product-info">
-                  <span className="product-name">{p.name}</span>
-                  {p.description && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.description}</span>}
-                </div>
-                <div className="product-meta">
-                  <span className="product-price">{money(p.price)}{p.unit ? ` / ${t(`mk.unit.${p.unit}`)}` : ""}{lbpRate && <small className="product-lbp">{formatLbp(toLbp(p.price, lbpRate))}</small>}</span>
-                  {p.variants?.length > 0 && <span className="pill">{p.variants.length} {t("mk.sizesCount")}</span>}
-                  {p.modifier_groups?.length > 0 && <span className="pill">{p.modifier_groups.reduce((n, g) => n + (g.modifiers?.length || 0), 0)} {t("mk.optionsCount")}</span>}
-                  {p.offer_percent ? <span className={`pill ${offerOn(p) ? "pill-active" : "pill-pending"}`}>-{p.offer_percent}%{p.offer_ends_on ? ` → ${p.offer_ends_on}` : ""}</span> : null}
-                  {services && p.duration_mins ? <span className="pill">⏱ {p.duration_mins}m</span> : null}
-                </div>
-                <div className="product-actions">
-                  <button className="btn-sm" onClick={() => setModal({ type: "item", item: p })}>{t("mk.edit")}</button>
-                  <button className="btn-sm btn-sm-red" onClick={() => setModal({ type: "deleteItem", item: p })} aria-label={t("mk.delete")}>✕</button>
-                </div>
-              </div>
+      {allSections.length > 0 && (
+        <div className="menu-layout">
+          <aside className="menu-nav" aria-label={t("mk.category")}>
+            <button type="button" className={`menu-nav-item ${active === "all" && !query ? "is-on" : ""}`} onClick={() => { setActive("all"); setQuery(""); }}>
+              <span>{t("mk.all")}</span><span className="menu-nav-count">{products.length}</span>
+            </button>
+            {allSections.map((sec) => (
+              <button type="button" key={sec.key} className={`menu-nav-item ${active === sec.key && !query ? "is-on" : ""}`} onClick={() => { setActive(sec.key); setQuery(""); }}>
+                <span className="menu-nav-name">{sec.cat ? sec.cat.name : t("mk.noCategory")}</span><span className="menu-nav-count">{sec.items.length}</span>
+              </button>
             ))}
+            {products.length > 0 && <button type="button" className="menu-clear" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
+          </aside>
+
+          <div className="menu-main">
+            <div className="menu-search">
+              <input type="search" className="search-input" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("mk.search")} aria-label={t("mk.search")} />
+              {query && <span className="menu-search-count">{sections.reduce((n, sec) => n + sec.items.length, 0)} {t("mk.itemsCount")}</span>}
+            </div>
+            {query && sections.length === 0 && <p className="menu-search-empty">{t("mk.noMatch")}</p>}
+
+            <div className="menu-list">
+              {sections.map(({ key, cat, items }) => (
+                <section className="menu-category" key={key}>
+                  <header className="menu-cat-header">
+                    <h2 className="menu-cat-name">{cat ? cat.name : t("mk.noCategory")}</h2>
+                    <span className="menu-cat-count">{items.length}</span>
+                    <div className="menu-cat-actions">
+                      {cat ? <>
+                        <button className="icon-btn" title={t("mk.addItem")} aria-label={t("mk.addItem")} onClick={() => setModal({ type: "item", categoryId: cat.id })}>{ICONS.plus}</button>
+                        <button className="icon-btn" title={t("mk.edit")} aria-label={t("mk.edit")} onClick={() => setModal({ type: "category", cat })}>{ICONS.edit}</button>
+                        <button className="icon-btn is-danger" title={t("mk.delete")} aria-label={t("mk.delete")} onClick={() => setModal({ type: "deleteCategory", cat })}>{ICONS.trash}</button>
+                      </> : items.length > 0 && (
+                        <button className="icon-btn is-danger" title={t("mk.deleteAll")} aria-label={t("mk.deleteAll")} onClick={() => setModal({ type: "clearUncategorized", count: items.length })}>{ICONS.trash}</button>
+                      )}
+                    </div>
+                  </header>
+                  {items.length === 0 && (
+                    <button type="button" className="menu-cat-empty" onClick={() => setModal({ type: "item", categoryId: cat?.id })}>+ {t("mk.addItem")}</button>
+                  )}
+                  {items.map((p) => {
+                    const sizesN = p.variants?.length || 0;
+                    const extrasN = (p.modifier_groups || []).reduce((n, g) => n + (g.modifiers?.length || 0), 0);
+                    return (
+                      <div key={p.id} className="product-row" role="button" tabIndex={0}
+                        onClick={() => setModal({ type: "item", item: p })}
+                        onKeyDown={(e) => { if (e.key === "Enter") setModal({ type: "item", item: p }); }}>
+                        <div className="product-info">
+                          <span className="product-name">{p.name}</span>
+                          {p.description && <span className="product-desc">{p.description}</span>}
+                          {(sizesN > 0 || extrasN > 0 || p.offer_percent || (services && p.duration_mins)) ? (
+                            <span className="product-tags">
+                              {sizesN > 0 && <span className="tag">{sizesN} {t("mk.sizesCount")}</span>}
+                              {extrasN > 0 && <span className="tag">{extrasN} {t("mk.optionsCount")}</span>}
+                              {p.offer_percent ? <span className={`tag ${offerOn(p) ? "tag-green" : ""}`}>-{p.offer_percent}%</span> : null}
+                              {services && p.duration_mins ? <span className="tag">{p.duration_mins} min</span> : null}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="product-price">
+                          <span>{money(p.price)}{p.unit ? ` / ${t(`mk.unit.${p.unit}`)}` : ""}</span>
+                          {lbpRate && <small className="product-lbp">{formatLbp(toLbp(p.price, lbpRate))}</small>}
+                        </div>
+                        <button type="button" className="icon-btn is-danger product-del" title={t("mk.delete")} aria-label={t("mk.delete")}
+                          onClick={(e) => { e.stopPropagation(); setModal({ type: "deleteItem", item: p }); }}>{ICONS.trash}</button>
+                      </div>
+                    );
+                  })}
+                </section>
+              ))}
+            </div>
+            {products.length > 0 && !query && <button type="button" className="menu-clear menu-clear-phone" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {modal?.type === "category" && (
         <CategoryModal t={t} initial={modal.cat} onClose={() => setModal(null)}
@@ -203,6 +284,12 @@ function CategoryModal({ t, initial, onClose, onSubmit }) {
     </Modal>
   );
 }
+
+const ICONS = {
+  plus: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
+  edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>,
+  trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>,
+};
 
 const ROW_ICONS = {
   sizes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17h18M6 17V7M10 17v-6M14 17V9M18 17v-4" /></svg>,
