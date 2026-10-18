@@ -219,6 +219,32 @@ export default function OrderDemo({ demo }) {
       </div>
 
       <div className="wa-controls">
+        {shop.booking ? (
+          <p className="wa-options wa-booking-note">{demo.bookingNote}</p>
+        ) : (
+          <div className="wa-options">
+            <div className="wa-choice">
+              <span id="wa-mode-label">{demo.choose.mode}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
+                {["delivery", "pickup"].map((m) => (
+                  <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
+                    {demo.modes[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="wa-choice">
+              <span id="wa-pay-label">{demo.choose.pay}</span>
+              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
+                {["whish", "cash"].map((p) => (
+                  <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
+                    {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="wa-player">
           <div className="wa-bar">
             <button type="button" className="wa-icon-btn" onClick={togglePlay} aria-label={playing ? demo.pause : demo.play}>
@@ -355,32 +381,6 @@ export default function OrderDemo({ demo }) {
         </div>
       )}
 
-        {shop.booking ? (
-          <p className="wa-options wa-booking-note">{demo.bookingNote}</p>
-        ) : (
-          <div className="wa-options">
-            <div className="wa-choice">
-              <span id="wa-mode-label">{demo.choose.mode}</span>
-              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
-                {["delivery", "pickup"].map((m) => (
-                  <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
-                    {demo.modes[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="wa-choice">
-              <span id="wa-pay-label">{demo.choose.pay}</span>
-              <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
-                {["whish", "cash"].map((p) => (
-                  <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
-                    {demo.pays[p] === WHISH ? <Whish /> : demo.pays[p]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 }

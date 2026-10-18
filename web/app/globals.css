@@ -2692,10 +2692,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 .wa-end p { margin: 0 0 14px; font-size: 19px; font-weight: 800; color: #eef3f0; }
 .wa-end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 @keyframes wa-end-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.wa-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; margin: 22px auto 0; }
-.wa-options .wa-choice { flex-direction: row; gap: 10px; }
-.wa-options .wa-choice > span { font-size: 12px; font-weight: 600; }
-.wa-options .wa-modes button { min-width: 0; padding: 5px 11px; font-size: 12.5px; }
+.wa-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 0 auto 14px; }
+.wa-options .wa-choice { flex-direction: row; gap: 0; }
+.wa-options .wa-choice > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wa-options .wa-modes button { min-width: 0; padding: 6px 12px; font-size: 13px; }
 .wa-options.wa-booking-note { display: flex; width: fit-content; font-size: 13px; }
 @media (min-width: 981px) {
   .wa-controls { gap: 0; }
@@ -2710,5 +2710,6 @@ button.wa-mic { border: 0; cursor: pointer; }
   .wa-col:not(.is-shown) { display: none; }
   .wa-col, .wa-col:not(.is-active) { opacity: 1; transform: none; }
   .wa-col .wa-who { display: none; }
-  .wa-options .wa-choice { flex-direction: column; gap: 6px; }
+  .wa-options { gap: 6px; }
+  .wa-options .wa-modes button { padding: 6px 9px; font-size: 12.5px; }
 }
