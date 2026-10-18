@@ -198,7 +198,7 @@ export default function MerchantsPage() {
       {!loading && filter === "requests" && (
         <div className="merchant-cards pipeline-mode">
           {requests.length === 0 && (
-            <EmptyState icon={EMPTY_ICONS.check} title={t("ow.m.noReqs")} description={t("ow.m.noReqsDesc")} actionLabel={t("ow.m.copyLink")} actionClassName="btn-primary" onAction={copyJoinLink} />
+            <EmptyState icon={EMPTY_ICONS.check} title={t("ow.m.noReqs")} description={t("ow.m.noReqsDesc")} />
           )}
           {requests.length > 0 && filteredRequests.length === 0 && (
             <EmptyState icon={EMPTY_ICONS.search} title={t("ow.noResults")} description={t("ow.noResultsDesc")} />
@@ -244,9 +244,6 @@ export default function MerchantsPage() {
               icon={EMPTY_ICONS.search}
               title={search ? t("ow.noResults") : t("ow.m.none")}
               description={search ? t("ow.noResultsDesc") : t("ow.m.noneDesc")}
-              actionLabel={!search ? t("ow.m.copyLink") : undefined}
-              actionClassName="btn-primary"
-              onAction={!search ? copyJoinLink : undefined}
             />
           )}
           {list.map((m) => <MerchantCard key={m.id} t={t} m={m} onClick={() => setPanel({ id: m.id, tab: "info" })} />)}
