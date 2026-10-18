@@ -2,13 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const OUT_DELAY = 2000;
-const TYPING_DELAY = 1200;
+const OUT_DELAY = 2600;
+const TYPING_DELAY = 1600;
 // Extra pauses when the next message is on another phone, or starts a new step.
-const SWITCH_DELAY = 900;
-const STEP_DELAY = 1200;
+const SWITCH_DELAY = 1400;
+const STEP_DELAY = 2000;
 // The visitor plays the customer: their next tap glows, and the demo taps it for them after this.
-const AUTO_DELAY = 3000;
+const AUTO_DELAY = 4000;
+// Time to read the message just shown: longer messages (an order summary) stay longer.
+const READ_MS_PER_CHAR = 45;
+const READ_MAX = 7000;
+const readTime = (msg) => Math.min(READ_MAX, (msg?.text?.length || 0) * READ_MS_PER_CHAR);
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
@@ -111,7 +115,7 @@ export default function OrderDemo({ demo }) {
     }
     const msg = messages[count];
     const prev = messages[count - 1];
-    const wait = msg.chat === "c" && msg.out ? AUTO_DELAY : OUT_DELAY + (prev && prev.chat !== msg.chat ? SWITCH_DELAY : 0) + (prev && prev.step !== msg.step ? STEP_DELAY : 0);
+    const wait = readTime(prev) + (msg.chat === "c" && msg.out ? AUTO_DELAY : OUT_DELAY) + (prev && prev.chat !== msg.chat ? SWITCH_DELAY : 0) + (prev && prev.step !== msg.step ? STEP_DELAY : 0);
     if (msg.out) {
       timer = setTimeout(() => setCount(count + 1), wait);
     } else {
