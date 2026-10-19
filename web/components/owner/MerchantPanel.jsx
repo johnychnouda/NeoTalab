@@ -653,16 +653,62 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   const [city, setCity] = useState(knownCity(m.region, m.city) ? m.city : m.city ? JOIN_CITY_OTHER : "");
   const [cityOther, setCityOther] = useState(knownCity(m.region, m.city) ? "" : m.city || "");
   const [street, setStreet] = useState(m.street || "");
+  const [location, setLocation] = useState(m.shop_location || "");
+  const [finding, setFinding] = useState(false);
   const [busy, setBusy] = useState(false);
   const cities = getLebanonCitiesForRegion(region);
+  const locationChanged = location.trim() !== (m.shop_location || "");
+
+  // The pin (a pasted Google Maps link or the saved pin) gives the governorate and city.
+  async function lookupArea(value) {
+    setFinding(true);
+    try {
+      return await api("POST", "/admin/merchants/locate", { location: value.trim() });
+    } catch (e) {
+      toast(e.message, "error");
+      return null;
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  function applyArea(area, notify = true) {
+    if (!area) return;
+    const found = Boolean(area.region || area.city);
+    if (area.region) setRegion(area.region);
+    if (area.city) {
+      const listed = getLebanonCitiesForRegion(area.region || region).some((c) => c.value === area.city);
+      setCity(listed ? area.city : JOIN_CITY_OTHER);
+      setCityOther(listed ? "" : area.city);
+    }
+    if (!notify) return;
+    if (found) toast(t("ow.edit.areaFound"));
+    else toast(t("ow.edit.areaNone"), "error");
+  }
+
+  // A shop with a pin but no area yet gets its governorate and city when the form opens.
+  useEffect(() => {
+    if (m.shop_location && !m.region) lookupArea(m.shop_location).then((area) => applyArea(area, false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the form opens
+  }, []);
+
+  async function onLocationBlur() {
+    if (!locationChanged || !location.trim()) return;
+    applyArea(await lookupArea(location));
+  }
 
   async function save() {
     const number = lebaneseMobileError(wa) ? wa.trim() : toLebaneseWhatsapp(wa);
     setBusy(true);
     try {
+      // A pin changed right before Save is looked up first, so the saved area matches it.
+      const area = locationChanged && location.trim() ? await lookupArea(location) : null;
+      const typedCity = city === JOIN_CITY_OTHER || !cities.length ? cityOther.trim() : city;
       const data = await api("PATCH", `/admin/merchants/${m.id}`, {
-        shopName: name.trim(), ownerName: ownerName.trim() || null, whatsappNumber: number, region, street: street.trim(),
-        city: city === JOIN_CITY_OTHER || !cities.length ? cityOther.trim() : city,
+        shopName: name.trim(), ownerName: ownerName.trim() || null, whatsappNumber: number, street: street.trim(),
+        region: area?.region || region,
+        city: area?.city || (area?.region && area.region !== region ? "" : typedCity),
+        ...(locationChanged ? { location: location.trim() || null } : {}),
         ...(type && type !== m.business_type ? { businessType: type } : {}),
       });
       toast(t("ow.edit.saved"));
@@ -697,7 +743,10 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
           ) : (
             <input id="es-city" value={cityOther} onChange={(e) => setCityOther(e.target.value)} placeholder={t("jn.cityOther")} />
           )}</div>
-        <div className="field esm-wide"><label htmlFor="es-street">{t("jn.street")}</label>
+        <div className="field"><label htmlFor="es-loc">{finding ? t("ow.edit.areaFinding") : t("ow.edit.location")}</label>
+          <input id="es-loc" dir="ltr" value={location} placeholder={t("ow.edit.locationPh")}
+            onChange={(e) => setLocation(e.target.value)} onBlur={onLocationBlur} /></div>
+        <div className="field"><label htmlFor="es-street">{t("jn.street")}</label>
           <input id="es-street" value={street} onChange={(e) => setStreet(e.target.value)} /></div>
       </div>
     </Modal>

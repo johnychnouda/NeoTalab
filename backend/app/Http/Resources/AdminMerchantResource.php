@@ -56,6 +56,7 @@ class AdminMerchantResource extends JsonResource
                 && $subscriptionStatus === 'paid'
                 && $this->subscription_ends_at->isPast(),
             'fee_history' => array_reverse($settings['fee_history'] ?? []),
+            'shop_location' => $settings['shop_location'] ?? null,
             'map_url' => MapLocation::mapsUrl((string) ($settings['shop_location'] ?? '')),
             'bot_status' => $bot['status'] ?? 'inactive',
             'bot_phone_id' => $bot['phone_id'] ?? null,

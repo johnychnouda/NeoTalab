@@ -114,6 +114,20 @@ class AdminMerchantService
             $settings = BusinessKind::applyDefaults($settings, BusinessKind::TYPES[$type] ?? 'other');
         }
 
+        // A pasted Google Maps link or pin is stored as "lat,lng", the same as the shop's own settings.
+        if ($this->hasKey($payload, 'location')) {
+            $raw = trim((string) $this->pick($payload, 'location'));
+            if ($raw === '') {
+                $settings['shop_location'] = null;
+            } else {
+                $pin = MapLocation::resolve($raw);
+                if (! $pin) {
+                    throw ValidationException::withMessages(['location' => ['No location found in this link. Paste a Google Maps link or the numbers of the pin.']]);
+                }
+                $settings['shop_location'] = $pin;
+            }
+        }
+
         if ($this->hasKey($payload, 'ownerName', 'owner_name')) {
             $ownerName = trim((string) $this->pick($payload, 'ownerName', 'owner_name'));
             $owner = $merchant->ownerUser();

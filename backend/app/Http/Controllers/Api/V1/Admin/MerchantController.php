@@ -13,7 +13,10 @@ use App\Models\Merchant;
 use App\Services\AdminMerchantService;
 use App\Services\MerchantWelcomeService;
 use App\Services\TenantProvisioningService;
+use App\Support\MapLocation;
+use App\Support\PlaceFromPin;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -55,6 +58,25 @@ class MerchantController extends Controller
             'data' => new AdminMerchantResource($merchant),
             'merchant' => new AdminMerchantResource($merchant),
             'message' => 'Merchant updated.',
+        ]);
+    }
+
+    /** Governorate and city of a pasted Google Maps link or pin, for the owner's shop form. */
+    public function locate(Request $request): JsonResponse
+    {
+        $request->validate(['location' => ['required', 'string', 'max:500']]);
+
+        $pin = MapLocation::resolve((string) $request->input('location'));
+        if (! $pin) {
+            return response()->json(['message' => 'No location found in this link.'], 422);
+        }
+
+        $place = PlaceFromPin::lookup($pin) ?? ['region' => null, 'city' => null];
+
+        return response()->json([
+            'location' => $pin,
+            'region' => $place['region'],
+            'city' => $place['city'],
         ]);
     }
 

@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('merchants', [AdminMerchantController::class, 'index']);
             Route::post('merchants', [AdminMerchantController::class, 'storeFromOwnerPortal']);
+            Route::post('merchants/locate', [AdminMerchantController::class, 'locate']);
             Route::post('merchants/provision', [AdminMerchantController::class, 'store']);
             Route::get('merchants/{id}', [AdminMerchantController::class, 'show']);
             Route::patch('merchants/{id}', [AdminMerchantController::class, 'update']);
