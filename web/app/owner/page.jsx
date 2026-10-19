@@ -18,9 +18,13 @@ import { MERCHANT_FILTERS, pillClass } from "@/lib/pillTones";
 import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 
 function matchesMerchantSearch(m, term) {
+  // Phone numbers match by their digits, so "+961 70 161 659" and "70161659" both find the shop.
+  const digits = term.replace(/\D/g, "");
+  const phoneMatch = digits !== ""
+    && [m.whatsapp_number, m.owner_phone].some((p) => (p || "").replace(/\D/g, "").includes(digits));
   return m.shop_name?.toLowerCase().includes(term)
     || (m.owner_name || "").toLowerCase().includes(term)
-    || (m.whatsapp_number || "").includes(term)
+    || phoneMatch
     || m.bot_error?.toLowerCase().includes(term);
 }
 
