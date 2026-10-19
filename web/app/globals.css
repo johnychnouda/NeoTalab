@@ -2871,6 +2871,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 .product-row .product-price { flex: none; color: var(--text); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: end; }
 .product-del { flex: none; opacity: 0; }
 .product-row:hover .product-del, .product-row:focus-within .product-del { opacity: 1; }
+.product-grip { flex: none; align-self: center; width: 14px; font-size: 14px; line-height: 1; letter-spacing: -3px; color: var(--text-muted); opacity: 0.45; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.product-row:hover .product-grip { opacity: 0.9; }
+.product-row.is-dragging { background: var(--surface2); outline: 1px solid var(--green); cursor: grabbing; }
+.product-row.is-dragging .product-grip { opacity: 1; cursor: grabbing; }
 @media (hover: none) { .product-del { opacity: 1; } }
 
 @media (max-width: 900px) {

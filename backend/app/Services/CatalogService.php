@@ -67,6 +67,17 @@ class CatalogService
         });
     }
 
+    /** Items inside a category keep the order they are dragged into; the WhatsApp menu uses the same order. */
+    public function reorderProducts(array $ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            $mine = Product::query()->whereKey($ids)->pluck('id')->flip();
+            foreach (array_values(array_filter($ids, fn ($id) => $mine->has($id))) as $i => $id) {
+                Product::query()->whereKey($id)->update(['sort_order' => $i + 1]);
+            }
+        });
+    }
+
     /** Start the menu over: every item and category, or only the items without a category. */
     public function clearMenu(bool $onlyUncategorized = false): int
     {

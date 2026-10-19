@@ -23,6 +23,15 @@ class ProductController extends Controller
         ));
     }
 
+    /** Save the order the items were dragged into (inside their category). */
+    public function reorder(Request $request): JsonResponse
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'max:500'], 'ids.*' => ['string']]);
+        $this->catalog->reorderProducts($data['ids']);
+
+        return response()->json(['message' => 'Order saved.']);
+    }
+
     public function show(string $product): ProductResource
     {
         return new ProductResource(

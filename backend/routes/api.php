@@ -120,6 +120,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
             Route::delete('menu', [CategoryController::class, 'clear']);
 
+            Route::put('products/order', [ProductController::class, 'reorder']);
             Route::post('products', [ProductController::class, 'store']);
             Route::patch('products/{product}', [ProductController::class, 'update']);
             Route::delete('products/{product}', [ProductController::class, 'destroy']);

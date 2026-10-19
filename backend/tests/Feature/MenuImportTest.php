@@ -217,6 +217,24 @@ class MenuImportTest extends TestCase
         $this->assertSame(7, $theirs->fresh()->sort_order, 'another shop is never touched');
     }
 
+    public function test_items_inside_a_category_keep_the_order_they_are_dragged_into(): void
+    {
+        [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+        $theirs = Product::factory()->create(['merchant_id' => $other->id, 'sort_order' => 7]);
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [
+            ['category' => 'Pizza', 'name' => 'Margherita', 'price' => 8],
+            ['category' => 'Pizza', 'name' => 'Pepperoni', 'price' => 9],
+            ['category' => 'Pizza', 'name' => 'Quattro', 'price' => 10],
+        ]])->assertOk();
+        $pizza = $this->withToken($this->token)->getJson('/api/v1/categories')->json('data.0.id');
+        $ids = $this->withToken($this->token)->getJson("/api/v1/products?category_id={$pizza}")->json('data.*.id');
+
+        $this->withToken($this->token)->putJson('/api/v1/products/order', ['ids' => [$ids[2], $theirs->id, $ids[0], $ids[1]]])->assertOk();
+
+        $this->assertSame(['Quattro', 'Margherita', 'Pepperoni'], $this->withToken($this->token)->getJson("/api/v1/products?category_id={$pizza}")->json('data.*.name'));
+        $this->assertSame(7, $theirs->fresh()->sort_order, 'another shop is never touched');
+    }
+
     public function test_staff_cannot_clear_the_menu(): void
     {
         [, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);
