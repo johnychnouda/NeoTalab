@@ -521,7 +521,7 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
               ${activeFee}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>{per(isYearly)}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
-              {renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}{isTrial && trialDaysLeft !== null ? ` · ${t("ow.trialDaysShort", { n: trialDaysLeft })}` : ""}</span>
+              {renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}{isTrial && trialDaysLeft !== null ? ` · ${t("ow.b.daysLeft", { n: trialDaysLeft })}` : ""}</span>
             </div>
           </div>
           {(!isTrial || m.overdue) && <span style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, border: `1px solid ${billingColor}40`, color: billingColor, background: `${billingColor}12`, whiteSpace: "nowrap" }}>
