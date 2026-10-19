@@ -672,39 +672,34 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   }
 
   return (
-    <Modal title={t("ow.edit")} onClose={onClose}
-      footer={<div className="modal-footer-actions">
-        <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="btn-primary" onClick={save} disabled={busy || !name.trim()}>{busy ? "…" : t("db.save")}</button>
+    <Modal title={t("ow.edit")} onClose={onClose} className="esm"
+      footer={<div className="esm-actions">
+        <button type="button" className="pv-btn" onClick={onClose}>{t("db.cancel")}</button>
+        <button type="button" className="pv-btn pv-primary" onClick={save} disabled={busy || !name.trim()}>{busy ? "…" : t("db.save")}</button>
       </div>}>
-      <div className="field"><label htmlFor="es-name">{t("jn.shopName")}</label>
-        <input id="es-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
-      <div className="field"><label htmlFor="es-owner">{t("ow.edit.ownerName")}</label>
-        <input id="es-owner" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder={t("ow.edit.ownerNameHint")} /></div>
-      <div className="field"><label htmlFor="es-wa">{t("ow.edit.wa")}</label>
-        <input id="es-wa" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+961 70 123 456" /></div>
-      <div className="field"><label htmlFor="es-type">{t("jn.businessType")}</label>
-        <FormSelect id="es-type" value={type} onChange={setType} aria-label={t("jn.businessType")}
-          options={JOIN_BUSINESS_TYPES.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
-        <div className="mk-hint">{t("ow.edit.typeHint")}</div></div>
-      <div className="modal-row">
+      <div className="esm-grid">
+        <div className="field"><label htmlFor="es-name">{t("jn.shopName")}</label>
+          <input id="es-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="field"><label htmlFor="es-owner">{t("ow.edit.ownerName")}</label>
+          <input id="es-owner" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} /></div>
+        <div className="field"><label htmlFor="es-wa">{t("ow.edit.wa")}</label>
+          <input id="es-wa" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+961 70 123 456" /></div>
+        <div className="field"><label htmlFor="es-type">{t("jn.businessType")}</label>
+          <FormSelect id="es-type" value={type} onChange={setType} aria-label={t("jn.businessType")}
+            options={JOIN_BUSINESS_TYPES.map((o) => ({ value: o.value, label: t(o.labelKey) }))} /></div>
         <div className="field"><label htmlFor="es-region">{t("jn.region")}</label>
           <FormSelect id="es-region" value={region} onChange={(v) => { setRegion(v); setCity(""); }} aria-label={t("jn.region")}
             options={JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))} /></div>
         <div className="field"><label htmlFor="es-city">{t("jn.city")}</label>
-          {cities.length ? (
+          {cities.length && city !== JOIN_CITY_OTHER ? (
             <FormSelect id="es-city" value={city} onChange={setCity} aria-label={t("jn.city")}
               options={cities.map((o) => ({ value: o.value, label: t(o.labelKey) }))} />
           ) : (
-            <input id="es-city" value={cityOther} onChange={(e) => setCityOther(e.target.value)} />
+            <input id="es-city" value={cityOther} onChange={(e) => setCityOther(e.target.value)} placeholder={t("jn.cityOther")} />
           )}</div>
+        <div className="field esm-wide"><label htmlFor="es-street">{t("jn.street")}</label>
+          <input id="es-street" value={street} onChange={(e) => setStreet(e.target.value)} /></div>
       </div>
-      {city === JOIN_CITY_OTHER && cities.length > 0 && (
-        <div className="field"><label htmlFor="es-city-other">{t("jn.cityOther")}</label>
-          <input id="es-city-other" value={cityOther} onChange={(e) => setCityOther(e.target.value)} /></div>
-      )}
-      <div className="field"><label htmlFor="es-street">{t("jn.street")}</label>
-        <input id="es-street" value={street} onChange={(e) => setStreet(e.target.value)} /></div>
     </Modal>
   );
 }

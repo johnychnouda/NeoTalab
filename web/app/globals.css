@@ -2956,3 +2956,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 .pv-warn { border-color: #f59e0b60; color: #f59e0b; }
 .pv-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; }
 .pv-link-danger { background: none; border: none; color: var(--red); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 6px; }
+
+/* Owner: Edit shop details, compact and without scrolling */
+.esm { max-width: 560px; }
+.esm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.esm-grid .field { margin: 0; }
+.esm-wide { grid-column: 1 / -1; }
+.esm-actions { display: flex; justify-content: flex-end; gap: 8px; }
