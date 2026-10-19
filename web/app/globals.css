@@ -2913,3 +2913,46 @@ button.wa-mic { border: 0; cursor: pointer; }
 .info-chip-primary { background: var(--green); border-color: var(--green); color: #0a0f0a; }
 .info-chip-primary:hover { border-color: var(--green); filter: brightness(1.05); }
 .info-muted { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 3px; }
+
+/* Owner panel: compact tabs that fit without scrolling */
+.pv { display: flex; flex-direction: column; gap: 10px; }
+.pv-tile { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pv-grid .pv-tile { gap: 4px; }
+.pv-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.3px; }
+.pv-value { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.pv-sub { font-size: 12px; color: var(--text-muted); }
+.pv-note { font-size: 11px; color: #f59e0b; }
+.pv-big { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.pv-big span { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-inline-start: 4px; }
+.pv-big-sm { font-size: 15px; font-weight: 700; }
+.pv-owner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.pv-owner-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pv-owner-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-wa { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid #25d36640; background: #25d36614; color: var(--green); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pv-wa:hover { background: #25d36622; }
+.pv-status { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
+.pv-price, .pv-status-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.pv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pv-seg { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 3px; }
+.pv-seg button { padding: 5px 12px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pv-seg button.is-on { background: var(--green); color: #fff; }
+.pv-fee { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; }
+.pv-fee input { width: 80px; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; text-align: end; outline: none; }
+.pv-fee small { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.pv-hist { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; padding: 4px 0; border-top: 1px solid var(--border); }
+.pv-hist:first-of-type { border-top: none; }
+.pv-login { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pv-mono { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.pv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pv-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.pv-btn:hover { border-color: var(--text-muted); }
+.pv-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pv-small { padding: 5px 10px; font-size: 11px; }
+.pv-grow { flex: 1 1 0; min-width: 0; }
+.pv-full { width: 100%; }
+.pv-primary { background: var(--green); border-color: var(--green); color: #0a0f0a; }
+.pv-green { border-color: var(--green); color: var(--green); }
+.pv-warn { border-color: #f59e0b60; color: #f59e0b; }
+.pv-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; }
+.pv-link-danger { background: none; border: none; color: var(--red); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 6px; }

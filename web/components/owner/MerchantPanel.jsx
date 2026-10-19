@@ -51,7 +51,6 @@ export default function MerchantPanel({ merchant: m, initialTab = "info", api, o
 
   if (!m || !mounted) return null;
 
-  const botDot = m.bot_status === "active" ? "#25d366" : m.bot_status === "error" ? "#ff4d4d" : "#555";
   const subColor = m.subscription_status === "paid" ? "var(--green)" : m.subscription_status === "trial" ? "#3b82f6" : "#f59e0b";
   const subBg = m.subscription_status === "paid" ? "#25d36618" : m.subscription_status === "trial" ? "#3b82f618" : "#f59e0b18";
   const subLabel = t(m.subscription_status === "paid"
@@ -77,17 +76,7 @@ export default function MerchantPanel({ merchant: m, initialTab = "info", api, o
               <div className="panel-hero-name">{m.shop_name}</div>
               <div className="panel-hero-badges">
                 {m.status !== "suspended" && (
-                  <>
-                    <span style={{ background: subBg, color: subColor, border: `1px solid ${subColor}30`, padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{subLabel}</span>
-                    {(m.subscription_status === "paid" || m.subscription_status === "trial") && (
-                      <>
-                        <span className="panel-bot-dot" style={{ background: botDot }} />
-                        <span style={{ fontSize: 11, color: botDot }}>
-                          {t(m.bot_status === "active" ? "ow.wa.ok" : m.bot_status === "error" ? "ow.wa.error" : "ow.wa.notSet")}
-                        </span>
-                      </>
-                    )}
-                  </>
+                  <span className="pv-status" style={{ color: subColor, borderColor: `${subColor}40`, background: subBg }}>{subLabel}</span>
                 )}
               </div>
             </div>
@@ -283,115 +272,83 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
     navigator.clipboard?.writeText(text).then(() => toast(t("ow.p.copied"))).catch(() => {});
   };
 
-  const sameAsOwner = !!ownerPhone && (m.whatsapp_number || "").replace(/\D/g, "") === ownerPhone;
   const ownerName = m.owner_name && m.owner_name !== m.shop_name ? m.owner_name : null;
   const blocked = m.status === "suspended";
 
   return (
-    <>
-      <div className="panel-group-title">{t("ow.p.ownerTitle")}</div>
-      <div className="info-owner-card">
-        <div className="info-owner-text">
-          {ownerName && <div className="info-owner-name">{ownerName}</div>}
-          <div className="info-owner-phone" dir="ltr">{m.owner_phone || t("ow.p.noOwner")}</div>
+    <div className="pv">
+      <div className="pv-owner">
+        <div className="pv-owner-text">
+          <div className="pv-label">{t("ow.p.ownerTitle")}</div>
+          <div className="pv-owner-name">{ownerName || m.owner_phone || t("ow.p.noOwner")}</div>
+          {ownerName && m.owner_phone && <div className="pv-sub" dir="ltr">{m.owner_phone}</div>}
         </div>
         {ownerPhone && (
-          <button type="button" className="info-owner-msg" onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
-            <WhatsAppIcon size={16} /> {t("ow.p.messageOwner")}
+          <button type="button" className="pv-wa" title={t("ow.p.messageOwner")} aria-label={t("ow.p.messageOwner")}
+            onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
+            <WhatsAppIcon size={20} />
           </button>
         )}
       </div>
 
-      <div className="panel-group-title">{t("ow.p.groupShop")}</div>
-      <div className="pinfo-row">
-        <div className="pinfo-label">WhatsApp</div>
-        <div className="pinfo-value" dir="ltr">
-          {m.whatsapp_number || "—"}
-          {sameAsOwner && <span className="info-muted"> · {t("ow.p.sameAsOwner")}</span>}
+      <div className="pv-grid">
+        <div className="pv-tile">
+          <div className="pv-label">WhatsApp</div>
+          <div className="pv-value" dir="ltr">{m.whatsapp_number || "—"}</div>
+        </div>
+        <div className="pv-tile">
+          <div className="pv-label">{t("ow.m.business")}</div>
+          <div className="pv-value">{joinOptionLabel(t, m.business_type) || "—"}</div>
+        </div>
+        <div className="pv-tile">
+          <div className="pv-label">{t("ow.m.location")}</div>
+          {m.map_url
+            ? <a className="pv-btn pv-small" href={m.map_url} target="_blank" rel="noopener noreferrer">📍 {t("ow.p.openMaps")}</a>
+            : <div className="pv-sub">{t("ow.p.locationNotSet")}</div>}
+        </div>
+        <div className="pv-tile">
+          <div className="pv-label">{t("ow.p.since")}</div>
+          <div className="pv-value">{memberSince}</div>
         </div>
       </div>
-      <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.business")}</div><div className="pinfo-value">{joinOptionLabel(t, m.business_type) || "—"}</div></div>
-      <div className="pinfo-row">
-        <div className="pinfo-label">{t("ow.m.location")}</div>
-        <div className="pinfo-value">
-          {m.map_url ? (
-            <a className="info-chip-btn info-chip-primary" href={m.map_url} target="_blank" rel="noopener noreferrer">📍 {t("ow.p.openMaps")}</a>
-          ) : (
-            <span className="info-muted">{t("ow.p.locationNotSet")}</span>
-          )}
-          {location !== "—" && <div className="info-muted">{location}</div>}
+
+      <div className="pv-tile">
+        <div className="pv-label">{t("ow.p.loginEmail")}</div>
+        <div className="pv-login">
+          <span className="pv-mono" dir="ltr">{m.login_email || "—"}</span>
+          {m.login_email && <button type="button" className="pv-btn pv-small" onClick={() => copy(m.login_email)}>{t("ow.p.copy")}</button>}
+        </div>
+        <div className="pv-actions">
+          <button type="button" className="pv-btn pv-primary pv-grow" disabled={blocked} onClick={impersonate}>{PI.screen} {t("ow.p.openDash")}</button>
+          {m.slug && <button type="button" className="pv-btn pv-grow" onClick={() => copy(dashUrl)}>{t("ow.p.copyLink")}</button>}
         </div>
       </div>
-      <div className="pinfo-row"><div className="pinfo-label">{t("ow.p.since")}</div><div className="pinfo-value">{memberSince}</div></div>
-      <button type="button" className="paction-btn" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
+
+      <div className="pv-actions">
+        <button type="button" className="pv-btn pv-grow" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
+        {!blocked && <button type="button" className="pv-btn pv-grow" onClick={resendAccess}>{PI.link} {t("ow.p.resend")}</button>}
+        {!blocked && m.subscription_status === "pending" && waClean && (
+          <button type="button" className="pv-btn pv-grow" onClick={welcome}>{t("ow.p.sendWelcome")}</button>
+        )}
+      </div>
+
+      <div className="pv-footer">
+        {blocked ? (
+          <button type="button" className="pv-btn pv-green" onClick={activate}>{PI.play} {t("ow.p.activate")}</button>
+        ) : m.subscription_status === "trial" ? (
+          <button type="button" className="pv-btn pv-warn" onClick={endTrial}>{t("ow.p.endTrial")}</button>
+        ) : (
+          <button type="button" className="pv-btn pv-warn" onClick={suspend}>{t("ow.p.suspend")}</button>
+        )}
+        <button type="button" className="pv-link-danger" onClick={remove}>{t("ow.p.remove")}</button>
+      </div>
+
       {editing && <EditShopModal t={t} m={m} api={api} toast={toast} onClose={() => setEditing(false)}
         onSaved={(updated) => { setEditing(false); onChanged(updated); }} />}
-
-      <div className="panel-group-title">{t("ow.p.groupLogin")}</div>
-      <CopyRow label={t("ow.p.loginEmail")} value={m.login_email} onCopy={copy} t={t} />
-      <div className="pinfo-row">
-        <div className="pinfo-label">{t("ow.p.dashboard")}</div>
-        <div className="pinfo-value info-inline-actions">
-          <button type="button" className="info-chip-btn info-chip-primary" onClick={impersonate} disabled={blocked}>
-            {PI.screen} {t("ow.p.openDash")}
-          </button>
-          {m.slug && <button type="button" className="info-chip-btn" onClick={() => copy(dashUrl)}>{t("ow.p.copyLink")}</button>}
-        </div>
-      </div>
-      {!blocked && (
-        <div className="info-actions-grid">
-          <button className="info-action-tile" onClick={resendAccess}>
-            <span className="info-action-icon">{PI.link}</span>
-            <span>{t("ow.p.resend")}</span>
-          </button>
-          {m.subscription_status === "pending" && waClean && (
-            <button className="info-action-tile" onClick={welcome}>
-              <span className="info-action-icon"><WhatsAppIcon size={16} /></span>
-              <span>{t("ow.p.sendWelcome")}</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="panel-group-title">{t("ow.p.groupAccount")}</div>
-      {blocked ? (
-        <button className="info-action-tile info-action-success" style={{ width: "100%" }} onClick={activate}>
-          <span className="info-action-icon">{PI.play}</span>
-          <span>{t("ow.p.activate")}</span>
-        </button>
-      ) : m.subscription_status === "trial" ? (
-        <button className="info-action-tile info-action-warn" style={{ width: "100%" }} onClick={endTrial}>
-          <span className="info-action-icon">{PI.stop}</span>
-          <span>{t("ow.p.endTrial")}</span>
-        </button>
-      ) : (
-        <button className="info-action-tile info-action-warn" style={{ width: "100%" }} onClick={suspend}>
-          <span className="info-action-icon">{PI.pause}</span>
-          <span>{t("ow.p.suspend")}</span>
-        </button>
-      )}
-
-      <div className="panel-group-title panel-group-danger">{t("ow.p.groupDanger")}</div>
-      <button className="remove-merchant-btn" onClick={remove}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" /></svg>
-        {t("ow.p.remove")}
-      </button>
-    </>
-  );
-}
-
-/** A detail row with a copy button, for values the owner needs to share (login email, dashboard address). */
-function CopyRow({ label, value, onCopy, t }) {
-  return (
-    <div className="pinfo-row">
-      <div className="pinfo-label">{label}</div>
-      <div className="pinfo-value pinfo-copy">
-        <span dir="ltr" className="pinfo-ltr">{value || "—"}</span>
-        {value && <button type="button" className="pinfo-copy-btn" onClick={() => onCopy(value)}>{t("ow.p.copy")}</button>}
-      </div>
     </div>
   );
 }
+
 
 /* ── Billing tab ────────────────────────────────────────── */
 
@@ -442,11 +399,6 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
     else if (daysLeft <= 7) renewalColor = "#f59e0b";
   }
 
-  // Lock cycle + current fee while the paid period is still active.
-  const periodLocked = !!(isPaid && renewalDate && renewalDate.getTime() > Date.now());
-  const periodDaysLeft = periodLocked
-    ? Math.max(1, Math.ceil((renewalDate.getTime() - Date.now()) / 86400000))
-    : null;
 
   const renewalLabel = isTrial ? t("ow.b.trialEnds") : t("ow.b.nextRenewal");
   const renewalVal = isTrial ? (m.trial_ends_at ? fmtDate(m.trial_ends_at) : "—") : renewalStr;
@@ -459,33 +411,6 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
 
 
   // A cycle change waits for the shop's next payment; it never marks the shop paid.
-  const switchCycle = () => {
-    const target = isYearly ? "monthly" : "yearly";
-    const targetLabel = t(target === "yearly" ? "ow.yearly" : "ow.monthly");
-    const fee = target === "yearly" ? num(yearlyFee) : num(monthlyFee);
-    if (!fee) {
-      toast(t("ow.b.setFeeFirst"), "error");
-      return;
-    }
-    onConfirm({
-      title: t("ow.b.switchTo", { cycle: targetLabel }),
-      message: <><strong>{m.shop_name}</strong> — {t("ow.b.nextCycle", { cycle: targetLabel })}</>,
-      confirmLabel: t("ow.b.switchTo", { cycle: targetLabel }),
-      onConfirm: async () => {
-        try {
-          await api("PATCH", `/admin/merchants/${m.id}`, {
-            nextBillingCycle: target,
-            monthlyFee: num(monthlyFee),
-            yearlyFee: num(yearlyFee),
-          });
-          logActivity("billing", t("ow.log.switched", { shop: m.shop_name, fee: `$${fee}${per(target === "yearly")}` }));
-          toast(t("db.saved"));
-          onChanged();
-        } catch (e) { toast(e.message, "error"); }
-      },
-    });
-  };
-
   async function saveBilling() {
     try {
       await api("PATCH", `/admin/merchants/${m.id}`, {
@@ -500,131 +425,62 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   }
 
   const fmtFee = (v) => v.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const switchTarget = isYearly ? "monthly" : "yearly";
-  const switchFee = switchTarget === "yearly" ? yearlyFee : monthlyFee;
-  const setSwitchFee = switchTarget === "yearly" ? setYearlyFee : setMonthlyFee;
-  const feeInput = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, outline: "none", fontWeight: 700, color: "var(--text)", textAlign: "end" };
+  const historyRows = [
+    ...(payments || []).map((p) => ({ key: p.id, at: p.paid_at, text: `$${(p.amount || 0).toLocaleString("en-US")} · ${t(p.cycle === "yearly" ? "ow.yearly" : "ow.monthly")}` })),
+    ...(m.fee_history || []).map((h, i) => ({ key: `fee-${i}`, at: h.at, text: `${t("ow.b.feeChanged")} · $${h.monthly_fee} / $${h.yearly_fee}` })),
+  ].sort((x, y) => new Date(y.at) - new Date(x.at)).slice(0, 3);
 
   return (
-    <>
-      <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 20 }}>
-        <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>
-              ${activeFee}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>{per(isYearly)}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
-              {renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}{isTrial && trialDaysLeft !== null ? ` · ${t("ow.b.daysLeft", { n: trialDaysLeft })}` : ""}</span>
-            </div>
-          </div>
-          {(!isTrial || m.overdue) && <span style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, border: `1px solid ${billingColor}40`, color: billingColor, background: `${billingColor}12`, whiteSpace: "nowrap" }}>
-            {periodLocked && !m.overdue ? `🔒 ${t("ow.f.paid")}` : billingLabel}
-          </span>}
+    <div className="pv">
+      <div className="pv-price">
+        <div>
+          <div className="pv-big">${activeFee}<span>{per(isYearly)}</span></div>
+          <div className="pv-sub">{renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}</span></div>
         </div>
+        <span className="pv-status" style={{ color: billingColor, borderColor: `${billingColor}40`, background: `${billingColor}12` }}>{billingLabel}</span>
       </div>
 
-      {periodLocked ? (
-        <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-            🔒 {t("ow.b.locked", { n: periodDaysLeft })}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {t("ow.b.switchTo", { cycle: t(switchTarget === "yearly" ? "ow.yearly" : "ow.monthly") })}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginInlineStart: "auto" }} dir="ltr">
-              <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>$</span>
-              <input type="text" inputMode="numeric" className="no-arrows" placeholder="0" value={switchFee}
-                onChange={(e) => setSwitchFee(fmtFee(e.target.value))} aria-label={t("ow.b.fee")}
-                style={{ ...feeInput, width: 72, padding: "5px 8px", fontSize: 13 }} />
-              <button type="button" onClick={switchCycle}
-                style={{ background: "var(--green)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 7, cursor: "pointer" }}>
-                {t("ow.b.switch")}
+      <div className="pv-tile">
+        <div className="pv-row">
+          <span className="pv-label">{t("ow.b.cycle")}</span>
+          <div className="pv-seg">
+            {["monthly", "yearly"].map((v) => (
+              <button key={v} type="button" className={cycle === v ? "is-on" : ""} onClick={() => setCycle(v)}>
+                {t(v === "yearly" ? "ow.yearly" : "ow.monthly")}
               </button>
-            </div>
+            ))}
           </div>
         </div>
-      ) : (
-        <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 14, fontWeight: 500 }}>
-              {t("ow.b.cycle")}
-              {m.next_billing_cycle && m.next_billing_cycle !== m.billing_cycle && (
-                <span className="info-muted" style={{ display: "block" }}>
-                  {t("ow.b.nextCycle", { cycle: t(m.next_billing_cycle === "yearly" ? "ow.yearly" : "ow.monthly") })}
-                </span>
-              )}
-            </span>
-            <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3 }}>
-              {["monthly", "yearly"].map((v) => (
-                <button key={v} type="button" onClick={() => setCycle(v)}
-                  style={{
-                    padding: "5px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                    background: cycle === v ? "var(--green)" : "transparent",
-                    color: cycle === v ? "#fff" : "var(--text-muted)",
-                  }}>
-                  {t(v === "yearly" ? "ow.yearly" : "ow.monthly")}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 14, fontWeight: 500 }}>{t("ow.b.fee")}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }} dir="ltr">
-              <span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 600 }}>$</span>
-              <input type="text" inputMode="numeric" className="no-arrows" placeholder="0" aria-label={t("ow.b.fee")}
-                value={isYearly ? yearlyFee : monthlyFee}
-                onChange={(e) => {
-                  const v = fmtFee(e.target.value);
-                  if (isYearly) setYearlyFee(v); else setMonthlyFee(v);
-                }}
-                style={{ ...feeInput, width: 90, padding: "6px 10px", fontSize: 14 }} />
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{per(isYearly)}</span>
-            </div>
-          </div>
-
-          <div style={{ padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
-            {billingDirty && <button type="button" className="btn-primary" onClick={saveBilling}>{t("db.save")}</button>}
+        {m.next_billing_cycle && m.next_billing_cycle !== m.billing_cycle && (
+          <div className="pv-note">{t("ow.b.nextCycle", { cycle: t(m.next_billing_cycle === "yearly" ? "ow.yearly" : "ow.monthly") })}</div>
+        )}
+        <div className="pv-row">
+          <span className="pv-label">{t("ow.b.fee")}</span>
+          <div className="pv-fee" dir="ltr">
+            <span>$</span>
+            <input type="text" inputMode="numeric" className="no-arrows" placeholder="0" aria-label={t("ow.b.fee")}
+              value={isYearly ? yearlyFee : monthlyFee}
+              onChange={(e) => {
+                const v = fmtFee(e.target.value);
+                if (isYearly) setYearlyFee(v); else setMonthlyFee(v);
+              }} />
+            <small>{per(isYearly)}</small>
           </div>
         </div>
-      )}
+        {billingDirty && <button type="button" className="pv-btn pv-primary pv-full" onClick={saveBilling}>{t("db.save")}</button>}
+      </div>
 
-      {/* ── Payment history ── */}
-      <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{t("ow.b.history")}</span>
-          {payments?.length > 0 && (
-            <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 700 }}>
-              {t("ow.b.total", { amount: `$${payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString("en-US")}` })}
-            </span>
-          )}
-        </div>
-        {payments === null && <div style={{ padding: 20, fontSize: 12, color: "var(--text-muted)" }}>{t("db.loading")}</div>}
-        {payments?.length === 0 && <div style={{ padding: 20, fontSize: 12, color: "var(--text-muted)" }}>{t("ow.b.noPayments")}</div>}
-        {payments?.map((p) => (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 20px", borderBottom: "1px solid var(--border)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>
-              ${(p.amount || 0).toLocaleString("en-US")}<span style={{ fontWeight: 500, color: "var(--text-muted)", fontSize: 11 }}>{per(p.cycle === "yearly")}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {p.paid_at ? new Date(p.paid_at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }) : "—"}
-            </div>
+      <div className="pv-tile">
+        <div className="pv-label">{t("ow.b.recent")}</div>
+        {historyRows.length === 0 && <div className="pv-sub">{t("ow.b.noActivity")}</div>}
+        {historyRows.map((r) => (
+          <div key={r.key} className="pv-hist">
+            <span>{r.text}</span>
+            <span>{r.at ? new Date(r.at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }) : "—"}</span>
           </div>
         ))}
       </div>
-
-      <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 600 }}>{t("ow.b.feeHistory")}</div>
-        {(m.fee_history || []).length === 0 && <div style={{ padding: 20, fontSize: 12, color: "var(--text-muted)" }}>{t("ow.b.noHistory")}</div>}
-        {(m.fee_history || []).map((h, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "11px 20px", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-            <span>${h.monthly_fee} {per(false)} · ${h.yearly_fee} {per(true)}</span>
-            <span style={{ color: "var(--text-muted)", fontSize: 12, whiteSpace: "nowrap" }}>{new Date(h.at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" })}</span>
-          </div>
-        ))}
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -733,47 +589,29 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
     }
   }
 
-  const strip = (label, color, border, text, ltr) => (
-    <div style={{ background: "var(--surface2)", border: `1px solid ${border}`, borderRadius: 8, padding: "9px 12px", minWidth: 0 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 0.6, marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color, overflowWrap: ltr ? "anywhere" : "break-word" }} dir={ltr ? "ltr" : undefined}>{text}</div>
-    </div>
-  );
-
   return (
-    <>
-      <div style={{ background: statusBg, border: `1px solid ${statusBorder}`, borderRadius: 10, padding: "14px 16px", marginBottom: 10 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: statusColor }}>{statusLabel}</div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t("ow.wa.lastChecked")}: {lastChecked}</div>
-        {isError && m.bot_error && (
-          <>
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${statusBorder}`, fontSize: 12, color: "#ff6b6b", lineHeight: 1.5 }} dir="auto">{m.bot_error}</div>
-            {quickFixes.length > 0 && (
-              <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {quickFixes.map((f) => (
-                  <button key={f.label} type="button" onClick={f.action} style={{
-                    padding: "6px 12px", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                    background: f.primary ? "var(--green)" : "transparent",
-                    color: f.primary ? "#fff" : "var(--text-muted)",
-                    border: f.primary ? "none" : "1px solid var(--border)",
-                  }}>{f.label}</button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+    <div className="pv">
+      <div className="pv-status-card" style={{ background: statusBg, borderColor: statusBorder }}>
+        <div>
+          <div className="pv-big-sm" style={{ color: statusColor }}>● {t(credsOk ? "ow.wa.connected" : "ow.wa.notSet")}</div>
+          <div className="pv-sub">{t("ow.wa.lastChecked")}: {lastChecked}</div>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8, marginBottom: 14 }}>
-        {strip(t("ow.wa.number"), credsOk ? "var(--green)" : "var(--text-muted)", credsOk ? "#25d36630" : "var(--border)", m.bot_display_phone || m.bot_phone_id || "—", true)}
-        {strip(t("ow.wa.connection"), credsOk ? "var(--green)" : "var(--red)", credsOk ? "#25d36630" : "#ff4d4d40", t(credsOk ? "ow.wa.connected" : "ow.wa.notSet"))}
-        {strip(t("ow.wa.assistant"), credsOk && botOn ? "var(--green)" : "#f59e0b", "var(--border)", t(!credsOk ? "ow.wa.notLive" : botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff"))}
+      <div className="pv-grid">
+        <div className="pv-tile">
+          <div className="pv-label">{t("ow.wa.number")}</div>
+          <div className="pv-value" dir="ltr">{m.bot_display_phone || m.bot_phone_id || "—"}</div>
+        </div>
+        <div className="pv-tile">
+          <div className="pv-label">{t("ow.wa.assistant")}</div>
+          <div className="pv-value" style={{ color: credsOk && botOn ? "var(--green)" : "#f59e0b" }}>
+            {t(!credsOk ? "ow.wa.notLive" : botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff")}
+          </div>
+        </div>
       </div>
 
-      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
-        {t(credsOk ? "ow.wa.connectedHint" : "ow.wa.connectHint")}
-      </p>
-      {(!credsOk || isError) && (
+      {!credsOk && (
         <WhatsAppEmbeddedSignup
           merchantId={m.id}
           api={api}
@@ -784,18 +622,23 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
         />
       )}
 
-      {/* Test and Restart only make sense once the number is connected. */}
-      {credsOk && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: isError ? 10 : 0 }}>
-          <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={testConnection} disabled={testing}>
-            {testing ? t("ow.wa.testing") : `📡 ${t("ow.wa.test")}`}
-          </button>
-          <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={restart}>
-            {PI.play} {t("ow.wa.restart")}
-          </button>
+      {credsOk && isError && quickFixes.length > 0 && (
+        <div className="pv-actions">
+          {quickFixes.map((f, i) => (
+            <button key={i} type="button" className={`pv-btn pv-grow ${f.primary ? "pv-primary" : ""}`} onClick={f.action}>{f.label}</button>
+          ))}
         </div>
       )}
-    </>
+
+      {credsOk && (
+        <div className="pv-actions">
+          <button type="button" className="pv-btn pv-grow" disabled={testing} onClick={testConnection}>
+            {testing ? t("ow.wa.testing") : `📡 ${t("ow.wa.test")}`}
+          </button>
+          <button type="button" className="pv-btn pv-grow" onClick={restart}>{PI.play} {t("ow.wa.restart")}</button>
+        </div>
+      )}
+    </div>
   );
 }
 
