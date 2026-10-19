@@ -7,8 +7,8 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Support\BusinessKind;
 use App\Support\Roles;
+use App\Support\ShopSlug;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * Creates a new tenant (merchant) together with its owner user, atomically.
@@ -60,7 +60,7 @@ class TenantProvisioningService
 
     protected function uniqueSlug(string $name): string
     {
-        $base = Str::slug($name) ?: 'merchant';
+        $base = ShopSlug::from($name) ?: 'merchant';
         $slug = $base;
         $i = 1;
 
