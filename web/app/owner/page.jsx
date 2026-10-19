@@ -321,6 +321,8 @@ function MerchantCard({ t, m, onClick }) {
   let statusPill;
   if (m.status === "suspended") {
     statusPill = <span className="pill pill-suspended">{t("ow.f.suspended")}</span>;
+  } else if (m.overdue) {
+    statusPill = <span className="pill pill-suspended">{t("ow.b.overdue")}</span>;
   } else if (m.subscription_status === "trial") {
     const days = trialDaysLeft(m.trial_ends_at);
     const expiring = days !== null && days <= 7;

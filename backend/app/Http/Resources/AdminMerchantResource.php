@@ -3,7 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Merchant;
+use App\Models\User;
 use App\Support\MerchantProfileSync;
+use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +20,7 @@ class AdminMerchantResource extends JsonResource
     {
         $settings = $this->settings ?? [];
         $bot = $settings['bot'] ?? [];
+        $owner = $this->ownerUser();
 
         $subscriptionStatus = $settings['subscription_status']
             ?? ($this->plan === 'trial' || $this->trial_ends_at?->isFuture() ? 'trial' : ($this->status === 'active' ? 'paid' : 'pending'));
@@ -46,7 +49,13 @@ class AdminMerchantResource extends JsonResource
             'city' => $settings['city'] ?? null,
             'region' => $settings['region'] ?? null,
             'street' => $settings['street'] ?? null,
-            'owner_notes' => $settings['owner_notes'] ?? null,
+            'owner_name' => $owner?->name,
+            'owner_phone' => $owner?->phone,
+            'login_email' => $owner?->email,
+            'overdue' => $this->subscription_ends_at !== null
+                && $subscriptionStatus === 'paid'
+                && $this->subscription_ends_at->isPast(),
+            'fee_history' => array_reverse($settings['fee_history'] ?? []),
             'bot_status' => $bot['status'] ?? 'inactive',
             'bot_phone_id' => $bot['phone_id'] ?? null,
             'bot_display_phone' => $bot['display_phone_number'] ?? null,
@@ -59,5 +68,13 @@ class AdminMerchantResource extends JsonResource
             'bot_mode' => $settings['mode'] ?? $bot['mode'] ?? 'auto',
             'created_at' => $this->created_at,
         ];
+    }
+
+    /** The account that signs in to this shop: its owner, else the first user. */
+    protected function ownerUser(): ?User
+    {
+        $users = User::query()->where('merchant_id', $this->id)->orderBy('created_at')->get();
+
+        return $users->first(fn (User $u) => $u->hasRole(Roles::MERCHANT_OWNER)) ?? $users->first();
     }
 }

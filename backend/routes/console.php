@@ -16,6 +16,7 @@ Artisan::command('inspire', function () {
 Schedule::command('reports:daily')->hourly()->withoutOverlapping();
 Schedule::command('billing:remind')->hourly()->withoutOverlapping();
 Schedule::command('trials:expire')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('billing:stop-unpaid')->hourly()->withoutOverlapping();
 Schedule::command('templates:sync')->hourly()->withoutOverlapping();
 Schedule::command('orders:due')->hourly()->withoutOverlapping();
 Schedule::command('sanctum:prune-expired --hours=24')->daily();

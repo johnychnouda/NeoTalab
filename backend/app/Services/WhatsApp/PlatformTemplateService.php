@@ -21,6 +21,8 @@ class PlatformTemplateService
 
     public const ACCESS = 'neotalab_access';
 
+    public const PAID = 'neotalab_paid';
+
     /** @return array<string, array{text: string, examples: list<string>}> */
     public static function definitions(): array
     {
@@ -37,6 +39,11 @@ class PlatformTemplateService
             self::WELCOME => [
                 'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nLog in: {{2}}\nEmail: {{3}}\nActivation code: {{4}}\n\nUse the code as your first password, then choose your own.",
                 'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab', '482913'],
+            ],
+            // Sent to a shop owner when a subscription payment is recorded.
+            self::PAID => [
+                'text' => 'Thank you! Your NeoTalab subscription for {{1}} is paid until {{2}}. Thank you for trusting NeoTalab.',
+                'examples' => ['Abou Ali Snack', '21 November 2026'],
             ],
             self::ACCESS => [
                 'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\nTemporary code: {{4}}\n\nSign in with this code, then set a new password right away.",

@@ -277,26 +277,39 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
     });
   };
 
+  const ownerPhone = (m.owner_phone || "").replace(/\D/g, "");
+  const dashUrl = `${typeof window !== "undefined" ? window.location.origin : "https://neotalab.com"}/backoffice/${m.slug || ""}`;
+  const copy = (text) => {
+    navigator.clipboard?.writeText(text).then(() => toast(t("ow.p.copied"))).catch(() => {});
+  };
+
   return (
     <>
-      <div className="info-contact-card">
-        <div className="info-contact-row">
-          <span className="info-contact-icon">{PI.phone}</span>
-          <div>
-            <div className="info-contact-label">WhatsApp</div>
-            <div className="info-contact-value">{m.whatsapp_number || "—"}</div>
-          </div>
+      <div className="info-owner-card">
+        <div className="info-owner-text">
+          <div className="info-contact-label">{t("ow.p.ownerTitle")}</div>
+          <div className="info-owner-name">{m.owner_name || t("ow.p.noOwner")}</div>
+          {m.owner_phone && <div className="info-owner-phone" dir="ltr">{m.owner_phone}</div>}
         </div>
+        {ownerPhone && (
+          <button type="button" className="info-owner-msg" onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
+            <WhatsAppIcon size={18} /> {t("ow.p.messageOwner")}
+          </button>
+        )}
       </div>
 
+      <div className="panel-group-title">{t("ow.p.groupContact")}</div>
+      <CopyRow label={t("ow.p.loginEmail")} value={m.login_email} onCopy={copy} t={t} />
+      <CopyRow label={t("ow.p.dashAddress")} value={m.slug ? dashUrl : ""} onCopy={copy} t={t} />
+      <div className="pinfo-row"><div className="pinfo-label">WhatsApp</div><div className="pinfo-value" dir="ltr">{m.whatsapp_number || "—"}</div></div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.business")}</div><div className="pinfo-value">{joinOptionLabel(t, m.business_type) || "—"}</div></div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.location")}</div><div className="pinfo-value">{location}</div></div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.p.since")}</div><div className="pinfo-value">{memberSince}</div></div>
       <button type="button" className="paction-btn" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
       {editing && <EditShopModal t={t} m={m} api={api} toast={toast} onClose={() => setEditing(false)}
         onSaved={(updated) => { setEditing(false); onChanged(updated); }} />}
-      <div className="panel-divider" />
 
+      <div className="panel-group-title">{t("ow.p.groupDashboard")}</div>
       {m.status === "suspended" ? (
         <button className="paction-btn" disabled style={{ opacity: 0.4, cursor: "not-allowed" }}>
           {PI.screen} {t("ow.p.dashOff")}
@@ -306,53 +319,58 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
           {PI.screen} {t("ow.p.openDashOf", { shop: m.shop_name })}
         </button>
       )}
-
-      {waClean && (
-        <>
-          <button className="paction-btn paction-green" onClick={() => window.open(`https://wa.me/${waClean}`, "_blank")}>
-            <WhatsAppIcon size={18} /> {t("ow.p.message")}
+      {m.status !== "suspended" && (
+        <div className="info-actions-grid">
+          <button className="info-action-tile" onClick={resendAccess}>
+            <span className="info-action-icon">{PI.link}</span>
+            <span>{t("ow.p.resend")}</span>
           </button>
-          {m.subscription_status === "pending" && m.status !== "suspended" && (
-            <button className="paction-btn" onClick={welcome}>
-              <WhatsAppIcon size={18} /> {t("ow.p.sendWelcome")}
+          {m.subscription_status === "pending" && waClean && (
+            <button className="info-action-tile" onClick={welcome}>
+              <span className="info-action-icon"><WhatsAppIcon size={16} /></span>
+              <span>{t("ow.p.sendWelcome")}</span>
             </button>
           )}
-        </>
+        </div>
       )}
 
-      <div className="info-actions-grid">
-        {m.status !== "suspended" ? (
-          <>
-            <button className="info-action-tile" onClick={resendAccess}>
-              <span className="info-action-icon">{PI.link}</span>
-              <span>{t("ow.p.resend")}</span>
-            </button>
-            {m.subscription_status === "trial" ? (
-              <button className="info-action-tile info-action-warn" onClick={endTrial}>
-                <span className="info-action-icon">{PI.stop}</span>
-                <span>{t("ow.p.endTrial")}</span>
-              </button>
-            ) : (
-              <button className="info-action-tile info-action-warn" onClick={suspend}>
-                <span className="info-action-icon">{PI.pause}</span>
-                <span>{t("ow.p.suspend")}</span>
-              </button>
-            )}
-          </>
-        ) : (
-          <button className="info-action-tile info-action-success" style={{ gridColumn: "1/-1" }} onClick={activate}>
-            <span className="info-action-icon">{PI.play}</span>
-            <span>{t("ow.p.activate")}</span>
-          </button>
-        )}
-      </div>
+      <div className="panel-group-title">{t("ow.p.groupAccount")}</div>
+      {m.status === "suspended" ? (
+        <button className="info-action-tile info-action-success" style={{ width: "100%" }} onClick={activate}>
+          <span className="info-action-icon">{PI.play}</span>
+          <span>{t("ow.p.activate")}</span>
+        </button>
+      ) : m.subscription_status === "trial" ? (
+        <button className="info-action-tile info-action-warn" style={{ width: "100%" }} onClick={endTrial}>
+          <span className="info-action-icon">{PI.stop}</span>
+          <span>{t("ow.p.endTrial")}</span>
+        </button>
+      ) : (
+        <button className="info-action-tile info-action-warn" style={{ width: "100%" }} onClick={suspend}>
+          <span className="info-action-icon">{PI.pause}</span>
+          <span>{t("ow.p.suspend")}</span>
+        </button>
+      )}
 
-      <div className="panel-divider" />
+      <div className="panel-group-title panel-group-danger">{t("ow.p.groupDanger")}</div>
       <button className="remove-merchant-btn" onClick={remove}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2" /></svg>
         {t("ow.p.remove")}
       </button>
     </>
+  );
+}
+
+/** A detail row with a copy button, for values the owner needs to share (login email, dashboard address). */
+function CopyRow({ label, value, onCopy, t }) {
+  return (
+    <div className="pinfo-row">
+      <div className="pinfo-label">{label}</div>
+      <div className="pinfo-value pinfo-copy">
+        <span dir="ltr" className="pinfo-ltr">{value || "—"}</span>
+        {value && <button type="button" className="pinfo-copy-btn" onClick={() => onCopy(value)}>{t("ow.p.copy")}</button>}
+      </div>
+    </div>
   );
 }
 
@@ -363,8 +381,8 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   const isPaid = m.subscription_status === "paid";
   const isTrial = m.subscription_status === "trial";
   const trialDaysLeft = isTrial ? trialDaysLeftFrom(m.trial_ends_at) : null;
-  const billingColor = isPaid ? "var(--green)" : isTrial ? "#a78bfa" : "var(--orange)";
-  const billingLabel = isPaid ? t("ow.f.paid") : isTrial ? (trialDaysLeft !== null ? t("ow.trialDaysShort", { n: trialDaysLeft }) : t("ow.f.trial")) : t("ow.f.pending");
+  const billingColor = m.overdue ? "var(--red)" : isPaid ? "var(--green)" : isTrial ? "#a78bfa" : "var(--orange)";
+  const billingLabel = m.overdue ? t("ow.b.overdue") : isPaid ? t("ow.f.paid") : isTrial ? (trialDaysLeft !== null ? t("ow.trialDaysShort", { n: trialDaysLeft }) : t("ow.f.trial")) : t("ow.f.pending");
   const fmtDate = (d) => new Date(d).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" });
 
   const [cycle, setCycle] = useState(m.billing_cycle === "yearly" ? "yearly" : "monthly");
@@ -415,6 +433,10 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   const renewalVal = isTrial ? (m.trial_ends_at ? fmtDate(m.trial_ends_at) : "—") : renewalStr;
   const renewalClr = isTrial ? (trialDaysLeft !== null && trialDaysLeft <= 2 ? "var(--orange)" : "#a78bfa") : renewalColor;
   const num = (v) => parseFloat(String(v).replace(/,/g, "")) || 0;
+  // Save only appears once a fee or the cycle really changed.
+  const billingDirty = num(monthlyFee) !== Number(m.monthly_fee || 0)
+    || num(yearlyFee) !== Number(m.yearly_fee || 0)
+    || cycle !== (m.billing_cycle === "yearly" ? "yearly" : "monthly");
 
   const markPaid = () => {
     if (!activeFee) {
@@ -499,12 +521,12 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
               ${activeFee}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>{per(isYearly)}</span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
-              {renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}</span>
+              {renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}{isTrial && trialDaysLeft !== null ? ` · ${t("ow.trialDaysShort", { n: trialDaysLeft })}` : ""}</span>
             </div>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, border: `1px solid ${billingColor}40`, color: billingColor, background: `${billingColor}12`, whiteSpace: "nowrap" }}>
-            {periodLocked ? `🔒 ${t("ow.f.paid")}` : billingLabel}
-          </span>
+          {(!isTrial || m.overdue) && <span style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, border: `1px solid ${billingColor}40`, color: billingColor, background: `${billingColor}12`, whiteSpace: "nowrap" }}>
+            {periodLocked && !m.overdue ? `🔒 ${t("ow.f.paid")}` : billingLabel}
+          </span>}
         </div>
         {!isPaid && (
           <div style={{ borderTop: "1px solid var(--border)", padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
@@ -570,7 +592,7 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
           </div>
 
           <div style={{ padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
-            <button type="button" className="btn-primary" onClick={saveBilling}>{t("db.save")}</button>
+            {billingDirty && <button type="button" className="btn-primary" onClick={saveBilling}>{t("db.save")}</button>}
           </div>
         </div>
       )}
@@ -595,6 +617,17 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
               {p.paid_at ? new Date(p.paid_at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }) : "—"}
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 600 }}>{t("ow.b.feeHistory")}</div>
+        {(m.fee_history || []).length === 0 && <div style={{ padding: 20, fontSize: 12, color: "var(--text-muted)" }}>{t("ow.b.noHistory")}</div>}
+        {(m.fee_history || []).map((h, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "11px 20px", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+            <span>${h.monthly_fee} {per(false)} · ${h.yearly_fee} {per(true)}</span>
+            <span style={{ color: "var(--text-muted)", fontSize: 12, whiteSpace: "nowrap" }}>{new Date(h.at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" })}</span>
           </div>
         ))}
       </div>
@@ -741,7 +774,7 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 8, marginBottom: 14 }}>
         {strip(t("ow.wa.number"), credsOk ? "var(--green)" : "var(--text-muted)", credsOk ? "#25d36630" : "var(--border)", m.bot_display_phone || m.bot_phone_id || "—", true)}
         {strip(t("ow.wa.connection"), credsOk ? "var(--green)" : "var(--red)", credsOk ? "#25d36630" : "#ff4d4d40", t(credsOk ? "ow.wa.connected" : "ow.wa.notSet"))}
-        {strip(t("ow.wa.assistant"), botOn ? "var(--green)" : "#f59e0b", "var(--border)", t(botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff"))}
+        {strip(t("ow.wa.assistant"), credsOk && botOn ? "var(--green)" : "#f59e0b", "var(--border)", t(!credsOk ? "ow.wa.notLive" : botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff"))}
       </div>
 
       <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
@@ -758,14 +791,17 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
         />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: credsOk && !isError ? 0 : 10 }}>
-        <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={testConnection} disabled={testing || !credsOk}>
-          {testing ? t("ow.wa.testing") : `📡 ${t("ow.wa.test")}`}
-        </button>
-        <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={restart} disabled={!credsOk}>
-          {PI.play} {t("ow.wa.restart")}
-        </button>
-      </div>
+      {/* Test and Restart only make sense once the number is connected. */}
+      {credsOk && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: isError ? 10 : 0 }}>
+          <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={testConnection} disabled={testing}>
+            {testing ? t("ow.wa.testing") : `📡 ${t("ow.wa.test")}`}
+          </button>
+          <button type="button" className="paction-btn" style={{ justifyContent: "center", marginBottom: 0 }} onClick={restart}>
+            {PI.play} {t("ow.wa.restart")}
+          </button>
+        </div>
+      )}
     </>
   );
 }

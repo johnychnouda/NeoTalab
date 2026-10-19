@@ -39,6 +39,7 @@ class AdminMerchantService
     public function update(Merchant $merchant, array $payload): Merchant
     {
         $settings = $merchant->settings ?? [];
+        $feesBefore = [(float) ($settings['monthly_fee'] ?? 0), (float) ($settings['yearly_fee'] ?? 0)];
 
         $this->guardPaidPeriodBillingChanges($merchant, $settings, $payload);
 
@@ -73,7 +74,6 @@ class AdminMerchantService
             'region' => ['region'],
             'street' => ['street'],
             'country' => ['country'],
-            'owner_notes' => ['owner_notes', 'ownerNotes'],
         ] as $key => $aliases) {
             $val = $this->pick($payload, ...$aliases);
             if ($val !== null) {
@@ -114,12 +114,32 @@ class AdminMerchantService
             $settings = BusinessKind::applyDefaults($settings, BusinessKind::TYPES[$type] ?? 'other');
         }
 
-        if ($markingPaid && ($settings['subscription_status'] ?? null) === 'paid') {
+        $paidNow = $markingPaid && ($settings['subscription_status'] ?? null) === 'paid';
+        if ($paidNow) {
             $this->appendPayment($settings, $merchant);
+            // The paid period runs one month or one year from the payment. Reminders and the stop use this date.
+            $paidOn = Carbon::parse($settings['last_payment_at']);
+            $merchant->subscription_ends_at = $merchant->billing_cycle === 'yearly' ? $paidOn->copy()->addYear() : $paidOn->copy()->addMonth();
+        }
+
+        $feesAfter = [(float) ($settings['monthly_fee'] ?? 0), (float) ($settings['yearly_fee'] ?? 0)];
+        if ($feesAfter !== $feesBefore) {
+            $history = $settings['fee_history'] ?? [];
+            $history[] = [
+                'at' => now()->toIso8601String(),
+                'monthly_fee' => $feesAfter[0],
+                'yearly_fee' => $feesAfter[1],
+                'billing_cycle' => $merchant->billing_cycle ?? 'monthly',
+            ];
+            $settings['fee_history'] = array_slice($history, -50);
         }
 
         $merchant->settings = $settings;
         $merchant->save();
+
+        if ($paidNow) {
+            app(BillingNoticeService::class)->paid($merchant->fresh());
+        }
 
         return $merchant->fresh();
     }
