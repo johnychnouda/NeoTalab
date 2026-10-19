@@ -102,21 +102,33 @@ export function Modal({ title, onClose, children, footer, wide = false, compact 
   );
 }
 
-export function ConfirmModal({ title, message, confirmLabel, danger = false, onConfirm, onClose }) {
+export function ConfirmModal({ title, message, confirmLabel, danger = false, ack, onConfirm, onClose }) {
   const { t } = useLang();
+  const [understood, setUnderstood] = useState(!ack);
   return (
-    <Modal title={title} onClose={onClose}>
-      {/* message is a React node, never inject HTML strings; names here come from user input. */}
-      <div style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>{message}</div>
-      <div className="modal-actions">
-        <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
+    <Modal title={title} onClose={onClose} className="cm"
+      footer={<>
+        <button type="button" className="btn-sm mf-btn" onClick={onClose}>{t("db.cancel")}</button>
         <button
-          className={danger ? "btn-danger" : "btn-primary"}
+          type="button"
+          className={`${danger ? "btn-danger" : "btn-primary"} mf-btn`}
+          disabled={!understood}
           onClick={() => { onClose(); onConfirm(); }}
         >
           {confirmLabel || t("ow.confirm")}
         </button>
+      </>}>
+      <div className={`cm-body${danger ? " is-danger" : ""}`}>
+        <span className="cm-icon" aria-hidden="true">{danger ? "!" : "?"}</span>
+        {/* message is a React node, never inject HTML strings; names here come from user input. */}
+        <div className="cm-msg">{message}</div>
       </div>
+      {ack && (
+        <label className="cm-ack">
+          <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} />
+          <span>{ack}</span>
+        </label>
+      )}
     </Modal>
   );
 }

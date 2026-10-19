@@ -136,14 +136,8 @@ class AdminMerchantService
             }
         }
 
-        // A cycle change waits for the shop's next payment; the current period keeps its cycle.
         if ($this->hasKey($payload, 'nextBillingCycle', 'next_billing_cycle')) {
-            $next = (string) $this->pick($payload, 'nextBillingCycle', 'next_billing_cycle');
-            if ($next === '' || $next === ($merchant->billing_cycle ?? 'monthly')) {
-                unset($settings['next_billing_cycle']);
-            } else {
-                $settings['next_billing_cycle'] = $next;
-            }
+            $this->applyCycleChoice($merchant, $settings, (string) $this->pick($payload, 'nextBillingCycle', 'next_billing_cycle'));
         }
 
         $paidNow = $markingPaid && ($settings['subscription_status'] ?? null) === 'paid';
@@ -411,6 +405,56 @@ class AdminMerchantService
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * The monthly or yearly choice:
+     *  - nothing paid is running (trial, unpaid, ended): it applies at once, there is no period to protect;
+     *  - a paid month is running: a switch to yearly waits for the next payment, the month keeps its cycle;
+     *  - a paid year is running: switching to monthly is refused until the year ends.
+     *
+     * @param  array<string,mixed>  $settings
+     */
+    protected function applyCycleChoice(Merchant $merchant, array &$settings, string $wanted): void
+    {
+        $current = $merchant->billing_cycle ?? 'monthly';
+        if ($wanted === '' || $wanted === $current) {
+            unset($settings['next_billing_cycle']);
+
+            return;
+        }
+
+        $periodEnd = $this->runningPaidPeriodEnd($merchant, $settings);
+        if (! $periodEnd) {
+            $merchant->billing_cycle = $wanted;
+            unset($settings['next_billing_cycle']);
+
+            return;
+        }
+
+        if ($current === 'yearly') {
+            throw ValidationException::withMessages([
+                'nextBillingCycle' => ["The yearly plan runs until {$periodEnd->toFormattedDateString()}. Monthly can be chosen after it ends."],
+            ]);
+        }
+
+        $settings['next_billing_cycle'] = $wanted;
+    }
+
+    /**
+     * When the paid month or year that is running now ends, or null when nothing paid is running.
+     *
+     * @param  array<string,mixed>  $settings
+     */
+    protected function runningPaidPeriodEnd(Merchant $merchant, array $settings): ?CarbonInterface
+    {
+        if (($settings['subscription_status'] ?? null) !== 'paid') {
+            return null;
+        }
+
+        $end = $merchant->subscription_ends_at ?? $this->paidPeriodEndsAt($merchant, $settings);
+
+        return $end && $end->isFuture() ? $end : null;
     }
 
     /**

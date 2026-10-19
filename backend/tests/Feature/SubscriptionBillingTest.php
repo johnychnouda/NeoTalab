@@ -52,24 +52,90 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('2027-10-01', $merchant->fresh()->subscription_ends_at->toDateString());
     }
 
-    public function test_a_cycle_change_waits_for_the_next_payment(): void
+    public function test_the_cycle_choice_applies_at_once_when_nothing_paid_is_running(): void
     {
         $token = $this->tokenFor($this->platformAdmin());
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly']);
 
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])->assertOk();
         $merchant->refresh();
-        $this->assertSame('monthly', $merchant->billing_cycle, 'the current period keeps its cycle');
-        $this->assertSame('yearly', $merchant->settings['next_billing_cycle']);
+        $this->assertSame('yearly', $merchant->billing_cycle);
+        $this->assertArrayNotHasKey('next_billing_cycle', $merchant->settings ?? []);
         $this->assertNull($merchant->subscription_ends_at, 'switching does not mark the shop paid');
 
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])->assertOk();
+        $this->assertSame('monthly', $merchant->fresh()->billing_cycle, 'before any payment the shop can go back');
+    }
+
+    public function test_in_a_paid_month_a_switch_to_yearly_waits_for_the_next_payment(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly']);
+        $today = now()->toDateString();
+
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => '2026-10-01', 'status' => 'active',
+            'subscriptionStatus' => 'paid', 'lastPaymentAt' => $today, 'status' => 'active',
         ])->assertOk();
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])
+            ->assertOk()
+            ->assertJsonPath('merchant.billing_cycle', 'monthly')
+            ->assertJsonPath('merchant.next_billing_cycle', 'yearly')
+            ->assertJsonPath('merchant.cycle_locked_until', null);
+
+        // Changing the mind before paying cancels the switch.
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])
+            ->assertOk()
+            ->assertJsonPath('merchant.next_billing_cycle', null);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])->assertOk();
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
+            'subscriptionStatus' => 'paid', 'lastPaymentAt' => $today, 'status' => 'active',
+        ])->assertOk();
+
         $merchant->refresh();
         $this->assertSame('yearly', $merchant->billing_cycle);
-        $this->assertSame('2027-10-01', $merchant->subscription_ends_at->toDateString());
         $this->assertArrayNotHasKey('next_billing_cycle', $merchant->settings);
+        $this->assertSame(now()->addYear()->toDateString(), $merchant->subscription_ends_at->toDateString());
+    }
+
+    public function test_a_paid_year_cannot_be_switched_back_to_monthly_until_it_ends(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly']);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
+            'subscriptionStatus' => 'paid', 'lastPaymentAt' => now()->toDateString(), 'status' => 'active',
+        ])->assertOk()
+            ->assertJsonPath('merchant.cycle_locked_until', fn ($v) => $v !== null);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nextBillingCycle');
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['billingCycle' => 'monthly'])
+            ->assertStatus(422);
+        $this->assertSame('yearly', $merchant->fresh()->billing_cycle);
+
+        // Once the year is over the shop is free to choose again.
+        $this->travel(13)->months();
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])->assertOk();
+        $this->assertSame('monthly', $merchant->fresh()->billing_cycle);
+    }
+
+    public function test_a_shop_whose_subscription_stopped_can_choose_any_cycle_again(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly']);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
+            'subscriptionStatus' => 'paid', 'lastPaymentAt' => now()->toDateString(), 'status' => 'active',
+        ])->assertOk();
+        // The shop stopped (unpaid or ended): nothing paid is running any more.
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['subscriptionStatus' => 'pending', 'status' => 'suspended'])->assertOk();
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])
+            ->assertOk()
+            ->assertJsonPath('merchant.billing_cycle', 'monthly');
     }
 
     public function test_the_owner_name_can_be_set_from_the_panel(): void

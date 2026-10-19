@@ -2964,3 +2964,32 @@ button.wa-mic { border: 0; cursor: pointer; }
 .esm-grid .field > * { min-width: 0; max-width: 100%; }
 .esm-wide { grid-column: 1 / -1; }
 .esm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Owner panel: cards with rows (Info, Billing, WhatsApp) */
+.pc { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.pc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+.pc-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 16px; min-height: 46px; border-top: 1px solid var(--border); }
+.pc-head + .pc-row { border-top: 1px solid var(--border); }
+.pc-k { font-size: 12px; font-weight: 600; color: var(--text-muted); flex: none; max-width: 55%; }
+.pc-v { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; text-align: end; overflow-wrap: anywhere; }
+.pc-title { margin: 8px 2px -2px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); }
+.pc-note { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.pc-note.warn { color: #f59e0b; background: #f59e0b0d; }
+.pv-seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+.pv-fee input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Modals: one footer button size everywhere, and the confirm dialog */
+.mf-btn { min-height: 38px; padding: 0 18px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+.cm { max-width: 440px; }
+.cm .modal-body { padding: 20px 22px 8px; }
+.cm .modal-footer { padding: 14px 22px 18px; }
+.cm-body { display: flex; gap: 14px; align-items: flex-start; }
+.cm-icon { flex: none; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; background: var(--green-dim); color: var(--green); border: 1px solid #25d36640; }
+.cm-body.is-danger .cm-icon { background: #ff4d4d14; color: var(--red); border-color: #ff4d4d40; }
+.cm-msg { min-width: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); overflow-wrap: anywhere; }
+.cm-msg strong { color: var(--text); }
+.cm-ack { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 12px 14px; border: 1px solid #ff4d4d40; background: #ff4d4d0d; border-radius: 10px; font-size: 13px; line-height: 1.45; cursor: pointer; }
+.cm-ack input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--red); flex: none; }
+.btn-primary:disabled, .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.esm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+

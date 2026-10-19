@@ -220,6 +220,7 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
     message: <><strong>{m.shop_name}</strong> — {t("ow.p.removeMsg")}<br /><br /><strong>{t("ow.p.cannotUndo")}</strong></>,
     confirmLabel: t("ow.p.removeBtn"),
     danger: true,
+    ack: t("ow.p.removeAck"),
     onConfirm: async () => {
       try {
         await api("DELETE", `/admin/merchants/${m.id}`);
@@ -277,53 +278,47 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
 
   return (
     <div className="pv">
-      <div className="pv-owner">
-        <div className="pv-owner-text">
-          <div className="pv-label">{t("ow.p.ownerTitle")}</div>
-          <div className="pv-owner-name">{ownerName || m.owner_phone || t("ow.p.noOwner")}</div>
-          {ownerName && m.owner_phone && <div className="pv-sub" dir="ltr">{m.owner_phone}</div>}
-        </div>
-        {ownerPhone && (
-          <button type="button" className="pv-wa" title={t("ow.p.messageOwner")} aria-label={t("ow.p.messageOwner")}
-            onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
-            <WhatsAppIcon size={20} />
-          </button>
-        )}
-      </div>
-
-      <div className="pv-grid">
-        <div className="pv-tile">
-          <div className="pv-label">WhatsApp</div>
-          <div className="pv-value" dir="ltr">{m.whatsapp_number || "—"}</div>
-        </div>
-        <div className="pv-tile">
-          <div className="pv-label">{t("ow.m.business")}</div>
-          <div className="pv-value">{joinOptionLabel(t, m.business_type) || "—"}</div>
-        </div>
-        <div className="pv-tile">
-          <div className="pv-label">{t("ow.m.location")}</div>
-          {m.map_url
-            ? <a className="pv-btn pv-small" href={m.map_url} target="_blank" rel="noopener noreferrer">📍 {t("ow.p.openMaps")}</a>
-            : <div className="pv-sub">{t("ow.p.locationNotSet")}</div>}
-        </div>
-        <div className="pv-tile">
-          <div className="pv-label">{t("ow.p.since")}</div>
-          <div className="pv-value">{memberSince}</div>
+      <div className="pc">
+        <div className="pc-head">
+          <div className="pv-owner-text">
+            <div className="pv-label">{t("ow.p.ownerTitle")}</div>
+            <div className="pv-owner-name">{ownerName || m.owner_phone || t("ow.p.noOwner")}</div>
+            {ownerName && m.owner_phone && <div className="pv-sub" dir="ltr">{m.owner_phone}</div>}
+          </div>
+          {ownerPhone && (
+            <button type="button" className="pv-wa" title={t("ow.p.messageOwner")} aria-label={t("ow.p.messageOwner")}
+              onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
+              <WhatsAppIcon size={20} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="pv-tile">
-        <div className="pv-label">{t("ow.p.loginEmail")}</div>
-        <div className="pv-login">
-          <span className="pv-mono" dir="ltr">{m.login_email || "—"}</span>
-          {m.login_email && <button type="button" className="pv-btn pv-small" onClick={() => copy(m.login_email)}>{t("ow.p.copy")}</button>}
+      <div className="pc">
+        <div className="pc-row"><span className="pc-k">WhatsApp</span><span className="pc-v" dir="ltr">{m.whatsapp_number || "—"}</span></div>
+        <div className="pc-row"><span className="pc-k">{t("ow.m.business")}</span><span className="pc-v">{joinOptionLabel(t, m.business_type) || "—"}</span></div>
+        <div className="pc-row">
+          <span className="pc-k">{t("ow.m.location")}</span>
+          <span className="pc-v">
+            {m.map_url
+              ? <a className="pv-btn pv-small" href={m.map_url} target="_blank" rel="noopener noreferrer">📍 {t("ow.p.openMaps")}</a>
+              : <span className="pv-sub">{t("ow.p.locationNotSet")}</span>}
+          </span>
         </div>
-        <div className="pv-actions">
-          <button type="button" className="pv-btn pv-primary pv-grow" disabled={blocked} onClick={impersonate}>{PI.screen} {t("ow.p.openDash")}</button>
-          {m.slug && <button type="button" className="pv-btn pv-grow" onClick={() => copy(dashUrl)}>{t("ow.p.copyLink")}</button>}
+        <div className="pc-row"><span className="pc-k">{t("ow.p.since")}</span><span className="pc-v">{memberSince}</span></div>
+        <div className="pc-row">
+          <span className="pc-k">{t("ow.p.loginEmail")}</span>
+          <span className="pc-v">
+            <span className="pv-mono" dir="ltr">{m.login_email || "—"}</span>
+            {m.login_email && <button type="button" className="pv-btn pv-small" onClick={() => copy(m.login_email)}>{t("ow.p.copy")}</button>}
+          </span>
         </div>
       </div>
 
+      <div className="pv-actions">
+        <button type="button" className="pv-btn pv-primary pv-grow" disabled={blocked} onClick={impersonate}>{PI.screen} {t("ow.p.openDash")}</button>
+        {m.slug && <button type="button" className="pv-btn pv-grow" onClick={() => copy(dashUrl)}>{t("ow.p.copyLink")}</button>}
+      </div>
       <div className="pv-actions">
         <button type="button" className="pv-btn pv-grow" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
         {!blocked && <button type="button" className="pv-btn pv-grow" onClick={resendAccess}>{PI.link} {t("ow.p.resend")}</button>}
@@ -352,7 +347,7 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
 
 /* ── Billing tab ────────────────────────────────────────── */
 
-function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
+function BillingTab({ t, m, api, toast, onChanged }) {
   const { locale } = useLang();
   const isPaid = m.subscription_status === "paid";
   const isTrial = m.subscription_status === "trial";
@@ -360,17 +355,22 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   const billingColor = m.overdue ? "var(--red)" : isPaid ? "var(--green)" : isTrial ? "#a78bfa" : "var(--orange)";
   const billingLabel = m.overdue ? t("ow.b.overdue") : isPaid ? t("ow.f.paid") : isTrial ? (trialDaysLeft !== null ? t("ow.trialDaysShort", { n: trialDaysLeft }) : t("ow.f.trial")) : t("ow.f.pending");
   const fmtDate = (d) => new Date(d).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" });
+  const cycleName = (c) => t(c === "yearly" ? "ow.yearly" : "ow.monthly");
+  const per = (c) => t(c === "yearly" ? "ow.perYear" : "ow.perMonth");
 
-  const [cycle, setCycle] = useState(m.billing_cycle === "yearly" ? "yearly" : "monthly");
+  const currentCycle = m.billing_cycle === "yearly" ? "yearly" : "monthly";
+  const plannedCycle = m.next_billing_cycle || currentCycle;
+  const [cycle, setCycle] = useState(plannedCycle);
   const [monthlyFee, setMonthlyFee] = useState(String(m.monthly_fee || 0));
   const [yearlyFee, setYearlyFee] = useState(String(m.yearly_fee || 0));
   const [payments, setPayments] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setCycle(m.billing_cycle === "yearly" ? "yearly" : "monthly");
+    setCycle(m.next_billing_cycle || (m.billing_cycle === "yearly" ? "yearly" : "monthly"));
     setMonthlyFee(String(m.monthly_fee || 0));
     setYearlyFee(String(m.yearly_fee || 0));
-  }, [m.id, m.billing_cycle, m.monthly_fee, m.yearly_fee]);
+  }, [m.id, m.billing_cycle, m.next_billing_cycle, m.monthly_fee, m.yearly_fee]);
 
   const loadPayments = useCallback(
     () => api("GET", `/admin/merchants/${m.id}/payments`)
@@ -382,101 +382,120 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   useEffect(() => { setPayments(null); loadPayments(); }, [loadPayments]);
   useLiveRefresh(loadPayments);
 
-  const isYearly = cycle === "yearly";
-  const activeFee = isYearly ? (m.yearly_fee || 0) : (m.monthly_fee || 0);
-  const per = (yearly) => t(yearly ? "ow.perYear" : "ow.perMonth");
+  // A paid month or year that is still running. The server decides; the panel only explains.
+  const periodEnd = isPaid && m.subscription_ends_at && new Date(m.subscription_ends_at) > new Date() ? m.subscription_ends_at : null;
+  const yearLocked = !!m.cycle_locked_until;
+  const feeLocked = !!periodEnd && cycle === currentCycle;
+  const feeOf = (c) => Number(c === "yearly" ? m.yearly_fee : m.monthly_fee) || 0;
+  const scheduled = m.next_billing_cycle && m.next_billing_cycle !== currentCycle ? m.next_billing_cycle : null;
 
-  let renewalDate = null;
-  let renewalStr = "—";
-  let renewalColor = "var(--text)";
-  if (m.last_payment_at) {
-    renewalDate = new Date(m.last_payment_at);
-    if (m.billing_cycle === "yearly") renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-    else renewalDate.setMonth(renewalDate.getMonth() + 1);
-    renewalStr = fmtDate(renewalDate);
-    const daysLeft = Math.ceil((renewalDate - Date.now()) / 86400000);
-    if (daysLeft < 0) renewalColor = "var(--red)";
-    else if (daysLeft <= 7) renewalColor = "#f59e0b";
+  let renewalLabel = t("ow.b.nextRenewal");
+  let renewalVal = "—";
+  let renewalClr = "var(--text)";
+  if (isTrial) {
+    renewalLabel = t("ow.b.trialEnds");
+    renewalVal = m.trial_ends_at ? fmtDate(m.trial_ends_at) : "—";
+    renewalClr = trialDaysLeft !== null && trialDaysLeft <= 2 ? "var(--orange)" : "#a78bfa";
+  } else if (isPaid && m.subscription_ends_at) {
+    renewalVal = fmtDate(m.subscription_ends_at);
+    const daysLeft = Math.ceil((new Date(m.subscription_ends_at) - Date.now()) / 86400000);
+    renewalClr = daysLeft < 0 ? "var(--red)" : daysLeft <= 7 ? "#f59e0b" : "var(--text)";
   }
 
-
-  const renewalLabel = isTrial ? t("ow.b.trialEnds") : t("ow.b.nextRenewal");
-  const renewalVal = isTrial ? (m.trial_ends_at ? fmtDate(m.trial_ends_at) : "—") : renewalStr;
-  const renewalClr = isTrial ? (trialDaysLeft !== null && trialDaysLeft <= 2 ? "var(--orange)" : "#a78bfa") : renewalColor;
   const num = (v) => parseFloat(String(v).replace(/,/g, "")) || 0;
-  // Save only appears once a fee or the cycle really changed.
-  const billingDirty = num(monthlyFee) !== Number(m.monthly_fee || 0)
-    || num(yearlyFee) !== Number(m.yearly_fee || 0)
-    || cycle !== (m.billing_cycle === "yearly" ? "yearly" : "monthly");
+  const billingDirty = num(monthlyFee) !== feeOf("monthly") || num(yearlyFee) !== feeOf("yearly") || cycle !== plannedCycle;
 
+  // What the choice will do, said in one line under the switch.
+  let note = null;
+  let noteWarn = false;
+  if (yearLocked) {
+    note = t("ow.b.noteLocked", { date: fmtDate(m.cycle_locked_until) });
+    noteWarn = true;
+  } else if (cycle !== plannedCycle) {
+    note = t(periodEnd ? "ow.b.noteNext" : "ow.b.noteNow");
+  } else if (feeLocked) {
+    note = t("ow.b.feeLocked", { date: fmtDate(periodEnd) });
+  }
 
-  // A cycle change waits for the shop's next payment; it never marks the shop paid.
   async function saveBilling() {
+    setBusy(true);
     try {
       await api("PATCH", `/admin/merchants/${m.id}`, {
         nextBillingCycle: cycle,
         monthlyFee: num(monthlyFee),
         yearlyFee: num(yearlyFee),
       });
-      logActivity("billing", t("ow.log.feeUpdated", { shop: m.shop_name, fee: `$${isYearly ? num(yearlyFee) : num(monthlyFee)}${per(isYearly)}` }));
+      logActivity("billing", t("ow.log.feeUpdated", { shop: m.shop_name, fee: `$${cycle === "yearly" ? num(yearlyFee) : num(monthlyFee)}${per(cycle)}` }));
       toast(t("db.saved"));
       onChanged();
     } catch (e) { toast(e.message, "error"); }
+    setBusy(false);
   }
 
   const fmtFee = (v) => v.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const historyRows = [
-    ...(payments || []).map((p) => ({ key: p.id, at: p.paid_at, text: `$${(p.amount || 0).toLocaleString("en-US")} · ${t(p.cycle === "yearly" ? "ow.yearly" : "ow.monthly")}` })),
+    ...(payments || []).map((p) => ({ key: p.id, at: p.paid_at, text: `$${(p.amount || 0).toLocaleString("en-US")} · ${cycleName(p.cycle)}` })),
     ...(m.fee_history || []).map((h, i) => ({ key: `fee-${i}`, at: h.at, text: `${t("ow.b.feeChanged")} · $${h.monthly_fee} / $${h.yearly_fee}` })),
   ].sort((x, y) => new Date(y.at) - new Date(x.at)).slice(0, 3);
 
   return (
     <div className="pv">
-      <div className="pv-price">
-        <div>
-          <div className="pv-big">${activeFee}<span>{per(isYearly)}</span></div>
-          <div className="pv-sub">{renewalLabel}: <span style={{ color: renewalClr, fontWeight: 600 }}>{renewalVal}</span></div>
+      <div className="pc">
+        <div className="pc-head">
+          <div>
+            <div className="pv-big">${feeOf(currentCycle)}<span>{per(currentCycle)}</span></div>
+            <div className="pv-sub">{cycleName(currentCycle)}</div>
+          </div>
+          <span className="pv-status" style={{ color: billingColor, borderColor: `${billingColor}40`, background: `${billingColor}12` }}>{billingLabel}</span>
         </div>
-        <span className="pv-status" style={{ color: billingColor, borderColor: `${billingColor}40`, background: `${billingColor}12` }}>{billingLabel}</span>
+        <div className="pc-row"><span className="pc-k">{renewalLabel}</span><span className="pc-v" style={{ color: renewalClr }}>{renewalVal}</span></div>
+        {scheduled && (
+          <div className="pc-row"><span className="pc-k">{t("ow.b.nextPayment")}</span><span className="pc-v">{cycleName(scheduled)} · ${feeOf(scheduled)}{per(scheduled)}</span></div>
+        )}
       </div>
 
-      <div className="pv-tile">
-        <div className="pv-row">
-          <span className="pv-label">{t("ow.b.cycle")}</span>
+      <div className="pc-title">{t("ow.b.plan")}</div>
+      <div className="pc">
+        <div className="pc-row">
+          <span className="pc-k">{t("ow.b.cycle")}</span>
           <div className="pv-seg">
-            {["monthly", "yearly"].map((v) => (
-              <button key={v} type="button" className={cycle === v ? "is-on" : ""} onClick={() => setCycle(v)}>
-                {t(v === "yearly" ? "ow.yearly" : "ow.monthly")}
-              </button>
-            ))}
+            {["monthly", "yearly"].map((v) => {
+              const locked = yearLocked && v === "monthly";
+              return (
+                <button key={v} type="button" className={cycle === v ? "is-on" : ""} disabled={locked} title={locked ? note : undefined}
+                  onClick={() => setCycle(v)}>
+                  {locked && <span aria-hidden="true">🔒 </span>}{cycleName(v)}
+                </button>
+              );
+            })}
           </div>
         </div>
-        {m.next_billing_cycle && m.next_billing_cycle !== m.billing_cycle && (
-          <div className="pv-note">{t("ow.b.nextCycle", { cycle: t(m.next_billing_cycle === "yearly" ? "ow.yearly" : "ow.monthly") })}</div>
-        )}
-        <div className="pv-row">
-          <span className="pv-label">{t("ow.b.fee")}</span>
+        <div className="pc-row">
+          <span className="pc-k">{t("ow.b.fee")}</span>
           <div className="pv-fee" dir="ltr">
             <span>$</span>
-            <input type="text" inputMode="numeric" className="no-arrows" placeholder="0" aria-label={t("ow.b.fee")}
-              value={isYearly ? yearlyFee : monthlyFee}
+            <input type="text" inputMode="numeric" className="no-arrows" placeholder="0" aria-label={t("ow.b.fee")} disabled={feeLocked}
+              value={cycle === "yearly" ? yearlyFee : monthlyFee}
               onChange={(e) => {
                 const v = fmtFee(e.target.value);
-                if (isYearly) setYearlyFee(v); else setMonthlyFee(v);
+                if (cycle === "yearly") setYearlyFee(v); else setMonthlyFee(v);
               }} />
-            <small>{per(isYearly)}</small>
+            <small>{per(cycle)}</small>
           </div>
         </div>
-        {billingDirty && <button type="button" className="pv-btn pv-primary pv-full" onClick={saveBilling}>{t("db.save")}</button>}
+        {note && <div className={`pc-note${noteWarn ? " warn" : ""}`}>{note}</div>}
+        {billingDirty && (
+          <div className="pc-row"><button type="button" className="pv-btn pv-primary pv-full" disabled={busy} onClick={saveBilling}>{busy ? "…" : t("db.save")}</button></div>
+        )}
       </div>
 
-      <div className="pv-tile">
-        <div className="pv-label">{t("ow.b.recent")}</div>
-        {historyRows.length === 0 && <div className="pv-sub">{t("ow.b.noActivity")}</div>}
+      <div className="pc-title">{t("ow.b.recent")}</div>
+      <div className="pc">
+        {historyRows.length === 0 && <div className="pc-row"><span className="pv-sub">{t("ow.b.noActivity")}</span></div>}
         {historyRows.map((r) => (
-          <div key={r.key} className="pv-hist">
-            <span>{r.text}</span>
-            <span>{r.at ? new Date(r.at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }) : "—"}</span>
+          <div key={r.key} className="pc-row">
+            <span className="pc-k">{r.text}</span>
+            <span className="pc-v">{r.at ? new Date(r.at).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" }) : "—"}</span>
           </div>
         ))}
       </div>
@@ -495,7 +514,6 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
 
   const isActive = m.bot_status === "active";
   const isError = m.bot_status === "error";
-  const statusBg = isActive ? "#25d36618" : isError ? "#ff4d4d18" : "#33333330";
   const statusBorder = isActive ? "#25d36640" : isError ? "#ff4d4d40" : "#44444440";
   const statusColor = isActive ? "var(--green)" : isError ? "var(--red)" : "var(--text-muted)";
   const statusLabel = `● ${t(isActive ? "ow.wa.ok" : isError ? "ow.wa.error" : "ow.wa.notSet")}`;
@@ -591,24 +609,22 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
 
   return (
     <div className="pv">
-      <div className="pv-status-card" style={{ background: statusBg, borderColor: statusBorder }}>
-        <div>
-          <div className="pv-big-sm" style={{ color: statusColor }}>● {t(credsOk ? "ow.wa.connected" : "ow.wa.notSet")}</div>
-          <div className="pv-sub">{t("ow.wa.lastChecked")}: {lastChecked}</div>
-        </div>
-      </div>
-
-      <div className="pv-grid">
-        <div className="pv-tile">
-          <div className="pv-label">{t("ow.wa.number")}</div>
-          <div className="pv-value" dir="ltr">{m.bot_display_phone || m.bot_phone_id || "—"}</div>
-        </div>
-        <div className="pv-tile">
-          <div className="pv-label">{t("ow.wa.assistant")}</div>
-          <div className="pv-value" style={{ color: credsOk && botOn ? "var(--green)" : "#f59e0b" }}>
-            {t(!credsOk ? "ow.wa.notLive" : botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff")}
+      <div className="pc" style={{ borderColor: statusBorder }}>
+        <div className="pc-head">
+          <div>
+            <div className="pv-big-sm" style={{ color: statusColor }}>● {t(credsOk ? "ow.wa.connected" : "ow.wa.notSet")}</div>
+            <div className="pv-sub">{t("ow.wa.lastChecked")}: {lastChecked}</div>
           </div>
+          {isError && <span className="pv-status" style={{ color: "var(--red)", borderColor: "#ff4d4d40", background: "#ff4d4d12" }}>{t("ow.wa.error")}</span>}
         </div>
+        <div className="pc-row"><span className="pc-k">{t("ow.wa.number")}</span><span className="pc-v" dir="ltr">{m.bot_display_phone || m.bot_phone_id || "—"}</span></div>
+        <div className="pc-row">
+          <span className="pc-k">{t("ow.wa.assistant")}</span>
+          <span className="pc-v" style={{ color: credsOk && botOn ? "var(--green)" : "#f59e0b" }}>
+            {t(!credsOk ? "ow.wa.notLive" : botOn ? "ow.wa.assistantOn" : "ow.wa.assistantOff")}
+          </span>
+        </div>
+        {isError && m.bot_error && <div className="pc-note warn">{m.bot_error}</div>}
       </div>
 
       {!credsOk && (
@@ -720,8 +736,8 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   return (
     <Modal title={t("ow.edit")} onClose={onClose} className="esm"
       footer={<div className="esm-actions">
-        <button type="button" className="pv-btn" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="pv-btn pv-primary" onClick={save} disabled={busy || !name.trim()}>{busy ? "…" : t("db.save")}</button>
+        <button type="button" className="btn-sm mf-btn" onClick={onClose}>{t("db.cancel")}</button>
+        <button type="button" className="btn-primary mf-btn" onClick={save} disabled={busy || !name.trim()}>{busy ? "…" : t("db.save")}</button>
       </div>}>
       <div className="esm-grid">
         <div className="field"><label htmlFor="es-name">{t("jn.shopName")}</label>

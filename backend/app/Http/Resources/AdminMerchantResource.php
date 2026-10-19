@@ -55,6 +55,12 @@ class AdminMerchantResource extends JsonResource
             'overdue' => $this->subscription_ends_at !== null
                 && $subscriptionStatus === 'paid'
                 && $this->subscription_ends_at->isPast(),
+            // A paid year cannot be switched back to monthly before it ends; the panel shows why.
+            'cycle_locked_until' => ($this->billing_cycle ?? 'monthly') === 'yearly'
+                && $subscriptionStatus === 'paid'
+                && $this->subscription_ends_at?->isFuture()
+                    ? $this->subscription_ends_at
+                    : null,
             'fee_history' => array_reverse($settings['fee_history'] ?? []),
             'shop_location' => $settings['shop_location'] ?? null,
             'map_url' => MapLocation::mapsUrl((string) ($settings['shop_location'] ?? '')),
