@@ -412,7 +412,7 @@ function BillingTab({ t, m, api, toast, onChanged }) {
     note = t("ow.b.noteLocked", { date: fmtDate(m.cycle_locked_until) });
     noteWarn = true;
   } else if (cycle !== plannedCycle) {
-    note = t(periodEnd ? "ow.b.noteNext" : "ow.b.noteNow");
+    note = t(scheduled && cycle === currentCycle ? "ow.b.noteCancel" : periodEnd ? "ow.b.noteNext" : "ow.b.noteNow");
   } else if (feeLocked) {
     note = t("ow.b.feeLocked", { date: fmtDate(periodEnd) });
   }

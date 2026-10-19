@@ -2616,8 +2616,10 @@ button.wa-mic { border: 0; cursor: pointer; }
   .sset-hours-day { width: auto; flex: 1; }
   .sset-hours-times { width: 100%; }
   .sset-hours-times input { flex: 1; }
-  .sset-savebar { bottom: 10px; }
-  .sset-savebar > span { font-size: 12px; }
+  .sset-savebar { bottom: 10px; flex-wrap: wrap; padding: 12px 14px; }
+  .sset-savebar > span { flex: 1 1 100%; font-size: 12px; }
+  .sset-savebar > div { flex: 1 1 100%; }
+  .sset-savebar > div > button { flex: 1 1 0; min-width: 0; white-space: normal; }
 }
 
 /* Menu: file picker and editable import rows */
