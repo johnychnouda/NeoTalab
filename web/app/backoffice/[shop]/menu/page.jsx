@@ -37,6 +37,8 @@ export default function MenuPage() {
   const [active, setActive] = useState("all"); // "all", a category id, or "none"
   const [dragId, setDragId] = useState(null);
   const drag = useRef(null);
+  const itemDrag = useRef(null);
+  const [itemDragId, setItemDragId] = useState(null);
   const navRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -145,6 +147,46 @@ export default function MenuPage() {
     try { await api("PUT", "/categories/order", { ids }); toast(t("mk.orderSaved")); }
     catch (err) { toast(err.message, "error"); load(); }
   }
+  // Drag an item up or down inside its category (grip only, so a click still opens the editor).
+  // The order is saved for the dashboard and the WhatsApp menu.
+  function itemDragStart(e, p) {
+    if (e.button !== undefined && e.button !== 0) return;
+    const section = e.currentTarget.closest(".menu-category");
+    itemDrag.current = {
+      id: p.id, catId: p.category_id, x: e.clientX, y: e.clientY, moved: false,
+      before: products.filter((x) => x.category_id === p.category_id).map((x) => x.id), section,
+    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+  function itemDragMove(e) {
+    const d = itemDrag.current;
+    if (!d) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    d.moved = true;
+    setItemDragId(d.id);
+    const rows = [...(d.section?.querySelectorAll("[data-prod]") || [])];
+    const over = rows.map((el) => { const r = el.getBoundingClientRect(); return { id: el.dataset.prod, dist: Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2)) }; })
+      .sort((a, b) => a.dist - b.dist)[0];
+    if (!over || over.id === d.id) return;
+    setProducts((list) => {
+      const from = list.findIndex((x) => x.id === d.id);
+      const to = list.findIndex((x) => x.id === over.id);
+      if (from < 0 || to < 0) return list;
+      const next = [...list];
+      next.splice(to, 0, next.splice(from, 1)[0]);
+      return next;
+    });
+  }
+  async function itemDragEnd() {
+    const d = itemDrag.current;
+    itemDrag.current = null;
+    setItemDragId(null);
+    if (!d?.moved) return;
+    const ids = products.filter((x) => x.category_id === d.catId).map((x) => x.id);
+    if (ids.join() === d.before.join()) return;
+    try { await api("PUT", "/products/order", { ids }); toast(t("mk.orderSaved")); }
+    catch (err) { toast(err.message, "error"); load(); }
+  }
   const pick = (key) => {
     if (drag.lastMoved && Date.now() - drag.lastMoved < 250) return; // the click that ends a drag
     setActive(key); setQuery("");
@@ -246,9 +288,15 @@ export default function MenuPage() {
                     const sizesN = p.variants?.length || 0;
                     const extrasN = (p.modifier_groups || []).reduce((n, g) => n + (g.modifiers?.length || 0), 0);
                     return (
-                      <div key={p.id} className="product-row" role="button" tabIndex={0}
+                      <div key={p.id} data-prod={p.id} className={`product-row ${itemDragId === p.id ? "is-dragging" : ""}`} role="button" tabIndex={0}
                         onClick={() => setModal({ type: "item", item: p })}
                         onKeyDown={(e) => { if (e.key === "Enter") setModal({ type: "item", item: p }); }}>
+                        {cat && !query && items.length > 1 && (
+                          <span className="product-grip" title={t("mk.dragHint")} aria-hidden="true"
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => itemDragStart(e, p)} onPointerMove={itemDragMove}
+                            onPointerUp={itemDragEnd} onPointerCancel={itemDragEnd}>⋮⋮</span>
+                        )}
                         <div className="product-info">
                           <span className="product-name">{p.name}</span>
                           {p.description && <span className="product-desc">{p.description}</span>}
