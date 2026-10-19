@@ -153,7 +153,7 @@ export default function BillingPage() {
 
   const head = (
     <thead>
-      <tr><th>{t("ow.b.shop")}</th><th>{t("ow.b.fee")}</th><th>{t("ow.b.nextRenewal")}</th><th>{t("th.status")}</th><th>{t("ow.b.action")}</th></tr>
+      <tr><th>{t("ow.b.shop")}</th><th>{t("ow.b.fee")}</th><th>{t("ow.b.nextRenewal")}</th><th>{t("th.status")}</th></tr>
     </thead>
   );
 
@@ -253,7 +253,7 @@ export default function BillingPage() {
         <table className="data-table stack-on-phone">
           {head}
           <tbody>
-            {list.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("ow.m.none")}</td></tr>}
+            {list.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("ow.m.none")}</td></tr>}
             {list.map((m) => <BillingRow key={m.id} t={t} locale={locale} m={m} now={now} onRemind={() => sendReminder(m)} />)}
           </tbody>
         </table>
@@ -333,15 +333,13 @@ function BillingRow({ t, locale, m, now, onRemind }) {
         <span style={renewalStyle}>{renewalStr}</span>
         {alertBadge}
       </td>
-      <td data-label={t("th.status")}><span style={{ color: billingColor, fontWeight: 600, fontSize: 12 }}>{billingLabel}</span></td>
-      <td className="stack-actions">
-        {isPending && isOverdue && waClean ? (
-          <div className="billing-row-actions">
-            {isPending && isOverdue && waClean && (
-              <button type="button" className="btn-sm" style={{ color: "#f59e0b", borderColor: "#f59e0b40" }} onClick={onRemind}>📨 {t("ow.b.remind")}</button>
-            )}
-          </div>
-        ) : "—"}
+      <td data-label={t("th.status")}>
+        <div className="billing-row-actions">
+          <span style={{ color: billingColor, fontWeight: 600, fontSize: 12 }}>{billingLabel}</span>
+          {isOverdue && waClean && (
+            <button type="button" className="btn-sm" style={{ color: "#f59e0b", borderColor: "#f59e0b40" }} onClick={onRemind}>📨 {t("ow.b.remind")}</button>
+          )}
+        </div>
       </td>
     </tr>
   );

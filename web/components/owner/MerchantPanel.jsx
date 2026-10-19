@@ -308,7 +308,7 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
         <div className="pc-row"><span className="pc-k">{t("ow.p.since")}</span><span className="pc-v">{memberSince}</span></div>
         <div className="pc-row">
           <span className="pc-k">{t("ow.p.loginEmail")}</span>
-          <span className="pc-v">
+          <span className="pc-v pc-nowrap">
             <span className="pv-mono" dir="ltr">{m.login_email || "—"}</span>
             {m.login_email && <button type="button" className="pv-btn pv-small" onClick={() => copy(m.login_email)}>{t("ow.p.copy")}</button>}
           </span>

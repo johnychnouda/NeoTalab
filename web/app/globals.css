@@ -2972,6 +2972,8 @@ button.wa-mic { border: 0; cursor: pointer; }
 .pc-head + .pc-row { border-top: 1px solid var(--border); }
 .pc-k { font-size: 12px; font-weight: 600; color: var(--text-muted); flex: none; max-width: 55%; }
 .pc-v { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; text-align: end; overflow-wrap: anywhere; }
+.pc-nowrap { flex-wrap: nowrap; }
+.pc-nowrap .pv-mono { min-width: 0; }
 .pc-title { margin: 8px 2px -2px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); }
 .pc-note { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.5; color: var(--text-muted); }
 .pc-note.warn { color: #f59e0b; background: #f59e0b0d; }
