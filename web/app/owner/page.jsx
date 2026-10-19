@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useOwner } from "./layout";
 import { timeAgo } from "@/lib/api";
+import { trialDaysLeft } from "@/lib/trial";
 import { logActivity } from "@/lib/activity";
 import { Modal, ConfirmModal, useToast, WaLink, Skeleton, OtpInput, generateOtp, WhatsAppIcon } from "@/components/ui";
 import { merchantLoginEmail } from "@/lib/merchantLoginEmail";
@@ -321,7 +322,7 @@ function MerchantCard({ t, m, onClick }) {
   if (m.status === "suspended") {
     statusPill = <span className="pill pill-suspended">{t("ow.f.suspended")}</span>;
   } else if (m.subscription_status === "trial") {
-    const days = m.trial_ends_at ? Math.ceil((new Date(m.trial_ends_at) - Date.now()) / 86400000) : null;
+    const days = trialDaysLeft(m.trial_ends_at);
     const expiring = days !== null && days <= 7;
     const c = expiring ? "#f59e0b" : "#3b82f6";
     statusPill = (

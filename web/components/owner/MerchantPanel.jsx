@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { timeAgo } from "@/lib/api";
+import { trialDaysLeft as trialDaysLeftFrom } from "@/lib/trial";
 import { logActivity } from "@/lib/activity";
 import { useToast, WhatsAppIcon, generateOtp, Modal } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
@@ -50,7 +51,6 @@ export default function MerchantPanel({ merchant: m, initialTab = "info", api, o
 
   if (!m || !mounted) return null;
 
-  const initials = m.shop_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const botDot = m.bot_status === "active" ? "#25d366" : m.bot_status === "error" ? "#ff4d4d" : "#555";
   const subColor = m.subscription_status === "paid" ? "var(--green)" : m.subscription_status === "trial" ? "#3b82f6" : "#f59e0b";
   const subBg = m.subscription_status === "paid" ? "#25d36618" : m.subscription_status === "trial" ? "#3b82f618" : "#f59e0b18";
@@ -73,7 +73,6 @@ export default function MerchantPanel({ merchant: m, initialTab = "info", api, o
         </div>
         <div className="side-panel-body">
           <div className="panel-hero">
-            <div className="panel-hero-avatar">{initials}</div>
             <div>
               <div className="panel-hero-name">{m.shop_name}</div>
               <div className="panel-hero-badges">
@@ -363,7 +362,7 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
   const { locale } = useLang();
   const isPaid = m.subscription_status === "paid";
   const isTrial = m.subscription_status === "trial";
-  const trialDaysLeft = isTrial && m.trial_ends_at ? Math.max(0, Math.ceil((new Date(m.trial_ends_at) - Date.now()) / 86400000)) : null;
+  const trialDaysLeft = isTrial ? trialDaysLeftFrom(m.trial_ends_at) : null;
   const billingColor = isPaid ? "var(--green)" : isTrial ? "#a78bfa" : "var(--orange)";
   const billingLabel = isPaid ? t("ow.f.paid") : isTrial ? (trialDaysLeft !== null ? t("ow.trialDaysShort", { n: trialDaysLeft }) : t("ow.f.trial")) : t("ow.f.pending");
   const fmtDate = (d) => new Date(d).toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" });
