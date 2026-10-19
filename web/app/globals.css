@@ -2829,6 +2829,13 @@ button.wa-mic { border: 0; cursor: pointer; }
 .menu-nav-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; font-size: 14px; text-align: start; cursor: pointer; }
 .menu-nav-item:hover { background: var(--surface2); color: var(--text); }
 .menu-nav-item.is-on { background: var(--green-dim); color: var(--text); font-weight: 600; }
+.menu-nav-item.is-draggable { justify-content: flex-start; user-select: none; -webkit-user-select: none; }
+.menu-nav-item.is-draggable .menu-nav-count { margin-inline-start: auto; }
+.menu-nav-grip { flex: none; width: 10px; margin-inline-end: -2px; font-size: 12px; letter-spacing: -3px; color: var(--text-muted); opacity: 0; cursor: grab; touch-action: none; transition: opacity 0.15s; }
+.menu-nav-item:hover .menu-nav-grip { opacity: 0.7; }
+@media (hover: none) { .menu-nav-grip { opacity: 0.6; } }
+.menu-nav-item.is-dragging { background: var(--surface2); color: var(--text); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); outline: 1px solid var(--green); cursor: grabbing; }
+.menu-nav-item.is-dragging .menu-nav-grip { opacity: 1; }
 .menu-nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-nav-count { flex: none; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .menu-nav-item.is-on .menu-nav-count { color: var(--green); }

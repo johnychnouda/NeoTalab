@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import FormSelect from "@/components/FormSelect";
@@ -35,6 +35,9 @@ export default function MenuPage() {
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState("all"); // "all", a category id, or "none"
+  const [dragId, setDragId] = useState(null);
+  const drag = useRef(null);
+  const navRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +107,49 @@ export default function MenuPage() {
     toast(t("mk.saved"));
   }
 
+  // Drag a category to a new place (mouse: the whole row; touch: the grip, so the list still scrolls).
+  // The order is saved for the dashboard and the WhatsApp menu.
+  function dragStart(e, id) {
+    if (e.pointerType !== "mouse" && !e.target.closest(".menu-nav-grip")) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    drag.current = { id, x: e.clientX, y: e.clientY, moved: false, before: categories.map((c) => c.id) };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+  function dragMove(e) {
+    const d = drag.current;
+    if (!d) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    d.moved = true;
+    setDragId(d.id);
+    const rows = [...(navRef.current?.querySelectorAll("[data-cat]") || [])];
+    const over = rows.map((el) => { const r = el.getBoundingClientRect(); return { id: el.dataset.cat, dist: Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2)) }; })
+      .sort((a, b) => a.dist - b.dist)[0];
+    if (!over || over.id === d.id) return;
+    setCategories((list) => {
+      const from = list.findIndex((c) => c.id === d.id);
+      const to = list.findIndex((c) => c.id === over.id);
+      if (from < 0 || to < 0) return list;
+      const next = [...list];
+      next.splice(to, 0, next.splice(from, 1)[0]);
+      return next;
+    });
+  }
+  async function dragEnd() {
+    const d = drag.current;
+    drag.current = null;
+    setDragId(null);
+    if (!d?.moved) return;
+    drag.lastMoved = Date.now();
+    const ids = categories.map((c) => c.id);
+    if (ids.join() === d.before.join()) return;
+    try { await api("PUT", "/categories/order", { ids }); toast(t("mk.orderSaved")); }
+    catch (err) { toast(err.message, "error"); load(); }
+  }
+  const pick = (key) => {
+    if (drag.lastMoved && Date.now() - drag.lastMoved < 250) return; // the click that ends a drag
+    setActive(key); setQuery("");
+  };
+
   // The same columns Import reads, so a shop can edit the file in Excel and import it back.
   function exportCsv() {
     const cell = (v) => {
@@ -149,13 +195,21 @@ export default function MenuPage() {
 
       {allSections.length > 0 && (
         <div className="menu-layout">
-          <aside className="menu-nav" aria-label={t("mk.category")}>
-            <button type="button" className={`menu-nav-item ${active === "all" && !query ? "is-on" : ""}`} onClick={() => { setActive("all"); setQuery(""); }}>
+          <aside className="menu-nav" ref={navRef} aria-label={t("mk.category")}>
+            <button type="button" className={`menu-nav-item ${active === "all" && !query ? "is-on" : ""}`} onClick={() => pick("all")}>
               <span>{t("mk.all")}</span><span className="menu-nav-count">{products.length}</span>
             </button>
-            {allSections.map((sec) => (
-              <button type="button" key={sec.key} className={`menu-nav-item ${active === sec.key && !query ? "is-on" : ""}`} onClick={() => { setActive(sec.key); setQuery(""); }}>
-                <span className="menu-nav-name">{sec.cat ? sec.cat.name : t("mk.noCategory")}</span><span className="menu-nav-count">{sec.items.length}</span>
+            {allSections.map((sec) => sec.cat ? (
+              <button type="button" key={sec.key} data-cat={sec.key}
+                className={`menu-nav-item is-draggable ${active === sec.key && !query ? "is-on" : ""} ${dragId === sec.key ? "is-dragging" : ""}`}
+                onClick={() => pick(sec.key)} onPointerDown={(e) => dragStart(e, sec.key)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd}
+                title={t("mk.dragHint")}>
+                <span className="menu-nav-grip" aria-hidden="true">⋮⋮</span>
+                <span className="menu-nav-name">{sec.cat.name}</span><span className="menu-nav-count">{sec.items.length}</span>
+              </button>
+            ) : (
+              <button type="button" key={sec.key} className={`menu-nav-item ${active === sec.key && !query ? "is-on" : ""}`} onClick={() => pick(sec.key)}>
+                <span className="menu-nav-name">{t("mk.noCategory")}</span><span className="menu-nav-count">{sec.items.length}</span>
               </button>
             ))}
             {products.length > 0 && <button type="button" className="menu-clear" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}

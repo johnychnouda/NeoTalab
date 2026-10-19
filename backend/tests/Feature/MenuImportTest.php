@@ -200,6 +200,23 @@ class MenuImportTest extends TestCase
         $this->assertNotNull($theirs->fresh(), 'another shop keeps its menu');
     }
 
+    public function test_categories_keep_the_order_they_are_dragged_into(): void
+    {
+        [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+        $theirs = Category::query()->forceCreate(['merchant_id' => $other->id, 'name' => 'Theirs', 'is_active' => true, 'sort_order' => 7]);
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [
+            ['category' => 'Pizza', 'name' => 'Margherita', 'price' => 8],
+            ['category' => 'Drinks', 'name' => 'Pepsi', 'price' => 1],
+            ['category' => 'Sweets', 'name' => 'Knefe', 'price' => 3],
+        ]])->assertOk();
+        $ids = $this->withToken($this->token)->getJson('/api/v1/categories')->json('data.*.id');
+
+        $this->withToken($this->token)->putJson('/api/v1/categories/order', ['ids' => [$ids[2], $theirs->id, $ids[0], $ids[1]]])->assertOk();
+
+        $this->assertSame(['Sweets', 'Pizza', 'Drinks'], $this->withToken($this->token)->getJson('/api/v1/categories')->json('data.*.name'));
+        $this->assertSame(7, $theirs->fresh()->sort_order, 'another shop is never touched');
+    }
+
     public function test_staff_cannot_clear_the_menu(): void
     {
         [, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);

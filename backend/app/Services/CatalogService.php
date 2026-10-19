@@ -52,6 +52,21 @@ class CatalogService
         });
     }
 
+    /**
+     * The order categories show in, in the dashboard and in the WhatsApp menu.
+     *
+     * @param  list<string>  $ids  this shop's category ids, first to last; others are ignored
+     */
+    public function reorderCategories(array $ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            $mine = Category::query()->whereKey($ids)->pluck('id')->flip();
+            foreach (array_values(array_filter($ids, fn ($id) => $mine->has($id))) as $i => $id) {
+                Category::query()->whereKey($id)->update(['sort_order' => $i + 1]);
+            }
+        });
+    }
+
     /** Start the menu over: every item and category, or only the items without a category. */
     public function clearMenu(bool $onlyUncategorized = false): int
     {

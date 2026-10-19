@@ -115,6 +115,7 @@ Route::prefix('v1')->group(function () {
             Route::post('menu/import', [MenuImportController::class, 'store']);
 
             Route::post('categories', [CategoryController::class, 'store']);
+            Route::put('categories/order', [CategoryController::class, 'reorder']);
             Route::patch('categories/{category}', [CategoryController::class, 'update']);
             Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
             Route::delete('menu', [CategoryController::class, 'clear']);

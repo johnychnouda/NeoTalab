@@ -48,6 +48,15 @@ class CategoryController extends Controller
         return response()->json(['message' => 'Category deleted.']);
     }
 
+    /** Drag-and-drop order: { ids: [first, second, …] }. */
+    public function reorder(Request $request): JsonResponse
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'max:500'], 'ids.*' => ['string']]);
+        $this->catalog->reorderCategories($data['ids']);
+
+        return response()->json(['message' => 'Order saved.']);
+    }
+
     /** Clear the whole menu, or (?only=uncategorized) just the items without a category. */
     public function clear(Request $request): JsonResponse
     {
