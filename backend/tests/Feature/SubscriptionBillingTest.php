@@ -52,6 +52,19 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('2027-10-01', $merchant->fresh()->subscription_ends_at->toDateString());
     }
 
+    public function test_the_shop_map_link_comes_from_its_pin(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+        $settings = $merchant->settings ?? [];
+        $settings['shop_location'] = '33.8938, 35.5018';
+        $merchant->forceFill(['settings' => $settings])->save();
+
+        $this->withToken($token)->getJson("/api/v1/admin/merchants/{$merchant->id}")
+            ->assertOk()
+            ->assertJsonPath('data.map_url', 'https://www.google.com/maps?q=33.8938,35.5018');
+    }
+
     public function test_a_fee_change_is_recorded_in_the_history(): void
     {
         $token = $this->tokenFor($this->platformAdmin());

@@ -2904,3 +2904,12 @@ button.wa-mic { border: 0; cursor: pointer; }
   .product-row { gap: 10px; padding: 12px 8px 12px 14px; }
   .product-name { font-size: 14px; }
 }
+
+/* Owner panel: inline buttons in detail rows */
+.info-inline-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.info-chip-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.info-chip-btn:hover { border-color: var(--text-muted); }
+.info-chip-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.info-chip-primary { background: var(--green); border-color: var(--green); color: #0a0f0a; }
+.info-chip-primary:hover { border-color: var(--green); filter: brightness(1.05); }
+.info-muted { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 3px; }

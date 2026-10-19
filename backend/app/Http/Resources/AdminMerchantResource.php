@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Merchant;
 use App\Models\User;
+use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
 use Illuminate\Http\Request;
@@ -56,6 +57,7 @@ class AdminMerchantResource extends JsonResource
                 && $subscriptionStatus === 'paid'
                 && $this->subscription_ends_at->isPast(),
             'fee_history' => array_reverse($settings['fee_history'] ?? []),
+            'map_url' => MapLocation::mapsUrl((string) ($settings['shop_location'] ?? '')),
             'bot_status' => $bot['status'] ?? 'inactive',
             'bot_phone_id' => $bot['phone_id'] ?? null,
             'bot_display_phone' => $bot['display_phone_number'] ?? null,

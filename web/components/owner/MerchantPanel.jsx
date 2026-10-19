@@ -283,43 +283,62 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
     navigator.clipboard?.writeText(text).then(() => toast(t("ow.p.copied"))).catch(() => {});
   };
 
+  const sameAsOwner = !!ownerPhone && (m.whatsapp_number || "").replace(/\D/g, "") === ownerPhone;
+  const ownerName = m.owner_name && m.owner_name !== m.shop_name ? m.owner_name : null;
+  const blocked = m.status === "suspended";
+
   return (
     <>
+      <div className="panel-group-title">{t("ow.p.ownerTitle")}</div>
       <div className="info-owner-card">
         <div className="info-owner-text">
-          <div className="info-contact-label">{t("ow.p.ownerTitle")}</div>
-          <div className="info-owner-name">{m.owner_name || t("ow.p.noOwner")}</div>
-          {m.owner_phone && <div className="info-owner-phone" dir="ltr">{m.owner_phone}</div>}
+          {ownerName && <div className="info-owner-name">{ownerName}</div>}
+          <div className="info-owner-phone" dir="ltr">{m.owner_phone || t("ow.p.noOwner")}</div>
         </div>
         {ownerPhone && (
           <button type="button" className="info-owner-msg" onClick={() => window.open(`https://wa.me/${ownerPhone}`, "_blank")}>
-            <WhatsAppIcon size={18} /> {t("ow.p.messageOwner")}
+            <WhatsAppIcon size={16} /> {t("ow.p.messageOwner")}
           </button>
         )}
       </div>
 
-      <div className="panel-group-title">{t("ow.p.groupContact")}</div>
-      <CopyRow label={t("ow.p.loginEmail")} value={m.login_email} onCopy={copy} t={t} />
-      <CopyRow label={t("ow.p.dashAddress")} value={m.slug ? dashUrl : ""} onCopy={copy} t={t} />
-      <div className="pinfo-row"><div className="pinfo-label">WhatsApp</div><div className="pinfo-value" dir="ltr">{m.whatsapp_number || "—"}</div></div>
+      <div className="panel-group-title">{t("ow.p.groupShop")}</div>
+      <div className="pinfo-row">
+        <div className="pinfo-label">WhatsApp</div>
+        <div className="pinfo-value" dir="ltr">
+          {m.whatsapp_number || "—"}
+          {sameAsOwner && <span className="info-muted"> · {t("ow.p.sameAsOwner")}</span>}
+        </div>
+      </div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.business")}</div><div className="pinfo-value">{joinOptionLabel(t, m.business_type) || "—"}</div></div>
-      <div className="pinfo-row"><div className="pinfo-label">{t("ow.m.location")}</div><div className="pinfo-value">{location}</div></div>
+      <div className="pinfo-row">
+        <div className="pinfo-label">{t("ow.m.location")}</div>
+        <div className="pinfo-value">
+          {m.map_url ? (
+            <a className="info-chip-btn info-chip-primary" href={m.map_url} target="_blank" rel="noopener noreferrer">📍 {t("ow.p.openMaps")}</a>
+          ) : (
+            <span className="info-muted">{t("ow.p.locationNotSet")}</span>
+          )}
+          {location !== "—" && <div className="info-muted">{location}</div>}
+        </div>
+      </div>
       <div className="pinfo-row"><div className="pinfo-label">{t("ow.p.since")}</div><div className="pinfo-value">{memberSince}</div></div>
       <button type="button" className="paction-btn" onClick={() => setEditing(true)}>✏️ {t("ow.edit")}</button>
       {editing && <EditShopModal t={t} m={m} api={api} toast={toast} onClose={() => setEditing(false)}
         onSaved={(updated) => { setEditing(false); onChanged(updated); }} />}
 
-      <div className="panel-group-title">{t("ow.p.groupDashboard")}</div>
-      {m.status === "suspended" ? (
-        <button className="paction-btn" disabled style={{ opacity: 0.4, cursor: "not-allowed" }}>
-          {PI.screen} {t("ow.p.dashOff")}
-        </button>
-      ) : (
-        <button className="paction-btn paction-primary" onClick={impersonate}>
-          {PI.screen} {t("ow.p.openDashOf", { shop: m.shop_name })}
-        </button>
-      )}
-      {m.status !== "suspended" && (
+      <div className="panel-group-title">{t("ow.p.groupLogin")}</div>
+      <CopyRow label={t("ow.p.loginEmail")} value={m.login_email} onCopy={copy} t={t} />
+      <div className="pinfo-row">
+        <div className="pinfo-label">{t("ow.p.dashboard")}</div>
+        <div className="pinfo-value info-inline-actions">
+          <button type="button" className="info-chip-btn info-chip-primary" onClick={impersonate} disabled={blocked}>
+            {PI.screen} {t("ow.p.openDash")}
+          </button>
+          {m.slug && <button type="button" className="info-chip-btn" onClick={() => copy(dashUrl)}>{t("ow.p.copyLink")}</button>}
+        </div>
+      </div>
+      {!blocked && (
         <div className="info-actions-grid">
           <button className="info-action-tile" onClick={resendAccess}>
             <span className="info-action-icon">{PI.link}</span>
@@ -335,7 +354,7 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
       )}
 
       <div className="panel-group-title">{t("ow.p.groupAccount")}</div>
-      {m.status === "suspended" ? (
+      {blocked ? (
         <button className="info-action-tile info-action-success" style={{ width: "100%" }} onClick={activate}>
           <span className="info-action-icon">{PI.play}</span>
           <span>{t("ow.p.activate")}</span>
