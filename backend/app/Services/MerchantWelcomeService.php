@@ -93,7 +93,16 @@ class MerchantWelcomeService
         // A new shop has never written to the platform number, so outside WhatsApp's 24-hour window
         // only an approved template is delivered (Meta drops plain text without an error).
         $template = $variant === 'regain' ? PlatformTemplateService::ACCESS : PlatformTemplateService::WELCOME;
-        $message = $otp && app(PlatformTemplateService::class)->approved($template)
+        // A code must never go as plain text: outside the 24-hour window Meta accepts it and drops it,
+        // so the owner would be told it was sent when it never arrived. Until the template is approved
+        // the caller opens the chat instead, and the owner sends the message from their own WhatsApp.
+        if ($otp && ! app(PlatformTemplateService::class)->approved($template)) {
+            throw ValidationException::withMessages([
+                'whatsapp' => ['The login template is not approved by Meta yet.'],
+            ]);
+        }
+
+        $message = $otp
             ? ['type' => 'template', 'template' => [
                 'name' => $template,
                 'language' => ['code' => config('alerts.whatsapp_language')],

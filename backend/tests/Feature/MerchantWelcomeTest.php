@@ -39,6 +39,9 @@ class MerchantWelcomeTest extends TestCase
             'wa_phone_id' => '111222333',
             'wa_access_token' => 'EAAX_platform',
         ])->assertOk();
+        $platform = PlatformSetting::singleton();
+        $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_welcome' => 'APPROVED']]);
+        $platform->save();
 
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'whatsapp_number' => '+96171112233',
@@ -83,6 +86,23 @@ class MerchantWelcomeTest extends TestCase
             && array_column($r['template']['components'][0]['parameters'], 'text')[0] === 'Foren'
             && array_column($r['template']['components'][0]['parameters'], 'text')[1] === 'https://neotalab.com/backoffice/foren'
             && array_column($r['template']['components'][0]['parameters'], 'text')[3] === '123456');
+    }
+
+    public function test_a_code_is_never_sent_as_plain_text_before_the_template_is_approved(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
+        $platform = PlatformSetting::singleton();
+        $platform->settings = array_merge($platform->settings ?? [], ['wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform']);
+        $platform->save();
+
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
+
+        $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/welcome", [
+            'otp' => '123456', 'regenerateAccess' => true,
+        ])->assertOk()->assertJsonPath('sent', false);
+
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '111222333/messages'));
     }
 
     public function test_admin_can_regenerate_access_and_fallback_when_platform_whatsapp_missing(): void
