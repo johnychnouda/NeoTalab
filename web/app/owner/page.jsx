@@ -19,6 +19,7 @@ import { openWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 
 function matchesMerchantSearch(m, term) {
   return m.shop_name?.toLowerCase().includes(term)
+    || (m.owner_name || "").toLowerCase().includes(term)
     || (m.whatsapp_number || "").includes(term)
     || m.bot_error?.toLowerCase().includes(term);
 }
@@ -316,7 +317,6 @@ function merchantHasBotIssue(m) {
 }
 
 function MerchantCard({ t, m, onClick }) {
-  const initials = m.shop_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   let statusPill;
   if (m.status === "suspended") {
@@ -353,8 +353,8 @@ function MerchantCard({ t, m, onClick }) {
 
   return (
     <div className="merchant-card" onClick={onClick}>
-      <div className="card-avatar" style={{ width: 44, height: 44, fontSize: 18, marginBottom: 12 }}>{initials}</div>
       <div className="card-name" style={{ marginBottom: 2 }}>{m.shop_name}</div>
+      {m.owner_name && m.owner_name !== m.shop_name && <div className="card-owner" style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>{m.owner_name}</div>}
       <div style={{ marginBottom: 12 }}>
         <WaLink number={m.whatsapp_number} />
       </div>
