@@ -8,6 +8,7 @@ use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
+use App\Support\ShopSlug;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -157,8 +158,7 @@ class MerchantWelcomeService
 
     public static function loginEmailFromShopName(string $shopName): string
     {
-        $slug = preg_replace('/[^a-z0-9]+/', '', Str::lower(Str::ascii($shopName)) ?? '');
-        $slug = Str::limit($slug, 40, '');
+        $slug = rtrim(Str::limit(ShopSlug::from($shopName), 40, ''), '-');
 
         return ($slug !== '' ? $slug : Str::lower(Str::random(8))).'@merchant.neotalab';
     }

@@ -10,6 +10,7 @@ use App\Support\Countries;
 use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
 use App\Support\Roles;
+use App\Support\ShopSlug;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -375,8 +376,7 @@ class AdminMerchantService
 
     protected function emailFromShopName(string $shopName): string
     {
-        $slug = preg_replace('/[^a-z0-9]+/', '', Str::lower(Str::ascii($shopName)) ?? '');
-        $slug = Str::limit($slug, 40, '');
+        $slug = rtrim(Str::limit(ShopSlug::from($shopName), 40, ''), '-');
 
         if ($slug === '') {
             $slug = Str::lower(Str::random(8));

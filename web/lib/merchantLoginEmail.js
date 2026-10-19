@@ -1,11 +1,7 @@
-/** Derive merchant backoffice login email from shop name (must match backend slug rules). */
-export function merchantLoginEmail(shopName) {
-  const slug = (shopName || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .slice(0, 40);
+import { shopSlug } from "@/lib/shopSlug";
 
+/** Derive merchant backoffice login email from shop name (must match backend rules). */
+export function merchantLoginEmail(shopName) {
+  const slug = shopSlug(shopName);
   return slug ? `${slug}@merchant.neotalab` : "";
 }
