@@ -122,4 +122,21 @@ class PlaceFromPinTest extends TestCase
 
         $this->assertSame('33.8938,35.5018', Merchant::find($merchant->id)->settings['shop_location']);
     }
+
+    public function test_a_join_request_gets_its_governorate_and_city_from_the_pin(): void
+    {
+        Http::fake(['maps.googleapis.com/*' => Http::response($this->lebaneseResult('Mount Lebanon Governorate', 'Jounieh', 'Keserwan District'))]);
+
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Pin Test Bakery',
+            'businessType' => 'Bakery / Sweets',
+            'country' => 'LB',
+            'location' => '33.9808,35.6178',
+            'contactName' => 'Test Owner',
+            'whatsapp' => '+96170111222',
+            'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('onboarding_requests', ['shop_name' => 'Pin Test Bakery', 'region' => 'Mount Lebanon', 'city' => 'Jounieh']);
+    }
 }

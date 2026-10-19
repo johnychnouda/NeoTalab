@@ -7,6 +7,7 @@ use App\Models\OnboardingRequest;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Support\MapLocation;
+use App\Support\PlaceFromPin;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -106,6 +107,9 @@ class OnboardingService
             ]))
             : null;
 
+        // The pin names the governorate and city, so the owner does not have to look them up at approval.
+        $place = $location && (empty($data['region']) || empty($data['city'])) ? PlaceFromPin::lookup($location) : null;
+
         $request = OnboardingRequest::create([
             'shop_name' => trim((string) ($data['shopName'] ?? $data['shop_name'] ?? '')),
             'contact_name' => $data['contactName'] ?? $data['contact_name'] ?? null,
@@ -115,8 +119,8 @@ class OnboardingService
             'country' => strtoupper((string) ($data['country'] ?? '')),
             'location' => $location,
             'street' => $data['street'] ?? null,
-            'city' => $data['city'] ?? null,
-            'region' => $data['region'] ?? null,
+            'city' => $data['city'] ?? $place['city'] ?? null,
+            'region' => $data['region'] ?? $place['region'] ?? null,
             'message' => $data['message'] ?? null,
             'status' => 'pending',
         ]);
