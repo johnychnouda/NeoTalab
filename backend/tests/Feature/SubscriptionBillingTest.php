@@ -52,6 +52,26 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('2027-10-01', $merchant->fresh()->subscription_ends_at->toDateString());
     }
 
+    public function test_a_cycle_change_waits_for_the_next_payment(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly']);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])->assertOk();
+        $merchant->refresh();
+        $this->assertSame('monthly', $merchant->billing_cycle, 'the current period keeps its cycle');
+        $this->assertSame('yearly', $merchant->settings['next_billing_cycle']);
+        $this->assertNull($merchant->subscription_ends_at, 'switching does not mark the shop paid');
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
+            'subscriptionStatus' => 'paid', 'lastPaymentAt' => '2026-10-01', 'status' => 'active',
+        ])->assertOk();
+        $merchant->refresh();
+        $this->assertSame('yearly', $merchant->billing_cycle);
+        $this->assertSame('2027-10-01', $merchant->subscription_ends_at->toDateString());
+        $this->assertArrayNotHasKey('next_billing_cycle', $merchant->settings);
+    }
+
     public function test_the_owner_name_can_be_set_from_the_panel(): void
     {
         $token = $this->tokenFor($this->platformAdmin());

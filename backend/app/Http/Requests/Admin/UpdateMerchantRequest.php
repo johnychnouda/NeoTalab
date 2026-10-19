@@ -46,6 +46,8 @@ class UpdateMerchantRequest extends FormRequest
             'street' => ['sometimes', 'nullable', 'string', 'max:255'],
             'country' => ['sometimes', 'nullable', 'string', 'max:2'],
             'ownerName' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'nextBillingCycle' => ['sometimes', 'nullable', 'in:monthly,yearly'],
+            'next_billing_cycle' => ['sometimes', 'nullable', 'in:monthly,yearly'],
             'owner_name' => ['sometimes', 'nullable', 'string', 'max:120'],
         ];
     }

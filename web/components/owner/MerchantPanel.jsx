@@ -458,6 +458,47 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
     || cycle !== (m.billing_cycle === "yearly" ? "yearly" : "monthly");
 
 
+  // A cycle change waits for the shop's next payment; it never marks the shop paid.
+  const switchCycle = () => {
+    const target = isYearly ? "monthly" : "yearly";
+    const targetLabel = t(target === "yearly" ? "ow.yearly" : "ow.monthly");
+    const fee = target === "yearly" ? num(yearlyFee) : num(monthlyFee);
+    if (!fee) {
+      toast(t("ow.b.setFeeFirst"), "error");
+      return;
+    }
+    onConfirm({
+      title: t("ow.b.switchTo", { cycle: targetLabel }),
+      message: <><strong>{m.shop_name}</strong> — {t("ow.b.nextCycle", { cycle: targetLabel })}</>,
+      confirmLabel: t("ow.b.switchTo", { cycle: targetLabel }),
+      onConfirm: async () => {
+        try {
+          await api("PATCH", `/admin/merchants/${m.id}`, {
+            nextBillingCycle: target,
+            monthlyFee: num(monthlyFee),
+            yearlyFee: num(yearlyFee),
+          });
+          logActivity("billing", t("ow.log.switched", { shop: m.shop_name, fee: `$${fee}${per(target === "yearly")}` }));
+          toast(t("db.saved"));
+          onChanged();
+        } catch (e) { toast(e.message, "error"); }
+      },
+    });
+  };
+
+  async function saveBilling() {
+    try {
+      await api("PATCH", `/admin/merchants/${m.id}`, {
+        nextBillingCycle: cycle,
+        monthlyFee: num(monthlyFee),
+        yearlyFee: num(yearlyFee),
+      });
+      logActivity("billing", t("ow.log.feeUpdated", { shop: m.shop_name, fee: `$${isYearly ? num(yearlyFee) : num(monthlyFee)}${per(isYearly)}` }));
+      toast(t("db.saved"));
+      onChanged();
+    } catch (e) { toast(e.message, "error"); }
+  }
+
   const fmtFee = (v) => v.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const switchTarget = isYearly ? "monthly" : "yearly";
   const switchFee = switchTarget === "yearly" ? yearlyFee : monthlyFee;
@@ -506,7 +547,14 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
       ) : (
         <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ fontSize: 14, fontWeight: 500 }}>{t("ow.b.cycle")}</span>
+            <span style={{ fontSize: 14, fontWeight: 500 }}>
+              {t("ow.b.cycle")}
+              {m.next_billing_cycle && m.next_billing_cycle !== m.billing_cycle && (
+                <span className="info-muted" style={{ display: "block" }}>
+                  {t("ow.b.nextCycle", { cycle: t(m.next_billing_cycle === "yearly" ? "ow.yearly" : "ow.monthly") })}
+                </span>
+              )}
+            </span>
             <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3 }}>
               {["monthly", "yearly"].map((v) => (
                 <button key={v} type="button" onClick={() => setCycle(v)}

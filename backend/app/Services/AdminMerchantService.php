@@ -122,8 +122,22 @@ class AdminMerchantService
             }
         }
 
+        // A cycle change waits for the shop's next payment; the current period keeps its cycle.
+        if ($this->hasKey($payload, 'nextBillingCycle', 'next_billing_cycle')) {
+            $next = (string) $this->pick($payload, 'nextBillingCycle', 'next_billing_cycle');
+            if ($next === '' || $next === ($merchant->billing_cycle ?? 'monthly')) {
+                unset($settings['next_billing_cycle']);
+            } else {
+                $settings['next_billing_cycle'] = $next;
+            }
+        }
+
         $paidNow = $markingPaid && ($settings['subscription_status'] ?? null) === 'paid';
         if ($paidNow) {
+            if (! empty($settings['next_billing_cycle'])) {
+                $merchant->billing_cycle = $settings['next_billing_cycle'];
+                unset($settings['next_billing_cycle']);
+            }
             $this->appendPayment($settings, $merchant);
             // The paid period runs one month or one year from the payment. Reminders and the stop use this date.
             $paidOn = Carbon::parse($settings['last_payment_at']);

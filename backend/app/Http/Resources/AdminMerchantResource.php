@@ -38,6 +38,7 @@ class AdminMerchantResource extends JsonResource
             'currency' => $this->currency,
             'timezone' => $this->timezone,
             'billing_cycle' => $this->billing_cycle ?? 'monthly',
+            'next_billing_cycle' => $settings['next_billing_cycle'] ?? null,
             'trial_ends_at' => $this->trial_ends_at,
             'subscription_ends' => $this->subscription_ends_at,
             'subscription_ends_at' => $this->subscription_ends_at,
