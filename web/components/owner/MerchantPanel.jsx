@@ -457,73 +457,6 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
     || num(yearlyFee) !== Number(m.yearly_fee || 0)
     || cycle !== (m.billing_cycle === "yearly" ? "yearly" : "monthly");
 
-  const markPaid = () => {
-    if (!activeFee) {
-      toast(t("ow.b.setFeeFirst"), "error");
-      return;
-    }
-    onConfirm({
-      title: t("ow.b.markPaid"),
-      message: <><strong>{m.shop_name}</strong> — {t(isYearly ? "ow.b.markPaidYear" : "ow.b.markPaidMonth", { fee: `$${activeFee}` })}</>,
-      confirmLabel: t("ow.b.markPaid"),
-      onConfirm: async () => {
-        try {
-          const today = new Date().toISOString().split("T")[0];
-          await api("PATCH", `/admin/merchants/${m.id}`, { subscriptionStatus: "paid", lastPaymentAt: today, status: "active" });
-          logActivity("billing", t("ow.log.paid", { shop: m.shop_name, fee: `$${activeFee}${per(isYearly)}` }));
-          setPayments((p) => [{ id: `pay_new_${Date.now()}`, paid_at: today, amount: activeFee, method: "Manual", cycle }, ...(p || [])]);
-          toast(t("ow.log.paid", { shop: m.shop_name, fee: `$${activeFee}${per(isYearly)}` }));
-          onChanged();
-        } catch (e) { toast(e.message, "error"); }
-      },
-    });
-  };
-
-  const switchCycle = () => {
-    const target = isYearly ? "monthly" : "yearly";
-    const targetLabel = t(target === "yearly" ? "ow.yearly" : "ow.monthly");
-    const fee = target === "yearly" ? num(yearlyFee) : num(monthlyFee);
-    if (!fee) {
-      toast(t("ow.b.setFeeFirst"), "error");
-      return;
-    }
-    onConfirm({
-      title: t("ow.b.switchTo", { cycle: targetLabel }),
-      message: <><strong>{m.shop_name}</strong> — {t("ow.b.switchMsg", { cycle: targetLabel, fee: `$${fee}${per(target === "yearly")}` })}{periodDaysLeft != null && <> {t("ow.b.switchDaysLost", { n: periodDaysLeft })}</>}</>,
-      confirmLabel: t("ow.b.switchTo", { cycle: targetLabel }),
-      onConfirm: async () => {
-        try {
-          const today = new Date().toISOString().split("T")[0];
-          await api("PATCH", `/admin/merchants/${m.id}`, {
-            billingCycle: target,
-            monthlyFee: num(monthlyFee),
-            yearlyFee: num(yearlyFee),
-            subscriptionStatus: "paid",
-            lastPaymentAt: today,
-            status: "active",
-          });
-          logActivity("billing", t("ow.log.switched", { shop: m.shop_name, fee: `$${fee}${per(target === "yearly")}` }));
-          setCycle(target);
-          setPayments((p) => [{ id: `pay_new_${Date.now()}`, paid_at: today, amount: fee, method: "Manual", cycle: target }, ...(p || [])]);
-          toast(t("ow.log.switched", { shop: m.shop_name, fee: `$${fee}${per(target === "yearly")}` }));
-          onChanged();
-        } catch (e) { toast(e.message, "error"); }
-      },
-    });
-  };
-
-  async function saveBilling() {
-    try {
-      await api("PATCH", `/admin/merchants/${m.id}`, {
-        billingCycle: cycle,
-        monthlyFee: num(monthlyFee),
-        yearlyFee: num(yearlyFee),
-      });
-      logActivity("billing", t("ow.log.feeUpdated", { shop: m.shop_name, fee: `$${isYearly ? num(yearlyFee) : num(monthlyFee)}${per(isYearly)}` }));
-      toast(t("db.saved"));
-      onChanged();
-    } catch (e) { toast(e.message, "error"); }
-  }
 
   const fmtFee = (v) => v.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const switchTarget = isYearly ? "monthly" : "yearly";
@@ -547,13 +480,6 @@ function BillingTab({ t, m, api, toast, onChanged, onConfirm }) {
             {periodLocked && !m.overdue ? `🔒 ${t("ow.f.paid")}` : billingLabel}
           </span>}
         </div>
-        {!isPaid && (
-          <div style={{ borderTop: "1px solid var(--border)", padding: "12px 20px", display: "flex", justifyContent: "flex-end" }}>
-            <button type="button" onClick={markPaid} style={{ background: "transparent", border: "1.5px solid var(--green)", color: "var(--green)", fontSize: 13, fontWeight: 700, padding: "7px 18px", borderRadius: 8, cursor: "pointer" }}>
-              ✓ {t("ow.b.markPaid")}
-            </button>
-          </div>
-        )}
       </div>
 
       {periodLocked ? (

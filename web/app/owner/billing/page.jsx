@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/owner/ui";
 import { BILLING_FILTERS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
+import { trialDaysLeft as trialDaysLeftFrom, calendarDaysBetween } from "@/lib/trial";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 /** Pending payments this many days past the renewal date count as overdue. */
@@ -109,28 +110,6 @@ export default function BillingPage() {
   };
   list.sort((a, b) => urgency(a) - urgency(b));
 
-  function markPaid(m) {
-    const yearly = m.billing_cycle === "yearly";
-    const fee = `$${yearly ? (m.yearly_fee || 0) : (m.monthly_fee || 0)}`;
-    setConfirm({
-      title: t("ow.b.markPaid"),
-      message: <><strong>{m.shop_name}</strong> — {t(yearly ? "ow.b.markPaidYear" : "ow.b.markPaidMonth", { fee })}</>,
-      confirmLabel: t("ow.b.markPaid"),
-      onConfirm: async () => {
-        try {
-          await api("PATCH", `/admin/merchants/${m.id}`, {
-            subscriptionStatus: "paid",
-            lastPaymentAt: new Date().toISOString().split("T")[0],
-            status: "active",
-          });
-          const label = t("ow.log.paid", { shop: m.shop_name, fee: fee + t(yearly ? "ow.perYear" : "ow.perMonth") });
-          logActivity("billing", label);
-          toast(label);
-          load();
-        } catch (e) { toast(e.message, "error"); }
-      },
-    });
-  }
 
   function sendReminder(m) {
     const clean = (m.whatsapp_number || "").replace(/\D/g, "");
@@ -275,7 +254,7 @@ export default function BillingPage() {
           {head}
           <tbody>
             {list.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("ow.m.none")}</td></tr>}
-            {list.map((m) => <BillingRow key={m.id} t={t} locale={locale} m={m} now={now} onMarkPaid={() => markPaid(m)} onRemind={() => sendReminder(m)} />)}
+            {list.map((m) => <BillingRow key={m.id} t={t} locale={locale} m={m} now={now} onRemind={() => sendReminder(m)} />)}
           </tbody>
         </table>
       </div>
@@ -286,7 +265,7 @@ export default function BillingPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
             {overdueList.map((m) => {
               const rd = getRenewalDate(m);
-              const daysOverdue = rd ? Math.ceil((Date.now() - rd) / 86400000) : 0;
+              const daysOverdue = rd ? Math.max(0, calendarDaysBetween(rd, new Date())) : 0;
               const clean = (m.whatsapp_number || "").replace(/\D/g, "");
               const waUrl = `https://wa.me/${clean}?text=${encodeURIComponent(buildReminderMessage(t, locale, m))}`;
               return (
@@ -314,7 +293,7 @@ export default function BillingPage() {
   );
 }
 
-function BillingRow({ t, locale, m, now, onMarkPaid, onRemind }) {
+function BillingRow({ t, locale, m, now, onRemind }) {
   const isPaid = m.subscription_status === "paid";
   const isTrial = m.subscription_status === "trial";
   const isPending = m.subscription_status === "pending";
@@ -322,7 +301,7 @@ function BillingRow({ t, locale, m, now, onMarkPaid, onRemind }) {
   const fee = isYearly ? (m.yearly_fee || 0) : (m.monthly_fee || 0);
 
   const billingColor = isPaid ? "var(--green)" : isTrial ? "#3b82f6" : "var(--orange)";
-  const trialDaysLeft = isTrial && m.trial_ends_at ? Math.max(0, Math.ceil((new Date(m.trial_ends_at) - Date.now()) / 86400000)) : null;
+  const trialDaysLeft = isTrial ? trialDaysLeftFrom(m.trial_ends_at) : null;
   const billingLabel = isPaid ? `✓ ${t("ow.f.paid")}` : isTrial ? (trialDaysLeft !== null ? t("ow.trialDaysShort", { n: trialDaysLeft }) : t("ow.f.trial")) : t("ow.f.pending");
 
   const renewalDate = getRenewalDate(m);
@@ -356,9 +335,8 @@ function BillingRow({ t, locale, m, now, onMarkPaid, onRemind }) {
       </td>
       <td data-label={t("th.status")}><span style={{ color: billingColor, fontWeight: 600, fontSize: 12 }}>{billingLabel}</span></td>
       <td className="stack-actions">
-        {(isPending || isTrial) ? (
+        {isPending && isOverdue && waClean ? (
           <div className="billing-row-actions">
-            <button type="button" className="btn-sm" style={{ color: "var(--green)", borderColor: "var(--green)" }} onClick={onMarkPaid}>✓ {t("ow.b.markPaid")}</button>
             {isPending && isOverdue && waClean && (
               <button type="button" className="btn-sm" style={{ color: "#f59e0b", borderColor: "#f59e0b40" }} onClick={onRemind}>📨 {t("ow.b.remind")}</button>
             )}
