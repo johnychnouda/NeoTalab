@@ -45,6 +45,8 @@ class UpdateMerchantRequest extends FormRequest
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'street' => ['sometimes', 'nullable', 'string', 'max:255'],
             'country' => ['sometimes', 'nullable', 'string', 'max:2'],
+            'ownerName' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'owner_name' => ['sometimes', 'nullable', 'string', 'max:120'],
         ];
     }
 }

@@ -52,6 +52,17 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('2027-10-01', $merchant->fresh()->subscription_ends_at->toDateString());
     }
 
+    public function test_the_owner_name_can_be_set_from_the_panel(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren Shop']);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['ownerName' => 'Hassan Ali'])->assertOk();
+
+        $this->assertSame('Hassan Ali', $owner->fresh()->name);
+        $this->withToken($token)->getJson("/api/v1/admin/merchants/{$merchant->id}")->assertJsonPath('data.owner_name', 'Hassan Ali');
+    }
+
     public function test_the_shop_map_link_comes_from_its_pin(): void
     {
         $token = $this->tokenFor($this->platformAdmin());

@@ -829,6 +829,7 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
 function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   const knownCity = (region, city) => getLebanonCitiesForRegion(region).some((c) => c.value === city);
   const [name, setName] = useState(m.shop_name || "");
+  const [ownerName, setOwnerName] = useState(m.owner_name && m.owner_name !== m.shop_name ? m.owner_name : "");
   const [wa, setWa] = useState(m.whatsapp_number || "");
   const [type, setType] = useState(m.business_type || "");
   const [region, setRegion] = useState(m.region || "");
@@ -843,7 +844,7 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
     setBusy(true);
     try {
       const data = await api("PATCH", `/admin/merchants/${m.id}`, {
-        shopName: name.trim(), whatsappNumber: number, region, street: street.trim(),
+        shopName: name.trim(), ownerName: ownerName.trim() || null, whatsappNumber: number, region, street: street.trim(),
         city: city === JOIN_CITY_OTHER || !cities.length ? cityOther.trim() : city,
         ...(type && type !== m.business_type ? { businessType: type } : {}),
       });
@@ -861,6 +862,8 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
       </div>}>
       <div className="field"><label htmlFor="es-name">{t("jn.shopName")}</label>
         <input id="es-name" value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div className="field"><label htmlFor="es-owner">{t("ow.edit.ownerName")}</label>
+        <input id="es-owner" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder={t("ow.edit.ownerNameHint")} /></div>
       <div className="field"><label htmlFor="es-wa">{t("ow.edit.wa")}</label>
         <input id="es-wa" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+961 70 123 456" /></div>
       <div className="field"><label htmlFor="es-type">{t("jn.businessType")}</label>

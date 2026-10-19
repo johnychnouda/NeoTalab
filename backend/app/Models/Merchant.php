@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Roles;
 use Database\Factories\MerchantFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -53,6 +54,14 @@ class Merchant extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /** The account that signs in to this shop: its owner, else the first user. */
+    public function ownerUser(): ?User
+    {
+        $users = $this->users()->orderBy('created_at')->get();
+
+        return $users->first(fn (User $u) => $u->hasRole(Roles::MERCHANT_OWNER)) ?? $users->first();
     }
 
     public function isActive(): bool

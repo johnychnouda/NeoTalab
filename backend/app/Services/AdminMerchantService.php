@@ -114,6 +114,14 @@ class AdminMerchantService
             $settings = BusinessKind::applyDefaults($settings, BusinessKind::TYPES[$type] ?? 'other');
         }
 
+        if ($this->hasKey($payload, 'ownerName', 'owner_name')) {
+            $ownerName = trim((string) $this->pick($payload, 'ownerName', 'owner_name'));
+            $owner = $merchant->ownerUser();
+            if ($owner && $ownerName !== '') {
+                $owner->forceFill(['name' => $ownerName])->save();
+            }
+        }
+
         $paidNow = $markingPaid && ($settings['subscription_status'] ?? null) === 'paid';
         if ($paidNow) {
             $this->appendPayment($settings, $merchant);

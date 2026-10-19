@@ -3,10 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Models\Merchant;
-use App\Models\User;
 use App\Support\MapLocation;
 use App\Support\MerchantProfileSync;
-use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,7 +19,7 @@ class AdminMerchantResource extends JsonResource
     {
         $settings = $this->settings ?? [];
         $bot = $settings['bot'] ?? [];
-        $owner = $this->ownerUser();
+        $owner = $this->resource->ownerUser();
 
         $subscriptionStatus = $settings['subscription_status']
             ?? ($this->plan === 'trial' || $this->trial_ends_at?->isFuture() ? 'trial' : ($this->status === 'active' ? 'paid' : 'pending'));
@@ -70,13 +68,5 @@ class AdminMerchantResource extends JsonResource
             'bot_mode' => $settings['mode'] ?? $bot['mode'] ?? 'auto',
             'created_at' => $this->created_at,
         ];
-    }
-
-    /** The account that signs in to this shop: its owner, else the first user. */
-    protected function ownerUser(): ?User
-    {
-        $users = User::query()->where('merchant_id', $this->id)->orderBy('created_at')->get();
-
-        return $users->first(fn (User $u) => $u->hasRole(Roles::MERCHANT_OWNER)) ?? $users->first();
     }
 }
