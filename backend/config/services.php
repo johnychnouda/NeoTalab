@@ -40,11 +40,6 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
-    // Governorate and city from a pin (Geocoding API). Falls back to the Maps key when not set.
-    'google_geocoding' => [
-        'key' => env('GOOGLE_GEOCODING_KEY', env('GOOGLE_MAPS_API_KEY')),
-    ],
-
     // Whish Pay sandbox (fake money), off in production unless explicitly enabled for a test.
     'whish' => [
         'sandbox_allowed' => env('WHISH_SANDBOX_ALLOWED', env('APP_ENV') !== 'production'),
