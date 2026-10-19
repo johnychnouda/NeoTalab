@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
             Route::get('profile', [SettingsController::class, 'profile']);
             Route::patch('profile', [SettingsController::class, 'updateProfile'])->middleware("role:{$managerRoles}");
             Route::patch('mode', [SettingsController::class, 'updateMode'])->middleware("role:{$managerRoles}");
+            Route::post('locate', [SettingsController::class, 'locate'])->middleware("role:{$managerRoles}");
             Route::get('hours', [SettingsController::class, 'hours']);
             Route::put('hours', [SettingsController::class, 'replaceHours'])->middleware("role:{$managerRoles}");
             Route::get('zones', [SettingsController::class, 'zones']);

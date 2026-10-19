@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\MerchantSettingsService;
+use App\Support\MapLocation;
+use App\Support\PlaceFromPin;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,6 +32,21 @@ class SettingsController extends Controller
             'profile' => $settings->profile($merchant),
             'message' => 'Profile updated.',
         ]);
+    }
+
+    /** Governorate and city of the shop's pasted Google Maps link or pin, for the settings form. */
+    public function locate(Request $request): JsonResponse
+    {
+        $request->validate(['location' => ['required', 'string', 'max:500']]);
+
+        $pin = MapLocation::resolve((string) $request->input('location'));
+        if (! $pin) {
+            return response()->json(['message' => 'No location found in this link.'], 422);
+        }
+
+        $place = PlaceFromPin::lookup($pin) ?? ['region' => null, 'city' => null];
+
+        return response()->json(['location' => $pin, 'region' => $place['region'], 'city' => $place['city']]);
     }
 
     public function updateMode(Request $request, MerchantSettingsService $settings): JsonResponse

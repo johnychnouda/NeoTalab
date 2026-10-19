@@ -11,6 +11,7 @@ import Segmented from "@/components/Segmented";
 import LocationPicker, { mapPin } from "@/components/LocationPicker";
 import { ICONS } from "@/components/auth/AuthShell";
 import ZoneEditor from "@/components/ZoneEditor";
+import { JOIN_LEBANON_REGIONS } from "@/lib/joinFormOptions";
 
 const LBP_RATE = 89500;
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
@@ -24,6 +25,7 @@ const GROUPS = {
   orders: (p) => ({
     appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
     fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
+    region: p.region || null, city: p.city || null,
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
     late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
@@ -83,6 +85,20 @@ function Settings() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { const q = params.get("tab"); if (q) setTab(q); }, [params]);
+
+  // A new pin (dropped, searched or pasted) fills the governorate and city. The saved pin never does, so a
+  // city typed by hand survives a reload. Waits a moment so a pasted link is looked up once, not per letter.
+  const pin = p?.shop_location || "";
+  useEffect(() => {
+    if (!pin || pin === (saved?.shop_location || "")) return undefined;
+    const timer = setTimeout(async () => {
+      try {
+        const area = await api("POST", "/settings/locate", { location: pin });
+        setProfile((x) => ({ ...x, ...(area.region ? { region: area.region } : {}), ...(area.city ? { city: area.city } : {}) }));
+      } catch { /* the owner can pick the area by hand */ }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [pin, saved, api]);
 
   const changed = p && saved ? Object.keys(GROUPS).filter((g) => !same(GROUPS[g](p), GROUPS[g](saved))) : [];
   const hoursChanged = !same(hours, savedHours);
@@ -204,6 +220,13 @@ function Settings() {
             <Field id="o-loc" label={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
               hint={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupMapHint" : "ops.shopLocationHint")}>
               <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} />
+            </Field>
+            <Field id="o-region" label={t("jn.region")} hint={t("ops.areaHint")}>
+              <FormSelect id="o-region" value={p.region || ""} onChange={(v) => setP("region", v)} aria-label={t("jn.region")}
+                options={[{ value: "", label: t("jn.ph.region") }, ...JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))]} />
+            </Field>
+            <Field id="o-city" label={t("jn.city")}>
+              <input id="o-city" value={p.city || ""} onChange={(e) => setP("city", e.target.value)} placeholder={t("jn.cityOther")} />
             </Field>
             {unit === "minutes" && (
               <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>

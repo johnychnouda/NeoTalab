@@ -139,4 +139,26 @@ class PlaceFromPinTest extends TestCase
 
         $this->assertDatabaseHas('onboarding_requests', ['shop_name' => 'Pin Test Bakery', 'region' => 'Mount Lebanon', 'city' => 'Jounieh']);
     }
+
+    public function test_shop_settings_locate_and_save_the_area(): void
+    {
+        Http::fake(['maps.googleapis.com/*' => Http::response($this->lebaneseResult('South Governorate', 'Sidon', 'Sidon District'))]);
+        [, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+
+        $this->withToken($this->tokenFor($owner))
+            ->postJson('/api/v1/settings/locate', ['location' => '33.5630,35.3690'])
+            ->assertOk()
+            ->assertJsonPath('region', 'South Lebanon')
+            ->assertJsonPath('city', 'Sidon');
+
+        $this->withToken($this->tokenFor($owner))
+            ->patchJson('/api/v1/settings/profile', ['region' => 'South Lebanon', 'city' => 'Sidon', 'shop_location' => '33.5630,35.3690'])
+            ->assertOk();
+
+        $this->withToken($this->tokenFor($owner))
+            ->getJson('/api/v1/settings/profile')
+            ->assertOk()
+            ->assertJsonPath('profile.region', 'South Lebanon')
+            ->assertJsonPath('profile.city', 'Sidon');
+    }
 }

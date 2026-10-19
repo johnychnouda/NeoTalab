@@ -30,6 +30,8 @@ final class ShopSettings
         'delivery_days_min' => [1, 'int'],    // days shops: "1–2 working days"
         'delivery_days_max' => [2, 'int'],
         'shop_location' => ['', 'string'],    // "lat,lng" or a Google Maps link, for live driving times
+        'region' => ['', 'string'],           // governorate (see the join form's list); filled from the pin
+        'city' => ['', 'string'],             // city or town; filled from the pin
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
     ];
 
@@ -182,6 +184,8 @@ final class ShopSettings
             'delivery_days_min' => ['sometimes', 'integer', 'min:0', 'max:60'],
             'delivery_days_max' => ['sometimes', 'integer', 'min:0', 'max:60', 'gte:delivery_days_min'],
             'shop_location' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'region' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
         ];
     }
