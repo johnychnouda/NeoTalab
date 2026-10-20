@@ -59,6 +59,11 @@ groceries, retail, salons, clinics, services).
   every zone is told the shop doesn't deliver there. Zones without a shape still work by name.
 - **Time units per shop:** minutes (food), hours, or working days (retail, made to order).
 - **Big menus:** above 80 items the AI only receives the items that match the conversation.
+- **Menu import in lira:** each row is lira or dollars on its own (marked LL/LBP/ليرة, or 1,000 and
+  up without a $), and the merchant can switch any row or the whole file in the preview. An item
+  whose price comes out at 0.00 stops the import; 0.00 products can't be saved and are never orderable.
+- **Opening hours:** a shop that never saved its hours is open 09:00–23:00 every day
+  (`ShopHour::DEFAULT_OPEN/CLOSE`): the same hours the dashboard shows, for orders, bookings and the AI.
 - **Customer photos** pause the assistant in that chat and alert the staff.
 - **Countries:** sign-ups are open to Lebanon only (`App\Support\Countries::ENABLED` and
   `web/lib/countries.js`). Other countries are defined and can be switched on; a new shop gets

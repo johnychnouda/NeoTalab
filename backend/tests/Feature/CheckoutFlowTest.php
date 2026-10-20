@@ -15,6 +15,7 @@ use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTenants;
@@ -37,6 +38,8 @@ class CheckoutFlowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
+        Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token', 'app.frontend_url' => 'https://neotalab.com']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);

@@ -125,7 +125,11 @@ export default function JoinPage() {
       setDone(true);
     } catch (err) {
       const msg = String(err.message || "");
-      setFormError(msg.toLowerCase().includes("already pending") ? t("jn.err.duplicate") : t("jn.err.generic"));
+      setFormError(
+        err.status === 429 ? t("jn.err.tooMany")
+          : msg.toLowerCase().includes("already pending") ? t("jn.err.duplicate")
+          : t("jn.err.generic"),
+      );
     } finally {
       setBusy(false);
     }

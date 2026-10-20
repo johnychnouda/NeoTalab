@@ -31,7 +31,7 @@ class UpdateProductRequest extends FormRequest
                     ->ignore($this->route('product')),
             ],
             'image_url' => ['nullable', 'string', 'max:255'],
-            'price' => ['sometimes', 'numeric', 'min:0'],
+            'price' => ['sometimes', 'numeric', 'min:0.01'],
             'unit' => ['nullable', 'string', 'max:20'],
             'offer_percent' => ['nullable', 'integer', 'min:1', 'max:90'],
             'offer_starts_on' => ['nullable', 'date'],

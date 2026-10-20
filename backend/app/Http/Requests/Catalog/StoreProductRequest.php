@@ -30,7 +30,7 @@ class StoreProductRequest extends FormRequest
                 Rule::unique('products', 'sku')->where('merchant_id', $this->user()->merchant_id),
             ],
             'image_url' => ['nullable', 'string', 'max:255'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'min:0.01'],
             'unit' => ['nullable', 'string', 'max:20'],
             'offer_percent' => ['nullable', 'integer', 'min:1', 'max:90'],
             'offer_starts_on' => ['nullable', 'date'],

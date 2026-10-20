@@ -264,7 +264,8 @@ function OwnerSettingsContent() {
     const price = parseFloat(s.price);
     const yearlyPrice = parseFloat(s.yearlyPrice);
     const trialDays = parseInt(s.trialDays, 10);
-    if (!price || price < 1 || !yearlyPrice || yearlyPrice < 1) { toast(t("ow.set.badPrice"), "error"); return; }
+    if (Number.isNaN(price) || Number.isNaN(yearlyPrice)) { toast(t("ow.set.badPrice"), "error"); return; }
+    if (price < 1 || yearlyPrice < 1) { toast(t("ow.set.lowPrice"), "error"); return; }
     if (yearlyPrice < price) { toast(t("ow.set.warnLow"), "error"); return; }
     if (yearlyPrice > price * 12) { toast(t("ow.set.warnHigh"), "error"); return; }
     if (!trialDays || trialDays < 1 || trialDays > 90) { toast(t("ow.set.badTrial"), "error"); return; }

@@ -60,6 +60,9 @@ export default function TeamPage() {
                     <div className="mk-hint" style={{ margin: 0 }} dir="ltr">{m.whatsapp_number || m.phone}</div>
                   </div>
                 </div>
+                {role === "staff" && m.reachable === false && (
+                  <p className="tm-warn" role="status">⚠️ {t("db.team.unreachable", { name: m.name, number: `\u2066${m.whatsapp_number || m.phone}\u2069` })}</p>
+                )}
                 {role === "driver" && (
                   <div className="tm-status">
                     <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>{t(m.status === "on_duty" ? "db.team.onShift" : "db.team.offShift")}</span>

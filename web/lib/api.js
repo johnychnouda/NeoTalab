@@ -244,7 +244,9 @@ export async function publicPost(path, body) {
     if (r.status >= 500) {
       throw new Error("Something went wrong on our end. Please try again in a moment.");
     }
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = r.status;
+    throw err;
   }
 
   return data;

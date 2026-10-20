@@ -47,6 +47,17 @@ export default function OwnerLayout({ children }) {
     }
   }, []);
 
+  // Expired or revoked token (see lib/api.js): back to the login screen instead of an empty dashboard.
+  useEffect(() => {
+    function onExpired(e) {
+      if (e.detail?.role !== "owner") return;
+      setPaletteOpen(false);
+      setAuthed(false);
+    }
+    window.addEventListener("nt:auth-expired", onExpired);
+    return () => window.removeEventListener("nt:auth-expired", onExpired);
+  }, []);
+
   // Inbox badge: counts update on their own (see lib/live.js).
   async function pollInbox() {
     try {

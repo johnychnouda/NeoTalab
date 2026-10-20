@@ -21,11 +21,6 @@ use Illuminate\Support\Facades\DB;
  */
 class AppointmentService
 {
-    /** Without configured opening hours, bookings are offered within these hours. */
-    private const DEFAULT_OPEN = '09:00';
-
-    private const DEFAULT_CLOSE = '18:00';
-
     /** Customers cannot book a start time closer than this. */
     private const MIN_NOTICE_MINS = 15;
 
@@ -159,12 +154,7 @@ class AppointmentService
      */
     private function hoursFor(Carbon $day): array
     {
-        $hours = ShopHour::query()->get()->keyBy('day_of_week');
-        if ($hours->isEmpty()) {
-            return [self::DEFAULT_OPEN, self::DEFAULT_CLOSE];
-        }
-
-        $today = $hours->get($day->dayOfWeek);
+        $today = ShopHour::week()->get($day->dayOfWeek);
         if (! $today || $today->is_closed) {
             return [null, null];
         }

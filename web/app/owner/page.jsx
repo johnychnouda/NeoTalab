@@ -537,8 +537,12 @@ function ApproveModal({ request, onClose, onSubmit, onApproved, toast }) {
           try { popup?.close(); } catch { /* noop */ }
           toast(t("ow.ap.noNumber", { shop }), "error");
         }
-        if (data?.welcomeError) {
-          toast(t("ow.ap.platformWaOff"), "info");
+        // Say why the platform number didn't send it (no number on file is already covered above).
+        const why = String(data?.welcomeError || "");
+        if (opened && why) {
+          if (/not configured/i.test(why)) toast(t("ow.ap.platformWaOff"), "info");
+          else if (/not approved/i.test(why)) toast(t("ow.ap.templatePending"), "info");
+          else toast(t("ow.ap.waFailed", { error: why.replace(/^WhatsApp API error:\s*/i, "") }), "info");
         }
       }
       onApproved?.();

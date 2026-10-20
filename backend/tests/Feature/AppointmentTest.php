@@ -85,8 +85,8 @@ class AppointmentTest extends TestCase
         $reply = $this->lastTo(self::CUSTOMER);
         $this->assertStringContainsString('Free times for Haircut on Tue 6 Oct', $reply);
         $this->assertStringContainsString('09:00, 09:30, 10:00', $reply);
-        $this->assertStringContainsString('17:30', $reply, 'last 30-min slot before 18:00');
-        $this->assertStringNotContainsString('18:00', $reply);
+        $this->assertStringNotContainsString('08:30', $reply);
+        $this->assertStringContainsString('18:00, 18:30', $reply, 'no saved hours: the dashboard default 09:00–23:00, not a separate booking default');
     }
 
     public function test_dates_are_written_in_the_customers_language(): void

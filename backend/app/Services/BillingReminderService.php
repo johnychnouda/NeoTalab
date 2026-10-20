@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Merchant;
 use App\Services\WhatsApp\ShopTemplateService;
+use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
@@ -28,6 +29,7 @@ class BillingReminderService
         protected WhatsAppService $whatsapp,
         protected CurrentTenant $tenant,
         protected ShopTemplateService $templates,
+        protected StaffMessenger $staff,
     ) {}
 
     public function sendDue(?Carbon $now = null): int
@@ -53,8 +55,18 @@ class BillingReminderService
                 continue;
             }
 
+            // Plain text outside the 24-hour window is accepted by Meta and then dropped silently.
+            $approved = $this->templates->isApproved($merchant, ShopTemplateService::BILLING_REMINDER);
+            if (! $approved && ! $this->staff->numberInWindow($merchant, $to)) {
+                Log::warning('Billing reminder not sent: its WhatsApp template is not approved yet and the report number has not messaged the shop number in the last 24 hours', [
+                    'merchant_id' => $merchant->id, 'shop' => $merchant->name,
+                ]);
+
+                continue;
+            }
+
             $params = [$merchant->name, $ends->copy()->setTimezone($local->timezone)->toDateString()];
-            $message = $this->templates->isApproved($merchant, ShopTemplateService::BILLING_REMINDER)
+            $message = $approved
                 ? ShopTemplateService::message(ShopTemplateService::BILLING_REMINDER, $params)
                 : ['type' => 'text', 'text' => __('whatsapp.billing.reminder', ['shop' => $params[0], 'date' => $params[1]], $merchant->locale ?? 'en')];
 

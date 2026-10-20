@@ -4,21 +4,28 @@ namespace App\Services;
 
 use App\Models\Driver;
 use App\Models\Merchant;
+use App\Services\WhatsApp\StaffMessenger;
 use App\Support\Countries;
 use Illuminate\Validation\ValidationException;
 
 class DriverService
 {
     /**
+     * Each member carries `reachable`: false when WhatsApp can't deliver new orders to them yet
+     * (outside the 24-hour window and no approved template), so the Team page can say so.
+     *
      * @return list<Driver>
      */
     public function list(Merchant $merchant): array
     {
+        $messenger = app(StaffMessenger::class);
+
         return Driver::query()
             ->where('merchant_id', $merchant->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get()
+            ->each(fn (Driver $d) => $d->setAttribute('reachable', $messenger->reachable($merchant, $d)))
             ->all();
     }
 

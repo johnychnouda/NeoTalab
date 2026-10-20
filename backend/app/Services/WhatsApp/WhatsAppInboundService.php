@@ -18,6 +18,7 @@ use App\Services\OrderService;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -417,13 +418,40 @@ class WhatsAppInboundService
         }
 
         $order->forceFill(['rating' => (int) $digit, 'rated_at' => now()])->save();
-        $this->reply($merchant, $fromPhone, __(
-            (int) $digit <= 3 ? 'whatsapp.rating.sorry' : 'whatsapp.rating.thanks',
-            ['shop' => $merchant->name],
-            $locale,
-        ));
+        // A low rating promises a follow-up only when someone at the shop was actually told.
+        $key = (int) $digit > 3 ? 'thanks' : ($this->alertLowRating($merchant, $order, $fromPhone) ? 'sorry' : 'sorry_noted');
+        $this->reply($merchant, $fromPhone, __("whatsapp.rating.{$key}", ['shop' => $merchant->name], $locale));
 
         return true;
+    }
+
+    /**
+     * Tells the shop about a 1–3 rating: every staff member inside the 24-hour window, else the
+     * report number if it wrote to the shop number in the last 24 hours (there is no template for
+     * this, and plain text outside the window is dropped). Returns whether anyone got it.
+     */
+    protected function alertLowRating(Merchant $merchant, Order $order, string $customerPhone): bool
+    {
+        $body = __('whatsapp.staff.low_rating', [
+            'number' => $order->number, 'rating' => $order->rating, 'phone' => OrderMessage::phone($customerPhone),
+        ], $merchant->locale ?? 'en');
+
+        $told = false;
+        foreach ($this->staff->staff($merchant) as $member) {
+            $told = $this->staff->send($merchant, $member, $body, []) || $told;
+        }
+
+        $report = ShopSettings::for($merchant)->reportWhatsapp();
+        if (! $told && $report !== '' && $this->staff->numberInWindow($merchant, $report)) {
+            try {
+                $this->whatsapp->sendToCustomer($merchant, $report, ['type' => 'text', 'text' => $body]);
+                $told = true;
+            } catch (\Throwable $e) {
+                Log::info('Low rating alert not delivered', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return $told;
     }
 
     /**

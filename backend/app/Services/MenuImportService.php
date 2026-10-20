@@ -31,8 +31,11 @@ class MenuImportService
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
     ];
 
-    /** Set by preview(): true when the file's prices are written in Lebanese lira. */
+    /** Set by preview(): true when every price in the file is in Lebanese lira (each item also carries its own "lbp" flag). */
     public bool $pricesInLbp = false;
+
+    /** Set while reading a file whose price column is headed "LBP", "Price (L.L)"… */
+    private bool $lbpColumn = false;
 
     /** Header label words, checked in this order when no exact header name matches ("Main Category", "Price (LBP)"…). */
     private const HEADER_WORDS = [
@@ -48,11 +51,18 @@ class MenuImportService
     /** "LBP", "L.L", "ل.ل", "ليرة"… in a price or its header. */
     private const LBP_PATTERN = '/lbp|\bl\.?\s?l\b|lira|livre|ل\.?\s?ل|ليرة|ليره/iu';
 
+    /** "$", "USD", "dollar" written next to a price: dollars, however big the amount. */
+    private const USD_PATTERN = '/\$|usd|dollar|دولار/iu';
+
+    /** No dollar menu has a plain price this high; a lira menu has nothing below it. */
+    private const LBP_FROM = 1000;
+
     /**
-     * @return list<array{category: string, name: string, price: float, description: ?string, name_ar: ?string, name_fr: ?string}>
+     * @return list<array{lbp: bool, category: string, name: string, price: float, description: ?string, name_ar: ?string, name_fr: ?string}>
      */
     public function preview(UploadedFile $file): array
     {
+        $this->lbpColumn = false;
         $ext = strtolower($file->getClientOriginalExtension());
 
         $rows = match (true) {
@@ -62,31 +72,37 @@ class MenuImportService
             default => throw ValidationException::withMessages(['file' => ['Upload an Excel (.xlsx), CSV or a photo of the menu (.jpg / .png).']]),
         };
 
-        $items = $this->normalize($rows);
+        // Lira is decided row by row: one "250,000 LL" row must not turn the dollar prices around it into lira.
+        $items = array_values(array_map(fn ($i) => ['lbp' => $i['raw_lbp']] + array_diff_key($i, ['raw_lbp' => true]), $this->normalize($rows)));
         if ($items === []) {
             throw ValidationException::withMessages(['file' => ['No products found. Each row needs at least a product name and a price.']]);
         }
 
-        // Lira prices: marked "LBP" in the file, or amounts no dollar menu has (half the items at 1,000 or more).
-        $prices = collect($items)->pluck('price')->sort()->values();
-        $this->pricesInLbp = $this->pricesInLbp
-            || collect($rows)->contains(fn ($r) => is_string($r['price'] ?? null) && preg_match(self::LBP_PATTERN, $r['price']))
-            || $prices[intdiv($prices->count(), 2)] >= 1000;
+        $this->pricesInLbp = collect($items)->every(fn ($i) => $i['lbp']);
 
         return $items;
     }
 
     /**
-     * @param  list<array<string, mixed>>  $items  rows from preview(), possibly edited by the merchant
-     * @param  float|null  $lbpRate  set when the prices are in lira: each becomes rate-converted to the shop currency
+     * @param  list<array<string, mixed>>  $items  rows from preview(), possibly edited by the merchant; a row with "lbp" true is in lira
+     * @param  float|null  $lbpRate  LBP per 1 unit of the shop currency; lira rows are converted with it
+     * @param  bool  $allLbp  every row is in lira (the "LBP" switch for the whole file)
      * @return array{categories: int, created: int, updated: int}
      */
-    public function import(array $items, ?float $lbpRate = null): array
+    public function import(array $items, ?float $lbpRate = null, bool $allLbp = false): array
     {
         $items = $this->normalize($items);
         if ($lbpRate) {
-            $items = array_map(fn ($i) => ['price' => round($i['price'] / $lbpRate, 2)] + $i, $items);
+            $items = array_map(fn ($i) => ($allLbp || ! empty($i['lbp'])) ? ['price' => round($i['price'] / $lbpRate, 2)] + $i : $i, $items);
         }
+
+        // Nothing is sold for free by mistake: a price that comes out at 0.00 stops the whole import.
+        $free = array_filter($items, fn ($i) => $i['price'] < 0.01);
+        if ($free !== []) {
+            $rows = implode(', ', array_map(fn ($row, $i) => 'row '.($row + 1).' "'.$i['name'].'"', array_keys($free), $free));
+            throw ValidationException::withMessages(['items' => ["Nothing was imported. These items would cost 0.00: {$rows}. Fix their price, or mark whether it is in \$ or LBP."]]);
+        }
+
         $result = ['categories' => 0, 'created' => 0, 'updated' => 0];
 
         DB::transaction(function () use ($items, &$result) {
@@ -193,9 +209,7 @@ class MenuImportService
                 }
             }
         }
-        if (isset($map['price']) && preg_match(self::LBP_PATTERN, $labels[$map['price']])) {
-            $this->pricesInLbp = true;
-        }
+        $this->lbpColumn = isset($map['price']) && preg_match(self::LBP_PATTERN, $labels[$map['price']]);
 
         if (isset($map['name'], $map['price'])) {
             array_shift($rows);
@@ -256,12 +270,12 @@ class MenuImportService
 
     /**
      * @param  list<array<string, mixed>>  $rows
-     * @return list<array{category: string, name: string, price: float, description: ?string, name_ar: ?string, name_fr: ?string}>
+     * @return array<int, array{category: string, name: string, price: float, description: ?string, name_ar: ?string, name_fr: ?string, lbp: bool, raw_lbp: bool}> keyed by the row's position in $rows
      */
     private function normalize(array $rows): array
     {
         $items = [];
-        foreach (array_slice($rows, 0, self::MAX_ROWS) as $row) {
+        foreach (array_slice($rows, 0, self::MAX_ROWS) as $key => $row) {
             $name = trim((string) ($row['name'] ?? ''));
             $price = $this->price($row['price'] ?? null);
             if (! preg_match('/[\p{L}\p{N}]/u', $name) || $price === null) {
@@ -271,13 +285,20 @@ class MenuImportService
             $text = fn ($v) => ($v = trim((string) $v)) === '' ? null : mb_substr($v, 0, 500);
             // A subcategory joins its category: "Pizza - Small".
             $category = implode(' - ', array_filter([$text($row['category'] ?? null), $text($row['subcategory'] ?? null)]));
-            $items[] = [
+            $raw = is_string($row['price'] ?? null) ? $row['price'] : '';
+            $items[$key] = [
                 'category' => mb_substr($category ?: 'Menu', 0, 120),
                 'name' => mb_substr($name, 0, 190),
                 'price' => $price,
                 'description' => $text($row['description'] ?? null),
                 'name_ar' => $text($row['name_ar'] ?? null),
                 'name_fr' => $text($row['name_fr'] ?? null),
+                // As chosen in the preview.
+                'lbp' => filter_var($row['lbp'] ?? false, FILTER_VALIDATE_BOOL),
+                // As read from the file: marked lira (in the cell or the column header), or a plain amount no dollar menu has.
+                'raw_lbp' => (bool) preg_match(self::LBP_PATTERN, $raw)
+                    || ($this->lbpColumn && ! preg_match(self::USD_PATTERN, $raw))
+                    || ($price >= self::LBP_FROM && ! preg_match(self::USD_PATTERN, $raw)),
             ];
         }
 

@@ -9,6 +9,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\SystemAlert;
 use App\Services\BillingReminderService;
 use App\Services\DailyReportService;
 use App\Services\OrderService;
@@ -46,6 +47,8 @@ class WhatsAppOperationsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
+        Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
@@ -378,6 +381,51 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertStringContainsString('sorry it was not perfect', $this->lastTo(self::CUSTOMER));
     }
 
+    public function test_a_low_rating_alerts_the_staff_with_the_order_and_customer(): void
+    {
+        $owner = $this->staff();
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->say('2');
+
+        $alert = $this->lastTo($owner->whatsapp_number);
+        $this->assertStringContainsString("Order #{$order->number} was rated 2/5", $alert);
+        $this->assertStringContainsString(self::CUSTOMER, $alert);
+        $this->assertStringContainsString('Beirut Bites will look into it', $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_a_low_rating_goes_to_the_report_number_when_no_staff_can_be_reached(): void
+    {
+        $this->ownerNumber();
+        $this->driver('Rana', '+96171555111', 'on_duty', 'staff'); // never wrote to the shop number
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+        $this->staffWroteToShop($this->merchant, '+96171222333');
+
+        $this->say('1');
+
+        $this->assertSame([], $this->sentTo('+96171555111'));
+        $this->assertStringContainsString("Order #{$order->number} was rated 1/5", $this->lastTo('+96171222333'));
+        $this->assertStringContainsString('will look into it', $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_a_low_rating_promises_nothing_when_nobody_at_the_shop_can_be_told(): void
+    {
+        $this->ownerNumber(); // the owner never wrote to the shop number
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->say('3');
+
+        $this->assertSame([], $this->requestsTo('+96171222333'));
+        $this->assertSame('Thank you for telling us, and sorry it was not perfect. 🙏', $this->lastTo(self::CUSTOMER));
+    }
+
     public function test_a_number_is_not_a_rating_unless_one_was_asked_for(): void
     {
         $this->say('add 2 shawarma');
@@ -565,6 +613,7 @@ class WhatsAppOperationsTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-06 20:00', 'Asia/Beirut'));
         $order = $this->order();
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+        $this->staffWroteToShop($this->merchant, '+96171222333'); // plain text needs the 24-hour window
 
         $reports = app(DailyReportService::class);
         Carbon::setTestNow(Carbon::parse('2026-10-06 22:00', 'Asia/Beirut'));
@@ -593,6 +642,51 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('template', $sent['type']);
         $this->assertSame(ShopTemplateService::DAILY_REPORT, $sent['template']['name']);
         $this->assertCount(7, $sent['template']['components'][0]['parameters']);
+    }
+
+    public function test_report_is_skipped_with_a_warning_when_it_could_never_arrive(): void
+    {
+        $this->ownerNumber();
+
+        $sent = app(DailyReportService::class)->sendDue(Carbon::parse('2026-10-06 23:05', 'Asia/Beirut'));
+
+        $this->assertSame(0, $sent, 'no approved template and the owner never wrote: Meta would drop plain text');
+        $this->assertSame([], $this->requestsTo('+96171222333'));
+        $this->assertNull(($this->merchant->fresh()->settings)['report_last_sent'] ?? null);
+        $this->assertDatabaseHas('system_alerts', ['level' => 'warning', 'merchant_id' => $this->merchant->id]);
+        $this->assertStringStartsWith('Daily report not sent', SystemAlert::query()->latest()->value('message'));
+    }
+
+    public function test_billing_reminder_needs_the_template_or_the_24_hour_window(): void
+    {
+        $this->ownerNumber();
+        $this->merchant->update(['subscription_ends_at' => Carbon::parse('2026-10-09 12:00', 'Asia/Beirut')]);
+        $reminders = app(BillingReminderService::class);
+
+        $this->assertSame(0, $reminders->sendDue(Carbon::parse('2026-10-06 10:00', 'Asia/Beirut')));
+        $this->assertSame([], $this->requestsTo('+96171222333'));
+        $this->assertDatabaseHas('system_alerts', ['level' => 'warning', 'merchant_id' => $this->merchant->id]);
+
+        $this->staffWroteToShop($this->merchant, '+96171222333', Carbon::parse('2026-10-07 09:00', 'Asia/Beirut'));
+        Carbon::setTestNow(Carbon::parse('2026-10-07 10:00', 'Asia/Beirut'));
+        $this->assertSame(1, $reminders->sendDue(), 'inside the window plain text arrives');
+        $this->assertStringContainsString('2026-10-09', $this->requestsTo('+96171222333')[0]['text']['body']);
+    }
+
+    public function test_the_report_number_cannot_be_the_shops_own_number(): void
+    {
+        $settings = $this->merchant->settings;
+        $settings['bot']['display_phone_number'] = '+961 71 444 555';
+        $settings['ops_whatsapp'] = '+96171666777';
+        $this->merchant->update(['settings' => $settings]);
+
+        foreach (['71 444 555', '+96171666777'] as $own) {
+            $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['report_whatsapp' => $own])
+                ->assertStatus(422)->assertJsonValidationErrors('report_whatsapp');
+        }
+
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['report_whatsapp' => '71 222 333'])
+            ->assertOk()->assertJsonPath('profile.report_whatsapp', '+96171222333');
     }
 
     public function test_owner_is_reminded_before_the_subscription_ends(): void
@@ -695,6 +789,25 @@ class WhatsAppOperationsTest extends TestCase
         $this->staffWroteToShop($this->merchant, '+96171555000');
 
         return $staff;
+    }
+
+    public function test_team_page_shows_which_staff_new_orders_cannot_reach(): void
+    {
+        $this->staff(); // wrote to the shop number
+        $this->driver('Rana', '+96171555111', 'off_duty', 'staff');
+        $this->driver('Old', '+96171555222', 'off_duty', 'staff');
+        $this->staffWroteToShop($this->merchant, '+96171555222', now()->subDays(2));
+
+        $reachable = fn () => collect($this->withToken($this->token)->getJson('/api/v1/drivers')->assertOk()->json('drivers'))
+            ->pluck('reachable', 'name')->all();
+
+        $this->assertSame(['Old' => false, 'Owner' => true, 'Rana' => false], $reachable());
+
+        $settings = $this->merchant->fresh()->settings;
+        $settings['bot']['templates'] = [ShopTemplateService::NEW_ORDER => ['id' => '3', 'status' => 'APPROVED']];
+        $this->merchant->update(['settings' => $settings]);
+        $this->app['auth']->forgetGuards(); // the next request loads the shop afresh
+        $this->assertSame(['Old' => true, 'Owner' => true, 'Rana' => true], $reachable(), 'the approved template reaches everyone');
     }
 
     private function shopSettings(array $values): void

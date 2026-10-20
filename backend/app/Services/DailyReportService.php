@@ -6,6 +6,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\WhatsApp\ShopTemplateService;
+use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
@@ -17,8 +18,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Nightly summary sent from the shop's own WhatsApp number to the owner's personal number
  * (`report_whatsapp`). Uses the shop's approved `neotalab_daily_report` template so it arrives
- * outside Meta's 24h window; until that is approved it goes as plain text (delivered only if the
- * owner messaged the shop number in the last 24h).
+ * outside Meta's 24h window. Until that is approved it goes as plain text only when the owner
+ * messaged the shop number in the last 24h; otherwise Meta would accept it and drop it silently, so
+ * the report is skipped with a warning (Owner → Inbox → System).
  */
 class DailyReportService
 {
@@ -26,6 +28,7 @@ class DailyReportService
         protected WhatsAppService $whatsapp,
         protected CurrentTenant $tenant,
         protected ShopTemplateService $templates,
+        protected StaffMessenger $staff,
     ) {}
 
     /**
@@ -45,6 +48,15 @@ class DailyReportService
             $local = $now->copy()->setTimezone($merchant->timezone ?: config('app.timezone'));
             $settings = $merchant->settings ?? [];
             if ($local->hour !== $shop->reportHour() || ($settings['report_last_sent'] ?? null) === $local->toDateString()) {
+                continue;
+            }
+
+            if (! $this->templates->isApproved($merchant, ShopTemplateService::DAILY_REPORT)
+                && ! $this->staff->numberInWindow($merchant, $shop->reportWhatsapp())) {
+                Log::warning('Daily report not sent: its WhatsApp template is not approved yet and the report number has not messaged the shop number in the last 24 hours', [
+                    'merchant_id' => $merchant->id, 'shop' => $merchant->name,
+                ]);
+
                 continue;
             }
 

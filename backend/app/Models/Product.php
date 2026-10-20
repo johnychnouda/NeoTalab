@@ -105,7 +105,8 @@ class Product extends Model
 
     public function isOrderable(): bool
     {
-        if (! $this->is_active || ! $this->is_available) {
+        // A 0.00 price is a typo (or a bad lira conversion), never a free item.
+        if (! $this->is_active || ! $this->is_available || (float) $this->price < 0.01) {
             return false;
         }
 

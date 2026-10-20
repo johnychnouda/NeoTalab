@@ -177,14 +177,11 @@ class CheckoutService
     }
 
     /**
-     * Whether the shop accepts orders right now. No configured hours means always open.
+     * Whether the shop accepts orders right now. A shop that never saved hours keeps the default ones.
      */
     public function isOpen(Merchant $merchant): bool
     {
-        $hours = ShopHour::query()->get()->keyBy('day_of_week');
-        if ($hours->isEmpty()) {
-            return true;
-        }
+        $hours = ShopHour::week();
 
         $now = now()->setTimezone($merchant->timezone ?: config('app.timezone'));
         $time = $now->format('H:i');

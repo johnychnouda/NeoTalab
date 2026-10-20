@@ -39,6 +39,8 @@ class CheckoutTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
+        Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
@@ -204,6 +206,26 @@ class CheckoutTest extends TestCase
         $this->assertStringContainsString('closed right now', $this->lastReply());
 
         Carbon::setTestNow(Carbon::parse('2026-10-06 10:00', 'Asia/Beirut'));
+        $this->say('add 1 shawarma');
+        $this->say('confirm | | Bliss St, Building 4');
+        $this->assertSame(1, $this->orders()->count());
+    }
+
+    public function test_a_shop_that_never_saved_hours_keeps_the_hours_its_dashboard_shows(): void
+    {
+        $shown = $this->withToken($this->token)->getJson('/api/v1/settings/hours')->assertOk()->json('hours');
+        $this->assertCount(7, $shown);
+        $this->assertSame([['09:00', '23:00', false]], array_values(array_unique(array_map(
+            fn ($h) => [$h['opens_at'], $h['closes_at'], $h['is_closed']], $shown), SORT_REGULAR)));
+        $this->assertSame(0, ShopHour::query()->withoutGlobalScopes()->count(), 'nothing saved yet');
+
+        Carbon::setTestNow(Carbon::parse('2026-10-06 03:00', 'Asia/Beirut'));
+        $this->say('add 1 shawarma');
+        $this->say('confirm | | Bliss St, Building 4');
+        $this->assertSame(0, $this->orders()->count(), 'not open 24/7');
+        $this->assertStringContainsString('closed right now', $this->lastReply());
+
+        Carbon::setTestNow(Carbon::parse('2026-10-06 22:30', 'Asia/Beirut'));
         $this->say('add 1 shawarma');
         $this->say('confirm | | Bliss St, Building 4');
         $this->assertSame(1, $this->orders()->count());

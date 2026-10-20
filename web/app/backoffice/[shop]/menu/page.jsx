@@ -627,7 +627,6 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
   const [items, setItems] = useState(null);
   const [busy, setBusy] = useState(false);
   const [lbpRate, setLbpRate] = useState(null);
-  const [inLbp, setInLbp] = useState(false);
 
   async function upload(file) {
     if (!file) return;
@@ -636,18 +635,24 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
     setBusy(true);
     try {
       const data = await api("POST", "/menu/import/preview", form);
-      setItems(data.items || []);
+      // Each row carries its own currency: one lira row never turns the dollar rows into lira.
+      setItems((data.items || []).map((it) => ({ ...it, lbp: !!it.lbp })));
       setLbpRate(data.lbp_rate || null);
-      setInLbp(!!data.prices_in_lbp);
     } catch (e) { toast(e.message, "error"); } finally { setBusy(false); }
   }
 
   const edit = (i, patch) => setItems(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const setAllLbp = (lbp) => setItems(items.map((x) => ({ ...x, lbp })));
+  // The price as it will be saved; a row that comes out at 0.00 blocks the import.
+  const saved = (it) => Math.round((Number(it.price) / (it.lbp && lbpRate ? lbpRate : 1)) * 100) / 100;
+  const zeroRows = (items || []).map((it, i) => (saved(it) >= 0.01 ? null : i + 1)).filter(Boolean);
+  const allLbp = !!items?.length && items.every((it) => it.lbp);
+  const anyLbp = !!items?.some((it) => it.lbp);
 
   async function confirm() {
     setBusy(true);
     try {
-      const { result } = await api("POST", "/menu/import", { items, prices_in_lbp: inLbp });
+      const { result } = await api("POST", "/menu/import", { items });
       toast(`${t("mk.imp.done")} ${result.created + result.updated}`);
       onDone();
     } catch (e) { toast(e.message, "error"); } finally { setBusy(false); }
@@ -672,9 +677,9 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
           {lbpRate && (
             <div className="mk-row" style={{ alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13 }}>
               <span>{t("mk.imp.pricesIn")}</span>
-              <button className={inLbp ? "btn-sm" : "btn-primary"} onClick={() => setInLbp(false)}>$</button>
-              <button className={inLbp ? "btn-primary" : "btn-sm"} onClick={() => setInLbp(true)}>LBP</button>
-              {inLbp && <span className="mk-hint">{t("mk.imp.lbpNote")} {Number(lbpRate).toLocaleString("en-US")} LBP</span>}
+              <button className={anyLbp ? "btn-sm" : "btn-primary"} onClick={() => setAllLbp(false)}>$</button>
+              <button className={allLbp ? "btn-primary" : "btn-sm"} onClick={() => setAllLbp(true)}>LBP</button>
+              {anyLbp && <span className="mk-hint">{t("mk.imp.lbpNote")} {Number(lbpRate).toLocaleString("en-US")} LBP</span>}
             </div>
           )}
           <div className="table-scroll" style={{ maxHeight: "50vh", overflowY: "auto" }}>
@@ -685,17 +690,23 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
                   <tr key={i}>
                     <td data-label={t("mk.category")}><input className="mk-cell" value={it.category || ""} aria-label={t("mk.category")} onChange={(e) => edit(i, { category: e.target.value })} /></td>
                     <td data-label={t("mk.name")}><input className="mk-cell" value={it.name || ""} aria-label={t("mk.name")} onChange={(e) => edit(i, { name: e.target.value })} /></td>
-                    <td data-label={t("mk.price")}><input className="mk-cell mk-cell-num" type="number" step="0.01" min="0" value={it.price ?? ""} aria-label={t("mk.price")} onChange={(e) => edit(i, { price: e.target.value })} />
-                      {inLbp && <small className="mk-hint"> = {formatMoney(Math.round((Number(it.price) / lbpRate) * 100) / 100)}</small>}</td>
+                    <td data-label={t("mk.price")}><input className="mk-cell mk-cell-num" type="number" step="0.01" min="0" value={it.price ?? ""} aria-label={t("mk.price")} aria-invalid={zeroRows.includes(i + 1) || undefined}
+                      style={zeroRows.includes(i + 1) ? { borderColor: "var(--red)" } : undefined} onChange={(e) => edit(i, { price: e.target.value })} />
+                      {lbpRate && <div style={{ marginTop: 4 }}>
+                        <button type="button" className={it.lbp ? "btn-primary" : "btn-sm"} style={{ padding: "2px 8px", fontSize: 12 }} title={t("mk.imp.rowCur")} aria-label={t("mk.imp.rowCur")}
+                          onClick={() => edit(i, { lbp: !it.lbp })}>{it.lbp ? "LBP" : "$"}</button>
+                        {it.lbp && <small className="mk-hint"> = {formatMoney(saved(it))}</small>}
+                      </div>}</td>
                     <td className="stack-actions"><button className="btn-sm" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {zeroRows.length > 0 && <p role="alert" style={{ marginTop: 10, fontSize: 13, color: "var(--red)" }}>{t("mk.imp.zero")} {zeroRows.join(", ")}</p>}
           <div className="modal-actions">
             <button className="btn-sm" onClick={() => setItems(null)} disabled={busy}>{t("mk.cancel")}</button>
-            <button className="btn-primary" onClick={confirm} disabled={busy || items.length === 0}>
+            <button className="btn-primary" onClick={confirm} disabled={busy || items.length === 0 || zeroRows.length > 0}>
               {busy ? t("db.loading") : `${t("mk.import")} (${items.length})`}
             </button>
           </div>

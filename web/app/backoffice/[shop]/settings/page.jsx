@@ -37,6 +37,9 @@ const GROUPS = {
   alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Lebanese numbers typed any way ("+961 70 123 456", "0096170123456", "70 123 456") compare equal.
+const localDigits = (n) => String(n || "").replace(/\D+/g, "").replace(/^00/, "").replace(/^961/, "").replace(/^0+/, "");
+const sameNumber = (a, b) => localDigits(a) !== "" && localDigits(a) === localDigits(b);
 
 export default function SettingsPage() {
   return <Suspense fallback={null}><Settings /></Suspense>;
@@ -122,6 +125,11 @@ function Settings() {
   const lbpOn = Number(p.lbp_rate) > 0;
 
   async function saveAll() {
+    // The shop number can't message itself, so the nightly report would never arrive.
+    if (changed.includes("alerts") && p.report_whatsapp && [p.whatsapp_display, p.ops_whatsapp].some((n) => sameNumber(n, p.report_whatsapp))) {
+      toast(t("ops.reportIsShop"), "error");
+      return;
+    }
     setBusy(true);
     try {
       if (changed.length) {

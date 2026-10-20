@@ -448,7 +448,7 @@ class ConversationService
                 ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])
                 ->values()->all(),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),
-            'opening_hours' => ShopHour::query()->orderBy('day_of_week')->get()
+            'opening_hours' => ShopHour::week()
                 ->map(fn (ShopHour $h) => [
                     'day' => $days[$h->day_of_week] ?? (string) $h->day_of_week,
                     'hours' => $h->is_closed ? 'closed' : "{$h->opens_at}-{$h->closes_at}",

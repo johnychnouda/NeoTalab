@@ -28,7 +28,13 @@ class StaffMessenger
     /** True when the staff member wrote to the shop number inside the 24-hour window. */
     public function inWindow(Merchant $merchant, Driver $member): bool
     {
-        $numbers = collect([$member->whatsapp_number, $member->phone])
+        return $this->numberInWindow($merchant, $member->whatsapp_number, $member->phone);
+    }
+
+    /** True when one of these numbers wrote to the shop number inside the 24-hour window. */
+    public function numberInWindow(Merchant $merchant, ?string ...$numbers): bool
+    {
+        $numbers = collect($numbers)
             ->map(fn ($n) => preg_replace('/\D+/', '', (string) $n))
             ->filter()->unique()->map(fn ($d) => "+{$d}")->values()->all();
 
@@ -42,6 +48,17 @@ class StaffMessenger
             ->whereIn('from_number', $numbers)
             ->where('created_at', '>=', now()->subMinutes(self::WINDOW_MINS))
             ->exists();
+    }
+
+    /**
+     * Whether new orders can reach this team member: staff need the 24-hour window or the approved
+     * new-order template, drivers the window (they open it by sending "start").
+     */
+    public function reachable(Merchant $merchant, Driver $member): bool
+    {
+        return $member->role === 'staff'
+            ? $this->canReach($merchant, $member, ShopTemplateService::NEW_ORDER)
+            : $this->inWindow($merchant, $member);
     }
 
     public function canReach(Merchant $merchant, Driver $member, string $template): bool

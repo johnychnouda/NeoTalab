@@ -144,6 +144,48 @@ class MenuImportTest extends TestCase
         $this->assertEquals(0.89, (float) $coffee->price);
     }
 
+    public function test_one_lira_row_does_not_turn_the_dollar_rows_into_lira(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['lbp_rate' => 89500])])->save();
+        $this->app['auth']->forgetGuards();
+
+        $res = $this->preview($this->csv("Category,Name,Price\nSandwiches,Chicken Shawarma,4.50\nSandwiches,Beef Shawarma,5\nSandwiches,Falafel,3\n"
+            ."Plates,Mixed Grill,12\nPlates,Shish Taouk,9.5\nDrinks,Pepsi,1\nDrinks,Ayran,1.25\nDrinks,Fresh Juice,\"250,000 LL\"\n"))->assertOk();
+
+        $res->assertJsonPath('prices_in_lbp', false, 'the file is not all lira');
+        $items = $res->json('items');
+        $this->assertSame([false, false, false, false, false, false, false, true], array_column($items, 'lbp'));
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => $items])->assertOk()->assertJsonPath('result.created', 8);
+
+        $prices = Product::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->pluck('price', 'name');
+        $this->assertEquals(4.5, (float) $prices['Chicken Shawarma']);
+        $this->assertEquals(1.25, (float) $prices['Ayran']);
+        $this->assertEquals(2.79, (float) $prices['Fresh Juice'], '250,000 / 89,500');
+    }
+
+    public function test_a_price_that_would_become_zero_stops_the_import_and_names_the_rows(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['lbp_rate' => 89500])])->save();
+        $this->app['auth']->forgetGuards();
+
+        // Dollar prices sent as lira (the old whole-file switch): 4.50 / 89,500 rounds to 0.00.
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['prices_in_lbp' => true, 'items' => [
+            ['category' => 'Sandwiches', 'name' => 'Chicken Shawarma', 'price' => 4.5],
+            ['category' => 'Drinks', 'name' => 'Fresh Juice', 'price' => 250000],
+            ['category' => 'Drinks', 'name' => 'Pepsi', 'price' => 1],
+        ]])->assertStatus(422)
+            ->assertJsonValidationErrorFor('items')
+            ->assertJsonFragment(['items' => ['Nothing was imported. These items would cost 0.00: row 1 "Chicken Shawarma", row 3 "Pepsi". Fix their price, or mark whether it is in $ or LBP.']]);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [['name' => 'Water', 'price' => 0]]])
+            ->assertStatus(422)->assertJsonValidationErrorFor('items');
+
+        $this->assertSame(0, Product::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->count());
+    }
+
     public function test_an_exported_menu_imports_back_as_it_was(): void
     {
         $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['lbp_rate' => 89500])])->save();

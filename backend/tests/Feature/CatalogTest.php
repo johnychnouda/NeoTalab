@@ -85,6 +85,23 @@ class CatalogTest extends TestCase
             ->assertJsonPath('data.is_low_stock', true);
     }
 
+    public function test_a_zero_price_cannot_be_saved_and_is_never_orderable(): void
+    {
+        [$merchant, $owner] = $this->merchantWithUser();
+        $token = $this->tokenFor($owner);
+
+        $this->withToken($token)->postJson('/api/v1/products', ['name' => 'Shawarma', 'price' => 0])
+            ->assertStatus(422)->assertJsonValidationErrorFor('price');
+        $product = Product::factory()->forMerchant($merchant)->create(['price' => 4.5]);
+        $this->withToken($token)->patchJson("/api/v1/products/{$product->id}", ['price' => 0.001])
+            ->assertStatus(422)->assertJsonValidationErrorFor('price');
+
+        // One already saved at 0.00 (an old import) stays off the WhatsApp menu.
+        $product->forceFill(['price' => 0])->save();
+        $this->withToken($token)->getJson("/api/v1/products/{$product->id}")
+            ->assertOk()->assertJsonPath('data.is_orderable', false);
+    }
+
     public function test_validation_rules(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();

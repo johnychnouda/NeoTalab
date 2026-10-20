@@ -175,6 +175,7 @@ return [
         'ask' => '⭐ How was it? Reply with a number from 1 (bad) to 5 (excellent).',
         'thanks' => 'Thank you for your rating! 🙏',
         'sorry' => 'Thank you, and sorry it was not perfect. :shop will look into it. 🙏',
+        'sorry_noted' => 'Thank you for telling us, and sorry it was not perfect. 🙏',
     ],
 
     // Drivers talk to the shop's number.
@@ -211,6 +212,7 @@ return [
 
     // Staff numbers (owner's personal phone, employees) talk to the shop's number.
     'staff' => [
+        'low_rating' => '⭐ Order #:number was rated :rating/5 by :phone. Give them a call to find out what went wrong.',
         'still_waiting' => '⏰ Still waiting — order #:number',
         'button_accept' => '✅ Accept · :time',
         'button_reject' => "❌ Can't take it",

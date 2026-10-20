@@ -211,6 +211,15 @@ class MerchantSettingsService
         if (filled($payload['report_whatsapp'] ?? null)) {
             $payload['report_whatsapp'] = Countries::toE164((string) $payload['report_whatsapp'], $settings['country'] ?? 'LB')
                 ?? throw ValidationException::withMessages(['report_whatsapp' => [__('Enter a valid WhatsApp number, e.g. 70 123 456.')]]);
+            // The shop's number can't send WhatsApp messages to itself, so the report would never arrive.
+            $country = $settings['country'] ?? 'LB';
+            $own = array_filter([
+                Countries::toE164((string) ($settings['bot']['display_phone_number'] ?? ''), $country),
+                Countries::toE164((string) MerchantProfileSync::whatsapp($merchant), $country),
+            ]);
+            if (in_array($payload['report_whatsapp'], $own, true)) {
+                throw ValidationException::withMessages(['report_whatsapp' => [__('This is the shop\'s own WhatsApp number. Enter the personal number of the owner or manager.')]]);
+            }
         }
 
         $ops = Validator::make(
@@ -283,8 +292,8 @@ class MerchantSettingsService
             $created[] = ShopHour::create([
                 'merchant_id' => $merchant->id,
                 'day_of_week' => (int) ($h['dayOfWeek'] ?? $h['day_of_week']),
-                'opens_at' => $h['opensAt'] ?? $h['opens_at'] ?? '09:00',
-                'closes_at' => $h['closesAt'] ?? $h['closes_at'] ?? '23:00',
+                'opens_at' => $h['opensAt'] ?? $h['opens_at'] ?? ShopHour::DEFAULT_OPEN,
+                'closes_at' => $h['closesAt'] ?? $h['closes_at'] ?? ShopHour::DEFAULT_CLOSE,
                 'is_closed' => (bool) ($h['isClosed'] ?? $h['is_closed'] ?? false),
             ]);
         }
@@ -385,18 +394,7 @@ class MerchantSettingsService
 
     protected function defaultHours(Merchant $merchant): array
     {
-        $rows = [];
-        for ($d = 0; $d < 7; $d++) {
-            $rows[] = new ShopHour([
-                'merchant_id' => $merchant->id,
-                'day_of_week' => $d,
-                'opens_at' => '09:00',
-                'closes_at' => '23:00',
-                'is_closed' => false,
-            ]);
-        }
-
-        return $rows;
+        return ShopHour::defaults($merchant->id);
     }
 
     /**

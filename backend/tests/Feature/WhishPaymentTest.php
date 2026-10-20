@@ -18,6 +18,7 @@ use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
@@ -56,6 +57,8 @@ class WhishPaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
+        Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token', 'app.url' => 'https://api.test', 'app.frontend_url' => 'https://neotalab.com']);
         Bus::fake([CheckUnacceptedOrder::class, CheckWhishPayment::class, CheckLateOrder::class]);

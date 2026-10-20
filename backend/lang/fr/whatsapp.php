@@ -172,6 +172,7 @@ return [
         'ask' => '⭐ Qu’en avez-vous pensé ? Répondez avec un chiffre de 1 (mauvais) à 5 (excellent).',
         'thanks' => 'Merci pour votre note ! 🙏',
         'sorry' => "Merci, et désolé que ce ne soit pas parfait. :shop va s'en occuper. 🙏",
+        'sorry_noted' => "Merci de nous l'avoir dit, et désolé que ce ne soit pas parfait. 🙏",
     ],
 
     'driver' => [
@@ -205,6 +206,7 @@ return [
     ],
 
     'staff' => [
+        'low_rating' => "⭐ La commande n° :number a reçu :rating/5 de :phone. Appelez ce client pour savoir ce qui n'allait pas.",
         'still_waiting' => '⏰ Toujours en attente — commande n° :number',
         'button_accept' => '✅ Accepter · :time',
         'button_reject' => '❌ Impossible',
