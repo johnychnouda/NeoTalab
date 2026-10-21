@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import FormSelect from "@/components/FormSelect";
+import { preloadGoogleMaps } from "@/lib/googleMaps";
 import LocationPicker from "@/components/LocationPicker";
 import { getTrialDays, submitOnboardingApplication } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
@@ -62,6 +63,7 @@ function stepErrors(step, v) {
 }
 
 export default function JoinPage() {
+  useEffect(() => { preloadGoogleMaps(); }, []); // step 2 shows the map: start loading it now
   const { t, lang } = useLang();
   const [step, setStep] = useState(0);
   const [vals, setVals] = useState(INITIAL);

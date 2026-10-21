@@ -22,6 +22,12 @@ export function loadGoogleMaps(lang = "en") {
   return window.__ntGoogleMaps;
 }
 
+/** Start downloading the Maps script when a page opens, so it is ready when the map appears. */
+export function preloadGoogleMaps() {
+  if (typeof window === "undefined" || !MAPS_KEY) return;
+  loadGoogleMaps().catch(() => {});
+}
+
 /** Dark map that matches the dashboard; roads and places stay readable. */
 export const DARK_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#16221c" }] },

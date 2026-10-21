@@ -11,6 +11,7 @@ import Brand from "@/components/Brand";
 import { DashLangSwitch, DashProfile } from "@/components/DashSidebar";
 import { AuthShell, AuthField, PasswordField, AuthAlert, AuthSubmit, ICONS, EMAIL_RE } from "@/components/auth/AuthShell";
 import { company } from "@/lib/company";
+import { preloadGoogleMaps } from "@/lib/googleMaps";
 
 const MerchantContext = createContext({});
 export function useMerchant() {
@@ -60,6 +61,7 @@ function forceMerchantLogout() {
 }
 
 export default function BackofficeLayout({ children }) {
+  useEffect(() => { preloadGoogleMaps(); }, []); // the shop map (orders, delivery areas) is ready when opened
   const [authed, setAuthed] = useState(null); // null = loading, false = login, "force" = force pw change, true = ok
   const [shopName, setShopName] = useState("");
   const [shopSlug, setShopSlug] = useState("");
