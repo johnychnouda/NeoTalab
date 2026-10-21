@@ -154,6 +154,14 @@ class AppointmentTest extends TestCase
         $this->assertStringContainsString(":\n13:00, 13:30", $this->lastTo(self::CUSTOMER));
     }
 
+    public function test_a_past_date_is_refused_and_never_booked_on_today_instead(): void
+    {
+        $this->say('book haircut 2020-01-01 10:00');
+
+        $this->assertSame(0, Appointment::query()->withoutGlobalScopes()->count(), 'nothing is booked');
+        $this->assertStringContainsString('already passed', $this->lastTo(self::CUSTOMER));
+    }
+
     public function test_closed_day_points_to_the_next_free_day(): void
     {
         foreach (range(0, 6) as $day) {

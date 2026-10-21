@@ -85,6 +85,13 @@ class WhatsAppInboundService
             if ($phoneNumberId !== '' && $phoneNumberId === (string) ((PlatformSetting::singleton()->settings ?? [])['wa_phone_id'] ?? '')) {
                 return;
             }
+            // A suspended shop (unpaid trial) keeps its number: its messages are ignored on purpose,
+            // so this is information, not a warning the owner has to act on.
+            if ($phoneNumberId !== '' && Merchant::query()->where('status', '!=', 'active')->where('settings->bot->phone_id', $phoneNumberId)->exists()) {
+                Log::info('WhatsApp inbound: message for a shop that is not active, ignored on purpose', ['phone_number_id' => $phoneNumberId]);
+
+                return;
+            }
             Log::warning('WhatsApp inbound: unknown phone_number_id', ['phone_number_id' => $phoneNumberId]);
 
             return;
@@ -192,8 +199,13 @@ class WhatsAppInboundService
             return;
         }
 
-        // The merchant is handling this chat from the WhatsApp Business app, the bot stays quiet.
+        // The merchant is handling this chat from the WhatsApp Business app, the bot stays quiet,
+        // but the customer still gets a short note (at most one every 10 minutes per chat).
         if ($customer?->bot_paused_until?->isFuture()) {
+            if (Cache::add("wa-hold:{$customer->id}", true, 600)) {
+                $this->reply($merchant, $fromPhone, $this->text('team_answering', $customer->locale ?? $merchant->locale ?? 'en', $merchant->name));
+            }
+
             return;
         }
 
@@ -285,6 +297,13 @@ class WhatsAppInboundService
 
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
+
+            // Typed "checkout" without a delivery or pickup choice: the same buttons as the menu checkout.
+            if ($result['fulfillment_choice']) {
+                $this->send($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
+
+                return;
+            }
 
             // The assistant says the customer is done choosing: hand over to the button checkout.
             if ($result['output']->recommendedAction === RecommendedAction::Checkout) {

@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Log;
  */
 class ShopTemplateService
 {
-    public const DAILY_REPORT = 'neotalab_daily_report';
-
     public const BILLING_REMINDER = 'neotalab_billing_reminder';
 
     /** Staff ticket for an order waiting to be accepted: buttons Accept / Can't take it. */
@@ -42,10 +40,6 @@ class ShopTemplateService
     public static function definitions(): array
     {
         return [
-            self::DAILY_REPORT => [
-                'body' => "📊 {{1}} — {{2}}\nOrders delivered: {{3}}\nSales: {{4}}\nAverage rating: {{5}}\nLate orders: {{6}}\nTop items: {{7}}",
-                'example' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
-            ],
             self::BILLING_REMINDER => [
                 'body' => 'Hello {{1}}, your NeoTalab subscription ends on {{2}}. Please renew to keep your WhatsApp ordering bot running. Reply here if you need help.',
                 'example' => ['Beirut Bites', '2026-10-10'],

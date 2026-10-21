@@ -56,7 +56,10 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
             $text = __($key, array_merge(OrderMessage::params($order, $merchant, $locale), [
                 'eta' => $order->eta_mins ?? 30,
                 'driver' => $order->driver?->name ?? '',
-                'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
+                // Customers get text only: a delivery address as typed, or the shop's address (never a link).
+                'address' => $order->fulfillment === 'delivery'
+                    ? OrderMessage::addressText($order)
+                    : (ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name),
                 'reason' => $reason ? __('whatsapp.status.reason', ['reason' => $reason], $locale) : '',
                 'when' => $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : '',
             ]), $locale).($order->payment_status === 'refund_due' ? "\n".__('whatsapp.status.refund', ['shop' => $merchant->name], $locale) : '')

@@ -27,13 +27,33 @@ final class OrderMessage
             'items' => $order->items
                 ->map(fn ($i) => "• {$i->quantity}× {$i->product_name}".($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
                 ->implode("\n"),
-            'address' => trim(($order->delivery_zone_name ? "{$order->delivery_zone_name} — " : '').($order->delivery_address ?? ''), ' —') ?: '📍',
+            'address' => self::addressWithPin($order),
             'phone' => self::phone($order->customer?->phone),
             'collect' => self::paymentLine($order, $merchant),
             'lbp' => $order->total_lbp
                 ? __('whatsapp.checkout.lbp', ['amount' => number_format((float) $order->total_lbp)], $locale)
                 : '',
         ];
+    }
+
+    /** The delivery address as text only (zone and what the customer typed), no link. */
+    public static function addressText(Order $order): string
+    {
+        return trim(($order->delivery_zone_name ? "{$order->delivery_zone_name} — " : '').($order->delivery_address ?? ''), ' —') ?: '📍';
+    }
+
+    /**
+     * The delivery address, plus the customer's pin as a Google Maps link when they sent one. Shops
+     * and drivers get the link; customers never do.
+     */
+    public static function addressWithPin(Order $order): string
+    {
+        $address = self::addressText($order);
+        if ($order->fulfillment !== 'delivery' || $order->delivery_lat === null || $order->delivery_lng === null) {
+            return $address;
+        }
+
+        return $address."\n📍 https://www.google.com/maps?q={$order->delivery_lat},{$order->delivery_lng}";
     }
 
     /**

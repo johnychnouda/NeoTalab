@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Merchant;
 use App\Models\OnboardingRequest;
 use App\Support\MapLocation;
+use App\Support\ShopSettings;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -90,7 +91,7 @@ class ShopLocationTest extends TestCase
         $this->assertSame('33.8938,35.5018', $merchant->refresh()->settings['shop_location']);
     }
 
-    public function test_pickup_customers_get_the_shop_pin_as_a_google_maps_link(): void
+    public function test_pickup_customers_get_the_shop_address_as_text_never_a_link(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();
 
@@ -103,7 +104,24 @@ class ShopLocationTest extends TestCase
 
         $merchant->refresh();
         $this->assertSame('33.8938,35.5018', $merchant->settings['shop_location']);
-        $this->assertSame('https://www.google.com/maps?q=33.8938,35.5018', $merchant->settings['pickup_address']);
+        $this->assertArrayNotHasKey('pickup_address', $merchant->settings, 'no link is stored as the address');
+        $this->assertSame('', ShopSettings::for($merchant->fresh())->pickupAddress(), 'customers see no link');
+    }
+
+    public function test_a_stored_link_is_never_shown_to_customers_as_the_address(): void
+    {
+        $this->assertSame('', (new ShopSettings(['pickup_address' => 'https://www.google.com/maps?q=33.8938,35.5018']))->pickupAddress());
+        $this->assertSame('Hamra St, Beirut', (new ShopSettings(['pickup_address' => 'Hamra St, Beirut']))->pickupAddress());
+    }
+
+    public function test_the_customers_pin_is_a_link_for_the_shop_and_driver_only(): void
+    {
+        $order = new \App\Models\Order(['fulfillment' => 'delivery', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784, 'delivery_address' => 'Bliss St, Bldg 4']);
+        $this->assertSame("Bliss St, Bldg 4\n📍 https://www.google.com/maps?q=33.8959,35.4784", \App\Support\OrderMessage::addressWithPin($order));
+        $this->assertSame('Bliss St, Bldg 4', \App\Support\OrderMessage::addressText($order), 'the customer gets this text only');
+
+        $pickup = new \App\Models\Order(['fulfillment' => 'pickup', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784]);
+        $this->assertStringNotContainsString('google', \App\Support\OrderMessage::addressWithPin($pickup));
     }
 
     public function test_a_delivery_area_pin_gets_its_driving_time_from_google_maps(): void
@@ -148,6 +166,6 @@ class ShopLocationTest extends TestCase
 
         $settings = Merchant::query()->where('name', 'Pin Shop')->sole()->settings;
         $this->assertSame('33.8959,35.4784', $settings['shop_location']);
-        $this->assertSame('https://www.google.com/maps?q=33.8959,35.4784', $settings['pickup_address']);
+        $this->assertStringNotContainsString('google', (string) ($settings['pickup_address'] ?? ''), 'the customer address is text');
     }
 }

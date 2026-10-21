@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\NotifyCustomerOfOrderStatus;
 use App\Jobs\NotifyDriverOfAssignment;
 use App\Jobs\NotifyDriverOfCancellation;
+use App\Jobs\NotifyStaffOfCancellation;
 use App\Jobs\NotifyStaffOfRefund;
 use App\Models\Customer;
 use App\Models\Driver;
@@ -54,6 +55,11 @@ class OrderService
 
         if (in_array($action, ['delivered', 'reject', 'cancel'], true)) {
             $this->afterDriverFreed($merchant, $order, $action);
+        }
+
+        // The staff have the ticket: tell them the customer cancelled, so nobody prepares it.
+        if ($action === 'cancel' && ($payload['by'] ?? '') === 'customer' && empty($payload['silent'])) {
+            $this->notify(new NotifyStaffOfCancellation($order->id));
         }
 
         return $result;

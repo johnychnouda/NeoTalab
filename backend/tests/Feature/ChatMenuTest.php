@@ -158,7 +158,7 @@ class ChatMenuTest extends TestCase
         $rows = $this->last()['interactive']['action']['sections'][0]['rows'];
         $this->assertSame('mn:cat:offers:1', $rows[0]['id']);
         $this->assertSame('🔥 Offers', $rows[0]['title']);
-        $this->assertSame('1 items', $rows[0]['description'], 'expired offers do not count');
+        $this->assertSame('1 item', $rows[0]['description'], 'expired offers do not count');
 
         $this->tap('mn:cat:offers:1');
         $this->assertSame('8.00$ (was 10.00$) 🔥', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);

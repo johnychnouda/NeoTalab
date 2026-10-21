@@ -23,6 +23,9 @@ class PlatformTemplateService
 
     public const PAID = 'neotalab_paid';
 
+    /** The nightly report to each shop's owner, sent from NeoTalab's own number. */
+    public const DAILY_REPORT = 'neotalab_daily_report';
+
     /** @return array<string, array{text: string, examples: list<string>}> */
     public static function definitions(): array
     {
@@ -44,6 +47,10 @@ class PlatformTemplateService
             self::PAID => [
                 'text' => 'Thank you! Your NeoTalab subscription for {{1}} is paid until {{2}}. Thank you for trusting NeoTalab.',
                 'examples' => ['Abou Ali Snack', '21 November 2026'],
+            ],
+            self::DAILY_REPORT => [
+                'text' => "📊 {{1}} — {{2}}\nOrders delivered: {{3}}\nSales: {{4}}\nAverage rating: {{5}}\nLate orders: {{6}}\nTop items: {{7}}",
+                'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
             ],
             self::ACCESS => [
                 'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\nTemporary code: {{4}}\n\nSign in with this code, then set a new password right away.",

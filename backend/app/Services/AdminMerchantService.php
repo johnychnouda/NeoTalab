@@ -214,8 +214,8 @@ class AdminMerchantService
             'payments' => [],
             // The join pin is where the shop delivers from and where customers pick up.
             'shop_location' => filled($payload['location'] ?? null) ? (string) $payload['location'] : null,
-            'pickup_address' => MapLocation::mapsUrl((string) ($payload['location'] ?? ''))
-                ?: implode(', ', array_filter([$payload['street'] ?? null, $payload['city'] ?? null])),
+            // Customers see the address as text (the shop pin goes to the shop and the driver, not to customers).
+            'pickup_address' => implode(', ', array_filter([$payload['street'] ?? null, $payload['city'] ?? null])),
             // Lebanese shops take cash in lira too; the shop can change the rate or turn it off.
             'lbp_rate' => strtoupper((string) ($payload['country'] ?? '')) === 'LB' ? 89500 : null,
             'mode' => 'auto',

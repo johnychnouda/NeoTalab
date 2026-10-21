@@ -2542,6 +2542,11 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset-tab { position: relative; flex: 1 0 auto; padding: 9px 14px; border: none; border-radius: 9px; background: none; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s; }
 .sset-tab:hover { color: var(--text); }
 .sset-tab.active { background: var(--green-dim); color: var(--green); font-weight: 600; }
+/* Phones: the tabs wrap onto two or three rows, so none is hidden off the edge */
+@media (max-width: 640px) {
+  .sset-tabs { flex-wrap: wrap; overflow: visible; }
+  .sset-tab { flex: 1 1 auto; text-align: center; }
+}
 .sset-dot { display: inline-block; width: 7px; height: 7px; margin-inline-start: 6px; border-radius: 50%; background: var(--orange); vertical-align: middle; }
 
 .sset-warn { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #f59e0b55; border-radius: 12px; background: #f59e0b14; color: var(--text); font-size: 13px; line-height: 1.5; }
@@ -2975,6 +2980,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 .pc-head + .pc-row { border-top: 1px solid var(--border); }
 .pc-k { font-size: 12px; font-weight: 600; color: var(--text-muted); flex: none; max-width: 55%; }
 .pc-v { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; font-size: 13px; font-weight: 600; text-align: end; overflow-wrap: anywhere; }
+/* A long login email gets its own line on phones instead of breaking mid-word next to Copy */
+.pc-row-stack { flex-wrap: wrap; }
+.pc-row-stack .pc-v { flex: 1 1 100%; justify-content: space-between; text-align: start; }
+.pc-row-stack .pv-mono { overflow-wrap: normal; word-break: normal; }
 .pc-nowrap { flex-wrap: nowrap; }
 .pc-nowrap .pv-mono { min-width: 0; }
 .pc-title { margin: 8px 2px -2px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); }

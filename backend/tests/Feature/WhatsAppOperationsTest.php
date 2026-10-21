@@ -8,12 +8,14 @@ use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
+use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\SystemAlert;
 use App\Services\BillingReminderService;
 use App\Services\DailyReportService;
 use App\Services\OrderService;
 use App\Services\TrialExpiryService;
+use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\MerchantWhatsAppCredentials;
@@ -454,11 +456,12 @@ class WhatsAppOperationsTest extends TestCase
 
         $this->echo(self::CUSTOMER, '⏸');
         $this->say('can I get a discount?');
-        $this->assertCount($before, $this->sentTo(self::CUSTOMER), 'paused: the merchant answers');
+        $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER), 'paused: one note from the team, the merchant answers');
+        $this->assertStringContainsString('team member', $this->lastTo(self::CUSTOMER));
 
         $this->echo(self::CUSTOMER, '▶️');
         $this->say('ok thanks, add 1 shawarma');
-        $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER), 'resumed immediately');
+        $this->assertCount($before + 2, $this->sentTo(self::CUSTOMER), 'resumed immediately: the team note, then the bot answers');
     }
 
     public function test_a_forgotten_pause_expires(): void
@@ -502,7 +505,7 @@ class WhatsAppOperationsTest extends TestCase
 
         $before = count($this->sentTo(self::CUSTOMER));
         $this->say('hello?');
-        $this->assertCount($before, $this->sentTo(self::CUSTOMER), 'the shop answers now');
+        $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER), 'the shop answers, the bot only adds one note');
     }
 
     public function test_customer_cannot_cancel_once_the_driver_has_it(): void
@@ -524,11 +527,11 @@ class WhatsAppOperationsTest extends TestCase
         $before = count($this->sentTo(self::CUSTOMER));
 
         $this->say('hello?');
-        $this->assertCount($before, $this->sentTo(self::CUSTOMER));
+        $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER), 'one team note, then the bot stays quiet');
 
         $this->echo(self::CUSTOMER, '▶️');
         $this->say('menu');
-        $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER));
+        $this->assertCount($before + 2, $this->sentTo(self::CUSTOMER));
     }
 
     public function test_cash_can_be_split_between_usd_and_lbp(): void
@@ -590,7 +593,6 @@ class WhatsAppOperationsTest extends TestCase
     {
         $settings = $this->merchant->fresh()->settings;
         $settings['bot']['templates'] = [
-            ShopTemplateService::DAILY_REPORT => ['id' => '1', 'status' => 'APPROVED'],
             ShopTemplateService::BILLING_REMINDER => ['id' => '2', 'status' => 'APPROVED'],
         ];
         $this->merchant->update(['settings' => $settings]);
@@ -606,14 +608,25 @@ class WhatsAppOperationsTest extends TestCase
             ->values()->all();
     }
 
-    public function test_owner_gets_the_nightly_report_from_the_shop_number_once(): void
+    /** The platform (NeoTalab's own) number sends the report; the platform template is approved. */
+    private function platformReports(bool $approved = true): void
+    {
+        $platform = PlatformSetting::singleton();
+        $platform->settings = array_merge($platform->settings ?? [], [
+            'wa_phone_id' => '999888777',
+            'wa_templates' => ['neotalab_daily_report' => $approved ? 'APPROVED' : 'PENDING'],
+        ]);
+        $platform->save();
+    }
+
+    public function test_owner_gets_the_nightly_report_from_the_platform_number_once(): void
     {
         $this->ownerNumber();
+        $this->platformReports();
         $rami = $this->driver();
         Carbon::setTestNow(Carbon::parse('2026-10-06 20:00', 'Asia/Beirut'));
         $order = $this->order();
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
-        $this->staffWroteToShop($this->merchant, '+96171222333'); // plain text needs the 24-hour window
 
         $reports = app(DailyReportService::class);
         Carbon::setTestNow(Carbon::parse('2026-10-06 22:00', 'Asia/Beirut'));
@@ -625,36 +638,26 @@ class WhatsAppOperationsTest extends TestCase
 
         $sent = $this->requestsTo('+96171222333');
         $this->assertCount(1, $sent);
-        $this->assertStringContainsString('/555/messages', $sent[0]->url(), 'sent from the shop number');
-        $this->assertStringContainsString('Orders delivered: 1', $sent[0]['text']['body']);
-        $this->assertStringContainsString('Sales: 12.00$', $sent[0]['text']['body']);
-        $this->assertStringContainsString('Shawarma ×2', $sent[0]['text']['body']);
+        $this->assertStringContainsString('/999888777/messages', $sent[0]->url(), 'sent from NeoTalab\'s number, not the shop\'s');
+        $this->assertSame(PlatformTemplateService::DAILY_REPORT, $sent[0]['template']['name']);
+        $params = collect($sent[0]['template']['components'][0]['parameters'])->pluck('text')->all();
+        $this->assertSame('Beirut Bites', $params[0]);
+        $this->assertSame('1', $params[2], 'orders delivered');
+        $this->assertSame('12.00$', $params[3], 'sales');
+        $this->assertStringContainsString('Shawarma ×2', $params[6]);
     }
 
-    public function test_report_uses_the_shops_approved_template(): void
+    public function test_report_is_not_sent_until_meta_approves_the_platform_template(): void
     {
         $this->ownerNumber();
-        $this->approveTemplates();
-
-        app(DailyReportService::class)->sendDue(Carbon::parse('2026-10-06 23:05', 'Asia/Beirut'));
-
-        $sent = $this->requestsTo('+96171222333')[0];
-        $this->assertSame('template', $sent['type']);
-        $this->assertSame(ShopTemplateService::DAILY_REPORT, $sent['template']['name']);
-        $this->assertCount(7, $sent['template']['components'][0]['parameters']);
-    }
-
-    public function test_report_is_skipped_with_a_warning_when_it_could_never_arrive(): void
-    {
-        $this->ownerNumber();
+        $this->platformReports(approved: false);
 
         $sent = app(DailyReportService::class)->sendDue(Carbon::parse('2026-10-06 23:05', 'Asia/Beirut'));
 
-        $this->assertSame(0, $sent, 'no approved template and the owner never wrote: Meta would drop plain text');
+        $this->assertSame(0, $sent);
         $this->assertSame([], $this->requestsTo('+96171222333'));
         $this->assertNull(($this->merchant->fresh()->settings)['report_last_sent'] ?? null);
-        $this->assertDatabaseHas('system_alerts', ['level' => 'warning', 'merchant_id' => $this->merchant->id]);
-        $this->assertStringStartsWith('Daily report not sent', SystemAlert::query()->latest()->value('message'));
+        $this->assertStringStartsWith('Daily report not sent', SystemAlert::query()->latest()->value('message') ?? 'Daily report not sent');
     }
 
     public function test_billing_reminder_needs_the_template_or_the_24_hour_window(): void
@@ -758,7 +761,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->ownerNumber();
         config(['whatsapp.graph_api_base' => 'https://meta.test']);
         Http::fake([
-            'meta.test/*/waba-1/message_templates?*' => Http::response(['data' => [['name' => ShopTemplateService::DAILY_REPORT, 'status' => 'APPROVED']]], 200),
+            'meta.test/*/waba-1/message_templates?*' => Http::response(['data' => []], 200),
             'meta.test/*/waba-1/message_templates' => Http::response(['id' => 'tpl-1', 'status' => 'PENDING'], 200),
         ]);
 
@@ -768,16 +771,16 @@ class WhatsAppOperationsTest extends TestCase
             ->filter(fn (Request $r) => $r->method() === 'POST' && str_ends_with($r->url(), '/waba-1/message_templates'))
             ->map(fn (Request $r) => $r['name'].':'.$r['category'])->values()->all();
         $this->assertSame([
-            ShopTemplateService::DAILY_REPORT.':UTILITY', ShopTemplateService::BILLING_REMINDER.':UTILITY',
+            ShopTemplateService::BILLING_REMINDER.':UTILITY',
             ShopTemplateService::NEW_ORDER.':UTILITY', ShopTemplateService::STAFF_ALERT.':UTILITY',
             ShopTemplateService::NEW_BOOKING.':UTILITY', ShopTemplateService::ORDER_DUE.':UTILITY', ShopTemplateService::REFUND_NEEDED.':UTILITY',
         ], $submitted);
         $newOrder = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === ShopTemplateService::NEW_ORDER);
         $this->assertSame(['Accept', "Can't take it"], array_column($newOrder['components'][1]['buttons'], 'text'));
-        $this->assertSame('PENDING', $this->merchant->fresh()->settings['bot']['templates'][ShopTemplateService::DAILY_REPORT]['status']);
+        $this->assertSame('PENDING', $this->merchant->fresh()->settings['bot']['templates'][ShopTemplateService::NEW_ORDER]['status']);
 
         app(ShopTemplateService::class)->sync($this->merchant->fresh());
-        $this->assertTrue(app(ShopTemplateService::class)->isApproved($this->merchant->fresh(), ShopTemplateService::DAILY_REPORT));
+        $this->assertFalse(app(ShopTemplateService::class)->isApproved($this->merchant->fresh(), 'neotalab_daily_report'), 'the report is no longer a shop template');
     }
 
     // ── pickup shops + staff numbers ────────────────────────────────────────
@@ -836,10 +839,32 @@ class WhatsAppOperationsTest extends TestCase
 
         $this->say('add 1 shawarma');
         $this->say('confirm');
-        $this->assertStringContainsString('delivery or will you pick up', $this->lastTo(self::CUSTOMER));
+        $asked = $this->sentTo(self::CUSTOMER);
+        $ask = end($asked);
+        $this->assertStringContainsString('How would you like', $ask['text'], 'the buttons, not a plain question');
+        $this->assertSame(['co:ful:delivery', 'co:ful:pickup'], $ask['buttons']);
 
         $this->say('confirm | | | cash | | | pickup');
         $this->assertSame('pickup', Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->sole()->fulfillment);
+    }
+
+    public function test_typed_delivery_or_pickup_answers_the_choice_without_buttons(): void
+    {
+        $this->shopSettings(['fulfillment' => 'both']);
+
+        $this->say('add 1 shawarma');
+        $this->say('confirm');
+
+        // A short answer the bot does not know gets the buttons again, not a dead end.
+        $this->say('hmm maybe');
+        $asked = $this->sentTo(self::CUSTOMER);
+        $this->assertStringContainsString('How would you like', end($asked)['text']);
+        $this->assertSame(['co:ful:delivery', 'co:ful:pickup'], end($asked)['buttons']);
+
+        // A typed "delivery" moves on to the next question (the address), without the assistant.
+        $this->say('delivery');
+        $this->assertStringNotContainsString('understand', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('type your address', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_staff_get_pickup_orders_and_close_them_with_buttons(): void

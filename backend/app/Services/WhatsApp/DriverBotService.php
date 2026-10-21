@@ -120,6 +120,9 @@ class DriverBotService
             if (! $order) {
                 return __('whatsapp.driver.not_yours', [], $locale);
             }
+            if ($order->status === 'cancelled') {
+                return __('whatsapp.staff.cancelled', ['number' => $order->number], $locale);
+            }
 
             try {
                 if ($m[1] === 'accept') {

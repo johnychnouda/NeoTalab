@@ -83,11 +83,11 @@ class ChatMenu
         $entries = $categories->map(fn (Category $c) => [
             'id' => "mn:cat:{$c->id}:1",
             'title' => $this->name($c, $locale),
-            'description' => $this->t('items_count', $locale, ['n' => $products->where('category_id', $c->id)->count()]),
+            'description' => $this->itemsCount($products->where('category_id', $c->id)->count(), $locale),
         ]);
         // Offers come first, as their own category.
         if ($offers > 0) {
-            $entries->prepend(['id' => 'mn:cat:offers:1', 'title' => $this->t('offers', $locale), 'description' => $this->t('items_count', $locale, ['n' => $offers])]);
+            $entries->prepend(['id' => 'mn:cat:offers:1', 'title' => $this->t('offers', $locale), 'description' => $this->itemsCount($offers, $locale)]);
         }
 
         $rows = $this->paged($entries, $page, fn (array $row) => $row, 'mn:cats:'.($page + 1), $locale);
@@ -304,7 +304,7 @@ class ChatMenu
         return $this->buttons($this->t('added', $locale, [
             'qty' => $qty,
             'item' => $this->name($product, $locale),
-            'count' => $count,
+            'cart' => $this->itemsCount($count, $locale),
             'total' => $this->money($merchant, (float) $cart->subtotal),
         ]), [['mn:cats:1', $this->t('btn_add_more', $locale)], ['co:start:', $this->t('btn_checkout', $locale)]]);
     }
@@ -407,6 +407,12 @@ class ChatMenu
     protected function t(string $key, string $locale, array $params = []): string
     {
         return __("whatsapp.menu.{$key}", $params, $locale);
+    }
+
+    /** "1 item" / "2 items": the plural depends on the count and the language. */
+    protected function itemsCount(int $n, string $locale): string
+    {
+        return trans_choice('whatsapp.menu.items_count', $n, ['n' => $n], $locale);
     }
 
     /** @return array<string, mixed> */

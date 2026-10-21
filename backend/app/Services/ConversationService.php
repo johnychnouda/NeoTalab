@@ -32,6 +32,9 @@ use InvalidArgumentException;
  */
 class ConversationService
 {
+    /** Set when the last checkout stopped because the customer has not chosen delivery or pickup. */
+    private bool $fulfillmentMissing = false;
+
     public function __construct(
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
@@ -148,6 +151,7 @@ class ConversationService
 
         $this->rememberLanguage($conversation, $output);
 
+        $this->fulfillmentMissing = false;
         [$reply, $order] = match ($output->recommendedAction) {
             RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
             RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
@@ -177,6 +181,8 @@ class ConversationService
 
         return [
             'output' => $output,
+            // The customer must pick Delivery or Pickup: the caller shows those buttons.
+            'fulfillment_choice' => $this->fulfillmentMissing,
             'cart_result' => $cartResult,
             'conversation' => $conversation,
             'reply' => $reply,
@@ -199,6 +205,8 @@ class ConversationService
      */
     private function checkout(Conversation $conversation, StructuredTurnOutput $output): array
     {
+        $this->fulfillmentMissing = false;
+
         return $this->placeOrderFromDetails($conversation, ($output->checkout ?? []) + ['location' => ($conversation->state ?? [])['location'] ?? null]);
     }
 
@@ -217,6 +225,8 @@ class ConversationService
         try {
             $order = $this->checkoutService->placeOrder($merchant, $conversation, $details);
         } catch (CheckoutException $e) {
+            $this->fulfillmentMissing = $e->key === 'fulfillment_required';
+
             return [$e->customerMessage($locale), null];
         }
 
@@ -323,6 +333,9 @@ class ConversationService
 
         $tz = $this->appointments->tz($merchant);
         $date = $this->localDate($req['date'] ?? null, $tz);
+        if ($date === null) {
+            return __('whatsapp.appointment.past_date', [], $locale)."\n".$this->availability($conversation, array_diff_key($req, ['date' => true]));
+        }
         $slots = $this->appointments->availableSlots($merchant, $service, $date);
 
         if ($slots !== []) {
@@ -355,6 +368,9 @@ class ConversationService
 
         $tz = $this->appointments->tz($merchant);
         $date = $this->localDate($req['date'] ?? null, $tz);
+        if ($date === null) {
+            return __('whatsapp.appointment.past_date', [], $locale)."\n".$this->availability($conversation, array_diff_key($req, ['date' => true]));
+        }
         if (! preg_match('/^(\d{1,2}):(\d{2})$/', (string) ($req['time'] ?? ''), $m)) {
             return $this->availability($conversation, $req);
         }
@@ -401,7 +417,8 @@ class ConversationService
         ], $locale);
     }
 
-    private function localDate(?string $date, string $tz): Carbon
+    /** The requested day (today when none was given); null for a day that has already passed. */
+    private function localDate(?string $date, string $tz): ?Carbon
     {
         $today = now()->setTimezone($tz)->startOfDay();
         try {
@@ -410,7 +427,7 @@ class ConversationService
             $parsed = $today;
         }
 
-        return $parsed->lt($today) ? $today : $parsed;
+        return $parsed->lt($today) ? null : $parsed;
     }
 
     private function isStale(Conversation $conversation): bool

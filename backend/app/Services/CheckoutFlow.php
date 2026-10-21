@@ -163,6 +163,24 @@ class CheckoutFlow
             return $this->next($merchant, $conversation, $locale);
         }
 
+        // Waiting for Delivery or Pickup: a short typed answer works too ("delivery", "take away", "توصيل").
+        // Another short reply is asked again with the buttons; a long message (an order in one go) goes
+        // on to the assistant as before.
+        if ($step === 'fulfillment' && $text !== null && $location === null && mb_strlen(trim($text)) <= 30) {
+            $typed = $this->typedFulfillment($text);
+            if ($typed !== null) {
+                $state['fulfillment'] = $typed;
+                $this->save($conversation, $state);
+
+                return $this->next($merchant, $conversation, $locale);
+            }
+
+            return $this->ask($conversation, $state, 'fulfillment', $this->buttons($this->t('how', $locale), [
+                ['co:ful:delivery', $this->t('btn_delivery', $locale)],
+                ['co:ful:pickup', $this->t('btn_pickup', $locale)],
+            ]));
+        }
+
         // Free input: a location pin or typed address while we wait for one, or address details.
         if ($step === 'location' && ($location || ($text !== null && mb_strlen(trim($text)) >= 5))) {
             if ($location) {
@@ -208,6 +226,24 @@ class CheckoutFlow
         $this->save($conversation, $state);
 
         return $this->next($merchant, $conversation, $locale);
+    }
+
+    /** "delivery" / "pickup" in the words a customer types (English, French, Arabic); null otherwise. */
+    protected function typedFulfillment(string $text): ?string
+    {
+        $t = mb_strtolower(trim($text));
+        foreach (['delivery', 'deliver', 'livraison', 'livrer', 'توصيل', 'ديليفري', 'ديلفري'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'delivery';
+            }
+        }
+        foreach (['pickup', 'pick up', 'pick-up', 'take away', 'takeaway', 'take-away', 'collect', 'récupérer', 'recuperer', 'emporter', 'استلام', 'أستلم', 'استلم', 'سأستلم'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'pickup';
+            }
+        }
+
+        return null;
     }
 
     /**

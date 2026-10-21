@@ -5,30 +5,26 @@ namespace App\Services;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Services\WhatsApp\ShopTemplateService;
-use App\Services\WhatsApp\StaffMessenger;
+use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
-use App\Support\MerchantWhatsAppCredentials;
 use App\Support\Money;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Nightly summary sent from the shop's own WhatsApp number to the owner's personal number
- * (`report_whatsapp`). Uses the shop's approved `neotalab_daily_report` template so it arrives
- * outside Meta's 24h window. Until that is approved it goes as plain text only when the owner
- * messaged the shop number in the last 24h; otherwise Meta would accept it and drop it silently, so
- * the report is skipped with a warning (Owner → Inbox → System).
+ * Nightly summary sent from NeoTalab's own WhatsApp number to the owner's personal number
+ * (`report_whatsapp`), with the approved `neotalab_daily_report` template, so it arrives without the
+ * owner having to write first. Until Meta approves that template nothing is sent, and the skip is
+ * logged as a warning (Owner → Inbox → System).
  */
 class DailyReportService
 {
     public function __construct(
         protected WhatsAppService $whatsapp,
         protected CurrentTenant $tenant,
-        protected ShopTemplateService $templates,
-        protected StaffMessenger $staff,
+        protected PlatformTemplateService $platformTemplates,
     ) {}
 
     /**
@@ -41,7 +37,7 @@ class DailyReportService
 
         foreach (Merchant::query()->where('status', 'active')->get() as $merchant) {
             $shop = ShopSettings::for($merchant);
-            if ($shop->reportWhatsapp() === '' || ! MerchantWhatsAppCredentials::resolve($merchant)) {
+            if ($shop->reportWhatsapp() === '') {
                 continue;
             }
 
@@ -51,9 +47,8 @@ class DailyReportService
                 continue;
             }
 
-            if (! $this->templates->isApproved($merchant, ShopTemplateService::DAILY_REPORT)
-                && ! $this->staff->numberInWindow($merchant, $shop->reportWhatsapp())) {
-                Log::warning('Daily report not sent: its WhatsApp template is not approved yet and the report number has not messaged the shop number in the last 24 hours', [
+            if (! $this->platformTemplates->approved(PlatformTemplateService::DAILY_REPORT)) {
+                Log::warning('Daily report not sent: the neotalab_daily_report template is not approved by Meta yet', [
                     'merchant_id' => $merchant->id, 'shop' => $merchant->name,
                 ]);
 
@@ -122,15 +117,16 @@ class DailyReportService
         $figures = $this->figures($merchant, $localDay);
         $to = ShopSettings::for($merchant)->reportWhatsapp();
 
-        $message = $this->templates->isApproved($merchant, ShopTemplateService::DAILY_REPORT)
-            ? ShopTemplateService::message(ShopTemplateService::DAILY_REPORT, array_values($figures))
-            : ['type' => 'text', 'text' => __('whatsapp.report.daily', $figures, $merchant->locale ?? 'en')];
-
-        $this->tenant->set($merchant);
-        try {
-            $this->whatsapp->sendToCustomer($merchant, $to, $message);
-        } finally {
-            $this->tenant->forget();
-        }
+        $this->whatsapp->sendPlatform($to, [
+            'type' => 'template',
+            'template' => [
+                'name' => PlatformTemplateService::DAILY_REPORT,
+                'language' => ['code' => config('alerts.whatsapp_language')],
+                'components' => [['type' => 'body', 'parameters' => array_map(
+                    fn (string $text) => ['type' => 'text', 'text' => $text],
+                    array_values($figures),
+                )]],
+            ],
+        ]);
     }
 }

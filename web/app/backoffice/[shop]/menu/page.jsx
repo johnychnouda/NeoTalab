@@ -695,7 +695,7 @@ function ImportMenuModal({ api, toast, onClose, onDone }) {
                       {lbpRate && <div style={{ marginTop: 4 }}>
                         <button type="button" className={it.lbp ? "btn-primary" : "btn-sm"} style={{ padding: "2px 8px", fontSize: 12 }} title={t("mk.imp.rowCur")} aria-label={t("mk.imp.rowCur")}
                           onClick={() => edit(i, { lbp: !it.lbp })}>{it.lbp ? "LBP" : "$"}</button>
-                        {it.lbp && <small className="mk-hint"> = {formatMoney(saved(it))}</small>}
+                        {it.lbp && <small className="mk-hint"> {formatLbp(Number(it.price))} = {formatMoney(saved(it))}</small>}
                       </div>}</td>
                     <td className="stack-actions"><button className="btn-sm" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={t("mk.delete")}>✕</button></td>
                   </tr>

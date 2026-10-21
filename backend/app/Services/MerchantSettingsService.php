@@ -235,14 +235,6 @@ class MerchantSettingsService
         foreach ($ops as $key => $value) {
             $settings[$key] = $value;
         }
-        // Pickup customers open the shop pin in Google Maps. A typed address is kept until a pin exists.
-        if (in_array($settings['fulfillment'] ?? 'delivery', ['pickup', 'both'], true)) {
-            $maps = MapLocation::mapsUrl((string) ($settings['shop_location'] ?? ''));
-            if ($maps) {
-                $settings['pickup_address'] = $maps;
-            }
-        }
-
         $merchant->settings = $settings;
         $merchant->save();
 

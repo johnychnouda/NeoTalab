@@ -306,7 +306,7 @@ function InfoTab({ t, m, api, toast, onClose, onChanged, onConfirm }) {
           </span>
         </div>
         <div className="pc-row"><span className="pc-k">{t("ow.p.since")}</span><span className="pc-v">{memberSince}</span></div>
-        <div className="pc-row">
+        <div className="pc-row pc-row-stack">
           <span className="pc-k">{t("ow.p.loginEmail")}</span>
           <span className="pc-v pc-nowrap">
             <span className="pv-mono" dir="ltr">{m.login_email || "—"}</span>

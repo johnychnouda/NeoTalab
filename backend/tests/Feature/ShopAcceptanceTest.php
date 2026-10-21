@@ -291,6 +291,12 @@ class ShopAcceptanceTest extends TestCase
 
         $this->assertSame('cancelled', $order->fresh()->status);
         $this->assertSame(10, $this->shawarma->fresh()->stock_quantity, 'stock is returned');
+        $this->assertStringContainsString("#{$order->number} was cancelled by the customer", $this->lastTo(self::STAFF)['text']);
+
+        // The ticket they still have must not be accepted now.
+        $this->tap("stf:accept:{$order->id}");
+        $this->assertStringContainsString("#{$order->number} was cancelled by the customer", $this->lastTo(self::STAFF)['text']);
+        $this->assertSame('cancelled', $order->fresh()->status);
     }
 
     // ── staff outside WhatsApp's 24-hour window ─────────────────────────────
@@ -370,10 +376,15 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('sent a photo', $alert['text']);
         $this->assertSame(["stf:resume:{$customer->id}"], $alert['buttons']);
 
-        // The bot stays quiet in that chat until the staff hand it back.
+        // The bot does not answer the chat itself until the staff hand it back: the customer gets
+        // one short note from the team, then nothing more for ten minutes (no flooding).
         $before = Http::recorded()->count();
         $this->receive(['type' => 'text', 'text' => ['body' => 'hello?']], self::CUSTOMER);
-        $this->assertSame($before, Http::recorded()->count());
+        $this->assertSame($before + 1, Http::recorded()->count());
+        $this->assertStringContainsString('team member', $this->lastTo(self::CUSTOMER)['text']);
+
+        $this->receive(['type' => 'sticker', 'sticker' => ['id' => 'st-1']], self::CUSTOMER);
+        $this->assertSame($before + 1, Http::recorded()->count());
     }
 
     public function test_silent_staff_get_the_photo_alert_as_a_template(): void

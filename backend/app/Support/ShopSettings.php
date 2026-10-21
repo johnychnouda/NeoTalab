@@ -110,9 +110,12 @@ final class ShopSettings
         return in_array($value, ['delivery', 'pickup', 'both'], true) ? $value : 'delivery';
     }
 
+    /** The shop's address as text for customers. A link is never shown to a customer (old values are ignored). */
     public function pickupAddress(): string
     {
-        return trim((string) $this->get('pickup_address'));
+        $address = trim((string) $this->get('pickup_address'));
+
+        return preg_match('~^(https?://|www\.|maps\.)~i', $address) ? '' : $address;
     }
 
     public function businessMode(): string
