@@ -292,7 +292,7 @@ function Success({ t, phone, days }) {
     <div className="jn-success">
       <div className="jn-success-icon" aria-hidden="true">✓</div>
       <h2>{t("jn.done.title")}</h2>
-      <p>{t("jn.done.body", { phone })}</p>
+      <p>{t("jn.done.body", { phone: `\u2066${phone}\u2069` })}</p>
       <ol className="jn-next-steps">
         <li><strong>{t("jn.done.s1")}</strong><span>{t("jn.done.s1b")}</span></li>
         <li><strong>{t("jn.done.s2")}</strong><span>{t("jn.done.s2b")}</span></li>
