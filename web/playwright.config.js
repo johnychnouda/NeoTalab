@@ -18,5 +18,7 @@ export default defineConfig({
     { name: "setup", testMatch: /auth\.setup\.js/ },
     { name: "desktop-chromium", dependencies: ["setup"], testIgnore: /auth\.setup\.js/, use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "phone-chromium", dependencies: ["setup"], testIgnore: /auth\.setup\.js/, use: { ...devices["Pixel 5"] } },
+    { name: "desktop-firefox", dependencies: ["setup"], testIgnore: /auth\.setup\.js/, use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 800 } } },
+    { name: "desktop-webkit", dependencies: ["setup"], testIgnore: /auth\.setup\.js/, use: { ...devices["Desktop Safari"], viewport: { width: 1280, height: 800 } } },
   ],
 });

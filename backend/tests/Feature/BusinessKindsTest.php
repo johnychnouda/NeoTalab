@@ -84,6 +84,50 @@ class BusinessKindsTest extends TestCase
         $this->assertNotNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->first());
     }
 
+    /** Every shop type runs the full order life cycle, and a customer cancel is refused once it is closed. */
+    #[DataProvider('businessTypes')]
+    public function test_every_business_type_runs_accept_ready_collected_and_cancel(string $type): void
+    {
+        $index = array_search($type, array_keys(BusinessKind::TYPES), true) + 1;
+        $phoneId = (string) (700000000 + $index);
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
+            'name' => 'Life '.$index, 'business_type' => $type, 'currency' => 'USD', 'timezone' => 'Asia/Beirut',
+            'settings' => ['bot' => ['phone_id' => $phoneId], 'mode' => 'auto', 'fulfillment' => 'pickup', 'lbp_rate' => 89500],
+        ]);
+        $item = Product::factory()->forMerchant($merchant)->create(['name' => 'Life Item', 'price' => 4]);
+        $orders = app(\App\Services\OrderService::class);
+
+        $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'add 1 life item']]);
+        $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'confirm | | | cash']]);
+        $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->firstOrFail();
+        // No staff are set up here, so the bot accepts the order itself (the designed behaviour for such shops).
+        $this->assertSame('confirmed', $order->status, "{$type}: a shop without staff is accepted by the bot");
+        $orders->transition($merchant, $order->id, 'ready');
+        $this->assertSame('ready', $order->fresh()->status, "{$type}: ready");
+        $orders->transition($merchant, $order->id, 'delivered');
+        $this->assertSame('delivered', $order->fresh()->status, "{$type}: collected");
+        $this->assertNotNull($order->fresh()->delivered_at, "{$type}: collection time recorded");
+
+        // A closed order cannot be refused, made ready or collected again.
+        foreach (['reject', 'ready', 'delivered'] as $action) {
+            try {
+                $orders->transition($merchant, $order->id, $action);
+                $this->fail("{$type}: {$action} on a delivered order was accepted");
+            } catch (\Illuminate\Validation\ValidationException) {
+                $this->assertSame('delivered', $order->fresh()->status, "{$type}: {$action} changed a closed order");
+            }
+        }
+
+        // A second order can be cancelled by the customer while it is still open.
+        $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'add 1 life item']]);
+        $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'confirm | | | cash']]);
+        $open = Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->latest('number')->firstOrFail();
+        $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'cancel order']]);
+        $this->assertSame('cancelled', $open->fresh()->status, "{$type}: the customer's cancel was applied");
+        $this->assertSame('customer', $open->fresh()->cancelled_by, "{$type}: cancelled by the customer");
+        $this->assertSame(1, Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->where('status', 'cancelled')->count());
+    }
+
     private function receive(string $phoneId, array $msg): void
     {
         app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
