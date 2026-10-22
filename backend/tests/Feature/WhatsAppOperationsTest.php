@@ -482,12 +482,50 @@ class WhatsAppOperationsTest extends TestCase
         $order = $this->order();
 
         $this->say('cancel order');
+        $this->tap("cx:yes:{$order->id}", self::CUSTOMER); // cancelling needs the customer's Yes
 
         $this->assertSame('cancelled', $order->fresh()->status);
         $this->assertSame('customer', $order->fresh()->cancelled_by);
         $this->assertStringContainsString('was cancelled', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('cancelled by the customer', $this->lastTo($rami->whatsapp_number));
         $this->assertNull($rami->fresh()->active_order_id);
+    }
+
+    public function test_cancel_asks_yes_or_no_and_no_keeps_the_order(): void
+    {
+        $order = $this->order();
+        $before = $order->fresh()->status;
+
+        $this->say('cancel order');
+        $asked = $this->sentTo(self::CUSTOMER);
+        $last = end($asked);
+        $this->assertStringContainsString("cancel order #{$order->number}", $last['text']);
+        $this->assertSame(["cx:yes:{$order->id}", "cx:no:{$order->id}"], $last['buttons'], 'the buttons decide, not the assistant');
+        $this->assertSame($before, $order->fresh()->status, 'nothing is cancelled until the customer taps Yes');
+
+        $this->tap("cx:no:{$order->id}", self::CUSTOMER);
+        $this->assertSame($before, $order->fresh()->status, 'No keeps the order');
+        $this->assertStringContainsString("#{$order->number} kept", $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_any_wording_of_a_cancel_request_gets_the_yes_or_no_question(): void
+    {
+        $order = $this->order();
+
+        $this->say('أريد إلغاء الطلب من فضلك');
+        $asked = $this->sentTo(self::CUSTOMER);
+        $this->assertSame(["cx:yes:{$order->id}", "cx:no:{$order->id}"], end($asked)['buttons'], 'the question does not depend on the assistant wording');
+    }
+
+    public function test_a_typed_yes_without_the_question_does_not_cancel_or_hand_over(): void
+    {
+        $order = $this->order();
+        $before = $order->fresh()->status;
+
+        $this->say('yes, cancel it');
+
+        $this->assertSame($before, $order->fresh()->status, 'a typed yes alone does not cancel');
+        $this->assertNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->value('bot_paused_until'), 'and it does not hand the chat to the shop');
     }
 
     public function test_cancelling_an_order_already_in_the_works_hands_the_chat_to_the_shop(): void

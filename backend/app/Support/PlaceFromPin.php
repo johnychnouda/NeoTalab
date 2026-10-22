@@ -54,7 +54,7 @@ class PlaceFromPin
     ];
 
     /**
-     * @return array{region: ?string, city: ?string}|null  null when the pin is far from every listed town
+     * @return array{region: ?string, city: ?string}|null null when the pin is far from every listed town
      */
     public static function lookup(string $latLng): ?array
     {

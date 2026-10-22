@@ -288,6 +288,8 @@ class ShopAcceptanceTest extends TestCase
         $this->assertSame('placed', $order->status);
 
         $this->receive(['type' => 'text', 'text' => ['body' => 'cancel order']], self::CUSTOMER);
+        $this->assertSame('placed', $order->fresh()->status, 'asks first');
+        $this->customerTaps("cx:yes:{$order->id}");
 
         $this->assertSame('cancelled', $order->fresh()->status);
         $this->assertSame(10, $this->shawarma->fresh()->stock_quantity, 'stock is returned');

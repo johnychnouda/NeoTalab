@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Merchant;
 use App\Models\OnboardingRequest;
+use App\Models\Order;
 use App\Support\MapLocation;
+use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -116,12 +118,12 @@ class ShopLocationTest extends TestCase
 
     public function test_the_customers_pin_is_a_link_for_the_shop_and_driver_only(): void
     {
-        $order = new \App\Models\Order(['fulfillment' => 'delivery', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784, 'delivery_address' => 'Bliss St, Bldg 4']);
-        $this->assertSame("Bliss St, Bldg 4\n📍 https://www.google.com/maps?q=33.8959,35.4784", \App\Support\OrderMessage::addressWithPin($order));
-        $this->assertSame('Bliss St, Bldg 4', \App\Support\OrderMessage::addressText($order), 'the customer gets this text only');
+        $order = new Order(['fulfillment' => 'delivery', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784, 'delivery_address' => 'Bliss St, Bldg 4']);
+        $this->assertSame("Bliss St, Bldg 4\n📍 https://www.google.com/maps?q=33.8959,35.4784", OrderMessage::addressWithPin($order));
+        $this->assertSame('Bliss St, Bldg 4', OrderMessage::addressText($order), 'the customer gets this text only');
 
-        $pickup = new \App\Models\Order(['fulfillment' => 'pickup', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784]);
-        $this->assertStringNotContainsString('google', \App\Support\OrderMessage::addressWithPin($pickup));
+        $pickup = new Order(['fulfillment' => 'pickup', 'delivery_lat' => 33.8959, 'delivery_lng' => 35.4784]);
+        $this->assertStringNotContainsString('google', OrderMessage::addressWithPin($pickup));
     }
 
     public function test_a_delivery_area_pin_gets_its_driving_time_from_google_maps(): void

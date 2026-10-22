@@ -35,6 +35,9 @@ class ConversationService
     /** Set when the last checkout stopped because the customer has not chosen delivery or pickup. */
     private bool $fulfillmentMissing = false;
 
+    /** Set when the customer asked to cancel: the order waits for the customer's Yes/No button. */
+    private ?string $cancelAwaitingId = null;
+
     public function __construct(
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
@@ -152,6 +155,7 @@ class ConversationService
         $this->rememberLanguage($conversation, $output);
 
         $this->fulfillmentMissing = false;
+        $this->cancelAwaitingId = null;
         [$reply, $order] = match ($output->recommendedAction) {
             RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
             RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
@@ -183,6 +187,8 @@ class ConversationService
             'output' => $output,
             // The customer must pick Delivery or Pickup: the caller shows those buttons.
             'fulfillment_choice' => $this->fulfillmentMissing,
+            // The order the customer must confirm cancelling (buttons are sent for it), or null.
+            'cancel_confirm' => $this->cancelAwaitingId,
             'cart_result' => $cartResult,
             'conversation' => $conversation,
             'reply' => $reply,
@@ -299,6 +305,46 @@ class ConversationService
         }
 
         // The status notification job tells the customer "your order was cancelled".
+        // Confirmed by button, not by the assistant: its reading of "yes" is not reliable enough to cancel on.
+        $this->cancelAwaitingId = $order->id;
+
+        return __('whatsapp.checkout.cancel_confirm', ['number' => $order->number], $locale);
+    }
+
+    /**
+     * The open order a cancel request is about (placed, accepted or pending payment), or null. A
+     * request is recognised by its words here, so the buttons never depend on the assistant's wording.
+     */
+    public function openOrderToCancel(Conversation $conversation, string $text): ?Order
+    {
+        if (! preg_match('/\b(cancel|annul\w*|cancell?ed)\b|إلغاء|الغاء|ألغي|الغي|annuler/iu', $text)) {
+            return null;
+        }
+
+        return Order::query()
+            ->where('customer_id', $conversation->customer_id)
+            ->whereIn('status', ['pending_payment', 'placed', 'confirmed'])
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * The customer tapped Yes or No under "cancel order #N?". Yes cancels an open order; anything
+     * else keeps it. The status notification job tells the customer about a cancellation.
+     */
+    public function resolveCancelButton(Conversation $conversation, string $orderId, bool $yes): string
+    {
+        $merchant = app(CurrentTenant::class)->get();
+        $locale = $conversation->customer->locale ?? 'en';
+
+        $order = Order::query()->where('customer_id', $conversation->customer_id)->whereKey($orderId)->first();
+        if (! $order || ! in_array($order->status, ['pending_payment', 'placed', 'confirmed'], true)) {
+            return __('whatsapp.checkout.cancel_none', [], $locale);
+        }
+        if (! $yes) {
+            return __('whatsapp.checkout.cancel_kept', ['number' => $order->number], $locale);
+        }
+
         $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer']);
 
         return '';

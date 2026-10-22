@@ -5,18 +5,19 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Models\Customer;
-use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\OrderService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\BusinessKind;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -95,7 +96,7 @@ class BusinessKindsTest extends TestCase
             'settings' => ['bot' => ['phone_id' => $phoneId], 'mode' => 'auto', 'fulfillment' => 'pickup', 'lbp_rate' => 89500],
         ]);
         $item = Product::factory()->forMerchant($merchant)->create(['name' => 'Life Item', 'price' => 4]);
-        $orders = app(\App\Services\OrderService::class);
+        $orders = app(OrderService::class);
 
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'add 1 life item']]);
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'confirm | | | cash']]);
@@ -113,7 +114,7 @@ class BusinessKindsTest extends TestCase
             try {
                 $orders->transition($merchant, $order->id, $action);
                 $this->fail("{$type}: {$action} on a delivered order was accepted");
-            } catch (\Illuminate\Validation\ValidationException) {
+            } catch (ValidationException) {
                 $this->assertSame('delivered', $order->fresh()->status, "{$type}: {$action} changed a closed order");
             }
         }
@@ -123,6 +124,7 @@ class BusinessKindsTest extends TestCase
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'confirm | | | cash']]);
         $open = Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->latest('number')->firstOrFail();
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'cancel order']]);
+        $this->receive($phoneId, ['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "cx:yes:{$open->id}", 'title' => 'x']]]);
         $this->assertSame('cancelled', $open->fresh()->status, "{$type}: the customer's cancel was applied");
         $this->assertSame('customer', $open->fresh()->cancelled_by, "{$type}: cancelled by the customer");
         $this->assertSame(1, Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->where('status', 'cancelled')->count());

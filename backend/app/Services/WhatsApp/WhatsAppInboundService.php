@@ -281,6 +281,17 @@ class WhatsAppInboundService
 
             $buttonId = $this->extractButtonId($msg);
 
+            // Yes / No under "cancel order #N?".
+            if ($buttonId !== null && str_starts_with($buttonId, 'cx:')) {
+                [, $answer, $orderId] = array_pad(explode(':', $buttonId, 3), 3, '');
+                $text = $this->conversations->resolveCancelButton($conversation, $orderId, $answer === 'yes');
+                if ($text !== '') {
+                    $this->reply($merchant, $fromPhone, $text);
+                }
+
+                return;
+            }
+
             // The menu inside the chat (lists and buttons) and "Where's my order?".
             $step = $buttonId === 'co:start:'
                 ? $this->checkoutFlow->start($merchant, $conversation, $locale)
@@ -295,8 +306,22 @@ class WhatsAppInboundService
                 return;
             }
 
+            // A cancel request about an open order gets the Yes / No question directly, without the assistant.
+            if ($text !== null && ($order = $this->conversations->openOrderToCancel($conversation, $text))) {
+                $this->send($merchant, $fromPhone, $this->cancelQuestion($merchant, $order->id, __('whatsapp.checkout.cancel_confirm', ['number' => $order->number], $locale), $locale));
+
+                return;
+            }
+
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
+
+            // "Cancel order #N?" with Yes / No buttons: the customer's tap decides, not the assistant.
+            if ($result['cancel_confirm'] !== null) {
+                $this->send($merchant, $fromPhone, $this->cancelQuestion($merchant, $result['cancel_confirm'], $reply, $locale));
+
+                return;
+            }
 
             // Typed "checkout" without a delivery or pickup choice: the same buttons as the menu checkout.
             if ($result['fulfillment_choice']) {
@@ -334,6 +359,19 @@ class WhatsAppInboundService
             // The assistant had nothing to say (cancelling is answered by the status message).
             $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('not_understood', $locale, $merchant->name));
         }
+    }
+
+    /** "Cancel order #N?" with the two buttons, the buttons carry the order id. */
+    protected function cancelQuestion(Merchant $merchant, string $orderId, string $body, string $locale): array
+    {
+        return ['type' => 'interactive', 'interactive' => [
+            'type' => 'button',
+            'body' => ['text' => mb_substr($body, 0, 1024)],
+            'action' => ['buttons' => [
+                ['type' => 'reply', 'reply' => ['id' => "cx:yes:{$orderId}", 'title' => mb_substr(__('whatsapp.checkout.btn_cancel_yes', [], $locale), 0, 20)]],
+                ['type' => 'reply', 'reply' => ['id' => "cx:no:{$orderId}", 'title' => mb_substr(__('whatsapp.checkout.btn_cancel_no', [], $locale), 0, 20)]],
+            ]],
+        ]];
     }
 
     public const PAUSE_COMMANDS = ['⏸', '⏸️', '#pause', '#stop'];
