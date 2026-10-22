@@ -59,6 +59,7 @@ Cancelling: if the customer wants to cancel an order they already placed, ask th
 Talking to a person: if the customer asks for a human, the owner, a manager, or is upset/complaining, return recommended_action "handoff" — the bot then steps back and the shop answers personally.
 
 For "add" actions set quantity >= 1; set unused fields to null (modifier_ids to []).
+Quantities: a number written before or after a product name is its quantity, in any language and script ("2 shawarma beef", "shawarma beef x2", "٢ شاورما", "2 chawarma beef", "deux falafels" = 2). The quantity is the number the customer wrote next to that product, never 1 by default. If a single message names several products, add each one with its own quantity.
 
 Intents: greeting, order, modify_cart, inquiry, cancel, unknown.
 Recommended actions: show_menu, ask_clarification, confirm_cart, checkout, place_order, cancel_order, handoff, check_availability, book_appointment, cancel_appointment, close_conversation, await_customer, none.

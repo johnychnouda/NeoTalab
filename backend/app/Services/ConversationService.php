@@ -10,10 +10,12 @@ use App\Models\DeliveryZone;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShopHour;
+use App\Services\AI\CartEditsFromMessage;
 use App\Services\AI\CatalogResolver;
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
+use App\Services\AI\QuantityFromMessage;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
@@ -42,6 +44,8 @@ class ConversationService
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
         protected CatalogResolver $catalogResolver,
+        protected QuantityFromMessage $quantities,
+        protected CartEditsFromMessage $cartEdits,
         protected CheckoutService $checkoutService,
         protected DriverDispatcher $dispatcher,
         protected OrderService $orders,
@@ -150,7 +154,9 @@ class ConversationService
 
         $output = $this->chatProvider->processTurn($input);
 
-        $cartResult = $this->cartService->applyActions($cart, $output->cartActions);
+        $actions = $this->quantities->correct($message, $output->cartActions, $input->catalog);
+        $actions = $this->cartEdits->apply($message, $actions, $input->cartLines, $input->catalog);
+        $cartResult = $this->cartService->applyActions($cart, $actions);
 
         $this->rememberLanguage($conversation, $output);
 

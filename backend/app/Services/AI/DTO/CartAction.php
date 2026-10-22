@@ -34,6 +34,19 @@ final readonly class CartAction
         );
     }
 
+    public function withQuantity(int $quantity): self
+    {
+        return new self(
+            action: $this->action,
+            productId: $this->productId,
+            variantId: $this->variantId,
+            cartItemId: $this->cartItemId,
+            quantity: $quantity,
+            modifierIds: $this->modifierIds,
+            notes: $this->notes,
+        );
+    }
+
     public function toArray(): array
     {
         return array_filter([
