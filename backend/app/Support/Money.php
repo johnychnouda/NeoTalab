@@ -17,6 +17,20 @@ final class Money
         };
     }
 
+    /**
+     * Rewrites dollar amounts the AI wrote as "2.79 USD", "USD 2.79" or "$2.79" into "2.79$".
+     * Lira amounts and anything else are left as they are.
+     */
+    public static function fromAiText(string $text): string
+    {
+        $amount = '(\d+(?:[.,]\d+)*)';
+
+        $text = preg_replace('/(?<![\p{L}\p{N}])'.$amount.'\s*(?:USD|US\$)(?![\p{L}])/iu', '$1$', $text);
+        $text = preg_replace('/(?<![\p{L}\p{N}])USD\s*'.$amount.'/iu', '$1$', $text);
+
+        return preg_replace('/\$\s*'.$amount.'/u', '$1$', $text);
+    }
+
     public static function lbp(float $amount): string
     {
         return number_format($amount).' LBP';

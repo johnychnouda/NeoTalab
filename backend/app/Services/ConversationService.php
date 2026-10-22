@@ -169,7 +169,7 @@ class ConversationService
             RecommendedAction::CheckAvailability => [$this->availability($conversation, $output->appointment ?? []), null],
             RecommendedAction::BookAppointment => [$this->bookAppointment($conversation, $output->appointment ?? []), null],
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation), null],
-            default => [$output->assistantMessage, null],
+            default => [Money::fromAiText($output->assistantMessage), null],
         };
 
         $now = now()->toIso8601String();
