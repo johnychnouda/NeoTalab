@@ -41,4 +41,6 @@ Method: **A** automated backend test · **L** lab run (real API, queue, signed w
 | Delivery areas on the map (circle, drawn shape, smallest wins, outside, bad shapes) | shop owner, customer | L | pass 10/10 | `s19` | — | — |
 | Split cash and lira-only, rounding up to 1,000 LL | customer | L | pass 3/3 | `s19` | D16 | — |
 | Offers with dates (ended mid-cart, starts tomorrow, today only) | shop owner, customer | L | pass 3/3 | `s19` | — | — |
+| Menu import (dollars/lira per row, Arabic, re-import updates, 0.00 stops the file, broken/unsafe files, access) | shop owner, staff, other shop | L | pass 21/21 | `s20` | — | menu photo import (real AI vision) not run |
+| Faked visitor address vs sign-in and join limits | anyone | live (48 harmless sign-ins), A | **fixed** | `TrustedProxyTest` | D17 | header layout on Railway unconfirmed |
 

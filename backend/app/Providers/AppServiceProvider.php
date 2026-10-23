@@ -49,15 +49,21 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(MessageLogged::class, fn (MessageLogged $log) => app(SystemAlertService::class)
             ->record($log->level, (string) $log->message, $log->context));
 
-        // Brute-force protection: per email+IP, plus a looser per-IP ceiling.
+        // Brute-force protection: per email+IP, a looser per-IP ceiling, and per email alone. The visitor
+        // address comes from a forwarded header the proxy may pass on as the visitor sent it, so the
+        // email-only limits are what stop one account being tried from endless "different" addresses.
         RateLimiter::for('login', fn (Request $request) => [
             Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()),
             Limit::perMinute(20)->by($request->ip()),
+            Limit::perMinute(10)->by('email:'.Str::lower((string) $request->input('email'))),
+            Limit::perHour(30)->by('email-hour:'.Str::lower((string) $request->input('email'))),
         ]);
 
-        // Public /join applications.
+        // Public /join applications: per visitor, and a ceiling for everyone together (a flood with
+        // faked addresses still stops; real shops apply a few times a day at most).
         RateLimiter::for('onboarding', fn (Request $request) => [
             Limit::perHour(5)->by($request->ip()),
+            Limit::perHour(30)->by('onboarding:all'),
         ]);
 
         // Authenticated API traffic.

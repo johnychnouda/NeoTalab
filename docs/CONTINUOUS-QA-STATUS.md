@@ -20,12 +20,19 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Fixed: D15 (a typed quantity became a rating; a typed number now answers "how many?"), D16 (owner shop API dropped the country).
 - Backend 441 passed; Pint clean; web unit 10 passed.
 
+## Checkpoint 3, 23 October 2026
+- Tested: menu import (21/21); live API protections confirmed after deploy (D14); the visitor-address limits.
+- Fixed: D17 (high): a faked forwarded address dodged the sign-in and join limits; now limited per email and overall.
+- No more probing of the live site: it was stopped by the session's safety check after the 48 sign-in tries above.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.
 
-## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2)
-10. Menu import (text and files, lira rows, broken files).
+## Needs a decision
+- Which forwarded header Railway guarantees (ask Railway support, or confirm in the dashboard), so per-visitor limits can trust it.
+
+## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2, 10 at checkpoint 3)
 11. Join form abuse: wrong country, bad number, hidden bot field, more than 5 per hour, duplicates.
 12. Billing commands: reminders, paid period ending, nightly report numbers versus the database.
 13. Flood limit (40 messages / 10 minutes) and blocked numbers.
