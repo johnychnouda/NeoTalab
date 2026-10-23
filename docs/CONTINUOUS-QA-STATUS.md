@@ -31,12 +31,18 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   failed job is a 22 Oct SQLite lock error (lab only).
 - Backend tests: see the commit message.
 
+## Checkpoint 5 (last backlog item)
+- Billing reminders, paid-period end and trial end: covered by existing tests (re-checked).
+- Nightly report figures checked against the database: `ReportFiguresTest` (2/2). Correct; my own expected
+  figure was wrong once (the late order counts as a delivered order), so the test was corrected.
+- Railway forwarded-address question: Railway's documentation does not settle it (forum answers conflict,
+  see the links in the status discussion). Open: ask Railway support. The fix does not depend on it.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.
 
 ## Needs a decision
-- Which forwarded header Railway guarantees (ask Railway support, or confirm in the dashboard), so per-visitor limits can trust it.
+- Ask Railway support which forwarded-address header is guaranteed and whether callers can overwrite it. Not blocking: the login limits no longer depend on it.
 
 ## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2, 10 at checkpoint 3)
-12. Billing commands: reminders, paid period ending, nightly report numbers versus the database.

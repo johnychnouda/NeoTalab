@@ -46,4 +46,7 @@ Method: **A** automated backend test · **L** lab run (real API, queue, signed w
 | Join form abuse (wrong country, bad numbers, hidden bot field, terms, long name, pending duplicate, bad email, 5 per visitor per hour) | applicant | L | pass 13/13 | `s21` | — | the owner portal showing a shop name with HTML: not checked in a browser |
 | WhatsApp flood limit (40 per 10 min) and blocked numbers | customer | L | pass | `s22` | — | — |
 | Problem alerts (recorded, secrets hidden, marked fixed, shops can't see them) | owner, shop | L | pass 4/4 | `s22` | — | — |
+| Billing reminders (3 days before, 1 day for a trial, once a day, template or 24-hour window) | shop owner | A | pass (existing tests) | `WhatsAppOperationsTest` | — | — |
+| Paid period ends → shop stops after the grace period; trial ends → stops | owner, shop | A | pass (existing tests) | `SubscriptionBillingTest`, `WhatsAppOperationsTest` | — | — |
+| Nightly report figures against the database (orders, sales incl. lira, rating, late, top items, quiet day) | shop owner | A | pass 2/2 | `ReportFiguresTest` | — | — |
 
