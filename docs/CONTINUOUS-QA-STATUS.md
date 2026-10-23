@@ -25,6 +25,12 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Fixed: D17 (high): a faked forwarded address dodged the sign-in and join limits; now limited per email and overall.
 - No more probing of the live site: it was stopped by the session's safety check after the 48 sign-in tries above.
 
+## Checkpoint 4
+- Tested: join form abuse (13/13), WhatsApp flood limit (40 of 45 answered), blocked numbers, problem alerts (4/4).
+- Lab note: my queue worker had stopped; the flood check showed 0 replies until it was restarted. The old
+  failed job is a 22 Oct SQLite lock error (lab only).
+- Backend tests: see the commit message.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.
@@ -33,7 +39,4 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Which forwarded header Railway guarantees (ask Railway support, or confirm in the dashboard), so per-visitor limits can trust it.
 
 ## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2, 10 at checkpoint 3)
-11. Join form abuse: wrong country, bad number, hidden bot field, more than 5 per hour, duplicates.
 12. Billing commands: reminders, paid period ending, nightly report numbers versus the database.
-13. Flood limit (40 messages / 10 minutes) and blocked numbers.
-14. Problem alerts: recorded, emailed/sent, resolved.
