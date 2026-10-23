@@ -19,7 +19,7 @@ class StoreModifierGroupRequest extends FormRequest
             'name_fr' => ['nullable', 'string', 'max:150'],
             'required' => ['sometimes', 'boolean'],
             'min_select' => ['sometimes', 'integer', 'min:0'],
-            'max_select' => ['sometimes', 'integer', 'min:1', 'gte:min_select'],
+            'max_select' => array_filter(['sometimes', 'integer', 'min:1', $this->has('min_select') ? 'gte:min_select' : null]),
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];
     }

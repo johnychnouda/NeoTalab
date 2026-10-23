@@ -50,4 +50,14 @@ class ProductVariant extends Model
     {
         return $this->price ?? $this->product->price;
     }
+
+    /**
+     * Whether customers can pick this size. A 0.00 price is a forgotten price box, never a free
+     * size (same rule as Product::isOrderable); an empty price inherits the product's.
+     */
+    public function isOffered(): bool
+    {
+        return ($this->is_active ?? true) && ($this->is_available ?? true)
+            && ($this->price === null || (float) $this->price >= 0.01);
+    }
 }

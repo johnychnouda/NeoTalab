@@ -253,6 +253,10 @@ class CheckoutFlow
      */
     protected function next(Merchant $merchant, Conversation $conversation, string $locale): array
     {
+        // Minimums and the receipt use today's prices, the same ones the order will be saved with.
+        if ($cart = $conversation->cart()->first()) {
+            app(CartService::class)->refreshPrices($cart);
+        }
         $state = ($conversation->state ?? [])['checkout'] ?? [];
         $settings = ShopSettings::for($merchant);
         $mode = $settings->fulfillment();

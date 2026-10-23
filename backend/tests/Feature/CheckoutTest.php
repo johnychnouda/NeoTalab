@@ -190,6 +190,36 @@ class CheckoutTest extends TestCase
         $this->assertStringContainsString('"Falafel" is no longer available', $this->lastReply());
     }
 
+    public function test_last_item_taken_while_the_order_is_saved_is_not_sold_twice(): void
+    {
+        $tracked = Product::factory()->forMerchant($this->merchant)->tracked(1)->create(['name' => 'Kunafa', 'price' => 3]);
+        $this->say('add 1 kunafa');
+
+        // Another customer's checkout takes the last one after this checkout's stock check
+        // but before its order is written (what parallel workers can do on MySQL).
+        Order::creating(function () use ($tracked) {
+            Product::query()->withoutGlobalScopes()->whereKey($tracked->id)->update(['stock_quantity' => 0]);
+        });
+        $this->say('confirm | | Address one 1');
+
+        $this->assertSame(0, $this->orders()->count(), 'the order is rolled back');
+        // (the simulated buyer ran inside this transaction, so its change was rolled back too)
+        $this->assertGreaterThanOrEqual(0, $tracked->fresh()->stock_quantity, 'stock never goes below zero');
+        $this->assertStringContainsString('"Kunafa" is no longer available', $this->lastReply());
+    }
+
+    public function test_checkout_charges_todays_price_not_the_price_when_added(): void
+    {
+        $this->say('add 2 shawarma'); // 2 × 5.00
+        Product::query()->withoutGlobalScopes()->where('name', 'Shawarma')->update(['price' => 6]);
+
+        $this->say('confirm | | Address one 1');
+
+        $order = $this->orders()->with('items')->sole();
+        $this->assertEquals(12.00, (float) $order->subtotal);
+        $this->assertEquals(6.00, (float) $order->items->first()->unit_price);
+    }
+
     public function test_orders_are_refused_outside_opening_hours(): void
     {
         foreach (range(0, 6) as $day) {

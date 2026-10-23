@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
+use App\Models\Merchant;
+use App\Models\OnboardingRequest;
+use App\Models\Product;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,6 +188,28 @@ class AdminMerchantManagementTest extends TestCase
         $this->assertDatabaseHas('merchants', ['name' => 'Joe Snacks', 'whatsapp_number' => '+96171112233']);
     }
 
+    public function test_business_type_defaults_survive_owner_portal_and_join_approval(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+
+        $this->withToken($token)->postJson('/api/v1/admin/merchants', [
+            'shopName' => 'Rose Salon', 'whatsappNumber' => '+96171112234', 'password' => '123456', 'businessType' => 'Salon / Barber / Beauty',
+        ])->assertCreated();
+        $salon = Merchant::query()->where('name', 'Rose Salon')->sole();
+        $this->assertSame('appointments', $salon->settings['business_mode'], 'a salon takes bookings from day one');
+        $this->assertSame('services', $salon->settings['business_kind']);
+        $this->assertSame('auto', $salon->settings['mode'], 'owner-portal settings are kept too');
+
+        $request = OnboardingRequest::query()->forceCreate([
+            'shop_name' => 'Cedar Phones', 'contact_name' => 'Joe', 'whatsapp' => '+96171112235',
+            'business_type' => 'Electronics / Phones', 'country' => 'LB', 'city' => 'Beirut', 'street' => 'Hamra', 'status' => 'pending',
+        ]);
+        $this->withToken($token)->postJson("/api/v1/admin/onboarding/{$request->id}/approve", ['password' => 'secret-123'])->assertSuccessful();
+        $shop = Merchant::query()->where('name', 'Cedar Phones')->sole();
+        $this->assertSame('days', $shop->settings['timing_unit'], 'retail counts delivery in days');
+        $this->assertSame('orders', $shop->settings['business_mode']);
+    }
+
     public function test_admin_can_delete_merchant(): void
     {
         [$merchant] = $this->merchantWithUser();
@@ -194,5 +220,37 @@ class AdminMerchantManagementTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseMissing('merchants', ['id' => $merchant->id]);
+    }
+
+    public function test_existing_shops_get_their_missing_business_settings_once(): void
+    {
+        $salon = Merchant::factory()->create(['business_type' => 'Salon / Barber / Beauty', 'settings' => ['mode' => 'auto']]);
+        $shop = Merchant::factory()->create(['business_type' => 'Electronics / Phones', 'settings' => ['timing_unit' => 'hours']]);
+
+        (require database_path('migrations/2026_10_23_000000_fill_missing_business_kind_settings.php'))->up();
+
+        $this->assertSame('appointments', $salon->fresh()->settings['business_mode']);
+        $this->assertSame('auto', $salon->fresh()->settings['mode'], 'other settings are kept');
+        $this->assertSame('hours', $shop->fresh()->settings['timing_unit'], "a shop's own choice is kept");
+        $this->assertSame('orders', $shop->fresh()->settings['business_mode']);
+    }
+
+    public function test_deleting_a_shop_removes_all_its_data_and_nothing_else(): void
+    {
+        [$gone, $owner] = $this->merchantWithUser();
+        [$kept] = $this->merchantWithUser();
+        $this->tokenFor($owner);
+        foreach ([$gone, $kept] as $m) {
+            Product::factory()->forMerchant($m)->create(['name' => 'Falafel']);
+            Customer::query()->withoutGlobalScopes()->forceCreate(['merchant_id' => $m->id, 'phone' => '+96170000001']);
+        }
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))->deleteJson("/api/v1/admin/merchants/{$gone->id}")->assertOk();
+
+        foreach (['users', 'products', 'customers'] as $table) {
+            $this->assertDatabaseMissing($table, ['merchant_id' => $gone->id]);
+            $this->assertDatabaseHas($table, ['merchant_id' => $kept->id]);
+        }
+        $this->assertDatabaseMissing('personal_access_tokens', ['tokenable_id' => $owner->id]);
     }
 }

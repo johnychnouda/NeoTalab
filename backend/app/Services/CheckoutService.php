@@ -45,6 +45,10 @@ class CheckoutService
             throw new CheckoutException('empty_cart');
         }
 
+        // The customer pays today's price, even if it changed since the item went into the cart.
+        app(CartService::class)->refreshPrices($cart);
+        $cart->load(['items.product', 'items.variant']);
+
         if (! $this->isOpen($merchant)) {
             throw new CheckoutException('shop_closed', ['shop' => $merchant->name]);
         }
@@ -69,7 +73,7 @@ class CheckoutService
 
         foreach ($cart->items as $item) {
             $product = $item->product;
-            if (! $product || ! $product->isOrderable()
+            if (! $product || ! $product->isOrderable() || (float) $item->line_total < 0.01
                 || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
@@ -159,8 +163,15 @@ class CheckoutService
                     'modifiers' => collect($item->modifier_ids ?? [])->map(fn ($id) => $modifierNames[$id] ?? null)->filter()->values()->all(),
                 ]);
 
+                // Only take stock that is still there: a parallel checkout may have taken the last
+                // one since the check above. Throwing here rolls the whole order back.
                 if ($item->product->track_inventory) {
-                    Product::query()->whereKey($item->product_id)->decrement('stock_quantity', $item->quantity);
+                    $taken = Product::query()->whereKey($item->product_id)
+                        ->where('stock_quantity', '>=', $item->quantity)
+                        ->decrement('stock_quantity', $item->quantity);
+                    if ($taken === 0) {
+                        throw new CheckoutException('unavailable', ['item' => $item->product->name]);
+                    }
                 }
             }
 

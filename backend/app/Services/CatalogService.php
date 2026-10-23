@@ -140,7 +140,7 @@ class CatalogService
             foreach (array_values($data['variants'] ?? []) as $i => $v) {
                 $variant = ProductVariant::where('product_id', $product->id)->find($v['id'] ?? null)
                     ?? new ProductVariant(['product_id' => $product->id]);
-                $variant->fill(['name' => trim($v['name']), 'price' => $v['price'], 'sort_order' => $i, 'is_active' => true, 'is_available' => true]);
+                $variant->fill(['name' => trim($v['name']), 'price' => $v['price'] ?? null, 'sort_order' => $i, 'is_active' => true, 'is_available' => true]);
                 $variant->product_id = $product->id;
                 $variant->save();
                 $keep[] = $variant->id;

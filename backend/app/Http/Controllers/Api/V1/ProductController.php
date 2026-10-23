@@ -52,7 +52,7 @@ class ProductController extends Controller
             'variants' => ['present', 'array', 'max:20'],
             'variants.*.id' => ['nullable', 'string'],
             'variants.*.name' => ['required', 'string', 'max:60'],
-            'variants.*.price' => ['required', 'numeric', 'min:0'],
+            'variants.*.price' => ['nullable', 'numeric', 'min:0.01'], // empty: same as the item's price
             'groups' => ['present', 'array', 'max:10'],
             'groups.*.id' => ['nullable', 'string'],
             'groups.*.name' => ['required', 'string', 'max:60'],

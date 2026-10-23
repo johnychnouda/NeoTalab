@@ -17,7 +17,7 @@ class UpdateModifierRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:150'],
             'name_ar' => ['nullable', 'string', 'max:150'],
             'name_fr' => ['nullable', 'string', 'max:150'],
-            'price_delta' => ['sometimes', 'numeric'],
+            'price_delta' => ['sometimes', 'numeric', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],

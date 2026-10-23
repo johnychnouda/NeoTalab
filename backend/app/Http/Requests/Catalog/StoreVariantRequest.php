@@ -21,7 +21,7 @@ class StoreVariantRequest extends FormRequest
             'sku' => ['nullable', 'string', 'max:100',
                 Rule::unique('product_variants', 'sku')->where('merchant_id', $this->user()->merchant_id),
             ],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['nullable', 'numeric', 'min:0.01'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],

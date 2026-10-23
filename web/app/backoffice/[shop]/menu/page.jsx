@@ -99,7 +99,7 @@ export default function MenuPage() {
     }
     if (id && !services) {
       await api("PUT", `/products/${id}/options`, {
-        variants: vals.sizes.filter((s) => s.name.trim()).map((s) => ({ id: s.id || null, name: s.name.trim(), price: Number(s.price) || 0 })),
+        variants: vals.sizes.filter((s) => s.name.trim()).map((s) => ({ id: s.id || null, name: s.name.trim(), price: String(s.price ?? "").trim() === "" ? null : Number(s.price) })),
         groups: vals.groups.filter((g) => g.name.trim() && g.modifiers.some((m) => m.name.trim())).map((g) => ({
           id: g.id || null, name: g.name.trim(), required: g.required, max_select: Number(g.max_select) || 1,
           modifiers: g.modifiers.filter((m) => m.name.trim()).map((m) => ({ id: m.id || null, name: m.name.trim(), price_delta: Number(m.price_delta) || 0 })),

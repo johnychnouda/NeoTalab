@@ -247,7 +247,8 @@ class AdminMerchantService
                 'status' => 'active',
                 'plan' => $subscriptionStatus === 'trial' ? 'trial' : 'basic',
                 'trial_ends_at' => $trialEndsAt ? now()->parse($trialEndsAt) : ($subscriptionStatus === 'trial' ? now()->addDays(max(1, (int) (PlatformSetting::singleton()->trial_days ?: 3))) : null),
-                'settings' => $settings,
+                // On top of what provisioning set from the business type (orders or bookings, time unit).
+                'settings' => array_merge($merchant->settings ?? [], $settings),
             ])->save();
 
             if (! empty($payload['forcePasswordChange'])) {
@@ -258,10 +259,30 @@ class AdminMerchantService
         });
     }
 
+    /** Every table holding a shop's own data (there are no database foreign keys to cascade). */
+    public const SHOP_TABLES = [
+        'order_items', 'orders', 'cart_items', 'carts', 'conversations', 'whatsapp_messages', 'appointments',
+        'customers', 'modifiers', 'modifier_groups', 'product_variants', 'products', 'categories',
+        'delivery_zones', 'shop_hours', 'drivers', 'ai_usage', 'onboarding_requests',
+    ];
+
+    /**
+     * Deleting a shop removes all of its data (menu, orders, customers, chats, team, logins and their
+     * sessions), as promised on the data-deletion page. Problem alerts stay for the platform, unlinked.
+     */
     public function delete(Merchant $merchant): void
     {
         DB::transaction(function () use ($merchant) {
-            User::query()->where('merchant_id', $merchant->id)->delete();
+            $userIds = User::query()->where('merchant_id', $merchant->id)->pluck('id');
+            DB::table('personal_access_tokens')->where('tokenable_type', User::class)->whereIn('tokenable_id', $userIds)->delete();
+            DB::table('model_has_roles')->where('model_type', User::class)->whereIn('model_id', $userIds)->delete();
+            User::query()->whereKey($userIds)->delete();
+
+            foreach (self::SHOP_TABLES as $table) {
+                DB::table($table)->where('merchant_id', $merchant->id)->delete();
+            }
+            DB::table('system_alerts')->where('merchant_id', $merchant->id)->update(['merchant_id' => null]);
+
             $merchant->delete();
         });
     }

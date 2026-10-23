@@ -52,6 +52,33 @@ class MenuEditorTest extends TestCase
         $this->assertSame([], $again->json('data.modifier_groups'));
     }
 
+    public function test_a_size_without_a_price_takes_the_item_price_and_0_00_is_refused(): void
+    {
+        $id = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Water', 'price' => 3])->id;
+
+        // What the dashboard sends when the size's price box is left empty.
+        $this->withToken($this->token)->putJson("/api/v1/products/{$id}/options", [
+            'variants' => [['name' => 'Big pack', 'price' => null]], 'groups' => [],
+        ])->assertOk()->assertJsonPath('data.variants.0.price', null);
+
+        $this->withToken($this->token)->putJson("/api/v1/products/{$id}/options", [
+            'variants' => [['name' => 'Big pack', 'price' => 0]], 'groups' => [],
+        ])->assertUnprocessable()->assertJsonValidationErrors('variants.0.price');
+        $this->withToken($this->token)->postJson("/api/v1/products/{$id}/variants", ['name' => 'Free', 'price' => 0])->assertUnprocessable();
+    }
+
+    public function test_option_prices_cannot_be_negative_and_max_choices_alone_is_accepted(): void
+    {
+        $id = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza', 'price' => 3])->id;
+
+        $group = $this->withToken($this->token)->postJson("/api/v1/products/{$id}/modifier-groups", ['name' => 'Extras', 'max_select' => 3])
+            ->assertCreated()->json('data.id');
+        $this->withToken($this->token)->postJson("/api/v1/modifier-groups/{$group}/modifiers", ['name' => 'Less cheese', 'price_delta' => -5])
+            ->assertUnprocessable()->assertJsonValidationErrors('price_delta');
+        $this->withToken($this->token)->postJson("/api/v1/products/{$id}/modifier-groups", ['name' => 'Bad', 'min_select' => 3, 'max_select' => 1])
+            ->assertUnprocessable();
+    }
+
     public function test_options_of_another_shop_cannot_be_edited(): void
     {
         [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER);

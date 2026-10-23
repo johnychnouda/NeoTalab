@@ -237,7 +237,7 @@ class ChatMenu
         $product = Product::with(['variants', 'modifierGroups.modifiers'])->find($pick['product']);
         $name = $this->name($product, $locale);
 
-        $variants = $product->variants->filter(fn ($v) => ($v->is_active ?? true) && ($v->is_available ?? true))->values();
+        $variants = $product->variants->filter(fn ($v) => $v->isOffered())->values();
         if ($variants->isNotEmpty() && ! $pick['variant']) {
             return $this->choices($this->t('which_variant', $locale, ['item' => $name]), $variants->map(fn ($v) => [
                 'id' => "mn:var:{$v->id}",

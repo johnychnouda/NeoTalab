@@ -1,0 +1,33 @@
+// First sign-in of a new shop owner through the real UI: one-time code → "Set your password" → dashboard.
+import { createRequire } from "module";
+import fs from "fs";
+const require = createRequire(new URL("../web/package.json", import.meta.url).pathname);
+const { chromium } = require("@playwright/test");
+const Q = new URL(".", import.meta.url).pathname.replace(/\/$/, "");
+const LAB = process.env.QA_LAB || `${Q}/.lab`;
+const s = JSON.parse(fs.readFileSync(`${LAB}/state.json`, "utf8"));
+const key = process.argv[2] || "rest";
+const r = s.shops[key];
+const b = await chromium.launch();
+const page = await b.newPage({ viewport: { width: 1280, height: 800 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+page.on("response", (res) => { if (res.status() >= 500) errors.push(`HTTP ${res.status()} ${res.url()}`); });
+await page.goto("http://localhost:3011/backoffice");
+await page.locator('input[type="email"]').fill(r.email);
+await page.locator('input[type="password"]').fill(r.pw_initial || r.pw);
+await page.keyboard.press("Enter");
+await page.getByText("Set your password").waitFor({ timeout: 15000 });
+const pw = page.locator('input[type="password"]');
+// Too short and mismatched first: the button must not let it through.
+await pw.nth(0).fill("short"); await pw.nth(1).fill("other");
+await page.getByRole("button", { name: /save and continue/i }).click().catch(() => {});
+await page.waitForTimeout(800);
+const stillThere = await page.getByText("Set your password").isVisible();
+await pw.nth(0).fill(r.pw_new); await pw.nth(1).fill(r.pw_new);
+await page.getByRole("button", { name: /save and continue/i }).click();
+await page.locator('input[type="password"]').first().waitFor({ state: "detached", timeout: 15000 });
+await page.waitForLoadState("networkidle");
+await page.screenshot({ path: `${LAB}/shot-${key}-after-first-login.png` });
+console.log(JSON.stringify({ weakRefusedStillOnForm: stillThere, url: page.url(), title: await page.title(), errors }));
+await b.close();

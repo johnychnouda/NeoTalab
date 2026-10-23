@@ -129,6 +129,33 @@ class ChatMenuTest extends TestCase
         $this->assertSame('location_request_message', $this->last()['interactive']['type']);
     }
 
+    public function test_a_size_saved_at_0_00_is_never_sold_free(): void
+    {
+        // Saved before sizes with an empty price box were stored as "same as the item".
+        $pack = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Water', 'price' => 3]);
+        $free = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pack->id, 'name' => 'Big pack', 'price' => 0, 'is_active' => true, 'is_available' => true]);
+        $small = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pack->id, 'name' => 'Small pack', 'price' => 2.83, 'is_active' => true, 'is_available' => true]);
+
+        $this->tap("mn:item:{$pack->id}");
+        $this->assertSame(["mn:var:{$small->id}"], $this->ids(), 'the 0.00 size is not offered');
+
+        $this->tap("mn:var:{$free->id}"); // an old button from before
+        $this->tap('mn:qty:2');
+        $this->assertSame(0, Conversation::query()->withoutGlobalScopes()->firstOrFail()->cart()->withoutGlobalScopes()->first()?->items()->withoutGlobalScopes()->count() ?? 0);
+    }
+
+    public function test_typed_item_that_needs_a_size_asks_for_it_instead_of_saying_added(): void
+    {
+        $pizza = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza', 'price' => 8]);
+        $large = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pizza->id, 'name' => 'Large', 'price' => 10, 'is_active' => true, 'is_available' => true]);
+
+        $this->inbound(['type' => 'text', 'text' => ['body' => 'add 2 pizza']]);
+
+        $this->assertContains("mn:var:{$large->id}", $this->ids(), 'the size question, not "Added 2 × Pizza"');
+        $this->assertStringNotContainsString('Added', $this->last()['interactive']['body']['text']);
+        $this->assertSame(0, $this->cartItems()->count());
+    }
+
     public function test_sold_out_items_are_not_in_the_menu(): void
     {
         $gone = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);

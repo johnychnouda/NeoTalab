@@ -23,7 +23,7 @@ class UpdateVariantRequest extends FormRequest
                     ->where('merchant_id', $this->user()->merchant_id)
                     ->ignore($this->route('variant')),
             ],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['nullable', 'numeric', 'min:0.01'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],

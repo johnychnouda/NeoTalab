@@ -55,7 +55,7 @@ class CartService
                     };
                     $applied++;
                 } catch (InvalidArgumentException $e) {
-                    $rejected[] = ['action' => $action->action, 'reason' => $e->getMessage()];
+                    $rejected[] = ['action' => $action->action, 'reason' => $e->getMessage(), 'product_id' => $action->productId];
                 }
             }
 
@@ -112,6 +112,9 @@ class CartService
         if ($action->variantId && ! $variant) {
             throw new InvalidArgumentException('Variant not found for this product.');
         }
+        if ($variant && ! $variant->isOffered()) {
+            throw new InvalidArgumentException('This size is not available.');
+        }
 
         $modifiers = $this->catalog->resolveModifiers($product, $action->modifierIds);
         if (count($action->modifierIds) !== $modifiers->count()) {
@@ -122,6 +125,9 @@ class CartService
 
         $qty = max(1, min(self::MAX_LINE_QUANTITY, $action->quantity));
         $unitPrice = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);
+        if ((float) $unitPrice < 0.01) {
+            throw new InvalidArgumentException('Product is not orderable.'); // never a free or negative line
+        }
         $lineTotal = number_format((float) $unitPrice * $qty, 2, '.', '');
 
         CartItem::create([
@@ -144,7 +150,7 @@ class CartService
      */
     private function requireChoices(Product $product, ?ProductVariant $variant, Collection $modifiers): void
     {
-        $variants = $product->variants->filter(fn ($v) => ($v->is_active ?? true) && ($v->is_available ?? true));
+        $variants = $product->variants->filter(fn ($v) => $v->isOffered());
         if ($variants->isNotEmpty() && ! $variant) {
             throw new InvalidArgumentException('This product has sizes: ask the customer which one (variant_id).');
         }
@@ -195,6 +201,30 @@ class CartService
     private function clearCart(Cart $cart): void
     {
         CartItem::where('cart_id', $cart->id)->delete();
+    }
+
+    /**
+     * Today's prices: a line keeps the quantity and choices the customer made, but its price is read
+     * again from the menu (item, size, extras, offer), so a price the shop corrected applies at checkout.
+     * Lines whose item is gone keep their price; checkout refuses them as unavailable.
+     */
+    public function refreshPrices(Cart $cart): void
+    {
+        foreach (CartItem::where('cart_id', $cart->id)->get() as $item) {
+            $product = Product::with(['variants', 'modifierGroups.modifiers'])->find($item->product_id);
+            if (! $product) {
+                continue;
+            }
+            $variant = $this->catalog->resolveVariant($product, $item->variant_id);
+            $modifiers = $this->catalog->resolveModifiers($product, $item->modifier_ids ?? []);
+            $unit = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);
+            $line = number_format((float) $unit * $item->quantity, 2, '.', '');
+            if ($unit !== number_format((float) $item->unit_price, 2, '.', '') || $line !== number_format((float) $item->line_total, 2, '.', '')) {
+                $item->update(['unit_price' => $unit, 'line_total' => $line]);
+            }
+        }
+
+        $this->recalculateSubtotal($cart);
     }
 
     private function recalculateSubtotal(Cart $cart): void

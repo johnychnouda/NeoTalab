@@ -330,6 +330,14 @@ class WhatsAppInboundService
                 return;
             }
 
+            // The assistant may say "added" for an item the cart refused (a size still to choose, sold
+            // out): show that item's next step from the menu, or say it is unavailable, instead.
+            if (($refused = $this->refusedItem($merchant, $result, $locale)) !== null) {
+                $this->send($merchant, $fromPhone, $refused);
+
+                return;
+            }
+
             // The assistant says the customer is done choosing: hand over to the button checkout.
             if ($result['output']->recommendedAction === RecommendedAction::Checkout) {
                 if ($reply !== '') {
@@ -359,6 +367,28 @@ class WhatsAppInboundService
             // The assistant had nothing to say (cancelling is answered by the status message).
             $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('not_understood', $locale, $merchant->name));
         }
+    }
+
+    /**
+     * The first item the customer asked for that the cart refused, as the message to send.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>|null
+     */
+    protected function refusedItem(Merchant $merchant, array $result, string $locale): ?array
+    {
+        $productId = collect($result['cart_result']['rejected'] ?? [])
+            ->first(fn ($r) => ($r['action'] ?? null) === 'add' && ! empty($r['product_id']))['product_id'] ?? null;
+        $product = $productId ? Product::query()->find($productId) : null;
+        if (! $product) {
+            return null;
+        }
+
+        if ($product->isOrderable() && ! $product->duration_mins) {
+            return $this->chatMenu->handle($merchant, $result['conversation'], $locale, "mn:item:{$product->id}");
+        }
+
+        return ['type' => 'text', 'text' => ['body' => __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale)]];
     }
 
     /** "Cancel order #N?" with the two buttons, the buttons carry the order id. */
