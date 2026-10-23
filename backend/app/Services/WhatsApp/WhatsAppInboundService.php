@@ -69,6 +69,14 @@ class WhatsAppInboundService
      */
     protected function handleChange(array $value): void
     {
+        // A customer called the shop number (only sent when calling is on for the number): nobody
+        // answers calls here, so they are told to order by message instead of being left waiting.
+        if (is_array($value['calls'] ?? null)) {
+            $this->answerCalls($value);
+
+            return;
+        }
+
         $messages = is_array($value['messages'] ?? null) ? $value['messages'] : [];
         // Coexistence: messages the merchant typed in the WhatsApp Business app on the shop number.
         $echoes = is_array($value['message_echoes'] ?? null) ? $value['message_echoes'] : [];
@@ -565,6 +573,38 @@ class WhatsAppInboundService
             Log::warning('Voice note could not be handled', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
 
             return null;
+        }
+    }
+
+    /**
+     * @param  array<string,mixed>  $value
+     */
+    protected function answerCalls(array $value): void
+    {
+        $merchant = MerchantWhatsAppCredentials::findMerchantByPhoneId((string) ($value['metadata']['phone_number_id'] ?? ''));
+        if (! $merchant) {
+            return;
+        }
+
+        $this->tenant->set($merchant);
+        try {
+            foreach ($value['calls'] as $call) {
+                if (! is_array($call) || ($call['direction'] ?? 'USER_INITIATED') !== 'USER_INITIATED') {
+                    continue;
+                }
+                $from = '+'.ltrim((string) ($call['from'] ?? ''), '+');
+                if ($from === '+') {
+                    continue;
+                }
+                $customer = Customer::query()->where('phone', $from)->first();
+                if ($customer?->is_blocked || ! Cache::add("wa-call:{$merchant->id}:{$from}", true, 600)) {
+                    continue;
+                }
+                $locale = $customer?->locale ?? $merchant->locale ?? 'en';
+                $this->replyWithMenu($merchant, $from, $locale, $this->text('call_note', $locale, $merchant->name));
+            }
+        } finally {
+            $this->tenant->forget();
         }
     }
 

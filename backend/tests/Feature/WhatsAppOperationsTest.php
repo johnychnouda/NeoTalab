@@ -264,6 +264,35 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('off_duty', $rami->fresh()->status);
     }
 
+    public function test_removing_a_driver_hands_their_waiting_delivery_to_another(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->assertSame($rami->id, $order->driver_id);
+        $karim = $this->driver('Karim', '+96176000002');
+
+        $this->withToken($this->token)->deleteJson("/api/v1/drivers/{$rami->id}")->assertOk();
+
+        $this->assertSame($karim->id, $order->fresh()->driver_id, 'the next free driver gets it');
+        $this->assertNull($rami->fresh()->active_order_id);
+        $this->assertSame($order->id, $karim->fresh()->active_order_id);
+    }
+
+    public function test_a_driver_on_the_road_cannot_be_removed_until_delivered(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:picked_up:{$order->id}", $rami->whatsapp_number);
+
+        $this->withToken($this->token)->deleteJson("/api/v1/drivers/{$rami->id}")
+            ->assertUnprocessable()->assertJsonValidationErrors('driver');
+
+        $this->assertTrue($rami->fresh()->is_active);
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+        $this->assertSame('delivered', $order->fresh()->status);
+        $this->withToken($this->token)->deleteJson("/api/v1/drivers/{$rami->id}")->assertOk();
+    }
+
     public function test_driver_cannot_stop_with_a_delivery_in_progress(): void
     {
         $rami = $this->driver();

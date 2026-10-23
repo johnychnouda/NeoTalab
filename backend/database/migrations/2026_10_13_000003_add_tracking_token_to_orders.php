@@ -16,6 +16,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Already gone when 2026_10_14_000001 (which removed tracking) was not rolled back with it.
+        if (! Schema::hasColumn('orders', 'tracking_token')) {
+            return;
+        }
         Schema::table('orders', function (Blueprint $table) {
             $table->dropUnique(['tracking_token']);
             $table->dropColumn('tracking_token');

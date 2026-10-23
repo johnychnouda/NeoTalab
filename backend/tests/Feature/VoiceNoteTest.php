@@ -80,6 +80,24 @@ class VoiceNoteTest extends TestCase
         return $message['text']['body'] ?? $message['interactive']['body']['text'] ?? '';
     }
 
+    public function test_a_call_to_the_shop_number_gets_a_message_once_not_silence(): void
+    {
+        $this->fakeMeta();
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Zaatar', 'price' => 1]);
+        $call = fn () => app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['field' => 'calls', 'value' => [
+            'metadata' => ['phone_number_id' => '555'],
+            'calls' => [['id' => 'wacid.'.uniqid(), 'from' => '96170123456', 'event' => 'connect', 'direction' => 'USER_INITIATED']],
+        ]]]]]]);
+
+        $call();
+        $call(); // calling again right away: no second message
+
+        $sent = $this->sent();
+        $this->assertCount(1, $sent);
+        $this->assertSame('+96170123456', '+'.ltrim($sent[0]['to'], '+'));
+        $this->assertStringContainsString("can't take calls", $this->body($sent[0]));
+    }
+
     public function test_a_voice_note_is_transcribed_and_answered_like_a_typed_message(): void
     {
         $this->fakeMeta();

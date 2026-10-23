@@ -4,9 +4,9 @@ import hashlib, hmac, json, os, subprocess, sys, time, uuid, urllib.request, url
 
 LAB = os.environ.get("QA_LAB") or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".lab")
 QA = os.path.dirname(os.path.abspath(__file__))
-API = "http://127.0.0.1:8011/api/v1"
+API = os.environ.get("QA_API", "http://127.0.0.1:8011/api/v1")
 ENV = dict(l.strip().split("=", 1) for l in open(f"{LAB}/lab.env") if "=" in l and not l.startswith("#"))
-assert "127.0.0.1" in API and ENV["DB_DATABASE"].startswith(LAB) and ENV["DB_CONNECTION"] == "sqlite", "refusing: not the lab"
+assert API.startswith("http://127.0.0.1:") and ((ENV["DB_CONNECTION"] == "sqlite" and ENV["DB_DATABASE"].startswith(LAB)) or (ENV["DB_CONNECTION"] == "mysql" and ENV["DB_DATABASE"].startswith("neotalab_qa") and ENV.get("DB_HOST") == "127.0.0.1")), "refusing: not the lab"
 STATE = f"{LAB}/state.json"  # holds lab logins: lives in the git-ignored lab folder
 RESULTS = f"{LAB}/results.jsonl"
 

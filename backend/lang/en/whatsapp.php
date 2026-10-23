@@ -9,6 +9,7 @@ return [
     'team_answering' => 'Thanks, a team member from :shop is handling this chat and will reply shortly.',
     'photo_received' => '📷 Thanks, we got your photo! Someone from the :shop team will look at it and reply to you here shortly.',
     'media_unsupported' => "Sorry, I can't open photos, stickers or files here 🙏 Please type what you'd like, or pick from the menu below.",
+    'call_note' => "📞 We can't take calls on this number, but you can order right here 🙏 Send a voice note or type what you'd like, or pick from the menu below.",
     'voice_failed' => "Sorry, I couldn't hear that voice note clearly 🙏 Please send it again or type your order — you can also pick from the menu below.",
     'error' => 'Sorry, we could not process your message right now. Please try again in a moment.',
     'not_understood' => "Sorry, I didn't catch that 🙏 Could you say it again, or pick from the menu below?",

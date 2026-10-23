@@ -6,6 +6,7 @@ return [
     'team_answering' => "Merci, un membre de l'équipe :shop s'occupe de cette discussion et vous répondra bientôt.",
     'photo_received' => "📷 Merci, nous avons bien reçu votre photo ! Un membre de l'équipe :shop la regarde et vous répond ici très vite.",
     'media_unsupported' => 'Désolé, je ne peux pas ouvrir les photos, stickers ou fichiers ici 🙏 Écrivez ce que vous souhaitez, ou choisissez dans le menu ci-dessous.',
+    'call_note' => '📞 Nous ne prenons pas les appels sur ce numéro, mais vous pouvez commander ici 🙏 Envoyez un message vocal ou écrivez ce que vous souhaitez, ou choisissez dans le menu ci-dessous.',
     'voice_failed' => "Désolé, je n'ai pas bien entendu ce message vocal 🙏 Renvoyez-le ou écrivez votre commande — vous pouvez aussi choisir dans le menu ci-dessous.",
     'error' => "Désolé, nous n'avons pas pu traiter votre message. Veuillez réessayer dans un instant.",
     'not_understood' => "Désolé, je n'ai pas bien compris 🙏 Pouvez-vous reformuler, ou choisir dans le menu ci-dessous ?",

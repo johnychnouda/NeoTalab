@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Driver;
 use App\Models\Merchant;
+use App\Models\Order;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\Countries;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class DriverService
@@ -120,9 +122,30 @@ class DriverService
         return $driver;
     }
 
+    /**
+     * Removing a driver never strands their delivery: one not collected yet goes to the next free
+     * driver; one already on the road must be delivered first (the driver has the food and taps
+     * Delivered).
+     */
     public function deactivate(Merchant $merchant, string $driverId): void
     {
         $driver = Driver::query()->where('merchant_id', $merchant->id)->findOrFail($driverId);
-        $driver->forceFill(['is_active' => false, 'status' => 'off_duty'])->save();
+        $order = $driver->active_order_id ? Order::query()->where('merchant_id', $merchant->id)->find($driver->active_order_id) : null;
+        $open = $order && ! in_array($order->status, ['delivered', 'cancelled', 'rejected'], true);
+
+        if ($open && $order->status === 'picked_up') {
+            throw ValidationException::withMessages(['driver' => ["{$driver->name} is delivering order #{$order->number} right now. Remove them once it is delivered."]]);
+        }
+
+        DB::transaction(function () use ($driver, $order, $open) {
+            $driver->forceFill(['is_active' => false, 'status' => 'off_duty', 'active_order_id' => null, 'availability' => 'available'])->save();
+            if ($open && $order->driver_id === $driver->id) {
+                $order->forceFill(['driver_id' => null, 'status' => $order->status === 'assigned' ? 'ready' : $order->status])->save();
+            }
+        });
+
+        if ($open) {
+            app(DriverDispatcher::class)->dispatchWaiting($merchant);
+        }
     }
 }
