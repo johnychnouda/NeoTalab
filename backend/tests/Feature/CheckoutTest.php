@@ -416,6 +416,26 @@ class CheckoutTest extends TestCase
         $this->assertStringContainsString('send your location', $this->lastReply(), 'English, like the customer');
     }
 
+    public function test_an_answer_in_another_language_is_asked_for_again_in_the_customers(): void
+    {
+        config(['ai.driver' => 'openai', 'ai.openai.api_key' => 'sk-test']);
+        $answers = ['أهلاً، كيف يمكنني مساعدتك اليوم؟', 'Hello! How can I help you today?'];
+        $asked = [];
+        Http::fake(['api.openai.com/*' => function (Request $request) use (&$answers, &$asked) {
+            $asked[] = json_decode($request['messages'][1]['content'], true)['reply_language'] ?? null;
+
+            return Http::response(['model' => 'gpt-test', 'usage' => [], 'choices' => [['message' => ['content' => json_encode([
+                'assistant_message' => array_shift($answers), 'recommended_action' => 'none', 'intent' => 'greeting',
+                'cart_actions' => [], 'checkout' => null, 'appointment' => null,
+            ])]]]]);
+        }, 'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
+
+        $this->say('hello, what do you have today?');
+
+        $this->assertSame([null, 'en'], $asked, 'asked again, in English');
+        $this->assertStringContainsString('Hello! How can I help', $this->lastReply());
+    }
+
     public function test_an_empty_answer_from_the_assistant_still_gets_the_customer_a_reply(): void
     {
         $this->aiAnswers(['assistant_message' => '', 'recommended_action' => 'none']);

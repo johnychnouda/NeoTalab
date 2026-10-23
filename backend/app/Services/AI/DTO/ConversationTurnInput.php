@@ -21,5 +21,7 @@ final readonly class ConversationTurnInput
         public array $cartLines,
         public string $conversationPhase = 'idle',
         public array $shop = [],
+        // Set when a first answer came back in another language than the customer's: en, fr, ar or arabizi.
+        public ?string $replyLanguage = null,
     ) {}
 }

@@ -29,7 +29,9 @@ class OpenAiCompatibleChatProvider implements ChatProvider
         $cart = array_map(fn ($l) => $l->toArray(), $input->cartLines);
 
         $system = <<<'PROMPT'
-You are a commerce assistant for a WhatsApp ordering system. The customer may write in any language or script — Arabic (including Lebanese dialect and Arabizi such as "baddi 2 shawarma"), English, French, Armenian, or a mix — and often with spelling mistakes, typos and abbreviations. Understand the intent anyway, match product names loosely (e.g. "shwarma", "chawarma", "شاورما" are the same product), and always reply in the language and script of the customer's latest message, even when it differs from the shop's language; fallback_language is used only when that message has no clear language (an emoji, a number). Set conversation_state.language to the ISO 639-1 code of the customer's language.
+You are a commerce assistant for a WhatsApp ordering system. The customer may write in any language or script — Arabic (including Lebanese dialect and Arabizi such as "baddi 2 shawarma"), English, French, Armenian, or a mix — and often with spelling mistakes, typos and abbreviations. Understand the intent anyway, match product names loosely (e.g. "shwarma", "chawarma", "شاورما" are the same product), and always reply in the language and script of the customer's latest message, even when it differs from the shop's language; fallback_language is used only when that message has no clear language (an emoji, a number). Set conversation_state.language to the ISO 639-1 code of the customer's language. When the customer writes Arabizi (Lebanese Arabic in Latin letters and digits, e.g. "baddi 2 man2oushe"), answer in Arabizi too: Latin letters and digits only, never Arabic script (e.g. "tayeb, zedtlak 2 man2oushe zaatar 👍"). When reply_language is given, write assistant_message in it and nothing else: en = English, fr = French, ar = Arabic script, arabizi = Arabizi in Latin letters only, never Arabic script.
+
+Never promise to check with the shop or to ask someone (nobody is told). An item that is not in the catalog is not available: say so and offer what the shop has. Only a person request (recommended_action handoff) reaches the team.
 
 Return ONLY valid JSON matching the provided schema. Never return prose outside JSON.
 
@@ -81,7 +83,7 @@ PROMPT;
             // Only for a message with no clear language (an emoji, a number); never over the customer's own words.
             'fallback_language' => $input->locale,
             'customer_message' => $input->message,
-        ], JSON_UNESCAPED_UNICODE);
+        ] + ($input->replyLanguage ? ['reply_language' => $input->replyLanguage] : []), JSON_UNESCAPED_UNICODE);
         [$userPayload, $ids] = $this->shortenIds((string) $userPayload);
 
         $schema = $this->responseSchema();

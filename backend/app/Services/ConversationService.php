@@ -15,6 +15,7 @@ use App\Services\AI\CatalogResolver;
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
+use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
@@ -154,11 +155,21 @@ class ConversationService
 
         $output = $this->chatProvider->processTurn($input);
 
+        // Every reply follows the customer's language: an answer in another one is asked for again, once.
+        $language = MessageLanguage::detect($message);
+        if (MessageLanguage::mismatch($language, $output->assistantMessage)) {
+            $output = $this->chatProvider->processTurn(new ConversationTurnInput(
+                message: $input->message, locale: $input->locale, history: $input->history, catalog: $input->catalog,
+                cartLines: $input->cartLines, conversationPhase: $input->conversationPhase, shop: $input->shop,
+                replyLanguage: $language,
+            ));
+        }
+
         $actions = $this->quantities->correct($message, $output->cartActions, $input->catalog);
         $actions = $this->cartEdits->apply($message, $actions, $input->cartLines, $input->catalog);
         $cartResult = $this->cartService->applyActions($cart, $actions);
 
-        $this->rememberLanguage($conversation, $output);
+        $this->rememberLanguage($conversation, $output, $language);
 
         $this->fulfillmentMissing = false;
         $this->cancelAwaitingId = null;
@@ -276,9 +287,15 @@ class ConversationService
     /**
      * System messages (confirmations, status updates) follow the language the customer writes in.
      */
-    private function rememberLanguage(Conversation $conversation, StructuredTurnOutput $output): void
+    private function rememberLanguage(Conversation $conversation, StructuredTurnOutput $output, ?string $detected = null): void
     {
-        $lang = strtolower(substr((string) ($output->conversationState['language'] ?? ''), 0, 2));
+        // The language read from the customer's own words wins; the AI's guess covers the rest (Arabizi, unclear).
+        // Arabizi is written in Latin letters, so the bot's own buttons and messages are in English.
+        $lang = match (true) {
+            in_array($detected, ['en', 'ar', 'fr'], true) => $detected,
+            $detected === 'arabizi' => 'en',
+            default => strtolower(substr((string) ($output->conversationState['language'] ?? ''), 0, 2)),
+        };
         if (in_array($lang, ['en', 'ar', 'fr'], true) && $conversation->customer->locale !== $lang) {
             $conversation->customer->forceFill(['locale' => $lang])->save();
         }
