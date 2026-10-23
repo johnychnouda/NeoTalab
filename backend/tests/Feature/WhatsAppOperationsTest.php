@@ -416,6 +416,22 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
     }
 
+    public function test_a_number_typed_in_a_new_order_after_the_rating_question_is_not_a_rating(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+        $shawarma = Product::query()->withoutGlobalScopes()->where('name', 'Shawarma')->firstOrFail();
+
+        $this->travel(1)->minutes();
+        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'list_reply', 'list_reply' => ['id' => "mn:item:{$shawarma->id}", 'title' => 'x']]]);
+        $this->say('2'); // answering "how many?"
+
+        $this->assertNull($order->fresh()->rating);
+        $this->assertStringNotContainsString('not perfect', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Added 2× Shawarma', $this->lastTo(self::CUSTOMER), 'the typed 2 is the quantity');
+    }
+
     public function test_low_rating_in_arabic_digits_gets_an_apology(): void
     {
         $rami = $this->driver();

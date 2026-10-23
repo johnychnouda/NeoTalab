@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /** Owner portal "Add Merchant" modal, accepts legacy camelCase fields. */
 class OwnerStoreMerchantRequest extends FormRequest
@@ -24,6 +26,7 @@ class OwnerStoreMerchantRequest extends FormRequest
             'street' => ['nullable', 'string', 'max:190'],
             'city' => ['nullable', 'string', 'max:80'],
             'region' => ['nullable', 'string', 'max:80'],
+            'country' => ['nullable', 'string', Rule::in(Countries::codes())],
             'subscriptionStatus' => ['nullable', 'string', 'in:paid,trial,pending'],
             'trialEndsAt' => ['nullable', 'date'],
             'forcePasswordChange' => ['nullable', 'boolean'],

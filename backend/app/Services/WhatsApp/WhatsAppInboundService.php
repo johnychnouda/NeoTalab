@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Jobs\NotifyStaffOfHandoff;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
 use App\Models\Order;
@@ -15,6 +16,7 @@ use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
+use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
@@ -317,6 +319,9 @@ class WhatsAppInboundService
                 ? $this->checkoutFlow->start($merchant, $conversation, $locale)
                 : ($buttonId !== null ? $this->chatMenu->handle($merchant, $conversation, $locale, $buttonId) : null);
 
+            // "2" typed when the menu asks "how many?" counts like tapping 2.
+            $step ??= $buttonId === null ? $this->chatMenu->typedQuantity($merchant, $conversation, $locale, $text) : null;
+
             // Checkout runs on buttons, without the AI: Delivery/Pickup → address → payment → receipt.
             $step ??= $this->checkoutFlow->handle($merchant, $conversation, $locale, $buttonId, $text, $location);
 
@@ -523,6 +528,14 @@ class WhatsAppInboundService
             ->first();
 
         if (! $order) {
+            return false;
+        }
+
+        // Started a new order since the rating question ("2" answering "how many?"): not a rating.
+        $busy = Conversation::query()->where('customer_id', $customer->id)->where('status', ConversationStatus::Active)->get()
+            ->contains(fn (Conversation $c) => isset(($c->state ?? [])['menu_pick']) || isset(($c->state ?? [])['checkout'])
+                || $c->created_at->gte($order->rating_requested_at) || $c->updated_at->gte($order->rating_requested_at));
+        if ($busy) {
             return false;
         }
 

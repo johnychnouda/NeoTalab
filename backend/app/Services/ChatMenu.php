@@ -272,6 +272,8 @@ class ChatMenu
         }
 
         $unit = $product->unit ? ' '.$this->unit($product->unit, $locale) : '';
+        // Remembered so a typed number ("2", "٢") answers this question like the buttons do.
+        $this->savePick($conversation, ['awaiting' => 'qty'] + $pick);
 
         return $this->buttons($this->t('how_many_of', $locale, ['item' => $name]), [
             ['mn:qty:1', "1{$unit}"], ['mn:qty:2', "2{$unit}"], ['mn:qtymore', "3+{$unit}"],
@@ -345,6 +347,23 @@ class ChatMenu
         return Product::query()->where('is_active', true)->whereNull('duration_mins')
             ->orderBy('sort_order')->orderBy('name')->get()
             ->filter(fn (Product $p) => $p->isOrderable())->values();
+    }
+
+    /**
+     * A plain number typed while the menu waits for the quantity: added like the quantity buttons.
+     * Null when the menu is not waiting for one or the text is not just a number.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function typedQuantity(Merchant $merchant, Conversation $conversation, string $locale, ?string $text): ?array
+    {
+        $pick = $this->pick($conversation);
+        $digits = strtr(trim((string) $text), ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
+        if (($pick['awaiting'] ?? null) !== 'qty' || ! preg_match('/^(?:x\s*)?(\d{1,2})$/iu', $digits, $m) || (int) $m[1] < 1) {
+            return null;
+        }
+
+        return $this->add($merchant, $conversation, $locale, min(CartService::MAX_LINE_QUANTITY, (int) $m[1]));
     }
 
     /** @return array<string, mixed>|null */

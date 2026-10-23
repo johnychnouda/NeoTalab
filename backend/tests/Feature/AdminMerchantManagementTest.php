@@ -200,6 +200,18 @@ class AdminMerchantManagementTest extends TestCase
         $this->assertDatabaseHas('merchants', ['name' => 'Joe Snacks', 'whatsapp_number' => '+96171112233']);
     }
 
+    public function test_a_shop_created_with_its_country_gets_that_countrys_lira_rate(): void
+    {
+        $this->withToken($this->tokenFor($this->platformAdmin()))->postJson('/api/v1/admin/merchants', [
+            'shopName' => 'Cedar Bakery', 'whatsappNumber' => '+96171112236', 'password' => '123456', 'country' => 'LB',
+        ])->assertCreated();
+
+        $this->assertEquals(89500, Merchant::query()->where('name', 'Cedar Bakery')->sole()->settings['lbp_rate']);
+        $this->withToken($this->tokenFor($this->platformAdmin()))->postJson('/api/v1/admin/merchants', [
+            'shopName' => 'Nowhere', 'whatsappNumber' => '+96171112237', 'password' => '123456', 'country' => 'XX',
+        ])->assertUnprocessable();
+    }
+
     public function test_business_type_defaults_survive_owner_portal_and_join_approval(): void
     {
         $token = $this->tokenFor($this->platformAdmin());

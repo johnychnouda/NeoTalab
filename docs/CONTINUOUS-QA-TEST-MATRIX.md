@@ -37,4 +37,8 @@ Method: **A** automated backend test · **L** lab run (real API, queue, signed w
 | Shop phone ✅ ❌ ⏸ ▶️ (coexistence echoes) | shop phone, customer | L | pass 10/10 | `s16` | — | — |
 | Timers: nobody accepts, late order | shop, customer, staff | L (queue) | pass 13/13 | `s17` | — | — |
 | Whish journey: connect, exact pay, wrong amount, window ends, late pay → refund, failed pay, double callback, refused order | shop, customer | L, **simulated Whish** (`qa/mock_whish.py`) | pass 20/20 | `s18` | — | live Whish (blocked) |
+| Ratings after delivery (5, ٢, no overwrite, typed quantity is not a rating) | customer | L | pass 5/5 after fix | `s19` | D15 | — |
+| Delivery areas on the map (circle, drawn shape, smallest wins, outside, bad shapes) | shop owner, customer | L | pass 10/10 | `s19` | — | — |
+| Split cash and lira-only, rounding up to 1,000 LL | customer | L | pass 3/3 | `s19` | D16 | — |
+| Offers with dates (ended mid-cart, starts tomorrow, today only) | shop owner, customer | L | pass 3/3 | `s19` | — | — |
 

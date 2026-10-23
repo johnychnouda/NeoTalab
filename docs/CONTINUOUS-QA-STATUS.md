@@ -15,15 +15,16 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   (`WHISH_BASE_URL`, ignored in production; `WhishPaymentTest::test_a_lab_whish_address_is_never_used_in_production`).
 - Backend 439 passed; Pint clean; web unit 10 passed.
 
+## Checkpoint 2, 23 October 2026
+- Tested: ratings, delivery areas on the map, split cash and lira, offers with dates (`qa/s19`, 20/20 after fixes).
+- Fixed: D15 (a typed quantity became a rating; a typed number now answers "how many?"), D16 (owner shop API dropped the country).
+- Backend 441 passed; Pint clean; web unit 10 passed.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.
 
-## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1)
-6. Ratings after delivery, low rating alert.
-7. Delivery areas drawn on the map: pin inside, outside, overlapping areas.
-8. Split cash in dollars and lira: rounding and the shop's rate.
-9. Offers with start and end dates, including an offer ending while the item sits in a cart.
+## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2)
 10. Menu import (text and files, lira rows, broken files).
 11. Join form abuse: wrong country, bad number, hidden bot field, more than 5 per hour, duplicates.
 12. Billing commands: reminders, paid period ending, nightly report numbers versus the database.
