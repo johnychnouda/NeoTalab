@@ -43,6 +43,8 @@ return [
     // Whish Pay sandbox (fake money), off in production unless explicitly enabled for a test.
     'whish' => [
         'sandbox_allowed' => env('WHISH_SANDBOX_ALLOWED', env('APP_ENV') !== 'production'),
+        // Test labs only (a Whish stand-in); ignored in production so real payments never go elsewhere.
+        'base_url' => env('WHISH_BASE_URL'),
     ],
 
 ];

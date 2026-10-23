@@ -176,11 +176,26 @@ class WhishPayService
     }
 
     /**
+     * Whish's live or sandbox address; a test lab may point to a stand-in, never in production.
+     *
+     * @param  array{channel: string, secret: string, sandbox: bool}  $creds
+     */
+    public function baseUrl(array $creds): string
+    {
+        $lab = (string) config('services.whish.base_url');
+        if ($lab !== '' && ! app()->isProduction()) {
+            return rtrim($lab, '/');
+        }
+
+        return $creds['sandbox'] ? self::SANDBOX_URL : self::LIVE_URL;
+    }
+
+    /**
      * @param  array{channel: string, secret: string, sandbox: bool}  $creds
      */
     private function client(array $creds)
     {
-        return Http::baseUrl($creds['sandbox'] ? self::SANDBOX_URL : self::LIVE_URL)
+        return Http::baseUrl($this->baseUrl($creds))
             ->acceptJson()
             ->timeout(20)
             ->withHeaders([

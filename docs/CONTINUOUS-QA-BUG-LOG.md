@@ -1,0 +1,21 @@
+# Continuous QA: bug log
+
+Every confirmed defect, newest last. Each fix has a regression test that fails without the fix.
+Full history and evidence: [QA-RECORD-2026-10-22.md](QA-RECORD-2026-10-22.md).
+
+| # | Found | Severity | Defect | Reproduction | Fix (files) | Regression test | Retest |
+|---|---|---|---|---|---|---|---|
+| D1 | 22 Oct | Medium | A disabled login kept working with a session it already had | disable a user, reuse its token → 200 | `Http/Middleware/ResolveTenant.php` | `AccountGuardTest::test_disabled_login_loses_its_open_session` | live 401 |
+| D2 | 22 Oct | Medium (latent critical) | A shop-role login with no shop saw every shop's data (customers page 500) | user with merchant role and `merchant_id` null → `GET /products` lists all shops | `ResolveTenant.php` | `AccountGuardTest` (2 tests) | live 403 |
+| D3 | 22 Oct | High | A size saved with an empty price became 0.00$ and was sold free | dashboard size without price → order "2 × Big pack 0.00$" confirmed | menu page, `ProductController`, variant requests, `ProductVariant::isOffered`, `CartService`, `ChatMenu`, `CatalogResolver` | `ChatMenuTest`, `MenuEditorTest` (3) | live: hidden, refused |
+| D4 | 22 Oct | High | Shops created from the owner portal or /join lost their business-type settings (salons could not take bookings) | approve a clinic → `business_mode` missing | `AdminMerchantService::provisionFromOwnerPortal`; data repair migration `2026_10_23_000000` | `AdminMerchantManagementTest` (2) | live salon 12/12 |
+| D5 | 22 Oct | High (not reproduced) | Stock was lowered after a check outside the transaction: two buyers could both get the last item | code review; simulated competing buyer | `CheckoutService` conditional decrement | `CheckoutTest::test_last_item_taken_while_the_order_is_saved_is_not_sold_twice` | SQLite + MySQL races: never oversold |
+| D6 | 22 Oct | Medium | The bot said "Added 2 × …" when the cart refused the item | "add 2 shared item" (has sizes) → cart empty | `WhatsAppInboundService::refusedItem`, `CartService` | `ChatMenuTest::test_typed_item_that_needs_a_size_asks_for_it_instead_of_saying_added` | live: size buttons |
+| D7 | 22 Oct | Low | Negative option prices accepted; max choices alone refused | API `price_delta: -5` → 201 | modifier / modifier-group requests | `MenuEditorTest` | — |
+| D8 | 23 Oct | Medium | Replies followed the shop's language, not the customer's | French shop, English customer → French reply | `OpenAiCompatibleChatProvider`, `MessageLanguage`, `ConversationService`, `WhatsAppInboundService` | `MessageLanguageTest`, `CheckoutTest` (2) | real AI 16/16 |
+| D9 | 23 Oct | Medium | "actually make it 3" at the address step was saved as the delivery address | real AI run | `CheckoutFlow`, `CartEditsFromMessage::looksLikeCartChange` | `CheckoutFlowTest::test_a_change_of_mind_while_asked_for_the_address_is_not_taken_as_the_address` | real AI passed |
+| D10 | 23 Oct | Medium | A customer who called the shop number got no answer | `calls` webhook → nothing sent | `WhatsAppInboundService::answerCalls`, lang `call_note` | `VoiceNoteTest::test_a_call_to_the_shop_number_gets_a_message_once_not_silence` | live passed |
+| D11 | 23 Oct | Medium | Removing a driver mid-delivery left the order stuck | delete driver holding an order → order keeps the inactive driver | `DriverService::deactivate` | `WhatsAppOperationsTest` (2) | — |
+| D12 | 23 Oct | Low | Two migrations could not be rolled back | `migrate:refresh` on MySQL failed | tracking-token and activity-log migrations | `migrate:refresh` ×2 on MySQL | passed |
+| D13 | 23 Oct | Low | Customer WhatsApp name not saved; typed orders did not save the address; staff could close a cancelled booking; support sessions not logged | review | `ConversationService`, `Customer::rememberAddress`, `DriverBotService`, `AdminMerchantService` | 3 tests (Checkout, WhatsAppOperations, AdminMerchantManagement) | — |
+| D14 | 23 Oct | Low | The live API announced its PHP version (`X-Powered-By: PHP/8.4.27`) and sent no browser-protection headers; the website said `X-Powered-By: Next.js` | `curl -I` on the live API and site | `Http/Middleware/SecurityHeaders.php`, `bootstrap/app.php`, `web/next.config.mjs` | `SecurityHeadersTest` | lab: header gone, protections present |

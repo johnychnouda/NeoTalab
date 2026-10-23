@@ -504,4 +504,17 @@ class WhishPaymentTest extends TestCase
 
         $this->assertFalse(app(WhishPayService::class)->credentials($this->merchant->fresh())['sandbox']);
     }
+
+    public function test_a_lab_whish_address_is_never_used_in_production(): void
+    {
+        $whish = app(WhishPayService::class);
+        $creds = ['channel' => 'c', 'secret' => 's', 'sandbox' => false];
+        config(['services.whish.base_url' => 'http://127.0.0.1:8029']);
+
+        $this->assertSame('http://127.0.0.1:8029', $whish->baseUrl($creds), 'labs may use a stand-in');
+
+        $this->app['env'] = 'production';
+        $this->assertSame(WhishPayService::LIVE_URL, $whish->baseUrl($creds));
+        $this->assertSame(WhishPayService::SANDBOX_URL, $whish->baseUrl(['sandbox' => true] + $creds));
+    }
 }

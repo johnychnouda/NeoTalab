@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false, // no "X-Powered-By: Next.js" label
   outputFileTracingRoot: new URL(".", import.meta.url).pathname,
   // Always HTTPS: browsers that once visited http://neotalab.com otherwise keep showing "Not secure".
   async headers() {

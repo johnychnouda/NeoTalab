@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Railway's proxy sits in front of the app: trust its X-Forwarded-* headers so the real
         // visitor IP is used (login and /join limits are per visitor) and URLs stay https.
         $middleware->trustProxies(at: '*');
+        $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([
             'tenant' => ResolveTenant::class,
