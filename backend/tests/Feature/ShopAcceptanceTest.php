@@ -265,7 +265,7 @@ class ShopAcceptanceTest extends TestCase
         $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "drv:picked_up:{$order->id}", 'title' => 'x']]], '+96176000001');
         $card = $this->lastTo('+96176000001');
         $this->assertStringContainsString('on the way', $card['text']);
-        $this->assertSame(["drv:outside:{$order->id}", "drv:delivered:{$order->id}"], $card['buttons']);
+        $this->assertSame(["drv:outside:{$order->id}", "drv:delivered:{$order->id}", "drv:failed:{$order->id}"], $card['buttons']);
         $this->customerTaps("trk:{$order->id}");
         $this->assertStringContainsString('is on its way', $this->lastTo(self::CUSTOMER)['text']);
         $this->assertStringContainsString('Rami · 📞 +96176000001', $this->lastTo(self::CUSTOMER)['text']);

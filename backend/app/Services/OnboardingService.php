@@ -62,6 +62,7 @@ class OnboardingService
                 'whatsappNumber' => $request->whatsapp,
                 'password' => $payload['password'] ?? '',
                 'businessType' => $request->business_type,
+                'loginEmail' => $request->email,
                 'country' => $request->country,
                 'street' => $request->street,
                 'city' => $request->city,

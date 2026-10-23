@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -30,6 +32,13 @@ class AuthService
         if ($user->status === 'disabled') {
             throw ValidationException::withMessages([
                 'email' => ['This account is disabled.'],
+            ]);
+        }
+
+        // Shop staff work through WhatsApp only; the dashboard is for the owner and managers.
+        if ($user->hasRole(Roles::MERCHANT_STAFF)) {
+            throw ValidationException::withMessages([
+                'email' => ['Team members work through WhatsApp. Ask your manager for help.'],
             ]);
         }
 
@@ -115,5 +124,41 @@ class AuthService
         $token = $user->createToken('api')->plainTextToken;
 
         return ['token' => $token];
+    }
+
+    /**
+     * "Forgot password": emails a reset link to the account's email. Always answers the same way, so
+     * nobody can find out which emails have accounts. Team members (who can't use the dashboard) get nothing.
+     */
+    public function sendResetLink(string $email): void
+    {
+        $user = User::query()->where('email', strtolower(trim($email)))->first();
+        if (! $user || $user->status === 'disabled' || $user->hasRole(Roles::MERCHANT_STAFF)) {
+            return;
+        }
+
+        Password::broker()->sendResetLink(['email' => $user->email]);
+    }
+
+    /**
+     * Sets the new password from the emailed link and signs out every session.
+     *
+     * @return array{message:string}
+     */
+    public function resetPassword(string $email, string $token, string $password): array
+    {
+        $status = Password::broker()->reset(
+            ['email' => strtolower(trim($email)), 'token' => $token, 'password' => $password],
+            function (User $user, string $newPassword) {
+                $user->forceFill(['password' => $newPassword, 'password_changed_at' => now()])->save();
+                $user->tokens()->delete();
+            },
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages(['token' => [__('This reset link is no longer valid. Ask for a new one.')]]);
+        }
+
+        return ['message' => 'Password updated. Sign in with your new password.'];
     }
 }

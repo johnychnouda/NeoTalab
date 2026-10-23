@@ -294,6 +294,48 @@ class WhatsAppOperationsTest extends TestCase
         $this->withToken($this->token)->deleteJson("/api/v1/drivers/{$rami->id}")->assertOk();
     }
 
+    public function test_driver_cannot_deliver_so_the_order_closes_and_the_shop_is_told(): void
+    {
+        $owner = $this->staff();
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
+        $this->tap("drv:picked_up:{$order->id}", $rami->whatsapp_number);
+
+        $this->tap("drv:failed:{$order->id}", $rami->whatsapp_number);
+
+        $order->refresh();
+        $this->assertSame('failed', $order->status);
+        $this->assertSame('Customer not reachable', $order->cancel_reason);
+        $this->assertNull($rami->fresh()->active_order_id, 'the driver is free again');
+        $this->assertStringContainsString('closed as not delivered', $this->lastTo($rami->whatsapp_number));
+        $this->assertStringContainsString("#{$order->number} was not delivered", $this->lastTo($owner->whatsapp_number));
+    }
+
+    public function test_a_driver_cannot_mark_an_order_failed_before_picking_it_up(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+
+        $this->tap("drv:failed:{$order->id}", $rami->whatsapp_number);
+
+        $this->assertSame('confirmed', $order->fresh()->status);
+    }
+
+    public function test_staff_closes_a_refund_by_typing_refunded_and_the_number(): void
+    {
+        $lina = $this->driver('Lina', '+96176000008', 'off_duty', 'staff');
+        $order = $this->order();
+        $order->forceFill(['status' => 'cancelled', 'payment_status' => 'refund_due'])->save();
+
+        $this->receive(['type' => 'text', 'text' => ['body' => "refunded {$order->number}"]], $lina->whatsapp_number);
+        $this->assertSame('refunded', $order->fresh()->payment_status);
+        $this->assertStringContainsString('marked as refunded', $this->lastTo($lina->whatsapp_number));
+
+        $this->receive(['type' => 'text', 'text' => ['body' => "refunded {$order->number}"]], $lina->whatsapp_number);
+        $this->assertStringContainsString('No refund is waiting', $this->lastTo($lina->whatsapp_number), 'a second time changes nothing');
+    }
+
     public function test_staff_cannot_mark_a_cancelled_booking_as_done(): void
     {
         $lina = $this->driver('Lina', '+96176000009', 'off_duty', 'staff');

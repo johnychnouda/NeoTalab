@@ -10,6 +10,7 @@ use App\Services\AI\Speech\FakeSpeechToText;
 use App\Services\AI\Speech\OpenAiSpeechToText;
 use App\Services\SystemAlertService;
 use App\Support\CurrentTenant;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
@@ -45,6 +46,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The emailed reset link opens the NeoTalab website's "choose a new password" page.
+        ResetPassword::createUrlUsing(fn ($notifiable, string $token) => rtrim((string) config('app.frontend_url'), '/')
+            .'/reset-password?token='.$token.'&email='.urlencode((string) $notifiable->getEmailForPasswordReset()));
+
         // Every warning or error the app logs also becomes an owner alert (Inbox → System).
         Event::listen(MessageLogged::class, fn (MessageLogged $log) => app(SystemAlertService::class)
             ->record($log->level, (string) $log->message, $log->context));

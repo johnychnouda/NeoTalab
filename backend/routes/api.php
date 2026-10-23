@@ -32,6 +32,8 @@ Route::prefix('v1')->group(function () {
     // ── Public ────────────────────────────────────────────────
     // Merchants are created only via /join approval or the owner portal, no public self-registration.
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:login');
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
     Route::get('plan', PublicPlanController::class)->middleware('throttle:api');
     Route::post('onboarding/apply', [PublicOnboardingController::class, 'store'])->middleware('throttle:onboarding');
 

@@ -15,6 +15,7 @@ class UpdateMerchantRequest extends FormRequest
     {
         return [
             'status' => ['sometimes', 'string', 'in:active,suspended,cancelled,pending'],
+            'loginEmail' => ['sometimes', 'nullable', 'email', 'max:190'],
             'plan' => ['sometimes', 'string', 'max:30'],
             'billingCycle' => ['sometimes', 'string', 'in:monthly,yearly'],
             'billing_cycle' => ['sometimes', 'string', 'in:monthly,yearly'],

@@ -128,6 +128,14 @@ class AdminMerchantService
             }
         }
 
+        // The owner can give an existing shop its real login email (so "forgot password" can reach it).
+        if (filled($this->pick($payload, 'loginEmail'))) {
+            $owner = $merchant->ownerUser();
+            if ($owner) {
+                $owner->forceFill(['email' => $this->loginEmail($this->pick($payload, 'loginEmail'))])->save();
+            }
+        }
+
         if ($this->hasKey($payload, 'ownerName', 'owner_name')) {
             $ownerName = trim((string) $this->pick($payload, 'ownerName', 'owner_name'));
             $owner = $merchant->ownerUser();
@@ -196,7 +204,9 @@ class AdminMerchantService
             ]);
         }
 
-        $email = $this->emailFromShopName($shopName);
+        // The shop's own email (from the join form, or set by the owner) is its login, so a forgotten
+        // password can be emailed to it. Without one, a placeholder address is used (no reset by email).
+        $email = $this->loginEmail($payload['loginEmail'] ?? null) ?? $this->emailFromShopName($shopName);
 
         $subscriptionStatus = $payload['subscriptionStatus'] ?? $payload['subscription_status'] ?? 'pending';
         $trialEndsAt = $payload['trialEndsAt'] ?? $payload['trial_ends_at'] ?? null;
@@ -497,6 +507,20 @@ class AdminMerchantService
         return ($merchant->billing_cycle ?? 'monthly') === 'yearly'
             ? $start->copy()->addYear()
             : $start->copy()->addMonth();
+    }
+
+    /** A usable login email for a shop, or null when none was given. Refuses an address another account uses. */
+    protected function loginEmail(mixed $raw): ?string
+    {
+        $email = strtolower(trim((string) $raw));
+        if ($email === '') {
+            return null;
+        }
+        if (User::query()->where('email', $email)->exists()) {
+            throw ValidationException::withMessages(['loginEmail' => ['Another account already uses this email.']]);
+        }
+
+        return $email;
     }
 
     protected function emailFromShopName(string $shopName): string

@@ -59,7 +59,7 @@ class DriverBotService
         }
 
         $buttonId = $msg['interactive']['button_reply']['id'] ?? $msg['button']['payload'] ?? null;
-        if (is_string($buttonId) && preg_match('/^drv:(picked_up|outside|delivered):(.+)$/', $buttonId, $m)) {
+        if (is_string($buttonId) && preg_match('/^drv:(picked_up|outside|delivered|failed):(.+)$/', $buttonId, $m)) {
             $this->reply($merchant, $to, $this->orderAction($merchant, $driver, $m[1], $m[2], $locale));
 
             return;
@@ -97,6 +97,18 @@ class DriverBotService
     {
         // Buttons on a template message (sent outside the 24-hour window) come back as a payload.
         $buttonId = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['button']['payload'] ?? '');
+
+        // "refunded 128": the shop has sent the money back to a customer whose cancelled Whish order was paid.
+        $typed = trim((string) ($msg['text']['body'] ?? ''));
+        if (preg_match('/^(?:refunded|refund done|مسترد|remboursé|rembourse)\s*#?\s*(\d+)$/iu', $typed, $m)) {
+            $order = Order::query()->where('number', (int) $m[1])->where('payment_status', 'refund_due')->first();
+            if (! $order) {
+                return __('whatsapp.staff.refund_not_found', ['number' => (int) $m[1]], $locale);
+            }
+            $order->forceFill(['payment_status' => 'refunded'])->save();
+
+            return __('whatsapp.staff.refund_done', ['number' => $order->number], $locale);
+        }
 
         if (preg_match('/^stf:resume:(.+)$/', $buttonId, $m)) {
             $customer = Customer::query()->whereKey($m[1])->first();
@@ -281,6 +293,10 @@ class DriverBotService
             return '';
         }
 
+        if ($action === 'failed') {
+            return __('whatsapp.driver.failed_closed', ['number' => $order->number], $locale);
+        }
+
         return __('whatsapp.driver.delivered', ['number' => $order->number], $locale);
     }
 
@@ -294,6 +310,7 @@ class DriverBotService
                 'action' => ['buttons' => [
                     ['type' => 'reply', 'reply' => ['id' => "drv:outside:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_outside', [], $locale), 0, 20)]],
                     ['type' => 'reply', 'reply' => ['id' => "drv:delivered:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_delivered', [], $locale), 0, 20)]],
+                    ['type' => 'reply', 'reply' => ['id' => "drv:failed:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_failed', [], $locale), 0, 20)]],
                 ]],
             ]]);
         } catch (\Throwable $e) {

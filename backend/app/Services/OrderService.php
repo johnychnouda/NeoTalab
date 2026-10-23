@@ -12,6 +12,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,10 +38,11 @@ class OrderService
             'assign' => $this->assign($order, (string) ($payload['driver_id'] ?? $payload['driverId'] ?? '')),
             'picked_up' => $this->pickedUp($order),
             'delivered' => $this->delivered($order),
+            'failed' => $this->failed($order, $payload['reason'] ?? null),
             default => throw ValidationException::withMessages(['action' => ['Unknown order action.']]),
         };
 
-        if (in_array($action, ['reject', 'cancel'], true)) {
+        if (in_array($action, ['reject', 'cancel', 'failed'], true)) {
             $this->reverseCustomerTotals($order);
             $this->releaseOrder($order);
         }
@@ -53,7 +55,7 @@ class OrderService
             $this->notify(new NotifyDriverOfAssignment($order->id));
         }
 
-        if (in_array($action, ['delivered', 'reject', 'cancel'], true)) {
+        if (in_array($action, ['delivered', 'reject', 'cancel', 'failed'], true)) {
             $this->afterDriverFreed($merchant, $order, $action);
         }
 
@@ -210,6 +212,29 @@ class OrderService
         return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
     }
 
+    /**
+     * The driver could not hand the order over (customer unreachable or refused). The order closes:
+     * the driver is free, the customer is told, and the shop is told what happened.
+     */
+    protected function failed(Order $order, ?string $reason): array
+    {
+        if ($order->status !== 'picked_up') {
+            throw ValidationException::withMessages(['order' => ['Only an order on its way can be marked as not delivered.']]);
+        }
+
+        $order->forceFill([
+            'status' => 'failed',
+            'cancel_reason' => trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 200) : 'Customer not reachable',
+            'cancelled_by' => 'driver',
+            'cancelled_at' => now(),
+        ])->save();
+        if ($order->driver_id) {
+            $this->releaseDriver($order->driver_id);
+        }
+
+        return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
+    }
+
     protected function delivered(Order $order): array
     {
         // Drivers often skip "Picked up" and tap "Delivered" straight away, accept any open order.
@@ -251,6 +276,14 @@ class OrderService
      */
     protected function afterDriverFreed(Merchant $merchant, Order $order, string $action): void
     {
+        if ($action === 'failed') {
+            $messenger = app(StaffMessenger::class);
+            $body = __('whatsapp.staff.not_delivered', ['number' => $order->number, 'reason' => $order->cancel_reason], $merchant->locale ?? 'en');
+            foreach ($messenger->staff($merchant) as $member) {
+                $messenger->send($merchant, $member, $body, []);
+            }
+        }
+
         try {
             app(DriverDispatcher::class)->dispatchWaiting($merchant);
         } catch (\Throwable $e) {

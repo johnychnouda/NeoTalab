@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\ResetPasswordRequest;
 use App\Http\Requests\SetInitialPasswordRequest;
 use App\Http\Requests\UpdateEmailRequest;
 use App\Http\Requests\UpdatePasswordRequest;
@@ -80,5 +82,21 @@ class AuthController extends Controller
         return response()->json(
             $auth->setInitialPassword($request->user(), (string) $request->input('password'))
         );
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request, AuthService $auth): JsonResponse
+    {
+        $auth->sendResetLink((string) $request->input('email'));
+
+        return response()->json(['message' => 'If that email has an account, a reset link is on its way.']);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request, AuthService $auth): JsonResponse
+    {
+        return response()->json($auth->resetPassword(
+            (string) $request->input('email'),
+            (string) $request->input('token'),
+            (string) $request->input('password'),
+        ));
     }
 }

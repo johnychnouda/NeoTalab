@@ -38,6 +38,17 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Railway forwarded-address question: Railway's documentation does not settle it (forum answers conflict,
   see the links in the status discussion). Open: ask Railway support. The fix does not depend on it.
 
+## Checkpoint 6 (your list: backups, refunds, failed deliveries, staff, forgot password)
+- Done and tested (backend, 457 passing): staff cannot use the dashboard; "refunded <number>" closes a refund;
+  driver "Not delivered" closes the order and tells the shop; forgot-password email (link to the website, once only,
+  team members excluded); a shop's real email becomes its login (join approval, or set by the owner).
+- Backup restore: a dump restored into a copy, 7 tables equal. The app's own backup command fails on this computer
+  because its MySQL tools are a different version than the live server's; production not verified.
+- BLOCKED: website build stops on a Next.js security check. Not bypassed. Needs your decision (upgrade Next.js).
+  Until then the "Forgot password?" pages are not published.
+- NOT DONE by me: an uptime alert needs your UptimeRobot sign-up.
+- Shops created before this change keep a placeholder login email: the owner must set a real one.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

@@ -49,4 +49,10 @@ Method: **A** automated backend test · **L** lab run (real API, queue, signed w
 | Billing reminders (3 days before, 1 day for a trial, once a day, template or 24-hour window) | shop owner | A | pass (existing tests) | `WhatsAppOperationsTest` | — | — |
 | Paid period ends → shop stops after the grace period; trial ends → stops | owner, shop | A | pass (existing tests) | `SubscriptionBillingTest`, `WhatsAppOperationsTest` | — | — |
 | Nightly report figures against the database (orders, sales incl. lira, rating, late, top items, quiet day) | shop owner | A | pass 2/2 | `ReportFiguresTest` | — | — |
+| Shop staff cannot use the dashboard | shop staff | A | pass 2/2 | `StaffDashboardTest` | — | — |
+| Staff type "refunded <number>" to close a Whish refund | shop staff | A | pass | `WhatsAppOperationsTest` | — | — |
+| Driver "Not delivered": order closes, driver freed, customer and shop told | driver, shop, customer | A | pass 2/2 | `WhatsAppOperationsTest` | — | — |
+| Forgot password: email link, unknown email, staff get nothing, link works once, bad link refused | owner, shop | A | pass 5/5 | `PasswordResetTest` | — | website page: build blocked (see status) |
+| Shop's real email becomes its login (join approval; owner can set it) | owner | A | pass 2/2 | `AdminMerchantManagementTest` | — | — |
+| Backup restore (dump → restore → compare 7 tables) | — | M | pass | manual dump with GTID off, 7 tables equal | — | the app's own backup command: fails on this computer (client version); production client unverified |
 

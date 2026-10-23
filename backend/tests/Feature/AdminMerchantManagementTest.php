@@ -212,6 +212,31 @@ class AdminMerchantManagementTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_an_approved_shop_logs_in_with_the_email_it_gave_so_a_reset_can_reach_it(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        $request = OnboardingRequest::query()->forceCreate([
+            'shop_name' => 'Cedar Cafe', 'contact_name' => 'Ana', 'whatsapp' => '+96171112240', 'email' => 'ana.cafe@example.com',
+            'business_type' => 'Restaurant / Café', 'country' => 'LB', 'city' => 'Beirut', 'street' => 'Hamra', 'status' => 'pending',
+        ]);
+        $this->withToken($token)->postJson("/api/v1/admin/onboarding/{$request->id}/approve", ['password' => 'secret-123'])->assertSuccessful();
+
+        $shop = Merchant::query()->where('name', 'Cedar Cafe')->sole();
+        $this->assertSame('ana.cafe@example.com', $shop->users()->first()->email);
+    }
+
+    public function test_the_owner_can_give_an_existing_shop_its_real_login_email(): void
+    {
+        [$merchant, $owner] = $this->merchantWithUser();
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['loginEmail' => 'Shop.Owner@Example.com'])->assertOk();
+
+        $this->assertSame('shop.owner@example.com', $owner->fresh()->email);
+        [$other] = $this->merchantWithUser();
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->patchJson("/api/v1/admin/merchants/{$other->id}", ['loginEmail' => 'shop.owner@example.com'])->assertUnprocessable();
+    }
+
     public function test_business_type_defaults_survive_owner_portal_and_join_approval(): void
     {
         $token = $this->tokenFor($this->platformAdmin());
