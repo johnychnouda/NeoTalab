@@ -17,6 +17,19 @@ final class CartEditsFromMessage
 
     private const REMOVE = '/\b(remove|delete|take out|without|no more)\b|enl[eè]ve|enlever|retire|retirer|supprime|supprimer|احذف|امسح|شيل|بدون/u';
 
+    private const ADD = '/^\s*(add|also|another|one more|plus)\b|^\s*ajoute|^\s*(زيد|كمان)/u';
+
+    /**
+     * True for a message about the cart ("actually make it 3", "remove the fries", "add a pepsi"):
+     * checkout must hand it to the assistant instead of reading it as an address.
+     */
+    public static function looksLikeCartChange(string $message): bool
+    {
+        $text = ProductMentions::normalise($message);
+
+        return (bool) (preg_match(self::CHANGE, $text) || preg_match(self::REMOVE, $text) || preg_match(self::ADD, $text));
+    }
+
     /**
      * @param  array<int, CartAction>  $actions
      * @param  array<int, CartLineSnapshot>  $cartLines
@@ -64,6 +77,14 @@ final class CartEditsFromMessage
                     $edits[] = new CartAction(action: 'update', cartItemId: $line->id, quantity: $number);
                 }
             }
+        }
+
+        // One item in the cart and no item named: "actually make it 3" can only mean that item.
+        if ($edits === [] && $change && count($cartLines) === 1 && ! ProductMentions::mentions($text, $allNames, $allNames)
+            && preg_match('/(?<![\d.,])(\d{1,2})(?![\d.,])/u', strtr($text, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']), $m)
+            && (int) $m[1] > 0 && (int) $m[1] !== $cartLines[0]->quantity) {
+            $edits[] = new CartAction(action: 'update', cartItemId: $cartLines[0]->id, quantity: (int) $m[1]);
+            $touched[$cartLines[0]->productId] = true;
         }
 
         if ($edits === []) {

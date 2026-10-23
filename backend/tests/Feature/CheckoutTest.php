@@ -402,6 +402,20 @@ class CheckoutTest extends TestCase
         $this->assertStringContainsString('Sassine street, bldg Rizk', $reply, 'straight to the receipt with the typed address');
     }
 
+    public function test_buttons_after_the_reply_use_the_customers_language_not_the_shops(): void
+    {
+        $this->merchant->forceFill(['locale' => 'fr'])->save();
+        $this->aiAnswers([
+            'assistant_message' => 'Added 1 shawarma!', 'recommended_action' => 'checkout',
+            'conversation_state' => ['phase' => 'checkout', 'language' => 'en'],
+            'cart_actions' => [['action' => 'add', 'product_id' => '{shawarma}', 'variant_id' => null, 'cart_item_id' => null, 'quantity' => 1, 'modifier_ids' => [], 'notes' => null]],
+        ]);
+
+        $this->say('1 shawarma please, that is all');
+
+        $this->assertStringContainsString('send your location', $this->lastReply(), 'English, like the customer');
+    }
+
     public function test_an_empty_answer_from_the_assistant_still_gets_the_customer_a_reply(): void
     {
         $this->aiAnswers(['assistant_message' => '', 'recommended_action' => 'none']);

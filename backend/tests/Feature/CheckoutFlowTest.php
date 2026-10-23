@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
 use App\Models\Merchant;
@@ -270,6 +271,20 @@ class CheckoutFlowTest extends TestCase
         $this->say('add 1 zaatar');
 
         $this->assertStringContainsString('Added 1 × Zaatar', $this->last()['text']['body'] ?? $this->last()['interactive']['body']['text']);
+        $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
+    }
+
+    public function test_a_change_of_mind_while_asked_for_the_address_is_not_taken_as_the_address(): void
+    {
+        $this->menuOrder();
+        $this->pickRow("co:zone:{$this->jbeil->id}");
+        $this->assertSame('location_request_message', $this->last()['interactive']['type']);
+
+        $this->say('actually make it 3');
+
+        $cart = Conversation::query()->withoutGlobalScopes()->firstOrFail()->cart()->withoutGlobalScopes()->first();
+        $this->assertSame(3, $cart->items()->withoutGlobalScopes()->first()->quantity, 'the cart is updated');
+        $this->assertArrayNotHasKey('checkout', Conversation::query()->withoutGlobalScopes()->firstOrFail()->state ?? [], 'checkout left, nothing saved as the address');
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
     }
 

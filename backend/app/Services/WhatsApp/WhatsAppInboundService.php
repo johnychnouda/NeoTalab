@@ -315,6 +315,8 @@ class WhatsAppInboundService
 
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
+            // The assistant has just recognised the customer's language: the buttons that follow use it too.
+            $locale = $result['conversation']->customer->locale ?? $locale;
 
             // "Cancel order #N?" with Yes / No buttons: the customer's tap decides, not the assistant.
             if ($result['cancel_confirm'] !== null) {

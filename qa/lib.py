@@ -183,3 +183,11 @@ def settle(t0, quiet=1.2, cap=8.0):
             break
         time.sleep(0.15)
     return outbox(since=t0)
+
+
+def wait_reply(t0, to, quiet=2.5, cap=60.0):
+    """Like settle(), but first waits for at least one message to `to` (the real AI is slow)."""
+    to = to.lstrip("+")
+    while time.time() - t0 < cap and not [x for x in outbox(since=t0) if x["body"].get("to", "").lstrip("+") == to]:
+        time.sleep(0.3)
+    return settle(t0, quiet=quiet, cap=cap)

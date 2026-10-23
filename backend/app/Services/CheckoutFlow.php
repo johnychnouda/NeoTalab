@@ -9,6 +9,7 @@ use App\Models\DeliveryZone;
 use App\Models\Merchant;
 use App\Models\Modifier;
 use App\Models\Order;
+use App\Services\AI\CartEditsFromMessage;
 use App\Support\Money;
 use App\Support\ShopSettings;
 use Illuminate\Support\Str;
@@ -179,6 +180,13 @@ class CheckoutFlow
                 ['co:ful:delivery', $this->t('btn_delivery', $locale)],
                 ['co:ful:pickup', $this->t('btn_pickup', $locale)],
             ]));
+        }
+
+        // A change of mind while we wait for the address ("actually make it 3"): back to the assistant.
+        if (in_array($step, ['location', 'details'], true) && ! $location && $text !== null && CartEditsFromMessage::looksLikeCartChange($text)) {
+            $this->exit($conversation);
+
+            return null;
         }
 
         // Free input: a location pin or typed address while we wait for one, or address details.
