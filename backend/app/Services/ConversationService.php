@@ -77,6 +77,11 @@ class ConversationService
                 throw new InvalidArgumentException('Customer is blocked.');
             }
 
+            // The WhatsApp profile name fills an empty name; a name already saved is kept.
+            if (blank($customer->name) && filled($customerData['name'] ?? null)) {
+                $customer->forceFill(['name' => $customerData['name']])->save();
+            }
+
             $existing = Conversation::where('customer_id', $customer->id)
                 ->where('status', ConversationStatus::Active)
                 ->first();
@@ -229,8 +234,16 @@ class ConversationService
     private function checkout(Conversation $conversation, StructuredTurnOutput $output): array
     {
         $this->fulfillmentMissing = false;
+        $location = ($conversation->state ?? [])['location'] ?? null;
 
-        return $this->placeOrderFromDetails($conversation, ($output->checkout ?? []) + ['location' => ($conversation->state ?? [])['location'] ?? null]);
+        [$reply, $order] = $this->placeOrderFromDetails($conversation, ($output->checkout ?? []) + ['location' => $location]);
+
+        // A typed order is remembered like a button one, so the next checkout offers this address.
+        if ($order && $order->fulfillment === 'delivery') {
+            $conversation->customer->rememberAddress((string) $order->delivery_zone_name, (string) $order->delivery_address, $location);
+        }
+
+        return [$reply, $order];
     }
 
     /**

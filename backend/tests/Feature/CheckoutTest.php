@@ -220,6 +220,28 @@ class CheckoutTest extends TestCase
         $this->assertEquals(6.00, (float) $order->items->first()->unit_price);
     }
 
+    public function test_whatsapp_name_is_saved_and_a_typed_order_remembers_the_address(): void
+    {
+        $this->zone('Hamra', 2);
+        $send = fn (string $text) => app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+            'metadata' => ['phone_number_id' => '555'],
+            'contacts' => [['profile' => ['name' => 'Rami Haddad'], 'wa_id' => '96170123456']],
+            'messages' => [['id' => 'wamid.IN'.(++$this->seq), 'from' => '96170123456', 'type' => 'text', 'text' => ['body' => $text]]],
+        ]]]]]]);
+
+        $send('add 2 shawarma');
+        $send('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
+
+        $customer = Customer::query()->withoutGlobalScopes()->where('phone', '+96170123456')->sole();
+        $this->assertSame('Rami Haddad', $customer->name);
+        $this->assertSame('Bliss St, Building 4, 2nd floor', $customer->addresses[0]['address']);
+        $this->assertSame('Hamra', $customer->addresses[0]['zone']);
+
+        $customer->forceFill(['name' => 'Rami (regular)'])->save();
+        $send('hi');
+        $this->assertSame('Rami (regular)', $customer->fresh()->name, 'a saved name is never overwritten');
+    }
+
     public function test_orders_are_refused_outside_opening_hours(): void
     {
         foreach (range(0, 6) as $day) {

@@ -269,5 +269,6 @@ return [
         'button_done' => '✅ Done',
         'button_no_show' => '🚫 No-show',
         'staff_updated' => '👍 :service updated.',
+        'staff_closed' => 'This booking for :service was already cancelled or closed, so it was not changed.',
     ],
 ];

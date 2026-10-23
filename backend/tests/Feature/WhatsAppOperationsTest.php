@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
@@ -291,6 +292,21 @@ class WhatsAppOperationsTest extends TestCase
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
         $this->assertSame('delivered', $order->fresh()->status);
         $this->withToken($this->token)->deleteJson("/api/v1/drivers/{$rami->id}")->assertOk();
+    }
+
+    public function test_staff_cannot_mark_a_cancelled_booking_as_done(): void
+    {
+        $lina = $this->driver('Lina', '+96176000009', 'off_duty', 'staff');
+        $customer = Customer::query()->withoutGlobalScopes()->forceCreate(['merchant_id' => $this->merchant->id, 'phone' => '+96170000077']);
+        $booking = Appointment::query()->withoutGlobalScopes()->forceCreate([
+            'merchant_id' => $this->merchant->id, 'customer_id' => $customer->id, 'service_name' => 'Haircut', 'price' => 10,
+            'starts_at' => now()->addHour(), 'ends_at' => now()->addHours(2), 'status' => 'cancelled',
+        ]);
+
+        $this->tap("stf:appt_completed:{$booking->id}", $lina->whatsapp_number);
+
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertStringContainsString('already cancelled or closed', $this->lastTo($lina->whatsapp_number));
     }
 
     public function test_driver_cannot_stop_with_a_delivery_in_progress(): void

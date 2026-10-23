@@ -263,5 +263,6 @@ return [
         'button_done' => '✅ Terminé',
         'button_no_show' => '🚫 Absent',
         'staff_updated' => '👍 :service mis à jour.',
+        'staff_closed' => 'Ce rendez-vous pour :service était déjà annulé ou clôturé, il n\'a donc pas été modifié.',
     ],
 ];

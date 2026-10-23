@@ -311,6 +311,10 @@ class AdminMerchantService
         // Short-lived: the owner portal only needs it for one support session.
         $token = $owner->createToken('impersonation', ['*'], now()->addHours(8))->plainTextToken;
 
+        // Written down on the server, so every support session shows in the owner's history.
+        activity('merchant')->performedOn($merchant)->causedBy(auth()->user())
+            ->log("Opened {$merchant->name}'s dashboard (support session, 8 hours)");
+
         return ['token' => $token, 'merchant' => $merchant, 'user' => $owner];
     }
 

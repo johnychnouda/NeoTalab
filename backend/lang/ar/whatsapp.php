@@ -263,5 +263,6 @@ return [
         'button_done' => '✅ تم',
         'button_no_show' => '🚫 لم يحضر',
         'staff_updated' => '👍 تم تحديث :service.',
+        'staff_closed' => 'هذا الحجز لـ :service أُلغي أو أُغلق مسبقاً، لذلك لم يتغيّر.',
     ],
 ];

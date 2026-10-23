@@ -153,6 +153,18 @@ class AdminMerchantManagementTest extends TestCase
             ->assertJsonPath('success', true);
     }
 
+    public function test_opening_a_shops_dashboard_is_written_in_the_owners_history(): void
+    {
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Rose Salon']);
+        $token = $this->tokenFor($this->platformAdmin());
+
+        $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/impersonate")->assertOk();
+
+        $this->withToken($token)->getJson('/api/v1/admin/activity')->assertOk()
+            ->assertJsonPath('activity.0.type', 'merchant')
+            ->assertJsonPath('activity.0.message', "Opened Rose Salon's dashboard (support session, 8 hours)");
+    }
+
     public function test_admin_can_impersonate_merchant_owner(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();

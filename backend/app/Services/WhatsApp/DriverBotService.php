@@ -110,6 +110,10 @@ class DriverBotService
             if (! $appointment) {
                 return __('whatsapp.driver.not_yours', [], $locale);
             }
+            // Only a booking still on the calendar can be marked done or missed (not one the customer cancelled).
+            if ($appointment->status !== 'booked') {
+                return __('whatsapp.appointment.staff_closed', ['service' => $appointment->service_name], $locale);
+            }
             $appointment->forceFill(['status' => $m[1]])->save();
 
             return __('whatsapp.appointment.staff_updated', ['service' => $appointment->service_name], $locale);

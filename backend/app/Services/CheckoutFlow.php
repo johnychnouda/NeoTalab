@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
  */
 class CheckoutFlow
 {
-    public const MAX_SAVED_ADDRESSES = 5;
+    public const MAX_SAVED_ADDRESSES = Customer::MAX_SAVED_ADDRESSES;
 
     public function __construct(
         protected ConversationService $conversations,
@@ -384,7 +384,7 @@ class CheckoutFlow
         $this->exit($conversation, $order ? 'completed' : null);
 
         if ($order && $order->fulfillment === 'delivery') {
-            $this->rememberAddress($conversation->customer, $state);
+            $conversation->customer->rememberAddress((string) ($state['zone'] ?? ''), (string) ($state['address'] ?? ''), $state['location'] ?? null);
         }
 
         return $order && $order->status !== 'pending_payment'
@@ -471,21 +471,6 @@ class CheckoutFlow
     /**
      * @param  array<string, mixed>  $state
      */
-    protected function rememberAddress(Customer $customer, array $state): void
-    {
-        $entry = [
-            'id' => Str::lower(Str::random(6)),
-            'zone' => (string) ($state['zone'] ?? ''),
-            'address' => (string) ($state['address'] ?? ''),
-            'location' => $state['location'] ?? null,
-        ];
-        $key = fn ($a) => mb_strtolower(trim(($a['zone'] ?? '').'|'.($a['address'] ?? '')));
-
-        $saved = collect($customer->addresses ?? [])->reject(fn ($a) => $key($a) === $key($entry))->values()->all();
-        array_unshift($saved, $entry);
-        $customer->forceFill(['addresses' => array_slice($saved, 0, self::MAX_SAVED_ADDRESSES)])->save();
-    }
-
     /**
      * @param  array<string, mixed>  $state
      */

@@ -42,6 +42,9 @@ class WhatsAppInboundService
         protected StaffMessenger $staff,
     ) {}
 
+    /** WhatsApp profile names in the payload being handled, by number (digits only). */
+    protected array $profileNames = [];
+
     /** Customers send these to ask about something (a medicine box, a prescription, "do you have this?"). */
     public const PHOTO_TYPES = ['image', 'video', 'document'];
 
@@ -82,6 +85,14 @@ class WhatsAppInboundService
         $echoes = is_array($value['message_echoes'] ?? null) ? $value['message_echoes'] : [];
         if ($messages === [] && $echoes === []) {
             return;
+        }
+
+        $this->profileNames = [];
+        foreach ((array) ($value['contacts'] ?? []) as $contact) {
+            $name = is_array($contact) ? trim(strip_tags((string) ($contact['profile']['name'] ?? ''))) : '';
+            if ($name !== '' && ($id = preg_replace('/\D+/', '', (string) ($contact['wa_id'] ?? '')))) {
+                $this->profileNames[$id] = mb_substr($name, 0, 120);
+            }
         }
 
         $phoneNumberId = (string) ($value['metadata']['phone_number_id'] ?? '');
@@ -285,6 +296,7 @@ class WhatsAppInboundService
             $conversation = $this->conversations->startOrResume([
                 'phone' => $fromPhone,
                 'locale' => $locale,
+                'name' => $this->profileNames[ltrim($fromPhone, '+')] ?? null,
             ], 'whatsapp');
 
             $buttonId = $this->extractButtonId($msg);
