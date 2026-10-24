@@ -49,6 +49,12 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - NOT DONE by me: an uptime alert needs your UptimeRobot sign-up.
 - Shops created before this change keep a placeholder login email: the owner must set a real one.
 
+## Checkpoint 7 (your last list)
+- Next.js upgraded 16.4.0 → 16.4.3 (critical advisory fixed); forgot password works in a real browser end to end.
+- Lira menu rows without a shop lira rate are refused (was saved as dollars). Test added.
+- Menus by shop type: 8 of 9 kinds pass; services: CSV cannot set the duration, and the greeting does not list services.
+- Uptime alert: NOT done; needs the owner's UptimeRobot sign-up.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

@@ -92,6 +92,11 @@ class MenuImportService
     public function import(array $items, ?float $lbpRate = null, bool $allLbp = false): array
     {
         $items = $this->normalize($items);
+        // A lira price can only be saved as dollars with the shop's rate. Without one, refuse rather than
+        // save 250,000 LL as 250,000$ on the menu.
+        if (! $lbpRate && collect($items)->contains(fn ($i) => $allLbp || ! empty($i['lbp']))) {
+            throw ValidationException::withMessages(['items' => ['Some prices are in lira, but this shop has no lira rate. Set the rate in Settings, or switch those rows to dollars.']]);
+        }
         if ($lbpRate) {
             $items = array_map(fn ($i) => ($allLbp || ! empty($i['lbp'])) ? ['price' => round($i['price'] / $lbpRate, 2)] + $i : $i, $items);
         }

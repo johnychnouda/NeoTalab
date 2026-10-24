@@ -291,4 +291,14 @@ class MenuImportTest extends TestCase
             ->postJson('/api/v1/menu/import', ['items' => [['name' => 'X', 'price' => 1]]])
             ->assertForbidden();
     }
+
+    public function test_lira_rows_are_refused_when_the_shop_has_no_lira_rate(): void
+    {
+        // The test shop has no lira rate (no settings.lbp_rate).
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => [
+            ['name' => 'Mint lemonade', 'price' => 250000, 'category' => 'Drinks', 'lbp' => true],
+        ]])->assertUnprocessable();
+
+        $this->assertDatabaseMissing('products', ['name' => 'Mint lemonade']);
+    }
 }

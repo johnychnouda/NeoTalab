@@ -1,0 +1,146 @@
+
+=== Shop type: Restaurant / Café (restaurant) ===
+PASS [restaurant] owner creates the shop with its type
+PASS [restaurant] shop owner signs in
+PASS [restaurant] the shop's type sets its menu wording and mode
+PASS [restaurant] creates a category
+PASS [restaurant] adds an item
+PASS [restaurant] adds a size with its own price
+PASS [restaurant] adds extras with a price
+PASS [restaurant] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [restaurant] saves the imported rows
+PASS [restaurant] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [restaurant] customer's greeting shows the shop's menu list
+PASS [restaurant] an item marked unavailable is left off the customer's menu
+PASS [restaurant] customer opens the category and sees the item
+PASS [restaurant] customer is asked which size, with prices
+PASS [restaurant] customer adds the item to the cart
+
+=== Shop type: Supermarket / Grocery (grocery) ===
+PASS [grocery] owner creates the shop with its type
+PASS [grocery] shop owner signs in
+PASS [grocery] the shop's type sets its menu wording and mode
+PASS [grocery] creates a category
+PASS [grocery] adds an item sold per kg
+PASS [grocery] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [grocery] saves the imported rows
+PASS [grocery] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [grocery] customer's greeting shows the shop's menu list
+PASS [grocery] an item marked unavailable is left off the customer's menu
+PASS [grocery] customer opens the category and sees the item
+PASS [grocery] quantity buttons show the unit (kg)
+PASS [grocery] customer adds the item to the cart
+
+=== Shop type: Pharmacy (pharmacy) ===
+PASS [pharmacy] owner creates the shop with its type
+PASS [pharmacy] shop owner signs in
+PASS [pharmacy] the shop's type sets its menu wording and mode
+PASS [pharmacy] creates a category
+PASS [pharmacy] adds an item sold per box
+PASS [pharmacy] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [pharmacy] saves the imported rows
+PASS [pharmacy] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [pharmacy] customer's greeting shows the shop's menu list
+PASS [pharmacy] an item marked unavailable is left off the customer's menu
+PASS [pharmacy] customer opens the category and sees the item
+PASS [pharmacy] quantity buttons show the unit (box)
+PASS [pharmacy] customer adds the item to the cart
+
+=== Shop type: Electronics / Phones (retail) ===
+PASS [retail] owner creates the shop with its type
+PASS [retail] shop owner signs in
+PASS [retail] the shop's type sets its menu wording and mode
+PASS [retail] creates a category
+PASS [retail] adds an item
+PASS [retail] adds a size with its own price
+PASS [retail] adds extras with a price
+PASS [retail] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [retail] saves the imported rows
+PASS [retail] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [retail] customer's greeting shows the shop's menu list
+PASS [retail] an item marked unavailable is left off the customer's menu
+PASS [retail] customer opens the category and sees the item
+PASS [retail] customer is asked which size, with prices
+PASS [retail] customer adds the item to the cart
+
+=== Shop type: Flowers / Gifts (flowers) ===
+PASS [flowers] owner creates the shop with its type
+PASS [flowers] shop owner signs in
+PASS [flowers] the shop's type sets its menu wording and mode
+PASS [flowers] creates a category
+PASS [flowers] adds an item
+PASS [flowers] adds a size with its own price
+PASS [flowers] adds extras with a price
+PASS [flowers] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [flowers] saves the imported rows
+PASS [flowers] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [flowers] customer's greeting shows the shop's menu list
+PASS [flowers] an item marked unavailable is left off the customer's menu
+PASS [flowers] customer opens the category and sees the item
+PASS [flowers] customer is asked which size, with prices
+PASS [flowers] customer adds the item to the cart
+
+=== Shop type: Water / Gas delivery (water) ===
+PASS [water] owner creates the shop with its type
+PASS [water] shop owner signs in
+PASS [water] the shop's type sets its menu wording and mode
+PASS [water] creates a category
+PASS [water] adds an item sold per cylinder
+PASS [water] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [water] saves the imported rows
+PASS [water] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [water] customer's greeting shows the shop's menu list
+PASS [water] an item marked unavailable is left off the customer's menu
+PASS [water] customer opens the category and sees the item
+PASS [water] quantity buttons show the unit (cylinder)
+PASS [water] customer adds the item to the cart
+
+=== Shop type: Laundry / Dry cleaning (laundry) ===
+PASS [laundry] owner creates the shop with its type
+PASS [laundry] shop owner signs in
+PASS [laundry] the shop's type sets its menu wording and mode
+PASS [laundry] creates a category
+PASS [laundry] adds an item sold per kg
+PASS [laundry] adds a size with its own price
+PASS [laundry] adds extras with a price
+PASS [laundry] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [laundry] saves the imported rows
+PASS [laundry] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [laundry] customer's greeting shows the shop's menu list
+PASS [laundry] an item marked unavailable is left off the customer's menu
+PASS [laundry] customer opens the category and sees the item
+PASS [laundry] customer is asked which size, with prices
+PASS [laundry] quantity buttons show the unit (kg)
+PASS [laundry] customer adds the item to the cart
+
+=== Shop type: Salon / Barber / Beauty (services) ===
+PASS [services] owner creates the shop with its type
+PASS [services] shop owner signs in
+PASS [services] the shop's type sets its menu wording and mode
+PASS [services] creates a category
+PASS [services] adds an item as a service with minutes
+PASS [services] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [services] saves the imported rows
+PASS [services] the lira row is saved in dollars (250,000 LL → about 2.79$)
+FAIL [services] a CSV row can set a service's duration (gap if not)  -> None
+FAIL [services] customer's greeting shows the shop's menu list  -> ['Hello! How can I help you order today?']
+PASS [services] customer asking 'services' sees the service list
+PASS [services] customer asks for free times and gets them
+PASS [services] customer books a 30-minute service
+PASS [services] the shop sees the booking in its appointments
+
+=== Shop type: Other (other) ===
+PASS [other] owner creates the shop with its type
+PASS [other] shop owner signs in
+PASS [other] the shop's type sets its menu wording and mode
+PASS [other] creates a category
+PASS [other] adds an item
+PASS [other] uploads a CSV: preview shows the 3 rows, lira detected
+PASS [other] saves the imported rows
+PASS [other] the lira row is saved in dollars (250,000 LL → about 2.79$)
+PASS [other] customer's greeting shows the shop's menu list
+PASS [other] an item marked unavailable is left off the customer's menu
+PASS [other] customer opens the category and sees the item
+PASS [other] customer adds the item to the cart
+
+SUMMARY {"restaurant": "15/15", "grocery": "13/13", "pharmacy": "13/13", "retail": "15/15", "flowers": "15/15", "water": "13/13", "laundry": "16/16", "services": "12/14", "other": "12/12"}
