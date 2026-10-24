@@ -10,9 +10,11 @@ use App\Models\Merchant;
 use App\Models\Modifier;
 use App\Models\Order;
 use App\Services\AI\CartEditsFromMessage;
+use App\Support\DeliverySchedule;
 use App\Support\Money;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -51,11 +53,14 @@ class CheckoutFlow
             return $this->menuMessage($merchant, $this->t('empty', $locale), $locale);
         }
 
-        if (! $this->checkout->isOpen($merchant) || (($merchant->settings ?? [])['mode'] ?? 'auto') === 'closed') {
+        $closedNow = ! $this->checkout->isOpen($merchant);
+        // Shops that take orders for later (florists, cakes) also take them while closed, for an open time.
+        $scheduled = ShopSettings::for($merchant)->scheduledOrders() && DeliverySchedule::days($merchant) !== [];
+        if ((($merchant->settings ?? [])['mode'] ?? 'auto') === 'closed' || ($closedNow && ! $scheduled)) {
             return $this->text(__('whatsapp.checkout.shop_closed', ['shop' => $merchant->name], $locale));
         }
 
-        $this->save($conversation, $this->known($merchant, $known ?? []));
+        $this->save($conversation, $this->known($merchant, $known ?? []) + ($closedNow ? ['later_only' => true] : []));
 
         return $this->next($merchant, $conversation, $locale);
     }
@@ -142,6 +147,26 @@ class CheckoutFlow
                     $state['currency'] = in_array($value, ['LBP', 'MIXED'], true) ? $value : $merchant->currency;
                     unset($state['cash_main']);
                     break;
+                case 'when':
+                    if ($value === 'asap') {
+                        $state['when'] = 'asap';
+                    } else {
+                        return $this->ask($conversation, $state, 'when_day', $this->dayList($merchant, $locale));
+                    }
+                    break;
+                case 'day':
+                    return $this->ask($conversation, $state, 'when_time', $this->windowList($merchant, $value, $locale));
+                case 'win':
+                    if (DeliverySchedule::parse($merchant, $value)) {
+                        $state['when'] = $value;
+                    }
+                    break;
+                case 'gift':
+                    $state['gift'] = $value === 'yes';
+                    break;
+                case 'card':
+                    $state['card'] = '';
+                    break;
                 case 'ok':
                     return $this->confirm($merchant, $conversation, $state, $locale);
                 case 'edit':
@@ -223,6 +248,16 @@ class CheckoutFlow
                 return $this->text($this->t('split_invalid', $locale, ['max' => $this->money($merchant, $total)]));
             }
             $state['cash_main'] = round($amount, 2);
+        } elseif ($step === 'recipient' && $text !== null) {
+            // "Lara 70 123 456": a name and a phone number, in any order.
+            $phone = preg_match('/\+?[\d\s\-]{7,}/u', strtr($text, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']), $m) ? preg_replace('/[^\d+]/', '', $m[0]) : '';
+            $name = trim(preg_replace('/\+?[\d\s\-٠-٩]{7,}/u', ' ', $text), " ,-\n");
+            if (strlen(ltrim($phone, '+')) < 7 || $name === '') {
+                return $this->text($this->t('recipient_invalid', $locale));
+            }
+            $state['recipient'] = ['name' => mb_substr($name, 0, 80), 'phone' => $phone];
+        } elseif ($step === 'card' && $text !== null) {
+            $state['card'] = mb_substr(trim($text), 0, 300);
         } elseif ($step === 'location' && $text !== null) {
             return $this->location($this->t('address_short', $locale));
         } else {
@@ -328,6 +363,32 @@ class CheckoutFlow
             }
         }
 
+        // Florists, cakes: when it should arrive (or be ready), as soon as possible or a chosen window.
+        if ($settings->scheduledOrders() && empty($state['when'])) {
+            if (! empty($state['later_only'])) {
+                return $this->ask($conversation, $state, 'when_day', $this->dayList($merchant, $locale, $this->t('closed_pick_day', $locale, ['shop' => $merchant->name])));
+            }
+
+            return $this->ask($conversation, $state, 'when', $this->buttons($this->t('when', $locale), [
+                ['co:when:asap', $this->t('btn_asap', $locale)],
+                ['co:when:pick', $this->t('btn_pick_day', $locale)],
+            ]));
+        }
+
+        // Sent to someone else: their name and phone (for the driver), then the card.
+        if ($settings->giftOrders() && ! isset($state['gift'])) {
+            return $this->ask($conversation, $state, 'gift', $this->buttons($this->t('gift_ask', $locale), [
+                ['co:gift:yes', $this->t('btn_gift_yes', $locale)],
+                ['co:gift:no', $this->t('btn_gift_no', $locale)],
+            ]));
+        }
+        if (! empty($state['gift']) && empty($state['recipient'])) {
+            return $this->ask($conversation, $state, 'recipient', $this->text($this->t('recipient_ask', $locale)));
+        }
+        if (! empty($state['gift']) && ! isset($state['card'])) {
+            return $this->ask($conversation, $state, 'card', $this->buttons($this->t('card_ask', $locale), [['co:card:', $this->t('btn_no_card', $locale)]]));
+        }
+
         if (empty($state['payment'])) {
             if ($this->whish->enabled($merchant)) {
                 return $this->ask($conversation, $state, 'payment', $this->buttons($this->t('pay', $locale), [
@@ -380,6 +441,10 @@ class CheckoutFlow
             'payment_method' => $state['payment'] ?? 'cash',
             'payment_currency' => $state['currency'] ?? $merchant->currency,
             'cash_main' => $state['cash_main'] ?? null,
+            'deliver_at' => ($state['when'] ?? 'asap') !== 'asap' ? $state['when'] : null,
+            'recipient_name' => $state['recipient']['name'] ?? null,
+            'recipient_phone' => $state['recipient']['phone'] ?? null,
+            'gift_message' => ($state['card'] ?? '') ?: null,
         ]);
 
         $this->exit($conversation, $order ? 'completed' : null);
@@ -443,7 +508,13 @@ class CheckoutFlow
                 'MIXED' => $this->money($merchant, (float) $state['cash_main']).' + '.Money::lbp((float) $settings->toLbp($total - (float) $state['cash_main'])),
                 default => $this->money($merchant, $total),
             });
-        $out .= "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $zone?->delivery_mins, $locale);
+        $chosen = ($state['when'] ?? 'asap') !== 'asap' ? DeliverySchedule::parse($merchant, $state['when']) : null;
+        $out .= $chosen
+            ? "\n🗓 ".DeliverySchedule::label($merchant, $chosen, $locale)
+            : "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $zone?->delivery_mins, $locale);
+        if (! empty($state['recipient'])) {
+            $out .= "\n🎁 ".$state['recipient']['name'].' · '.$state['recipient']['phone'].(filled($state['card'] ?? null) ? "\n💌 “{$state['card']}”" : '');
+        }
 
         return $out;
     }
@@ -489,6 +560,34 @@ class CheckoutFlow
      * @param  array<string, mixed>  $message
      * @return array<string, mixed>
      */
+    /** The next open days as a list ("Fri 9 Oct"). */
+    protected function dayList(Merchant $merchant, string $locale, ?string $body = null): array
+    {
+        $rows = array_map(fn ($day) => [
+            'id' => 'co:day:'.$day->toDateString(),
+            'title' => $day->copy()->locale($locale)->isoFormat('ddd D MMM'),
+            'description' => '',
+        ], DeliverySchedule::days($merchant));
+
+        return $this->list($body ?? $this->t('pick_day', $locale), $this->t('btn_choose', $locale), $rows);
+    }
+
+    /** That day's two-hour windows as a list ("10:00–12:00"). */
+    protected function windowList(Merchant $merchant, string $date, string $locale): array
+    {
+        $day = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? Carbon::createFromFormat('Y-m-d', $date, $merchant->timezone ?: config('app.timezone'))->startOfDay() : null;
+        $windows = $day ? array_slice(DeliverySchedule::windows($merchant, $day), 0, 10) : [];
+        if ($windows === []) {
+            return $this->dayList($merchant, $locale);
+        }
+
+        return $this->list($this->t('pick_time', $locale, ['day' => $day->copy()->locale($locale)->isoFormat('ddd D MMM')]), $this->t('btn_choose', $locale), array_map(fn ($w) => [
+            'id' => 'co:win:'.$w->format('Y-m-d H:i'),
+            'title' => $w->format('H:i').'–'.$w->copy()->addMinutes(DeliverySchedule::WINDOW_MINS)->format('H:i'),
+            'description' => '',
+        ], $windows));
+    }
+
     protected function ask(Conversation $conversation, array $state, string $step, array $message): array
     {
         $state['step'] = $step;

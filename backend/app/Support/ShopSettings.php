@@ -33,6 +33,8 @@ final class ShopSettings
         'region' => ['', 'string'],           // governorate (see the join form's list); filled from the pin
         'city' => ['', 'string'],             // city or town; filled from the pin
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
+        'scheduled_orders' => [false, 'bool'], // customers pick a delivery/pickup day and time (florists, cakes)
+        'gift_orders' => [false, 'bool'],      // customers can send it to someone else, with a card message
     ];
 
     public function __construct(private readonly array $settings) {}
@@ -48,6 +50,16 @@ final class ShopSettings
         $value = $this->settings[$key] ?? null;
 
         return $value === null || $value === '' ? $default : $value;
+    }
+
+    public function scheduledOrders(): bool
+    {
+        return (bool) $this->get('scheduled_orders');
+    }
+
+    public function giftOrders(): bool
+    {
+        return (bool) $this->get('gift_orders');
     }
 
     public function prepTimeMins(): int
@@ -190,6 +202,8 @@ final class ShopSettings
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
+            'scheduled_orders' => ['sometimes', 'boolean'],
+            'gift_orders' => ['sometimes', 'boolean'],
         ];
     }
 }

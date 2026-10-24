@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\ShopHour;
+use App\Support\DeliverySchedule;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 
@@ -51,6 +52,11 @@ class OrderTiming
     /** The promise made when the shop accepts. */
     public function promise(Merchant $merchant, Order $order): Carbon
     {
+        // A time the customer chose: the end of that window.
+        if ($order->deliver_at) {
+            return $order->deliver_at->copy()->addMinutes(DeliverySchedule::WINDOW_MINS);
+        }
+
         if ($this->inDays($merchant)) {
             // End of the promised day in the shop's timezone, stored in UTC like every timestamp.
             return $this->addWorkingDays($merchant, $this->local($merchant), ShopSettings::for($merchant)->deliveryDays()[1])->endOfDay()->utc();
@@ -65,6 +71,13 @@ class OrderTiming
     public function phrase(Merchant $merchant, Order $order, string $locale): string
     {
         $at = $order->promised_at ?? $this->promise($merchant, $order);
+
+        // The window the customer chose, until a late update gives a new time.
+        if ($order->deliver_at && $at->lte($order->deliver_at->copy()->addMinutes(DeliverySchedule::WINDOW_MINS))) {
+            return __($order->fulfillment === 'pickup' ? 'whatsapp.timing.ready_scheduled' : 'whatsapp.timing.scheduled', [
+                'when' => DeliverySchedule::label($merchant, $order->deliver_at, $locale),
+            ], $locale);
+        }
 
         if ($this->inDays($merchant)) {
             return __($order->fulfillment === 'pickup' ? 'whatsapp.timing.ready_by_date' : 'whatsapp.timing.by_date', [

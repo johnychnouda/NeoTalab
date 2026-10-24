@@ -7,6 +7,7 @@ use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishPayment;
 use App\Jobs\NotifyStaffOfOrder;
 use App\Jobs\NotifyStaffOfRefund;
+use App\Jobs\StartScheduledOrder;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Services\WhatsApp\ShopTemplateService;
@@ -97,12 +98,26 @@ class OrderConfirmation
             $order->forceFill(['promised_at' => $this->timing->promise($merchant, $order)])->save();
         }
 
+        // Chosen for later (flowers for Friday): the driver and the late check wait until it is due.
+        $due = $order->deliver_at?->copy()->subMinutes($this->timing->prepMins($merchant));
+        if ($due && $due->isFuture()) {
+            NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
+            StartScheduledOrder::dispatch($order->id)->delay($due);
+
+            return;
+        }
+
         if ($order->fulfillment === 'delivery') {
             $this->dispatcher->assign($merchant, $order);
         }
 
         NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
+        $this->lateCheck($merchant, $order);
+    }
 
+    /** Food shops: the late check at the promised time (days shops use orders:due). */
+    public function lateCheck(Merchant $merchant, Order $order): void
+    {
         // Food shops: if the order is not at the door by the promised time, the customer gets a
         // new time automatically (CheckLateOrder). Shops that count in days use orders:due.
         $late = ShopSettings::for($merchant)->lateAlertMins();

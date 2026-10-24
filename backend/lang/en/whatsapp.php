@@ -15,6 +15,8 @@ return [
     'not_understood' => "Sorry, I didn't catch that 🙏 Could you say it again, or pick from the menu below?",
 
     'timing' => [
+        'scheduled' => 'delivered on :when',
+        'ready_scheduled' => 'ready on :when',
         'mins_short' => ':n min',
         'hours_short' => ':n h',
         'days_short' => ':range days',
@@ -31,6 +33,19 @@ return [
     ],
 
     'flow' => [
+        'when' => '🗓 When should it arrive?',
+        'btn_asap' => '⚡ Soonest possible',
+        'btn_pick_day' => '🗓 Choose a day',
+        'pick_day' => 'Which day?',
+        'pick_time' => 'What time on :day?',
+        'closed_pick_day' => ':shop is closed right now. Choose when you want it:',
+        'gift_ask' => '🎁 Is it a gift for someone else?',
+        'btn_gift_yes' => '🎁 Yes, a gift',
+        'btn_gift_no' => 'No, for me',
+        'recipient_ask' => 'Who receives it? Send their name and phone number, e.g. "Lara 70 123 456".',
+        'recipient_invalid' => 'Please send the name and phone number together, e.g. "Lara 70 123 456".',
+        'card_ask' => '💌 What should the card say? Type the message, or tap No card.',
+        'btn_no_card' => 'No card',
         'empty' => 'Your cart is empty. Open the menu to choose what you\'d like.',
         'expired' => 'That order is already done. Open the menu to start a new one.',
         'edit' => 'Sure — tell me what to change, or open the menu to update your order.',
@@ -128,6 +143,7 @@ return [
     ],
 
     'checkout' => [
+        'schedule_invalid' => 'Sorry, that time is no longer available. Please choose another one.',
         'shop_reply' => '(:shop: reply ✅ here to accept, or ❌ if you can\'t take it.)',
         'still_waiting' => '⏰ Order #:number is still waiting for :shop to accept it.',
         'placed_waiting' => "🧾 Order #:number sent to :shop.\nTotal: :total:lbp\nYou will get a message as soon as the shop accepts it.",
@@ -224,6 +240,9 @@ return [
 
     // Staff numbers (owner's personal phone, employees) talk to the shop's number.
     'staff' => [
+        'scheduled_due' => '🗓 Order #:number is due :when — prepare it now.',
+        'gift_for' => '🎁 Gift for :name · 📞 :phone',
+        'gift_card' => '💌 Card: ":message"',
         'low_rating' => '⭐ Order #:number was rated :rating/5 by :phone. Give them a call to find out what went wrong.',
         'still_waiting' => '⏰ Still waiting — order #:number',
         'button_accept' => '✅ Accept · :time',

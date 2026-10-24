@@ -12,6 +12,8 @@ return [
     'not_understood' => "Désolé, je n'ai pas bien compris 🙏 Pouvez-vous reformuler, ou choisir dans le menu ci-dessous ?",
 
     'timing' => [
+        'scheduled' => 'livrée le :when',
+        'ready_scheduled' => 'prête le :when',
         'mins_short' => ':n min',
         'hours_short' => ':n h',
         'days_short' => ':range j',
@@ -28,6 +30,19 @@ return [
     ],
 
     'flow' => [
+        'when' => '🗓 Quand doit-elle arriver ?',
+        'btn_asap' => '⚡ Au plus vite',
+        'btn_pick_day' => '🗓 Choisir un jour',
+        'pick_day' => 'Quel jour ?',
+        'pick_time' => 'À quelle heure le :day ?',
+        'closed_pick_day' => ':shop est fermé pour le moment. Choisissez quand vous la voulez :',
+        'gift_ask' => '🎁 Est-ce un cadeau pour quelqu\'un ?',
+        'btn_gift_yes' => '🎁 Oui, un cadeau',
+        'btn_gift_no' => 'Non, pour moi',
+        'recipient_ask' => 'Qui la reçoit ? Envoyez son nom et son numéro, ex. « Lara 70 123 456 ».',
+        'recipient_invalid' => 'Envoyez le nom et le numéro ensemble, ex. « Lara 70 123 456 ».',
+        'card_ask' => '💌 Que doit dire la carte ? Écrivez le message ou touchez Sans carte.',
+        'btn_no_card' => 'Sans carte',
         'empty' => 'Votre panier est vide. Ouvrez le menu pour choisir.',
         'expired' => 'Cette commande est déjà terminée. Ouvrez le menu pour en passer une nouvelle.',
         'edit' => 'Bien sûr — dites-moi quoi changer, ou ouvrez le menu pour modifier votre commande.',
@@ -125,6 +140,7 @@ return [
     ],
 
     'checkout' => [
+        'schedule_invalid' => 'Désolé, ce créneau n\'est plus disponible. Choisissez-en un autre.',
         'shop_reply' => '(:shop : répondez ✅ ici pour accepter, ou ❌ si vous ne pouvez pas la prendre.)',
         'still_waiting' => '⏰ La commande n° :number attend toujours que :shop l\'accepte.',
         'placed_waiting' => "🧾 Commande n° :number envoyée à :shop.\nTotal : :total:lbp\nVous recevrez un message dès que le commerce l'accepte.",
@@ -218,6 +234,9 @@ return [
     ],
 
     'staff' => [
+        'scheduled_due' => '🗓 La commande n° :number est prévue :when — préparez-la maintenant.',
+        'gift_for' => '🎁 Cadeau pour :name · 📞 :phone',
+        'gift_card' => '💌 Carte : « :message »',
         'low_rating' => "⭐ La commande n° :number a reçu :rating/5 de :phone. Appelez ce client pour savoir ce qui n'allait pas.",
         'still_waiting' => '⏰ Toujours en attente — commande n° :number',
         'button_accept' => '✅ Accepter · :time',

@@ -87,6 +87,11 @@ final class BusinessKind
         $settings['business_kind'] = $kind;
         $settings['timing_unit'] = $timing;
         $settings['business_mode'] = $mode;
+        // Flowers and gifts: a delivery time and a recipient by default (the shop can switch them off).
+        if ($kind === 'flowers') {
+            $settings['scheduled_orders'] ??= true;
+            $settings['gift_orders'] ??= true;
+        }
 
         return $settings;
     }
