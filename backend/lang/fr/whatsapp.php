@@ -275,4 +275,16 @@ return [
         'staff_updated' => '👍 :service mis à jour.',
         'staff_closed' => 'Ce rendez-vous pour :service était déjà annulé ou clôturé, il n\'a donc pas été modifié.',
     ],
+    'check' => [
+        'ask' => '💊 « :item » doit d\'abord être validé par notre équipe (par exemple une ordonnance). Envoyez une photo de votre ordonnance ici et l\'équipe vous répondra dans cette conversation.',
+        'staff' => "💊 :phone a demandé « :item », qui doit être validé (ordonnance, âge). On lui a demandé d'envoyer une photo dans la conversation.\nValidez pour qu'il puisse le commander aujourd'hui, ou refusez.",
+        'alert' => ':phone asked for :item, which needs a check',
+        'button_approve' => '✅ Valider',
+        'button_refuse' => '❌ Refuser',
+        'button_add' => '➕ Ajouter',
+        'approved' => '✅ :shop a validé « :item » pour vous. Touchez ci-dessous pour l\'ajouter à votre commande.',
+        'refused' => 'Désolé, :shop n\'a pas pu valider « :item ». Répondez « humain » pour parler à l\'équipe.',
+        'staff_approved' => '👍 « :item » validé pour :phone pendant 24 heures. Le client a été prévenu.',
+        'staff_refused' => '« :item » refusé pour :phone. Le client a été prévenu.',
+    ],
 ];

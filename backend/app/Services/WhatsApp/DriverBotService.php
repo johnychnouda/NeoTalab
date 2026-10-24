@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
+use App\Models\Product;
 use App\Services\DriverDispatcher;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
@@ -110,6 +111,16 @@ class DriverBotService
             return __('whatsapp.staff.refund_done', ['number' => $order->number], $locale);
         }
 
+        if (preg_match('/^stf:(approve|refuse):([^:]+):(.+)$/', $buttonId, $m)) {
+            $customer = Customer::query()->whereKey($m[2])->first();
+            $product = Product::query()->find($m[3]);
+            if (! $customer || ! $product) {
+                return __('whatsapp.driver.not_yours', [], $locale);
+            }
+
+            return $this->answerCheck($merchant, $customer, $product, $m[1] === 'approve', $locale);
+        }
+
         if (preg_match('/^stf:resume:(.+)$/', $buttonId, $m)) {
             $customer = Customer::query()->whereKey($m[1])->first();
             $customer?->forceFill(['bot_paused_until' => null])->save();
@@ -197,6 +208,35 @@ class DriverBotService
         $merchant->forceFill(['settings' => $settings])->save();
 
         return __($mode === 'auto' ? 'whatsapp.staff.opened' : 'whatsapp.staff.closed', ['shop' => $merchant->name], $locale);
+    }
+
+    /**
+     * The team approved (prescription seen) or refused an item for a customer: the customer is told
+     * and, when approved, gets a button to add it (the approval lasts a day, for one order).
+     */
+    public function answerCheck(Merchant $merchant, Customer $customer, Product $product, bool $approve, string $locale): string
+    {
+        $customerLocale = $customer->locale ?? 'en';
+        if ($approve) {
+            $customer->markCheck($product->id, true);
+        } else {
+            $customer->useApproval($product->id);
+        }
+        $customer->forceFill(['bot_paused_until' => null])->save();
+
+        $text = __($approve ? 'whatsapp.check.approved' : 'whatsapp.check.refused', ['item' => $product->name, 'shop' => $merchant->name], $customerLocale);
+        $message = $approve
+            ? ['type' => 'interactive', 'interactive' => ['type' => 'button', 'body' => ['text' => $text], 'action' => ['buttons' => [
+                ['type' => 'reply', 'reply' => ['id' => "mn:item:{$product->id}", 'title' => mb_substr(__('whatsapp.check.button_add', [], $customerLocale), 0, 20)]],
+            ]]]]
+            : ['type' => 'text', 'text' => $text];
+        try {
+            $this->whatsapp->sendToCustomer($merchant, (string) $customer->phone, $message);
+        } catch (\Throwable $e) {
+            Log::warning('Check answer not delivered to the customer', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
+        }
+
+        return __($approve ? 'whatsapp.check.staff_approved' : 'whatsapp.check.staff_refused', ['item' => $product->name, 'phone' => OrderMessage::phone($customer->phone)], $locale);
     }
 
     protected function startShift(Driver $driver, string $locale): string

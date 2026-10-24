@@ -23,6 +23,9 @@ class CartService
 {
     public const MAX_LINE_QUANTITY = 99;
 
+    /** Rejection reason for an item the team must check first (see ChatMenu::checkRequest). */
+    public const NEEDS_CHECK = 'This item needs a check by the shop team first: never add it yourself.';
+
     public function __construct(protected CatalogResolver $catalog) {}
 
     public function createForConversation(string $conversationId): Cart
@@ -106,6 +109,11 @@ class CartService
 
         if ($product->duration_mins) {
             throw new InvalidArgumentException('Services are booked as appointments, not added to the cart.');
+        }
+
+        // Prescription medicine, age-limited items: only once the team approved it for this customer.
+        if ($product->staff_check && ! $cart->conversation?->customer?->isApproved($product->id)) {
+            throw new InvalidArgumentException(self::NEEDS_CHECK);
         }
 
         $variant = $this->catalog->resolveVariant($product, $action->variantId);

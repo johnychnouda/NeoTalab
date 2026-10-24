@@ -78,7 +78,8 @@ class CheckoutService
             if (! $product || ! $product->isOrderable() || (float) $item->line_total < 0.01
                 || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)
                 || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])
-                || ($item->variant && ! $item->variant->hasStockFor($product, $item->quantity))) {
+                || ($item->variant && ! $item->variant->hasStockFor($product, $item->quantity))
+                || ($product->staff_check && ! $conversation->customer?->isApproved($product->id))) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
         }
@@ -191,6 +192,13 @@ class CheckoutService
 
             $cart->update(['status' => CartStatus::Converted]);
             $conversation->update(['status' => ConversationStatus::Closed]);
+
+            // One approval (prescription seen), one order.
+            foreach ($cart->items as $item) {
+                if ($item->product?->staff_check) {
+                    $conversation->customer->useApproval($item->product_id);
+                }
+            }
 
             Customer::query()->whereKey($conversation->customer_id)->incrementEach(
                 ['total_orders' => 1, 'total_spent' => $subtotal + $deliveryFee],

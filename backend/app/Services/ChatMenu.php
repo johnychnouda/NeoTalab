@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\NotifyStaffOfCheck;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Merchant;
@@ -172,9 +173,31 @@ class ChatMenu
             return $this->items($merchant, $locale, (string) ($product->category_id ?: 'all'), 1, $this->t('is_sold_out', $locale, ['item' => $this->name($product, $locale)]));
         }
 
+        if ($product->staff_check && ! $conversation->customer?->isApproved($product->id)) {
+            return $this->checkRequest($conversation, $locale, $product);
+        }
+
         $this->savePick($conversation, ['product' => $product->id, 'variant' => null, 'mods' => [], 'group' => 0]);
 
         return $this->nextStep($merchant, $conversation, $locale);
+    }
+
+    /**
+     * An item the team must check first (prescription, age): never added by the bot. The customer
+     * is asked for a photo of the prescription; the staff get Approve / Refuse buttons, or, with
+     * only the shop phone, whoever holds it types ✅ or ❌ in this chat.
+     *
+     * @return array<string, mixed>
+     */
+    public function checkRequest(Conversation $conversation, string $locale, Product $product): array
+    {
+        $customer = $conversation->customer;
+        if ($customer->hasPendingCheck() !== $product->id) {
+            $customer->markCheck($product->id, false);
+            NotifyStaffOfCheck::dispatch($customer->id, $product->id);
+        }
+
+        return $this->text(__('whatsapp.check.ask', ['item' => $this->name($product, $locale)], $locale));
     }
 
     /** @return array<string, mixed> */

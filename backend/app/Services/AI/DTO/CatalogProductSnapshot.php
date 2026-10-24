@@ -20,6 +20,7 @@ final readonly class CatalogProductSnapshot
         public bool $isOrderable,
         public array $variants = [],
         public array $modifierGroups = [],
+        public bool $needsCheck = false,
     ) {}
 
     public function toArray(): array
@@ -33,6 +34,7 @@ final readonly class CatalogProductSnapshot
             'is_orderable' => $this->isOrderable,
             'variants' => $this->variants,
             'modifier_groups' => $this->modifierGroups,
+            'needs_check' => $this->needsCheck,
         ];
     }
 }

@@ -518,6 +518,14 @@ class WhatsAppInboundService
             ->first();
 
         if (! $order) {
+            // No order waiting: ✅ / ❌ answers a check the customer is waiting for (prescription seen).
+            $customer = Customer::query()->where('phone', $customerPhone)->first();
+            $productId = $customer?->hasPendingCheck();
+            $product = $productId ? Product::query()->find($productId) : null;
+            if ($product) {
+                app(DriverBotService::class)->answerCheck($merchant, $customer, $product, $accept, $merchant->locale ?? 'en');
+            }
+
             return;
         }
 

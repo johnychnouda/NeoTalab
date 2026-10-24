@@ -26,6 +26,7 @@ class Customer extends Model
         'last_order_at',
         'bot_paused_until',
         'addresses',
+        'approvals',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class Customer extends Model
         return [
             'is_blocked' => 'boolean',
             'addresses' => 'array',
+            'approvals' => 'array',
             'total_spent' => 'decimal:2',
             'last_order_at' => 'datetime',
             'bot_paused_until' => 'datetime',
@@ -63,5 +65,42 @@ class Customer extends Model
         $saved = collect($this->addresses ?? [])->reject(fn ($a) => $key($a) === $key($entry))->values()->all();
         array_unshift($saved, $entry);
         $this->forceFill(['addresses' => array_slice($saved, 0, self::MAX_SAVED_ADDRESSES)])->save();
+    }
+
+    /** Approval lasts a day: long enough to order, short enough that an old prescription is checked again. */
+    public const APPROVAL_HOURS = 24;
+
+    /** Whether the team approved this item for this customer (prescription seen, age checked). */
+    public function isApproved(string $productId): bool
+    {
+        $value = ($this->approvals ?? [])[$productId] ?? null;
+
+        return is_string($value) && $value !== 'pending' && now()->lt($value);
+    }
+
+    public function hasPendingCheck(): ?string
+    {
+        foreach ($this->approvals ?? [] as $productId => $value) {
+            if ($value === 'pending') {
+                return (string) $productId;
+            }
+        }
+
+        return null;
+    }
+
+    public function markCheck(string $productId, bool $approved): void
+    {
+        $approvals = $this->approvals ?? [];
+        $approvals[$productId] = $approved ? now()->addHours(self::APPROVAL_HOURS)->toIso8601String() : 'pending';
+        $this->forceFill(['approvals' => $approvals])->save();
+    }
+
+    /** One approval, one order: used up once an order with the item is placed. */
+    public function useApproval(string $productId): void
+    {
+        $approvals = $this->approvals ?? [];
+        unset($approvals[$productId]);
+        $this->forceFill(['approvals' => $approvals ?: null])->save();
     }
 }

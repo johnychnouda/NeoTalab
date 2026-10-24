@@ -89,6 +89,7 @@ export default function MenuPage() {
       name: vals.name, description: vals.description || null, price: vals.price, category_id: vals.categoryId || null,
       unit: vals.unit || null, duration_mins: services && vals.duration ? Number(vals.duration) : null,
       offer_percent: vals.offerPercent || null, offer_starts_on: vals.offerStartsOn || null, offer_ends_on: vals.offerEndsOn || null,
+      staff_check: Boolean(vals.staffCheck),
     };
     let id = item?.id;
     if (id) {
@@ -443,6 +444,7 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
   const [offerPercent, setOfferPercent] = useState(item?.offer_percent ?? "");
   const [offerStartsOn, setOfferStartsOn] = useState(item?.offer_starts_on || "");
   const [offerEndsOn, setOfferEndsOn] = useState(item?.offer_ends_on || "");
+  const [staffCheck, setStaffCheck] = useState(Boolean(item?.staff_check));
 
   const setGroup = (i, patch) => setGroups(groups.map((g, j) => (j === i ? { ...g, ...patch } : g)));
   const setChoice = (i, k, patch) => setGroup(i, { modifiers: groups[i].modifiers.map((m, j) => (j === k ? { ...m, ...patch } : m)) });
@@ -481,7 +483,7 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
     onSubmit({
       name: name.trim(), price: parseFloat(price), description: description.trim(), categoryId, unit,
       duration: parseInt(duration, 10) || null, sizes, groups,
-      offerPercent: parseInt(offerPercent, 10) || null, offerStartsOn, offerEndsOn,
+      offerPercent: parseInt(offerPercent, 10) || null, offerStartsOn, offerEndsOn, staffCheck,
     });
   };
 
@@ -526,6 +528,12 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
                 <label htmlFor="it-desc">{t("mk.description")}</label>
                 <textarea id="it-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("mk.descHint")} />
               </div>
+              {!services && (
+                <div className="field">
+                  <label className="mk-check"><input type="checkbox" checked={staffCheck} onChange={(e) => setStaffCheck(e.target.checked)} /> {t("mk.staffCheck")}</label>
+                  {staffCheck && <p className="mk-hint">{t("mk.staffCheckHint")}</p>}
+                </div>
+              )}
             </div>
 
             <div className="ie-side">

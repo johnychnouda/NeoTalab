@@ -30,6 +30,7 @@ class ProductResource extends JsonResource
             'duration_mins' => $this->duration_mins,
             'is_active' => $this->is_active,
             'is_available' => $this->is_available,
+            'staff_check' => (bool) $this->staff_check,
             'track_inventory' => $this->track_inventory,
             'stock_quantity' => $this->stock_quantity,
             'low_stock_threshold' => $this->low_stock_threshold,

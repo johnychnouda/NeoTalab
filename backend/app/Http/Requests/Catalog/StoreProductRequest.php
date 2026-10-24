@@ -38,6 +38,7 @@ class StoreProductRequest extends FormRequest
             'duration_mins' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
+            'staff_check' => ['sometimes', 'boolean'],
             'track_inventory' => ['sometimes', 'boolean'],
             'stock_quantity' => ['nullable', 'integer', 'min:0', 'required_if:track_inventory,true'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],

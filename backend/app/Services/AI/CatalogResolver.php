@@ -125,6 +125,7 @@ class CatalogResolver
             nameFr: $product->name_fr,
             price: number_format($product->priceAfterOffer((float) $product->price), 2, '.', ''),
             isOrderable: $product->isOrderable(),
+            needsCheck: (bool) $product->staff_check,
             variants: $product->variants->filter(fn (ProductVariant $v) => $v->isOffered() && $v->hasStockFor($product, 1))->map(fn (ProductVariant $v) => [
                 'id' => $v->id,
                 'name' => $v->name,

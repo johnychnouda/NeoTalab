@@ -31,6 +31,8 @@ class MenuImportService
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
         // Minutes a service takes (salons, clinics): "duration", "minutes", "mins"…
         'duration' => ['duration', 'duration mins', 'duration min', 'duration_mins', 'minutes', 'mins', 'min', 'مدة', 'المدة', 'durée', 'duree'],
+        // Pharmacies: "yes" = the team checks it first (prescription, age).
+        'check' => ['prescription', 'rx', 'needs check', 'check', 'staff check', 'وصفة', 'وصفة طبية', 'ordonnance'],
     ];
 
     /** Set by preview(): true when every price in the file is in Lebanese lira (each item also carries its own "lbp" flag). */
@@ -135,6 +137,7 @@ class MenuImportService
                     'category_id' => $category->id,
                     'price' => $item['price'],
                     'duration_mins' => $item['duration_mins'] ?? null,
+                    'staff_check' => $item['staff_check'] ?? null,
                     'description' => $item['description'],
                     'name_ar' => $item['name_ar'],
                     'name_fr' => $item['name_fr'],
@@ -303,6 +306,7 @@ class MenuImportService
                 'name_fr' => $text($row['name_fr'] ?? null),
                 // Only a whole number of minutes is used; a service without one stays a plain item.
                 'duration_mins' => ($d = (int) preg_replace('/\D/', '', (string) ($row['duration'] ?? $row['duration_mins'] ?? ''))) >= 5 && $d <= 1440 ? $d : null,
+                'staff_check' => self::yesNo($row['check'] ?? $row['staff_check'] ?? null),
                 // As chosen in the preview.
                 'lbp' => filter_var($row['lbp'] ?? false, FILTER_VALIDATE_BOOL),
                 // As read from the file: marked lira (in the cell or the column header), or a plain amount no dollar menu has.
@@ -313,6 +317,21 @@ class MenuImportService
         }
 
         return $items;
+    }
+
+    /** "yes", "1", "x", "نعم", "oui" → true; "no", "0", "لا", "non" → false; empty → null (unchanged). */
+    private static function yesNo(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        $v = mb_strtolower(trim((string) $value));
+        if ($v === '') {
+            return null;
+        }
+
+        return in_array($v, ['yes', 'y', '1', 'x', 'true', '✓', '✔', 'نعم', 'اي', 'oui', 'o'], true) ? true
+            : (in_array($v, ['no', 'n', '0', 'false', 'لا', 'non'], true) ? false : null);
     }
 
     /** "$5", "5,000 LBP", "5.50", "٥" → float; null when there is no number. */

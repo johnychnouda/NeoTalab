@@ -281,4 +281,16 @@ return [
         'staff_updated' => '👍 :service updated.',
         'staff_closed' => 'This booking for :service was already cancelled or closed, so it was not changed.',
     ],
+    'check' => [
+        'ask' => '💊 ":item" needs a check by our team first (for example a prescription). Please send a photo of your prescription here and the team will answer you in this chat.',
+        'staff' => "💊 :phone asked for \":item\", which needs your check (prescription, age). They were asked to send a photo in the chat.\nApprove to let them order it today, or refuse.",
+        'alert' => ':phone asked for :item, which needs a check',
+        'button_approve' => '✅ Approve',
+        'button_refuse' => '❌ Refuse',
+        'button_add' => '➕ Add it',
+        'approved' => '✅ :shop approved ":item" for you. Tap below to add it to your order.',
+        'refused' => 'Sorry, :shop could not approve ":item". Reply "human" to talk to the team.',
+        'staff_approved' => '👍 ":item" approved for :phone for 24 hours. The customer was told.',
+        'staff_refused' => '":item" refused for :phone. The customer was told.',
+    ],
 ];
