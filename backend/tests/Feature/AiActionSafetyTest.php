@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Cart;
 use App\Models\Customer;
+use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Modifier;
 use App\Models\ModifierGroup;
@@ -251,6 +252,36 @@ class AiActionSafetyTest extends TestCase
         app(OrderService::class)->transition($this->merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'shop']);
         $this->assertSame(1, $medium->fresh()->stock_quantity);
         $this->assertSame(10, $shirt->fresh()->stock_quantity);
+    }
+
+    public function test_another_shops_team_cannot_touch_this_shops_orders_or_chats(): void
+    {
+        $this->ai([$this->add($this->burger)]);
+        $this->say('burger');
+        $this->ai([], 'place_order', ['fulfillment' => 'pickup', 'delivery_zone' => null, 'delivery_address' => null,
+            'payment_method' => 'cash', 'payment_currency' => null, 'cash_main' => null, 'notes' => null]);
+        $this->say('confirm');
+        $order = Order::query()->withoutGlobalScopes()->sole();
+        $status = $order->status;
+
+        [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Other', 'settings' => ['bot' => ['phone_id' => '556'], 'mode' => 'auto']]);
+        foreach (['staff' => '+96171000001', 'driver' => '+96171000002'] as $role => $phone) {
+            Driver::query()->forceCreate(['merchant_id' => $other->id, 'name' => $role, 'role' => $role, 'phone' => $phone, 'whatsapp_number' => $phone,
+                'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
+        }
+        $customer = Customer::query()->withoutGlobalScopes()->where('phone', '+'.self::CUSTOMER)->sole();
+        foreach (['96171000001' => ["stf:reject:{$order->id}", "stf:ready:{$order->id}", "stf:delivered:{$order->id}", "stf:resume:{$customer->id}"],
+            '96171000002' => ["drv:picked_up:{$order->id}", "drv:delivered:{$order->id}", "drv:failed:{$order->id}"]] as $from => $buttons) {
+            foreach ($buttons as $id) {
+                app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+                    'metadata' => ['phone_number_id' => '556'],
+                    'messages' => [['id' => 'wamid.T'.(++$this->seq), 'from' => $from, 'type' => 'interactive',
+                        'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => $id, 'title' => 'x']]]],
+                ]]]]]]);
+            }
+        }
+
+        $this->assertSame($status, $order->fresh()->status, 'another shop\'s staff and drivers change nothing here');
     }
 
     public function test_the_real_model_cannot_place_an_order_without_the_customers_tap(): void

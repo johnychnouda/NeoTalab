@@ -57,6 +57,16 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Salon gaps fixed: a file can set a service's minutes (column 'Duration'; 'Service' is a name header);
   a salon's first reply lists its services with minutes and prices. Menus by shop type: 9 of 9 kinds pass (144/144 checks in the last run).
 
+## Checkpoint 8, 24 October 2026 (production-readiness pass)
+- Baseline before changes: backend 460 passed, Pint clean, web unit 10 passed, web build OK, `composer audit` and `npm audit` clean.
+- New reports: [PRODUCTION-READINESS-STATUS.md](PRODUCTION-READINESS-STATUS.md), [MERCHANT-COMPATIBILITY-MATRIX.md](MERCHANT-COMPATIBILITY-MATRIX.md),
+  [AI-SAFETY-EVALUATION.md](AI-SAFETY-EVALUATION.md), [SECURITY-AUDIT.md](SECURITY-AUDIT.md), [TECHNOLOGY-UPGRADE-AUDIT.md](TECHNOLOGY-UPGRADE-AUDIT.md).
+- Fixed D18–D24 (AI and stock safety), each with a regression test that fails without the fix.
+- Real AI attack suite `qa/s24_ai_adversarial.py`: 23/24 (my expected total was wrong), then 24/24 twice.
+- After changes: backend 471 passed, Pint clean.
+- Lab note: an older lab from a previous session still holds ports 8011/8019; this lab ran on 8031/8039
+  (`QA_API`, `MOCK_GRAPH_PORT`). Stopping the old processes was refused by the session's safety check.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.
