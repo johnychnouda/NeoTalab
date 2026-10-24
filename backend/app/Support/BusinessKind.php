@@ -56,6 +56,20 @@ final class BusinessKind
         return self::TYPES[(string) $merchant->business_type] ?? 'other';
     }
 
+    /** Business types whose customers may write about their health. */
+    public const HEALTH_TYPES = ['Clinic / Dentist', 'Pharmacy'];
+
+    /**
+     * Pharmacies and clinics: the assistant never asks for medical details, the first reply asks the
+     * customer not to send them, and chat text is erased after HEALTH_KEEP_DAYS (`chats:forget`).
+     */
+    public static function isHealth(Merchant $merchant): bool
+    {
+        return self::of($merchant) === 'pharmacy' || in_array((string) $merchant->business_type, self::HEALTH_TYPES, true);
+    }
+
+    public const HEALTH_KEEP_DAYS = 30;
+
     public static function menuWord(Merchant $merchant): string
     {
         return self::KINDS[self::of($merchant)][0];

@@ -293,4 +293,7 @@ return [
         'staff_approved' => '👍 ":item" approved for :phone for 24 hours. The customer was told.',
         'staff_refused' => '":item" refused for :phone. The customer was told.',
     ],
+    'privacy' => [
+        'health_note' => '🔒 Please don\'t send medical details or test results in this chat: we only need what you want and when.',
+    ],
 ];

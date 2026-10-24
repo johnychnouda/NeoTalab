@@ -20,6 +20,7 @@ Schedule::command('billing:stop-unpaid')->hourly()->withoutOverlapping();
 Schedule::command('templates:sync')->hourly()->withoutOverlapping();
 Schedule::command('orders:due')->hourly()->withoutOverlapping();
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
+Schedule::command('chats:forget')->dailyAt('04:00')->withoutOverlapping();
 
 // Proof the scheduler is alive, shown in Owner portal → Inbox → System → Launch checklist.
 Schedule::call(fn () => Cache::put(LaunchChecklistService::SCHEDULER_HEARTBEAT, now()->getTimestamp(), 3600))

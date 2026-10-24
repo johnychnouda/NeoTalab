@@ -287,4 +287,7 @@ return [
         'staff_approved' => '👍 « :item » validé pour :phone pendant 24 heures. Le client a été prévenu.',
         'staff_refused' => '« :item » refusé pour :phone. Le client a été prévenu.',
     ],
+    'privacy' => [
+        'health_note' => '🔒 Merci de ne pas envoyer de détails médicaux ni de résultats d\'analyses ici : nous avons seulement besoin de ce que vous voulez et quand.',
+    ],
 ];

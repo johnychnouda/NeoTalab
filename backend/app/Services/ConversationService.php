@@ -18,6 +18,7 @@ use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
 use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
+use App\Support\BusinessKind;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
@@ -188,6 +189,12 @@ class ConversationService
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [Money::fromAiText($output->assistantMessage), null],
         };
+
+        // Pharmacies and clinics: the first answer asks the customer to keep medical details out of the chat.
+        $merchant = app(CurrentTenant::class)->get();
+        if (($state['messages'] ?? []) === [] && $merchant && BusinessKind::isHealth($merchant) && $reply !== '') {
+            $reply .= "\n\n".__('whatsapp.privacy.health_note', [], $conversation->customer->locale ?? 'en');
+        }
 
         $now = now()->toIso8601String();
         $messages = $state['messages'] ?? [];
@@ -572,6 +579,7 @@ class ConversationService
             'fulfillment' => ShopSettings::for($merchant)->fulfillment(),
             'whish_enabled' => $this->whish->enabled($merchant),
             'business_mode' => ShopSettings::for($merchant)->businessMode(),
+            'health_privacy' => BusinessKind::isHealth($merchant),
             'now' => now()->setTimezone($merchant->timezone ?: config('app.timezone'))->format('Y-m-d H:i l'),
             'services' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : $this->appointments->services()
                 ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])
