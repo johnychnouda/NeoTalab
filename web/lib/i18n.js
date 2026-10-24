@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, createElement } from "react";
 import { OWNER_I18N } from "@/lib/i18n-owner";
 import { JOIN_I18N } from "@/lib/i18n-join";
+import { RESET_I18N } from "@/lib/i18n-reset";
 
 export const I18N = {
   en: {
@@ -1603,6 +1604,9 @@ export const I18N = {
 for (const code of Object.keys(I18N)) Object.assign(I18N[code], OWNER_I18N[code], JOIN_I18N[code]);
 
 /** Intl locale per UI language; Arabic keeps Latin digits like the rest of the app. */
+// Forgot-password texts live in their own file; they join the table here.
+for (const code of ["en", "ar", "fr"]) Object.assign(I18N[code], RESET_I18N[code]);
+
 export const LOCALES = { en: "en-GB", ar: "ar-LB-u-nu-latn", fr: "fr-FR" };
 
 /** Fills {name} placeholders in a translated string. */

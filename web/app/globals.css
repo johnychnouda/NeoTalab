@@ -106,6 +106,9 @@ a { color: inherit; }
 .auth-below a { color: var(--green); font-weight: 600; text-decoration: none; }
 .auth-secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12.5px; }
 .auth-secure svg { width: 14px; height: 14px; }
+/* A text button under a sign-in or reset form ("Forgot password?", "Back to sign in"). */
+.auth-link { display: block; width: 100%; margin-top: 14px; background: none; border: 0; color: var(--green); font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; }
+.auth-link:hover { text-decoration: underline; }
 .auth-rules { list-style: none; margin: -4px 0 18px; display: grid; gap: 6px; }
 .auth-rules li { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; transition: color 0.15s; }
 .auth-rules li.ok { color: var(--green); }

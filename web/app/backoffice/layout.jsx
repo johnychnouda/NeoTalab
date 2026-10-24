@@ -8,6 +8,7 @@ import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
 import AppShell from "@/components/AppShell";
 import Brand from "@/components/Brand";
+import { ForgotPassword } from "@/components/PasswordReset";
 import { DashLangSwitch, DashProfile } from "@/components/DashSidebar";
 import { AuthShell, AuthField, PasswordField, AuthAlert, AuthSubmit, ICONS, EMAIL_RE } from "@/components/auth/AuthShell";
 import { company } from "@/lib/company";
@@ -291,6 +292,7 @@ function BotSwitch({ on, waiting, onChange, t }) {
 }
 
 function LoginScreen({ t, onLoggedIn }) {
+  const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -335,6 +337,7 @@ function LoginScreen({ t, onLoggedIn }) {
         </p>
       )}
     >
+      {forgot ? <ForgotPassword role="merchant" onBack={() => setForgot(false)} /> : (<>
       <form onSubmit={submit} noValidate>
         <AuthAlert>{error}</AuthAlert>
         <AuthField
@@ -350,6 +353,8 @@ function LoginScreen({ t, onLoggedIn }) {
         />
         <AuthSubmit busy={busy} busyLabel={t("db.login.signingIn")}>{t("login.btn")}</AuthSubmit>
       </form>
+      <button type="button" className="auth-link" onClick={() => setForgot(true)}>{t("reset.forgot")}</button>
+      </>)}
       {SUPPORT_WA && (
         <div className="auth-help">
           <span>{t("auth.forgot")}</span>

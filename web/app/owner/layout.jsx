@@ -11,6 +11,7 @@ import Brand from "@/components/Brand";
 import { DashLangSwitch, DashProfile } from "@/components/DashSidebar";
 import { AuthShell, AuthField, PasswordField, AuthAlert, AuthSubmit, ICONS, EMAIL_RE } from "@/components/auth/AuthShell";
 import { AuthLoading } from "@/components/owner/ui";
+import { ForgotPassword } from "@/components/PasswordReset";
 import { useLang } from "@/lib/i18n";
 
 const OwnerContext = createContext({});
@@ -251,6 +252,7 @@ function CommandPalette({ open, onClose }) {
 }
 
 function LoginScreen({ onLoggedIn }) {
+  const [forgot, setForgot] = useState(false);
   const { t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -286,6 +288,7 @@ function LoginScreen({ onLoggedIn }) {
 
   return (
     <AuthShell title={t("ow.portal")} subtitle={t("ow.login.sub")}>
+      {forgot ? <ForgotPassword role="owner" onBack={() => setForgot(false)} /> : (<>
       <form onSubmit={submit} noValidate>
         <AuthAlert>{error}</AuthAlert>
         <AuthField
@@ -301,6 +304,8 @@ function LoginScreen({ onLoggedIn }) {
         />
         <AuthSubmit busy={busy} busyLabel={t("ow.login.busy")}>{t("login.btn")}</AuthSubmit>
       </form>
+      <button type="button" className="auth-link" onClick={() => setForgot(true)}>{t("reset.forgot")}</button>
+      </>)}
       <p className="auth-secure">{ICONS.lock}{t("auth.ownerOnly")}</p>
     </AuthShell>
   );
