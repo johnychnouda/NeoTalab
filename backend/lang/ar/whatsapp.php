@@ -266,6 +266,8 @@ return [
         'booked' => "✅ تم الحجز: :service يوم :date الساعة :time (:price) في :shop — :address.\nسنرسل لك تذكيراً. أرسل «إلغاء الموعد» إذا لم تتمكن من الحضور.",
         'reminder' => '⏰ تذكير: موعد :service في :shop يوم :date الساعة :time. نراك قريباً!',
         'cancelled' => 'تم إلغاء موعد :service يوم :date الساعة :time. يمكنك الحجز مجدداً في أي وقت.',
+        'cancel_which' => "لديك أكثر من موعد:\n:list\nأي موعد تريد إلغاءه؟ أخبرني باليوم.",
+        'staff_cancelled' => "❌ ألغى الزبون الموعد — :shop\n:service\n:date الساعة :time\n📞 :phone",
         'cancel_none' => 'لا يوجد لديك موعد قادم لإلغائه.',
         'staff_new' => "🗓 حجز جديد — :shop\n:service\n:date الساعة :time · :price\n📞 :phone",
         'button_done' => '✅ تم',

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\NotifyStaffOfAppointmentCancelled;
 use App\Jobs\NotifyStaffOfHandoff;
 use App\Models\Category;
 use App\Models\Conversation;
@@ -184,7 +185,7 @@ class ConversationService
             RecommendedAction::Handoff => [$this->handoff($conversation), null],
             RecommendedAction::CheckAvailability => [$this->availability($conversation, $output->appointment ?? []), null],
             RecommendedAction::BookAppointment => [$this->bookAppointment($conversation, $output->appointment ?? []), null],
-            RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation), null],
+            RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [Money::fromAiText($output->assistantMessage), null],
         };
 
@@ -474,16 +475,42 @@ class ConversationService
         ], $locale);
     }
 
-    private function cancelAppointment(Conversation $conversation): string
+    /**
+     * Cancels the booking the customer means: the one on the day (and time) the assistant read, or
+     * the only upcoming one. With several and no day given, the customer is asked which one, so a
+     * Friday booking is never cancelled for a Thursday one. The staff are told, so nobody waits.
+     *
+     * @param  array<string, mixed>  $req  service_id, date, time
+     */
+    private function cancelAppointment(Conversation $conversation, array $req = []): string
     {
         $locale = $conversation->customer->locale ?? 'en';
-        $appointment = $this->appointments->upcomingFor($conversation->customer);
-        if (! $appointment) {
+        $tz = $this->appointments->tz(app(CurrentTenant::class)->get());
+        $upcoming = $this->appointments->allUpcomingFor($conversation->customer);
+        if ($upcoming->isEmpty()) {
             return __('whatsapp.appointment.cancel_none', [], $locale);
         }
 
+        $matches = $upcoming;
+        if (is_string($req['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $req['date'])) {
+            $matches = $matches->filter(fn ($a) => $a->starts_at->copy()->setTimezone($tz)->toDateString() === $req['date']);
+        }
+        if (is_string($req['time'] ?? null) && preg_match('/^(\d{1,2}):(\d{2})$/', $req['time'], $t)) {
+            $hm = sprintf('%02d:%02d', $t[1], $t[2]);
+            $timed = $matches->filter(fn ($a) => $a->starts_at->copy()->setTimezone($tz)->format('H:i') === $hm);
+            $matches = $timed->isNotEmpty() ? $timed : $matches;
+        }
+
+        $label = fn ($a) => $a->service_name.' '.$a->starts_at->copy()->setTimezone($tz)->locale($locale)->isoFormat('ddd D MMM').' '
+            .$a->starts_at->copy()->setTimezone($tz)->format('H:i');
+        if ($matches->count() !== 1) {
+            return __('whatsapp.appointment.cancel_which', ['list' => $upcoming->map($label)->implode("\n")], $locale);
+        }
+
+        $appointment = $matches->first();
         $appointment->forceFill(['status' => 'cancelled', 'cancelled_by' => 'customer'])->save();
-        $local = $appointment->starts_at->copy()->setTimezone($this->appointments->tz(app(CurrentTenant::class)->get()));
+        NotifyStaffOfAppointmentCancelled::dispatch($appointment->id)->afterCommit();
+        $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);
     }

@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ShopHour;
+use App\Services\AI\CatalogResolver;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
@@ -74,7 +75,8 @@ class CheckoutService
         foreach ($cart->items as $item) {
             $product = $item->product;
             if (! $product || ! $product->isOrderable() || (float) $item->line_total < 0.01
-                || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)) {
+                || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)
+                || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
         }

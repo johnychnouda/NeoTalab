@@ -117,7 +117,7 @@ class CartService
         }
 
         $modifiers = $this->catalog->resolveModifiers($product, $action->modifierIds);
-        if (count($action->modifierIds) !== $modifiers->count()) {
+        if (count(array_unique($action->modifierIds)) !== count($action->modifierIds) || count($action->modifierIds) !== $modifiers->count()) {
             throw new InvalidArgumentException('One or more modifiers are invalid for this product.');
         }
 
@@ -157,6 +157,14 @@ class CartService
 
         $chosen = $modifiers->pluck('id')->all();
         foreach ($product->modifierGroups as $group) {
+            // "Choose 1 sauce" means one: more would be a line the shop cannot make.
+            // A group saved with a minimum above its maximum allows the minimum.
+            $max = max((int) $group->max_select, (int) $group->min_select);
+            $inGroup = count(array_intersect($chosen, $group->modifiers->pluck('id')->all()));
+            if ($max > 0 && $inGroup > $max) {
+                throw new InvalidArgumentException("Option \"{$group->name}\" allows at most {$max}: ask the customer to choose.");
+            }
+
             $offered = $group->modifiers->filter(fn ($m) => ($m->is_active ?? true) && ($m->is_available ?? true));
             if (! $group->required || $offered->isEmpty()) {
                 continue;

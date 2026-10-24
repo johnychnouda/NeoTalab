@@ -266,6 +266,8 @@ return [
         'booked' => "✅ Réservé : :service le :date à :time (:price) chez :shop — :address.\nNous vous enverrons un rappel. Répondez « annuler le rendez-vous » si vous ne pouvez pas venir.",
         'reminder' => '⏰ Rappel : votre :service chez :shop est le :date à :time. À bientôt !',
         'cancelled' => 'Votre :service du :date à :time est annulé. Vous pouvez réserver à nouveau à tout moment.',
+        'cancel_which' => "Vous avez plusieurs rendez-vous :\n:list\nLequel dois-je annuler ? Dites-moi le jour.",
+        'staff_cancelled' => "❌ Rendez-vous annulé par le client — :shop\n:service\n:date à :time\n📞 :phone",
         'cancel_none' => "Vous n'avez aucun rendez-vous à venir à annuler.",
         'staff_new' => "🗓 Nouvelle réservation — :shop\n:service\n:date à :time · :price\n📞 :phone",
         'button_done' => '✅ Terminé',

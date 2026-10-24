@@ -272,6 +272,8 @@ return [
         'booked' => "✅ Booked: :service on :date at :time (:price) at :shop — :address.\nWe'll send you a reminder. Reply \"cancel appointment\" if you can't make it.",
         'reminder' => '⏰ Reminder: your :service at :shop is on :date at :time. See you soon!',
         'cancelled' => 'Your :service on :date at :time has been cancelled. You can book again anytime.',
+        'cancel_which' => "You have more than one booking:\n:list\nWhich one should I cancel? Tell me the day.",
+        'staff_cancelled' => "❌ Booking cancelled by the customer — :shop\n:service\n:date at :time\n📞 :phone",
         'cancel_none' => 'You have no upcoming appointment to cancel.',
         'staff_new' => "🗓 New booking — :shop\n:service\n:date at :time · :price\n📞 :phone",
         'button_done' => '✅ Done',

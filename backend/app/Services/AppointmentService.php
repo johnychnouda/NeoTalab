@@ -144,6 +144,17 @@ class AppointmentService
             ->first();
     }
 
+    /** @return Collection<int, Appointment> */
+    public function allUpcomingFor(Customer $customer): Collection
+    {
+        return Appointment::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', 'booked')
+            ->where('starts_at', '>', now())
+            ->orderBy('starts_at')
+            ->get();
+    }
+
     public function tz(Merchant $merchant): string
     {
         return $merchant->timezone ?: (string) config('app.timezone');

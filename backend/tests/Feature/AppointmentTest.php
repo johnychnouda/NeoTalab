@@ -194,6 +194,24 @@ class AppointmentTest extends TestCase
         $this->assertStringContainsString('Haircut on Wed 7 Oct at 11:00 has been cancelled', $this->lastTo(self::CUSTOMER));
     }
 
+    public function test_with_two_bookings_the_customer_is_asked_which_one_and_only_that_one_is_cancelled(): void
+    {
+        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Owner', 'role' => 'staff', 'phone' => '+96171555000', 'whatsapp_number' => '+96171555000', 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
+        $this->staffWroteToShop($this->merchant, '+96171555000');
+        $this->say('book haircut 2026-10-08 10:00');
+        $this->say('book haircut 2026-10-09 11:00');
+
+        $this->say('cancel appointment');
+        $this->assertStringContainsString('more than one booking', $this->lastTo(self::CUSTOMER));
+        $this->assertSame(2, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count(), 'nothing cancelled without knowing which');
+
+        $this->say('cancel appointment 2026-10-09');
+        $this->assertStringContainsString('Fri 9 Oct at 11:00 has been cancelled', $this->lastTo(self::CUSTOMER));
+        $left = Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->sole();
+        $this->assertSame('2026-10-08 10:00', $left->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
+        $this->assertStringContainsString('Booking cancelled by the customer', $this->lastTo('+96171555000'), 'the staff are told');
+    }
+
     public function test_reminder_is_sent_once_before_the_visit(): void
     {
         $this->say('book haircut 2026-10-06 15:00');

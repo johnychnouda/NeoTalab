@@ -50,8 +50,14 @@ class FakeChatProvider implements ChatProvider
             return $this->action($input, RecommendedAction::Checkout, ConversationIntent::Order);
         }
 
-        if (preg_match('/^cancel (my )?appointment\b/u', $text)) {
-            return $this->action($input, RecommendedAction::CancelAppointment, ConversationIntent::Cancel);
+        // "cancel appointment", "cancel appointment 2026-10-06" (the day the customer named)
+        if (preg_match('/^cancel (my )?appointment\b(?: (\d{4}-\d{2}-\d{2}))?/u', $text, $m)) {
+            return new StructuredTurnOutput(
+                intent: ConversationIntent::Cancel, confidence: 0.9, entities: [], cartActions: [],
+                conversationState: ['phase' => $input->conversationPhase], missingFields: [],
+                recommendedAction: RecommendedAction::CancelAppointment, assistantMessage: '',
+                appointment: isset($m[2]) ? ['service_id' => null, 'date' => $m[2], 'time' => null] : null,
+            );
         }
 
         if (preg_match('/^(cancel (my )?order|الغي الطلب|annuler (ma )?commande)\b/u', $text)) {

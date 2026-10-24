@@ -69,14 +69,39 @@ class CatalogResolver
             return collect();
         }
 
+        // An extra the shop switched off (or marked sold out) is never sold, whatever the AI sends.
         $allowedIds = $product->modifierGroups
             ->flatMap(fn ($g) => $g->modifiers)
+            ->filter(fn (Modifier $m) => self::modifierOffered($m))
             ->pluck('id')
             ->all();
 
         $valid = array_values(array_intersect($modifierIds, $allowedIds));
 
         return Modifier::whereIn('id', $valid)->get();
+    }
+
+    public static function modifierOffered(Modifier $modifier): bool
+    {
+        return ($modifier->is_active ?? true) && ($modifier->is_available ?? true);
+    }
+
+    /**
+     * Whether a cart line's size and extras are all still on the menu (checked again at checkout,
+     * since the shop can switch one off while the customer is still ordering).
+     *
+     * @param  array<int, string>  $modifierIds
+     */
+    public function choicesStillOffered(Product $product, ?string $variantId, array $modifierIds): bool
+    {
+        if ($variantId !== null) {
+            $variant = $this->resolveVariant($product, $variantId);
+            if (! $variant || ! $variant->isOffered()) {
+                return false;
+            }
+        }
+
+        return $this->resolveModifiers($product, $modifierIds)->count() === count(array_unique($modifierIds));
     }
 
     /**
@@ -111,7 +136,7 @@ class CatalogResolver
                 'required' => (bool) $g->required,
                 'min_select' => $g->min_select,
                 'max_select' => $g->max_select,
-                'modifiers' => $g->modifiers->map(fn (Modifier $m) => [
+                'modifiers' => $g->modifiers->filter(fn (Modifier $m) => self::modifierOffered($m))->map(fn (Modifier $m) => [
                     'id' => $m->id,
                     'name' => $m->name,
                     'price_delta' => number_format((float) $m->price_delta, 2, '.', ''),
