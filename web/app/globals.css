@@ -3018,3 +3018,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset-team-row > .btn-sm { margin-inline-start: auto; }
 .sset-team-add { display: flex; gap: 8px; margin-top: 12px; }
 .sset-team-add input { flex: 1; min-width: 0; }
+
+/* Item editor: stock per size × option. Scrolls sideways on a phone instead of widening the page. */
+.ie-stock-wrap { overflow-x: auto; margin-top: 10px; }
+.ie-stock { border-collapse: collapse; font-size: 13px; }
+.ie-stock th, .ie-stock td { padding: 4px 6px; text-align: start; white-space: nowrap; }
+.ie-stock input { width: 64px; }

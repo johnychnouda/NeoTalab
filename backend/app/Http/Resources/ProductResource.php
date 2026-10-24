@@ -43,6 +43,9 @@ class ProductResource extends JsonResource
             'attributes' => $this->resource->getAttribute('attributes'),
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
             'modifier_groups' => ModifierGroupResource::collection($this->whenLoaded('modifierGroups')),
+            'option_stocks' => $this->whenLoaded('optionStocks', fn () => $this->optionStocks->map(fn ($r) => [
+                'variant_id' => $r->variant_id, 'modifier_id' => $r->modifier_id, 'stock_quantity' => $r->stock_quantity,
+            ])->values()),
             'created_at' => $this->created_at,
         ];
     }

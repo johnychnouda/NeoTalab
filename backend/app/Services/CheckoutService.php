@@ -20,6 +20,7 @@ use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\DeliverySchedule;
 use App\Support\Money;
+use App\Support\OptionStock;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,7 @@ class CheckoutService
                 || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)
                 || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])
                 || ($item->variant && ! $item->variant->hasStockFor($product, $item->quantity))
+                || ! OptionStock::has($product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity)
                 || ($product->staff_check && ! $conversation->customer?->isApproved($product->id))) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
@@ -177,6 +179,7 @@ class CheckoutService
                     'unit' => Quantity::byWeight($item->product) ? $item->product->unit : null,
                     'unit_price' => $item->unit_price,
                     'item_total' => $item->line_total,
+                    'modifier_ids' => $item->modifier_ids ?: null,
                     'modifiers' => collect($item->modifier_ids ?? [])->map(fn ($id) => $modifierNames[$id] ?? null)->filter()->values()->all(),
                 ]);
 
@@ -188,6 +191,9 @@ class CheckoutService
                         ->decrement('stock_quantity', $item->quantity);
                     if ($taken === 0) {
                         throw new CheckoutException('unavailable', ['item' => $item->product->name]);
+                    }
+                    if (! OptionStock::take($item->product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity)) {
+                        throw new CheckoutException('unavailable', ['item' => $this->lineName($item)]);
                     }
                     // A size with its own stock number: the same conditional take, for that size.
                     if ($item->variant_id !== null && $item->variant?->stock_quantity !== null) {

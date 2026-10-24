@@ -99,13 +99,29 @@ export default function MenuPage() {
       id = res.products?.[0]?.id;
     }
     if (id && !services) {
-      await api("PUT", `/products/${id}/options`, {
+      const saved = await api("PUT", `/products/${id}/options`, {
         variants: vals.sizes.filter((s) => s.name.trim()).map((s) => ({ id: s.id || null, name: s.name.trim(), price: String(s.price ?? "").trim() === "" ? null : Number(s.price) })),
         groups: vals.groups.filter((g) => g.name.trim() && g.modifiers.some((m) => m.name.trim())).map((g) => ({
           id: g.id || null, name: g.name.trim(), required: g.required, max_select: Number(g.max_select) || 1,
           modifiers: g.modifiers.filter((m) => m.name.trim()).map((m) => ({ id: m.id || null, name: m.name.trim(), price_delta: Number(m.price_delta) || 0 })),
         })),
       });
+      const fresh = saved.products?.[0];
+      if (fresh && (vals.stock.on || item?.track_inventory)) {
+        const n = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+        const sizeId = Object.fromEntries((fresh.variants || []).map((v) => [v.name, v.id]));
+        const optId = Object.fromEntries((fresh.modifier_groups?.[0]?.modifiers || []).map((m) => [m.name, m.id]));
+        await api("PUT", `/products/${id}/stock`, {
+          track_inventory: vals.stock.on, stock_quantity: vals.stock.on ? n(vals.stock.total) ?? 0 : null,
+          variants: (fresh.variants || []).map((v) => ({ id: v.id, stock_quantity: vals.stock.on ? n(vals.stock.sizes[v.name]) : null })),
+          // A cell for a size or colour that was just removed is dropped (its id is gone).
+          options: Object.entries(vals.stock.grid).flatMap(([key, value]) => {
+            const [size, opt] = key.split("|");
+            if (!optId[opt] || (size && !sizeId[size])) return [];
+            return [{ variant_id: size ? sizeId[size] : null, modifier_id: optId[opt], stock_quantity: vals.stock.on ? n(value) : null }];
+          }),
+        });
+      }
     }
     toast(t("mk.saved"));
   }
@@ -398,7 +414,21 @@ const ROW_ICONS = {
   sizes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17h18M6 17V7M10 17v-6M14 17V9M18 17v-4" /></svg>,
   options: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" /></svg>,
   offer: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" /></svg>,
+  stock: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" /><path d="m3 8 9 5 9-5M12 13v8" /></svg>,
 };
+
+/** The stock as the editor shows it: keyed by size and option names, so new sizes work before they have ids. */
+function stockFromItem(item) {
+  const sizeName = Object.fromEntries((item?.variants || []).map((v) => [v.id, v.name]));
+  const optName = Object.fromEntries((item?.modifier_groups || []).flatMap((g) => g.modifiers || []).map((m) => [m.id, m.name]));
+  return {
+    on: Boolean(item?.track_inventory),
+    total: item?.stock_quantity ?? "",
+    sizes: Object.fromEntries((item?.variants || []).map((v) => [v.name, v.stock_quantity ?? ""])),
+    grid: Object.fromEntries((item?.option_stocks || []).filter((r) => optName[r.modifier_id])
+      .map((r) => [`${r.variant_id ? sizeName[r.variant_id] ?? "" : ""}|${optName[r.modifier_id]}`, r.stock_quantity])),
+  };
+}
 
 /** A price in the shop currency with its lira twin: type in either, the other follows (1,000 LBP steps). */
 function PriceInput({ value, onChange, rate, currency, compact = false, label, placeholder = "0.00" }) {
@@ -445,6 +475,7 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
   const [offerStartsOn, setOfferStartsOn] = useState(item?.offer_starts_on || "");
   const [offerEndsOn, setOfferEndsOn] = useState(item?.offer_ends_on || "");
   const [staffCheck, setStaffCheck] = useState(Boolean(item?.staff_check));
+  const [stock, setStock] = useState(() => stockFromItem(item));
 
   const setGroup = (i, patch) => setGroups(groups.map((g, j) => (j === i ? { ...g, ...patch } : g)));
   const setChoice = (i, k, patch) => setGroup(i, { modifiers: groups[i].modifiers.map((m, j) => (j === k ? { ...m, ...patch } : m)) });
@@ -476,14 +507,20 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
     { key: "sizes", label: t("mk.sizes"), hint: t("mk.sizesShort"), value: filledSizes.map((s) => s.name.trim()).join(", ") },
     { key: "options", label: optionsWord, hint: t("mk.optionsShort"), value: filledGroups.flatMap((g) => g.modifiers.map((m) => m.name.trim()).filter(Boolean)).join(", ") },
     { key: "offer", label: plain("mk.offer"), hint: t("mk.offerShort"), value: pct > 0 ? `-${pct}%${offerEndsOn ? ` · ${t("mk.offerTo")} ${offerEndsOn}` : ""}` : "" },
+    { key: "stock", label: t("mk.stock"), hint: t("mk.stockShort"), value: stock.on ? `${stock.total || 0}${unit ? ` ${t(`mk.unit.${unit}`)}` : ""}` : "" },
   ];
+  // Stock per size × option uses the first option group (e.g. Colour).
+  const gridGroup = filledGroups[0];
+  const gridOptions = gridGroup ? gridGroup.modifiers.map((m) => m.name.trim()).filter(Boolean) : [];
+  const gridRows = filledSizes.length ? filledSizes.map((x) => x.name.trim()) : [""];
+  const setCell = (size, opt, v) => setStock({ ...stock, grid: { ...stock.grid, [`${size}|${opt}`]: v } });
   const current = tiles.find((x) => x.key === view);
   const save = () => {
     if (!name.trim() || !hasPrice) setView("main");
     onSubmit({
       name: name.trim(), price: parseFloat(price), description: description.trim(), categoryId, unit,
       duration: parseInt(duration, 10) || null, sizes, groups,
-      offerPercent: parseInt(offerPercent, 10) || null, offerStartsOn, offerEndsOn, staffCheck,
+      offerPercent: parseInt(offerPercent, 10) || null, offerStartsOn, offerEndsOn, staffCheck, stock,
     });
   };
 
@@ -600,6 +637,48 @@ function ItemModal({ t, currency, rate, item, categories, defaultCategoryId, pro
                   <button type="button" className="ie-add" onClick={() => addGroup()}>{t("mk.addGroup")}</button>
                   {suggestions.map((s) => <button type="button" key={s} className="ie-chip" onClick={() => addGroup(s)}>+ {s}</button>)}
                 </div>
+              </div>
+            )}
+
+            {view === "stock" && (
+              <div className="ie-list">
+                <p className="mk-hint">{t("mk.stockHint")}</p>
+                <label className="mk-check"><input type="checkbox" checked={stock.on} onChange={(e) => setStock({ ...stock, on: e.target.checked })} /> {t("mk.stockOn")}</label>
+                {stock.on && (<>
+                  <div className="field">
+                    <label htmlFor="it-stock">{t("mk.stockTotal")}</label>
+                    <input id="it-stock" type="number" min="0" step={unit === "kg" ? "0.25" : "1"} value={stock.total} onChange={(e) => setStock({ ...stock, total: e.target.value })} />
+                  </div>
+                  {(filledSizes.length > 0 || gridOptions.length > 0) && (
+                    <div className="ie-stock-wrap">
+                      <table className="ie-stock">
+                        <thead>
+                          <tr>
+                            <th scope="col">{filledSizes.length ? t("mk.sizes") : ""}</th>
+                            {filledSizes.length > 0 && <th scope="col">{t("mk.stockAll")}</th>}
+                            {gridOptions.map((o) => <th scope="col" key={o}>{o}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gridRows.map((size) => (
+                            <tr key={size || "all"}>
+                              <th scope="row">{size || gridGroup?.name}</th>
+                              {filledSizes.length > 0 && (
+                                <td><input type="number" min="0" value={stock.sizes[size] ?? ""} placeholder="—" aria-label={`${size} ${t("mk.stockAll")}`}
+                                  onChange={(e) => setStock({ ...stock, sizes: { ...stock.sizes, [size]: e.target.value } })} /></td>
+                              )}
+                              {gridOptions.map((o) => (
+                                <td key={o}><input type="number" min="0" value={stock.grid[`${size}|${o}`] ?? ""} placeholder="—" aria-label={`${size} ${o}`}
+                                  onChange={(e) => setCell(size, o, e.target.value)} /></td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="mk-hint">{t("mk.stockEmpty")}</p>
+                </>)}
               </div>
             )}
 

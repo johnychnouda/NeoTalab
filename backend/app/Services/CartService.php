@@ -11,6 +11,7 @@ use App\Services\AI\CatalogResolver;
 use App\Services\AI\DTO\CartAction;
 use App\Services\AI\DTO\CartLineSnapshot;
 use App\Support\Conversation\CartStatus;
+use App\Support\OptionStock;
 use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -131,6 +132,9 @@ class CartService
         }
 
         $this->requireChoices($product, $variant, $modifiers);
+        if (! OptionStock::has($product, $variant?->id, $modifiers->pluck('id')->all(), 1)) {
+            throw new InvalidArgumentException('This size and option is sold out: offer another one.');
+        }
 
         $qty = Quantity::normalize($action->quantity, $product);
         $unitPrice = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);

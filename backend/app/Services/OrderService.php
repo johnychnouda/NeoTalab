@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
+use App\Support\OptionStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -310,6 +311,9 @@ class OrderService
             if ($item->product_id) {
                 $restored = Product::query()->whereKey($item->product_id)->where('track_inventory', true)
                     ->increment('stock_quantity', $item->quantity);
+                if ($restored && ($product = Product::query()->find($item->product_id))) {
+                    OptionStock::giveBack($product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity);
+                }
                 if ($restored && $item->variant_id) {
                     ProductVariant::query()->whereKey($item->variant_id)->whereNotNull('stock_quantity')
                         ->increment('stock_quantity', $item->quantity);

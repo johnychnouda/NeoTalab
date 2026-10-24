@@ -7,10 +7,14 @@ use App\Http\Requests\Catalog\StoreProductRequest;
 use App\Http\Requests\Catalog\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Models\ProductStock;
+use App\Models\ProductVariant;
 use App\Services\CatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -35,7 +39,7 @@ class ProductController extends Controller
     public function show(string $product): ProductResource
     {
         return new ProductResource(
-            Product::with(['category', 'variants', 'modifierGroups.modifiers'])->findOrFail($product)
+            Product::with(['category', 'variants', 'modifierGroups.modifiers', 'optionStocks'])->findOrFail($product)
         );
     }
 
@@ -65,6 +69,45 @@ class ProductController extends Controller
         ]);
 
         return new ProductResource($this->catalog->syncOptions(Product::query()->findOrFail($product), $data));
+    }
+
+    /**
+     * Stock, set up when goods arrive: the item's count, each size's, and size × option (M in Red).
+     * Orders lower it and cancellations give it back; an empty number stops counting that one.
+     */
+    public function stock(Request $request, string $product): ProductResource
+    {
+        $model = Product::query()->with(['variants', 'modifierGroups.modifiers'])->findOrFail($product);
+        $variantIds = $model->variants->pluck('id')->all();
+        $modifierIds = $model->modifierGroups->flatMap->modifiers->pluck('id')->all();
+        $data = $request->validate([
+            'track_inventory' => ['required', 'boolean'],
+            'stock_quantity' => ['nullable', 'numeric', 'min:0', 'max:1000000', 'required_if:track_inventory,true'],
+            'variants' => ['sometimes', 'array'],
+            'variants.*.id' => ['required', 'string', Rule::in($variantIds)],
+            'variants.*.stock_quantity' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'options' => ['sometimes', 'array', 'max:400'],
+            'options.*.variant_id' => ['nullable', 'string', Rule::in($variantIds)],
+            'options.*.modifier_id' => ['required', 'string', Rule::in($modifierIds)],
+            'options.*.stock_quantity' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+        ]);
+
+        DB::transaction(function () use ($model, $data) {
+            $model->update(['track_inventory' => $data['track_inventory'], 'stock_quantity' => $data['track_inventory'] ? $data['stock_quantity'] : null]);
+            foreach ($data['variants'] ?? [] as $v) {
+                ProductVariant::query()->whereKey($v['id'])->update(['stock_quantity' => $v['stock_quantity'] ?? null]);
+            }
+            foreach ($data['options'] ?? [] as $o) {
+                $key = ['product_id' => $model->id, 'variant_id' => $o['variant_id'] ?? null, 'modifier_id' => $o['modifier_id']];
+                if (($o['stock_quantity'] ?? null) === null) {
+                    ProductStock::query()->where($key)->delete();
+                } else {
+                    ProductStock::query()->updateOrCreate($key, ['stock_quantity' => $o['stock_quantity']]);
+                }
+            }
+        });
+
+        return new ProductResource($model->fresh(['variants', 'modifierGroups.modifiers', 'optionStocks']));
     }
 
     public function update(UpdateProductRequest $request, string $product): ProductResource

@@ -65,6 +65,12 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /** Stock per size and option (clothing), see App\Support\OptionStock. */
+    public function optionStocks(): HasMany
+    {
+        return $this->hasMany(ProductStock::class);
+    }
+
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);

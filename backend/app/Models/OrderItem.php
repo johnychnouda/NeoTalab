@@ -24,6 +24,7 @@ class OrderItem extends Model
         'unit_price',
         'item_total',
         'modifiers',
+        'modifier_ids',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class OrderItem extends Model
             'unit_price' => 'decimal:2',
             'item_total' => 'decimal:2',
             'modifiers' => 'array',
+            'modifier_ids' => 'array',
         ];
     }
 

@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('products/{product}', [ProductController::class, 'destroy']);
 
             Route::put('products/{product}/options', [ProductController::class, 'options']);
+            Route::put('products/{product}/stock', [ProductController::class, 'stock']);
             Route::post('products/{product}/variants', [ProductVariantController::class, 'store']);
             Route::patch('variants/{variant}', [ProductVariantController::class, 'update']);
             Route::delete('variants/{variant}', [ProductVariantController::class, 'destroy']);

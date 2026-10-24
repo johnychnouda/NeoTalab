@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Services\AI\DTO\CartAction;
 use App\Support\BusinessKind;
 use App\Support\Money;
+use App\Support\OptionStock;
 use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -271,7 +272,9 @@ class ChatMenu
         $groups = $product->modifierGroups->values();
         while (($group = $groups->get($pick['group'])) !== null) {
             $options = $group->modifiers->filter(fn ($m) => ($m->is_active ?? true) && ($m->is_available ?? true))
-                ->reject(fn ($m) => in_array($m->id, $pick['mods'], true))->values();
+                ->reject(fn ($m) => in_array($m->id, $pick['mods'], true))
+                // Sold out in the chosen size (no Red left in M): not offered.
+                ->filter(fn ($m) => OptionStock::has($product, $pick['variant'], [$m->id], 1))->values();
             $chosen = count(array_intersect($pick['mods'], $group->modifiers->pluck('id')->all()));
             if ($options->isEmpty()) {
                 $pick['group']++;
