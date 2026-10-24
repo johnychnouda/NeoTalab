@@ -218,6 +218,7 @@ function Settings() {
             </div>
           </Card>
         )}
+        {p.business_mode && p.business_mode !== "orders" && <TeamCard api={api} t={t} toast={toast} />}
 
         {!bookingsOnly && (<>
           <Card title={t("db.set.card.getting")}>
@@ -433,6 +434,63 @@ function PwInput({ id, value, onChange, shown, onToggle, autoComplete, invalid, 
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Stylists, barbers, doctors customers can book with by name. Each has their own calendar; with
+ * nobody listed the shop books by "customers at the same time". Saved right away.
+ */
+function TeamCard({ api, t, toast }) {
+  const [team, setTeam] = useState(null);
+  const [services, setServices] = useState([]);
+  const [name, setName] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const [{ providers }, res] = await Promise.all([api("GET", "/providers"), api("GET", "/products?per_page=200")]);
+      setTeam(providers || []);
+      setServices((res.products || []).filter((x) => x.duration_mins));
+    } catch (e) { toast(e.message, "error"); }
+  }, [api, toast]);
+  useEffect(() => { load(); }, [load]);
+
+  async function run(fn) {
+    try { await fn(); await load(); } catch (e) { toast(e.message, "error"); }
+  }
+  const add = (e) => { e.preventDefault(); if (name.trim()) run(async () => { await api("POST", "/providers", { name: name.trim() }); setName(""); }); };
+  const toggle = (person, id) => {
+    const all = services.map((x) => x.id);
+    const current = person.service_ids?.length ? person.service_ids : all;
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+    run(() => api("PATCH", `/providers/${person.id}`, { service_ids: next.length === all.length ? null : next }));
+  };
+
+  return (
+    <Card title={t("ops.team.title")} desc={t("ops.team.desc")}>
+      {team === null ? <div className="loader">{t("db.loading")}</div> : (<>
+        {team.map((person) => (
+          <div className="sset-team-row" key={person.id}>
+            <strong>{person.name}</strong>
+            {services.length > 1 && (
+              <div className="sset-team-services">
+                {services.map((x) => (
+                  <label key={x.id} className="mk-check">
+                    <input type="checkbox" checked={!person.service_ids?.length || person.service_ids.includes(x.id)} onChange={() => toggle(person, x.id)} /> {x.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <button type="button" className="btn-sm" onClick={() => run(() => api("DELETE", `/providers/${person.id}`))} aria-label={`${t("mk.delete")} ${person.name}`}>✕</button>
+          </div>
+        ))}
+        <form className="sset-team-add" onSubmit={add}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("ops.team.namePh")} aria-label={t("ops.team.namePh")} maxLength={80} />
+          <button type="submit" className="btn-sm">{t("ops.team.add")}</button>
+        </form>
+        <p className="sset-hint">{t(team.length ? "ops.team.hintOn" : "ops.team.hintOff")}</p>
+      </>)}
+    </Card>
   );
 }
 

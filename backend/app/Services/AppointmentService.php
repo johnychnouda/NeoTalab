@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\Merchant;
 use App\Models\Product;
+use App\Models\ServiceProvider;
 use App\Models\ShopHour;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
@@ -37,7 +38,7 @@ class AppointmentService
      *
      * @return list<string>
      */
-    public function availableSlots(Merchant $merchant, Product $service, Carbon $localDate): array
+    public function availableSlots(Merchant $merchant, Product $service, Carbon $localDate, ?ServiceProvider $provider = null): array
     {
         $tz = $this->tz($merchant);
         $shop = ShopSettings::for($merchant);
@@ -60,7 +61,8 @@ class AppointmentService
             ->where('status', 'booked')
             ->where('starts_at', '<', $end->copy()->utc())
             ->where('ends_at', '>', $start->copy()->utc())
-            ->get(['starts_at', 'ends_at']);
+            ->get(['starts_at', 'ends_at', 'provider_id']);
+        $providers = $this->providersFor($service);
 
         $slots = [];
         for ($t = $start->copy(); $t->copy()->addMinutes($duration)->lte($end); $t->addMinutes($shop->slotStepMins())) {
@@ -68,8 +70,11 @@ class AppointmentService
                 continue;
             }
             $slotEnd = $t->copy()->addMinutes($duration);
-            $overlapping = $booked->filter(fn ($a) => $a->starts_at->lt($slotEnd) && $a->ends_at->gt($t))->count();
-            if ($overlapping < $shop->appointmentCapacity()) {
+            $overlapping = $booked->filter(fn ($a) => $a->starts_at->lt($slotEnd) && $a->ends_at->gt($t));
+            $free = $providers->isEmpty()
+                ? $overlapping->count() < $shop->appointmentCapacity()
+                : $this->freeProviders($providers, $overlapping, $provider)->isNotEmpty();
+            if ($free) {
                 $slots[] = $t->format('H:i');
             }
         }
@@ -78,15 +83,46 @@ class AppointmentService
     }
 
     /**
+     * The people who do this service (stylists, doctors). Empty: the shop books by capacity only.
+     *
+     * @return Collection<int, ServiceProvider>
+     */
+    public function providersFor(Product $service): Collection
+    {
+        return ServiceProvider::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
+            ->filter(fn (ServiceProvider $p) => $p->offers($service))->values();
+    }
+
+    /**
+     * Providers without a booking in that time (or only $wanted, if it is free). A booking made
+     * before the shop listed its team still takes one person's time.
+     *
+     * @param  Collection<int, ServiceProvider>  $providers
+     * @param  Collection<int, Appointment>  $overlapping
+     * @return Collection<int, ServiceProvider>
+     */
+    private function freeProviders(Collection $providers, Collection $overlapping, ?ServiceProvider $wanted): Collection
+    {
+        $busy = $overlapping->pluck('provider_id')->filter()->all();
+        $free = $providers->reject(fn (ServiceProvider $p) => in_array($p->id, $busy, true))->values();
+        $unassigned = $overlapping->whereNull('provider_id')->count();
+        if ($free->count() <= $unassigned) {
+            return collect();
+        }
+
+        return $wanted ? $free->where('id', $wanted->id)->values() : $free;
+    }
+
+    /**
      * First day (from $from, up to 14 days ahead) with free times.
      *
      * @return array{0: Carbon, 1: list<string>}|null
      */
-    public function nextAvailableDay(Merchant $merchant, Product $service, Carbon $from): ?array
+    public function nextAvailableDay(Merchant $merchant, Product $service, Carbon $from, ?ServiceProvider $provider = null): ?array
     {
         for ($i = 0; $i < 14; $i++) {
             $day = $from->copy()->addDays($i);
-            $slots = $this->availableSlots($merchant, $service, $day);
+            $slots = $this->availableSlots($merchant, $service, $day, $provider);
             if ($slots !== []) {
                 return [$day, $slots];
             }
@@ -98,21 +134,34 @@ class AppointmentService
     /**
      * Book a slot if it is still free. Returns null when it was taken in the meantime.
      */
-    public function book(Merchant $merchant, Customer $customer, Product $service, Carbon $localStart): ?Appointment
+    public function book(Merchant $merchant, Customer $customer, Product $service, Carbon $localStart, ?ServiceProvider $provider = null): ?Appointment
     {
         $localStart = $localStart->copy()->setTimezone($this->tz($merchant));
 
-        $appointment = DB::transaction(function () use ($merchant, $customer, $service, $localStart) {
-            Appointment::query()->where('status', 'booked')->whereDate('starts_at', $localStart->copy()->utc()->toDateString())->lockForUpdate()->get();
+        $appointment = DB::transaction(function () use ($merchant, $customer, $service, $localStart, $provider) {
+            $sameDay = Appointment::query()->where('status', 'booked')->whereDate('starts_at', $localStart->copy()->utc()->toDateString())->lockForUpdate()->get();
 
-            if (! in_array($localStart->format('H:i'), $this->availableSlots($merchant, $service, $localStart), true)) {
+            if (! in_array($localStart->format('H:i'), $this->availableSlots($merchant, $service, $localStart, $provider), true)) {
                 return null;
+            }
+
+            // With a team: the person asked for, else whoever is free with the fewest bookings that day.
+            $providers = $this->providersFor($service);
+            if ($providers->isNotEmpty()) {
+                $slotEnd = $localStart->copy()->addMinutes((int) $service->duration_mins);
+                $overlapping = $sameDay->filter(fn ($a) => $a->starts_at->lt($slotEnd) && $a->ends_at->gt($localStart));
+                $provider = $this->freeProviders($providers, $overlapping, $provider)
+                    ->sortBy(fn (ServiceProvider $p) => $sameDay->where('provider_id', $p->id)->count())->first();
+                if (! $provider) {
+                    return null;
+                }
             }
 
             return Appointment::create([
                 'merchant_id' => $merchant->id,
                 'customer_id' => $customer->id,
                 'product_id' => $service->id,
+                'provider_id' => $provider?->id,
                 'service_name' => $service->name,
                 'price' => $service->price,
                 'starts_at' => $localStart->copy()->utc(),

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\PublicOnboardingController;
 use App\Http\Controllers\Api\V1\PublicPlanController;
+use App\Http\Controllers\Api\V1\ServiceProviderController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
 use App\Http\Controllers\Api\V1\WhishCallbackController;
@@ -90,6 +91,10 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::get('appointments', [AppointmentController::class, 'index'])->middleware("role:{$merchantRoles}");
+        Route::get('providers', [ServiceProviderController::class, 'index'])->middleware("role:{$merchantRoles}");
+        Route::post('providers', [ServiceProviderController::class, 'store'])->middleware("role:{$managerRoles}");
+        Route::patch('providers/{provider}', [ServiceProviderController::class, 'update'])->middleware("role:{$managerRoles}");
+        Route::delete('providers/{provider}', [ServiceProviderController::class, 'destroy'])->middleware("role:{$managerRoles}");
 
         // ── Analytics ─────────────────────────────────────────
         Route::middleware("role:{$merchantRoles}")->prefix('analytics')->group(function () {

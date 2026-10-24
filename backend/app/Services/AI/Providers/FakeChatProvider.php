@@ -33,16 +33,17 @@ class FakeChatProvider implements ChatProvider
             return $checkout;
         }
 
-        // "slots haircut 2026-10-06", "book haircut 2026-10-06 10:30", "cancel appointment"
-        if (preg_match('/^(slots|book) (.+?) (\d{4}-\d{2}-\d{2})(?: (\d{1,2}:\d{2}))?$/u', $text, $m)) {
+        // "slots haircut 2026-10-06", "book haircut 2026-10-06 10:30 with rami", "cancel appointment"
+        if (preg_match('/^(slots|book) (.+?) (\d{4}-\d{2}-\d{2})(?: (\d{1,2}:\d{2}))?(?: with (.+))?$/u', $text, $m)) {
             $service = collect($input->shop['services'] ?? [])->first(fn ($s) => mb_strtolower($s['name']) === trim($m[2]));
+            $provider = isset($m[5]) ? collect($input->shop['providers'] ?? [])->first(fn ($p) => mb_strtolower($p['name']) === trim($m[5])) : null;
 
             return new StructuredTurnOutput(
                 intent: ConversationIntent::Order, confidence: 0.9, entities: [], cartActions: [],
                 conversationState: ['phase' => $input->conversationPhase], missingFields: [],
                 recommendedAction: $m[1] === 'book' ? RecommendedAction::BookAppointment : RecommendedAction::CheckAvailability,
                 assistantMessage: '',
-                appointment: ['service_id' => $service['id'] ?? null, 'date' => $m[3], 'time' => $m[4] ?? null],
+                appointment: ['service_id' => $service['id'] ?? null, 'date' => $m[3], 'time' => ($m[4] ?? '') ?: null, 'provider_id' => $provider['id'] ?? null],
             );
         }
 

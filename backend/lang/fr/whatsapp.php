@@ -258,6 +258,8 @@ return [
     ],
 
     'appointment' => [
+        'with' => ':service avec :provider',
+        'team' => 'Avec : :names. Dites un nom si vous avez une préférence.',
         'services_intro' => 'Nos services :',
         'services_book' => 'Pour réserver, dites-moi le service, le jour et l\'heure souhaités.',
         'slots' => "🗓 Créneaux libres pour :service le :date :\n:slots\nQuelle heure vous convient ?",

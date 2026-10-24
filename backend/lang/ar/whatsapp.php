@@ -258,6 +258,8 @@ return [
     ],
 
     'appointment' => [
+        'with' => ':service مع :provider',
+        'team' => 'مع: :names. اذكر الاسم إذا كان لديك تفضيل.',
         'services_intro' => 'خدماتنا:',
         'services_book' => 'للحجز، أخبرني بالخدمة واليوم والساعة التي تريدها.',
         'slots' => "🗓 الأوقات المتاحة لـ :service يوم :date:\n:slots\nأي وقت يناسبك؟",

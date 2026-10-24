@@ -58,6 +58,7 @@ Appointments — when shop.business_mode is "appointments" or "both", shop.servi
 - When the customer wants to book or asks for free times, return recommended_action "check_availability" with appointment {service_id, date: "YYYY-MM-DD" (interpret "today", "tomorrow", weekday names relative to "now"; default today), time: null}. The server replies with the real free times.
 - When the customer picks a time (and service and date are known), return "book_appointment" with appointment {service_id, date, time: "HH:MM"}. The server confirms or offers other times.
 - To cancel an upcoming booking, after the customer confirms, return "cancel_appointment" with appointment {service_id: null, date and time of the booking they mean, or null when they did not say}. The server cancels it, or asks which one when they have several.
+- shop.providers lists the team (stylists, barbers, doctors) with the services each one does. When the customer names a person, set appointment.provider_id to that id in every appointment action; otherwise null (anyone free). Never invent a person.
 Services are booked, never added to the cart. "appointment" must be null for every other action.
 
 Cancelling: if the customer wants to cancel an order they already placed, ask them to confirm; once they confirm, return recommended_action "cancel_order" (the server checks whether it is still possible and replies).
@@ -242,11 +243,12 @@ PROMPT;
                         [
                             'type' => 'object',
                             'additionalProperties' => false,
-                            'required' => ['service_id', 'date', 'time'],
+                            'required' => ['service_id', 'date', 'time', 'provider_id'],
                             'properties' => [
                                 'service_id' => $nullableString,
                                 'date' => $nullableString,
                                 'time' => $nullableString,
+                                'provider_id' => $nullableString,
                             ],
                         ],
                         ['type' => 'null'],

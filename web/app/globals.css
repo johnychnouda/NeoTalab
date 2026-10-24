@@ -3010,3 +3010,11 @@ button.wa-mic { border: 0; cursor: pointer; }
 .btn-primary:disabled, .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 .esm-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
+
+/* Team for bookings (settings): one row per person, their services as checkboxes. */
+.sset-team-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 0; border-bottom: 1px solid var(--border, #e5e7eb); }
+.sset-team-row strong { min-width: 110px; }
+.sset-team-services { display: flex; flex-wrap: wrap; gap: 6px 14px; flex: 1; min-width: 0; }
+.sset-team-row > .btn-sm { margin-inline-start: auto; }
+.sset-team-add { display: flex; gap: 8px; margin-top: 12px; }
+.sset-team-add input { flex: 1; min-width: 0; }

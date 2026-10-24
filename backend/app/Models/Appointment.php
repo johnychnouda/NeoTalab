@@ -15,6 +15,7 @@ class Appointment extends Model
         'merchant_id',
         'customer_id',
         'product_id',
+        'provider_id',
         'service_name',
         'price',
         'starts_at',
@@ -37,6 +38,11 @@ class Appointment extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function provider(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProvider::class, 'provider_id');
     }
 
     public function product(): BelongsTo

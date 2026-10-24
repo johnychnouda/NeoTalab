@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\DeliveryZone;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ServiceProvider;
 use App\Models\ShopHour;
 use App\Services\AI\CartEditsFromMessage;
 use App\Services\AI\CatalogResolver;
@@ -424,27 +425,29 @@ class ConversationService
             return $this->askService($locale);
         }
 
+        $provider = $this->resolveProvider($req['provider_id'] ?? null, $service);
+        $label = $this->serviceLabel($service->name, $provider, $locale);
         $tz = $this->appointments->tz($merchant);
         $date = $this->localDate($req['date'] ?? null, $tz);
         if ($date === null) {
             return __('whatsapp.appointment.past_date', [], $locale)."\n".$this->availability($conversation, array_diff_key($req, ['date' => true]));
         }
-        $slots = $this->appointments->availableSlots($merchant, $service, $date);
+        $slots = $this->appointments->availableSlots($merchant, $service, $date, $provider);
 
         if ($slots !== []) {
             return __('whatsapp.appointment.slots', [
-                'service' => $service->name, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($slots, 0, 24)),
-            ], $locale);
+                'service' => $label, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($slots, 0, 24)),
+            ], $locale).$this->teamLine($service, $provider, $locale);
         }
 
-        $next = $this->appointments->nextAvailableDay($merchant, $service, $date->copy()->addDay());
+        $next = $this->appointments->nextAvailableDay($merchant, $service, $date->copy()->addDay(), $provider);
 
         return $next
             ? __('whatsapp.appointment.none_that_day', [
-                'service' => $service->name, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'),
+                'service' => $label, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'),
                 'next' => $next[0]->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($next[1], 0, 24)),
             ], $locale)
-            : __('whatsapp.appointment.fully_booked', ['service' => $service->name], $locale);
+            : __('whatsapp.appointment.fully_booked', ['service' => $label], $locale);
     }
 
     /**
@@ -468,7 +471,8 @@ class ConversationService
             return $this->availability($conversation, $req);
         }
 
-        $appointment = $this->appointments->book($merchant, $conversation->customer, $service, $date->copy()->setTime((int) $m[1], (int) $m[2]));
+        $provider = $this->resolveProvider($req['provider_id'] ?? null, $service);
+        $appointment = $this->appointments->book($merchant, $conversation->customer, $service, $date->copy()->setTime((int) $m[1], (int) $m[2]), $provider);
         if (! $appointment) {
             return __('whatsapp.appointment.taken', [], $locale)."\n".$this->availability($conversation, $req);
         }
@@ -476,7 +480,7 @@ class ConversationService
         $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.booked', [
-            'service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i'),
+            'service' => $this->serviceLabel($appointment->service_name, $appointment->provider, $locale), 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i'),
             'price' => Money::format((float) $appointment->price, $merchant->currency), 'shop' => $merchant->name,
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
         ], $locale);
@@ -520,6 +524,27 @@ class ConversationService
         $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);
+    }
+
+    /** The stylist / doctor the customer asked for, if they do this service; null = anyone free. */
+    private function resolveProvider(?string $id, Product $service): ?ServiceProvider
+    {
+        $provider = $id ? ServiceProvider::query()->where('is_active', true)->find($id) : null;
+
+        return $provider && $provider->offers($service) ? $provider : null;
+    }
+
+    private function serviceLabel(string $service, ?ServiceProvider $provider, string $locale): string
+    {
+        return $provider ? __('whatsapp.appointment.with', ['service' => $service, 'provider' => $provider->name], $locale) : $service;
+    }
+
+    /** "With: Rami, Lea. Name one if you have a preference." when the shop lists its team. */
+    private function teamLine(Product $service, ?ServiceProvider $provider, string $locale): string
+    {
+        $team = $this->appointments->providersFor($service);
+
+        return $provider || $team->count() < 2 ? '' : "\n".__('whatsapp.appointment.team', ['names' => $team->pluck('name')->implode(', ')], $locale);
     }
 
     private function resolveService(?string $id): ?Product
@@ -584,6 +609,9 @@ class ConversationService
             'services' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : $this->appointments->services()
                 ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])
                 ->values()->all(),
+            // Stylists, barbers, doctors the customer can ask for by name (empty: anyone).
+            'providers' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : ServiceProvider::query()->where('is_active', true)->orderBy('sort_order')->get()
+                ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name, 'service_ids' => $p->service_ids ?: 'all'])->values()->all(),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),
             'opening_hours' => ShopHour::week()
                 ->map(fn (ShopHour $h) => [

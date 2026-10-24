@@ -264,6 +264,8 @@ return [
     ],
 
     'appointment' => [
+        'with' => ':service with :provider',
+        'team' => 'With: :names. Name one if you have a preference.',
         'services_intro' => 'Our services:',
         'services_book' => 'To book, tell me the service, the day and the time you want.',
         'slots' => "🗓 Free times for :service on :date:\n:slots\nWhich time suits you?",

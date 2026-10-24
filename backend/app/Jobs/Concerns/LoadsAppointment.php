@@ -15,7 +15,7 @@ trait LoadsAppointment
      */
     protected function loadAppointment(string $id): ?array
     {
-        $appointment = Appointment::query()->withoutGlobalScopes()->with('customer')->find($id);
+        $appointment = Appointment::query()->withoutGlobalScopes()->with(['customer', 'provider' => fn ($q) => $q->withoutGlobalScopes()])->find($id);
         $merchant = $appointment ? Merchant::find($appointment->merchant_id) : null;
 
         if (! $appointment || ! $merchant || ! MerchantWhatsAppCredentials::resolve($merchant)) {
@@ -34,7 +34,9 @@ trait LoadsAppointment
 
         return [
             'shop' => $merchant->name,
-            'service' => $appointment->service_name,
+            'service' => $appointment->provider
+                ? __('whatsapp.appointment.with', ['service' => $appointment->service_name, 'provider' => $appointment->provider->name], $locale ?? $merchant->locale ?? 'en')
+                : $appointment->service_name,
             'date' => $local->locale($locale ?? $merchant->locale ?? 'en')->isoFormat('ddd D MMM'),
             'time' => $local->format('H:i'),
             'price' => Money::format((float) $appointment->price, $merchant->currency),

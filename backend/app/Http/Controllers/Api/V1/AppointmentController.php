@@ -18,7 +18,7 @@ class AppointmentController extends Controller
         $tz = $merchant->timezone ?: config('app.timezone');
 
         $appointments = Appointment::query()
-            ->with('customer')
+            ->with(['customer', 'provider'])
             ->where('starts_at', '>=', now()->setTimezone($tz)->startOfDay()->utc())
             ->orderBy('starts_at')
             ->limit(200)
@@ -26,6 +26,7 @@ class AppointmentController extends Controller
             ->map(fn (Appointment $a) => [
                 'id' => $a->id,
                 'service' => $a->service_name,
+                'provider' => $a->provider?->name,
                 'price' => (float) $a->price,
                 'status' => $a->status,
                 'starts_at' => $a->starts_at->copy()->setTimezone($tz)->format('Y-m-d H:i'),
