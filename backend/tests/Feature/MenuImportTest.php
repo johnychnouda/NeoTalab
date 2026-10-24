@@ -301,4 +301,19 @@ class MenuImportTest extends TestCase
 
         $this->assertDatabaseMissing('products', ['name' => 'Mint lemonade']);
     }
+
+    public function test_a_service_keeps_the_minutes_it_takes_from_the_file(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings ?? [], ['business_mode' => 'appointments'])])->save();
+        $csv = "Category,Service,Price,Minutes\nHair,Men's haircut,12,30\nHair,Beard trim,7,15\nHair,Shampoo,3,\n";
+
+        $preview = $this->withToken($this->token)->post('/api/v1/menu/import/preview', ['file' => $this->csv($csv)], ['Accept' => 'application/json'])->assertOk();
+        $items = collect($preview->json('items'));
+        $this->assertSame(30, $items->firstWhere('name', "Men's haircut")['duration_mins']);
+
+        $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => $items->all()])->assertOk();
+
+        $this->assertSame(30, (int) Product::query()->where('name', "Men's haircut")->value('duration_mins'));
+        $this->assertNull(Product::query()->where('name', 'Shampoo')->value('duration_mins'), 'no minutes: a plain item');
+    }
 }

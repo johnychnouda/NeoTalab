@@ -218,6 +218,9 @@ class ConversationService
             // First answer in a conversation, or the customer asked for the menu: attach the menu list.
             'menu_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'appointments'
                 && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
+            // Salons and clinics: the first answer (or a request for the menu) lists the services.
+            'services_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'orders'
+                && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
         ];
     }
 

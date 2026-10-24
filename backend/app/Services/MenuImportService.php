@@ -24,11 +24,13 @@ class MenuImportService
     private const HEADERS = [
         'category' => ['category', 'categories', 'section', 'type', 'الفئة', 'القسم', 'الصنف', 'catégorie', 'categorie', 'rubrique'],
         'subcategory' => ['subcategory', 'sub category', 'subsection', 'sub section', 'الفئة الفرعية', 'القسم الفرعي', 'sous catégorie', 'sous categorie'],
-        'name' => ['name', 'product', 'item', 'title', 'الاسم', 'المنتج', 'اسم', 'nom', 'produit', 'article'],
+        'name' => ['name', 'product', 'item', 'title', 'service', 'services', 'الاسم', 'المنتج', 'اسم', 'الخدمة', 'nom', 'produit', 'article', 'prestation'],
         'price' => ['price', 'cost', 'السعر', 'سعر', 'prix', 'tarif'],
         'description' => ['description', 'details', 'desc', 'الوصف', 'وصف', 'détails'],
         'name_ar' => ['name_ar', 'arabic', 'arabic name', 'الاسم بالعربي', 'بالعربي'],
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
+        // Minutes a service takes (salons, clinics): "duration", "minutes", "mins"…
+        'duration' => ['duration', 'duration mins', 'duration min', 'duration_mins', 'minutes', 'mins', 'min', 'مدة', 'المدة', 'durée', 'duree'],
     ];
 
     /** Set by preview(): true when every price in the file is in Lebanese lira (each item also carries its own "lbp" flag). */
@@ -132,6 +134,7 @@ class MenuImportService
                 $fields = array_filter([
                     'category_id' => $category->id,
                     'price' => $item['price'],
+                    'duration_mins' => $item['duration_mins'] ?? null,
                     'description' => $item['description'],
                     'name_ar' => $item['name_ar'],
                     'name_fr' => $item['name_fr'],
@@ -298,6 +301,8 @@ class MenuImportService
                 'description' => $text($row['description'] ?? null),
                 'name_ar' => $text($row['name_ar'] ?? null),
                 'name_fr' => $text($row['name_fr'] ?? null),
+                // Only a whole number of minutes is used; a service without one stays a plain item.
+                'duration_mins' => ($d = (int) preg_replace('/\D/', '', (string) ($row['duration'] ?? $row['duration_mins'] ?? ''))) >= 5 && $d <= 1440 ? $d : null,
                 // As chosen in the preview.
                 'lbp' => filter_var($row['lbp'] ?? false, FILTER_VALIDATE_BOOL),
                 // As read from the file: marked lira (in the cell or the column header), or a plain amount no dollar menu has.

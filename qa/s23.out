@@ -122,8 +122,8 @@ PASS [services] adds an item as a service with minutes
 PASS [services] uploads a CSV: preview shows the 3 rows, lira detected
 PASS [services] saves the imported rows
 PASS [services] the lira row is saved in dollars (250,000 LL → about 2.79$)
-FAIL [services] a CSV row can set a service's duration (gap if not)  -> None
-FAIL [services] customer's greeting shows the shop's menu list  -> ['Hello! How can I help you order today?']
+PASS [services] a file row can set a service's minutes (30)
+PASS [services] customer's greeting shows the shop's menu list
 PASS [services] customer asking 'services' sees the service list
 PASS [services] customer asks for free times and gets them
 PASS [services] customer books a 30-minute service
@@ -143,4 +143,4 @@ PASS [other] an item marked unavailable is left off the customer's menu
 PASS [other] customer opens the category and sees the item
 PASS [other] customer adds the item to the cart
 
-SUMMARY {"restaurant": "15/15", "grocery": "13/13", "pharmacy": "13/13", "retail": "15/15", "flowers": "15/15", "water": "13/13", "laundry": "16/16", "services": "12/14", "other": "12/12"}
+SUMMARY {"restaurant": "15/15", "grocery": "13/13", "pharmacy": "13/13", "retail": "15/15", "flowers": "15/15", "water": "13/13", "laundry": "16/16", "services": "14/14", "other": "12/12"}

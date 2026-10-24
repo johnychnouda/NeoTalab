@@ -261,6 +261,8 @@ return [
     ],
 
     'appointment' => [
+        'services_intro' => 'Our services:',
+        'services_book' => 'To book, tell me the service, the day and the time you want.',
         'slots' => "🗓 Free times for :service on :date:\n:slots\nWhich time suits you?",
         'none_that_day' => "Sorry, no free times for :service on :date. The next free day is :next:\n:slots\nWould one of these work?",
         'fully_booked' => 'Sorry, :service is fully booked for the next two weeks. Please message us again later.',

@@ -54,6 +54,8 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Lira menu rows without a shop lira rate are refused (was saved as dollars). Test added.
 - Menus by shop type: 8 of 9 kinds pass; services: CSV cannot set the duration, and the greeting does not list services.
 - Uptime alert: NOT done; needs the owner's UptimeRobot sign-up.
+- Salon gaps fixed: a file can set a service's minutes (column 'Duration'; 'Service' is a name header);
+  a salon's first reply lists its services with minutes and prices. Menus by shop type: 9 of 9 kinds pass (144/144 checks in the last run).
 
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).

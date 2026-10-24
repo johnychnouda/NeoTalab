@@ -92,10 +92,10 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     # 2. Upload a file (Excel/CSV): category, name, price; a lira row; an empty price row is refused
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Category", "Name", "Price", "Description"])
-    w.writerow(["Imported", f"{kind} file item A", "5", "from a file"])
-    w.writerow(["Imported", f"{kind} file item B", "250,000 LL", "lira price"])
-    w.writerow(["Imported", f"{kind} file item C", "7.25", ""])
+    w.writerow(["Category", "Name", "Price", "Description", "Duration"])
+    w.writerow(["Imported", f"{kind} file item A", "5", "from a file", "30" if services else ""])
+    w.writerow(["Imported", f"{kind} file item B", "250,000 LL", "lira price", ""])
+    w.writerow(["Imported", f"{kind} file item C", "7.25", "", ""])
     path = f"{LAB}/menu_{kind}.csv"
     open(path, "w", encoding="utf-8").write(buf.getvalue())
     code, pv = multipart(path, tok, "menu.csv", "text/csv")
@@ -108,7 +108,7 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     lira = names.get(f"{kind} file item B", {})
     rec(kind, "the lira row is saved in dollars (250,000 LL → about 2.79$)", lira and str(lira.get("price")) in ("2.79", "2.79"), lira.get("price"))
     if services:
-        rec(kind, "a CSV row can set a service's duration (gap if not)", "duration_mins" in json.dumps(names.get(f"{kind} file item A", {})) and names.get(f"{kind} file item A", {}).get("duration_mins"), names.get(f"{kind} file item A", {}).get("duration_mins"))
+        rec(kind, "a file row can set a service's minutes (30)", names.get(f"{kind} file item A", {}).get("duration_mins") == 30, names.get(f"{kind} file item A", {}).get("duration_mins"))
 
     # 3. Customer on WhatsApp
     cust = f"+9617{RUN}{n:02d}9"

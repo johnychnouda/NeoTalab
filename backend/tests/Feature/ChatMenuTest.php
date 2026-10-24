@@ -156,6 +156,19 @@ class ChatMenuTest extends TestCase
         $this->assertSame(0, $this->cartItems()->count());
     }
 
+    public function test_a_salon_greeting_lists_its_services_with_minutes_and_prices(): void
+    {
+        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings, ['business_mode' => 'appointments'])])->save();
+        Product::factory()->forMerchant($this->merchant)->create(['name' => "Men's haircut", 'price' => 12, 'duration_mins' => 30]);
+
+        $this->inbound(['type' => 'text', 'text' => ['body' => 'hi']]);
+
+        $sent = $this->last();
+        $text = $sent['text']['body'] ?? $sent['interactive']['body']['text'] ?? '';
+        $this->assertStringContainsString("Men's haircut — 30 min", $text);
+        $this->assertStringContainsString('12.00$', $text);
+    }
+
     public function test_sold_out_items_are_not_in_the_menu(): void
     {
         $gone = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);

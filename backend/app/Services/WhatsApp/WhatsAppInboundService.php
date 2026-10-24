@@ -11,6 +11,7 @@ use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\SpeechToText;
+use App\Services\AppointmentService;
 use App\Services\ChatMenu;
 use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
@@ -20,6 +21,7 @@ use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
+use App\Support\Money;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -385,6 +387,10 @@ class WhatsAppInboundService
             return;
         }
 
+        if ($reply !== '' && ($result['services_link'] ?? false) && ($block = $this->servicesBlock($merchant, $locale)) !== null) {
+            $reply .= "\n\n".$block;
+        }
+
         if ($reply !== '' && ($result['menu_link'] ?? false)) {
             // The greeting (or "show me the menu") comes with the menu list right in the chat.
             $this->send($merchant, $fromPhone, $this->chatMenu->categories($merchant, $locale, 1, $reply));
@@ -416,6 +422,19 @@ class WhatsAppInboundService
         }
 
         return ['type' => 'text', 'text' => ['body' => __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale)]];
+    }
+
+    /** The shop's services with minutes and prices, and how to book; null when there are none. */
+    protected function servicesBlock(Merchant $merchant, string $locale): ?string
+    {
+        $services = app(AppointmentService::class)->services();
+        if ($services->isEmpty()) {
+            return null;
+        }
+
+        $lines = $services->map(fn (Product $p) => '• '.$p->name.' — '.$p->duration_mins.' min — '.Money::format((float) $p->price, $merchant->currency))->implode("\n");
+
+        return __('whatsapp.appointment.services_intro', [], $locale)."\n".$lines."\n\n".__('whatsapp.appointment.services_book', [], $locale);
     }
 
     /** "Cancel order #N?" with the two buttons, the buttons carry the order id. */

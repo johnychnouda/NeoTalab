@@ -255,6 +255,8 @@ return [
     ],
 
     'appointment' => [
+        'services_intro' => 'Nos services :',
+        'services_book' => 'Pour réserver, dites-moi le service, le jour et l\'heure souhaités.',
         'slots' => "🗓 Créneaux libres pour :service le :date :\n:slots\nQuelle heure vous convient ?",
         'none_that_day' => "Désolé, aucun créneau libre pour :service le :date. Prochain jour disponible : :next :\n:slots\nUn de ces créneaux vous convient ?",
         'fully_booked' => 'Désolé, :service est complet pour les deux prochaines semaines. Écrivez-nous plus tard.',
