@@ -15,6 +15,7 @@ use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
 use App\Services\AI\Providers\OpenAiCompatibleChatProvider;
+use App\Services\OrderService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\CurrentTenant;
 use App\Support\Roles;
@@ -222,6 +223,34 @@ class AiActionSafetyTest extends TestCase
         $this->say('confirm');
 
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count(), 'never an order with a sold-out extra');
+    }
+
+    public function test_a_sizes_own_stock_limits_that_size_and_comes_back_on_cancel(): void
+    {
+        $shirt = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Shirt', 'price' => 20, 'track_inventory' => true, 'stock_quantity' => 10]);
+        $medium = ProductVariant::factory()->forProduct($shirt)->create(['name' => 'M', 'price' => 20, 'stock_quantity' => 1]);
+        $large = ProductVariant::factory()->forProduct($shirt)->create(['name' => 'L', 'price' => 20, 'stock_quantity' => null]);
+        $pickup = ['fulfillment' => 'pickup', 'delivery_zone' => null, 'delivery_address' => null, 'payment_method' => 'cash',
+            'payment_currency' => null, 'cash_main' => null, 'notes' => null];
+
+        $this->ai([$this->add($shirt, ['variant_id' => $medium->id])]);
+        $this->say('shirt M');
+        $this->ai([], 'place_order', $pickup);
+        $this->say('confirm');
+        $order = Order::query()->withoutGlobalScopes()->sole();
+        $this->assertSame(0, $medium->fresh()->stock_quantity);
+        $this->assertSame(9, $shirt->fresh()->stock_quantity, 'the item stock stays the total');
+
+        $this->ai([$this->add($shirt, ['variant_id' => $medium->id])]);
+        $this->say('shirt M', '96170999999');
+        $this->assertSame(0, $this->cart('96170999999')->items()->count(), 'a sold-out size is not sold');
+        $this->ai([$this->add($shirt, ['variant_id' => $large->id])]);
+        $this->say('shirt L then', '96170999999');
+        $this->assertSame(1, $this->cart('96170999999')->items()->count(), 'a size without its own number follows the item stock');
+
+        app(OrderService::class)->transition($this->merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'shop']);
+        $this->assertSame(1, $medium->fresh()->stock_quantity);
+        $this->assertSame(10, $shirt->fresh()->stock_quantity);
     }
 
     public function test_the_real_model_cannot_place_an_order_without_the_customers_tap(): void

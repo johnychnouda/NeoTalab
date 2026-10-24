@@ -12,6 +12,7 @@ use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\ShopHour;
 use App\Services\AI\CatalogResolver;
 use App\Support\CheckoutException;
@@ -76,7 +77,8 @@ class CheckoutService
             $product = $item->product;
             if (! $product || ! $product->isOrderable() || (float) $item->line_total < 0.01
                 || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)
-                || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])) {
+                || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])
+                || ($item->variant && ! $item->variant->hasStockFor($product, $item->quantity))) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
         }
@@ -158,6 +160,7 @@ class CheckoutService
                     'merchant_id' => $merchant->id,
                     'order_id' => $order->id,
                     'product_id' => $item->product_id,
+                    'variant_id' => $item->variant_id,
                     'product_name' => $this->lineName($item),
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
@@ -173,6 +176,15 @@ class CheckoutService
                         ->decrement('stock_quantity', $item->quantity);
                     if ($taken === 0) {
                         throw new CheckoutException('unavailable', ['item' => $item->product->name]);
+                    }
+                    // A size with its own stock number: the same conditional take, for that size.
+                    if ($item->variant_id !== null && $item->variant?->stock_quantity !== null) {
+                        $sizeTaken = ProductVariant::query()->whereKey($item->variant_id)
+                            ->where('stock_quantity', '>=', $item->quantity)
+                            ->decrement('stock_quantity', $item->quantity);
+                        if ($sizeTaken === 0) {
+                            throw new CheckoutException('unavailable', ['item' => $this->lineName($item)]);
+                        }
                     }
                 }
             }

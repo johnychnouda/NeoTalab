@@ -2,6 +2,8 @@
 # Voice notes: put files in <log dir>/media/<media id>.<ext>; GET /<version>/<media id> returns their
 # link (like Meta), and GET /media/<file> serves the audio.
 import json, mimetypes, os, sys, time, uuid
+
+PORT = int(os.environ.get("MOCK_GRAPH_PORT", "8019"))
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 LOG = sys.argv[1]
@@ -48,7 +50,7 @@ class H(BaseHTTPRequestHandler):
         f = media_file(media_id)
         if f:
             mime = "audio/ogg" if f.endswith(".ogg") else (mimetypes.guess_type(f)[0] or "application/octet-stream")
-            return self._json({"url": f"http://127.0.0.1:8019/media/{os.path.basename(f)}", "mime_type": mime, "file_size": os.path.getsize(f), "id": media_id})
+            return self._json({"url": f"http://127.0.0.1:{PORT}/media/{os.path.basename(f)}", "mime_type": mime, "file_size": os.path.getsize(f), "id": media_id})
         self._json({"data": [], "id": "lab", "verified_name": "Lab", "display_phone_number": "+961 70 000000", "quality_rating": "GREEN"})
 
     do_DELETE = do_GET
@@ -57,4 +59,4 @@ class H(BaseHTTPRequestHandler):
         pass
 
 
-ThreadingHTTPServer(("127.0.0.1", 8019), H).serve_forever()
+ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

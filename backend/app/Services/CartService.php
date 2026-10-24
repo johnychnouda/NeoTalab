@@ -112,7 +112,7 @@ class CartService
         if ($action->variantId && ! $variant) {
             throw new InvalidArgumentException('Variant not found for this product.');
         }
-        if ($variant && ! $variant->isOffered()) {
+        if ($variant && (! $variant->isOffered() || ! $variant->hasStockFor($product, 1))) {
             throw new InvalidArgumentException('This size is not available.');
         }
 

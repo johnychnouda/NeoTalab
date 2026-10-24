@@ -55,6 +55,15 @@ class ProductVariant extends Model
      * Whether customers can pick this size. A 0.00 price is a forgotten price box, never a free
      * size (same rule as Product::isOrderable); an empty price inherits the product's.
      */
+    /**
+     * A size's own stock, when the item tracks stock and the size has a number, also limits that
+     * size (the item's stock stays the total).
+     */
+    public function hasStockFor(Product $product, int $quantity): bool
+    {
+        return ! $product->track_inventory || $this->stock_quantity === null || $this->stock_quantity >= $quantity;
+    }
+
     public function isOffered(): bool
     {
         return ($this->is_active ?? true) && ($this->is_available ?? true)

@@ -12,6 +12,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Facades\DB;
@@ -307,8 +308,12 @@ class OrderService
     {
         foreach ($order->items as $item) {
             if ($item->product_id) {
-                Product::query()->whereKey($item->product_id)->where('track_inventory', true)
+                $restored = Product::query()->whereKey($item->product_id)->where('track_inventory', true)
                     ->increment('stock_quantity', $item->quantity);
+                if ($restored && $item->variant_id) {
+                    ProductVariant::query()->whereKey($item->variant_id)->whereNotNull('stock_quantity')
+                        ->increment('stock_quantity', $item->quantity);
+                }
             }
         }
 
