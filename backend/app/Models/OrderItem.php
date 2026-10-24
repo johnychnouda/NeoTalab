@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ class OrderItem extends Model
         'variant_id',
         'product_name',
         'quantity',
+        'unit',
         'unit_price',
         'item_total',
         'modifiers',
@@ -27,6 +29,7 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
+            'quantity' => QuantityCast::class,
             'unit_price' => 'decimal:2',
             'item_total' => 'decimal:2',
             'modifiers' => 'array',

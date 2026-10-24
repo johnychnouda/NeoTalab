@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Support\Quantity;
 
 class AnalyticsService
 {
@@ -55,7 +56,7 @@ class AnalyticsService
             ->get()
             ->map(fn ($r) => [
                 'product_name' => $r->product_name,
-                'qty' => (int) $r->qty,
+                'qty' => Quantity::from($r->qty),
                 'revenue' => (float) $r->revenue,
             ])
             ->all();

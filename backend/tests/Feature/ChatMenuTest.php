@@ -216,6 +216,6 @@ class ChatMenuTest extends TestCase
         $this->assertSame('1.50$ / kg', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
 
         $this->tap("mn:item:{$tomato->id}");
-        $this->assertSame(['1 kg', '2 kg', '3+ kg'], array_map(fn ($b) => $b['reply']['title'], $this->last()['interactive']['action']['buttons']));
+        $this->assertSame(['½ kg', '1 kg', '1.5+ kg'], array_map(fn ($b) => $b['reply']['title'], $this->last()['interactive']['action']['buttons']));
     }
 }

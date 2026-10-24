@@ -15,7 +15,7 @@ final readonly class CartLineSnapshot
         public string $productId,
         public ?string $productName,
         public ?string $variantId,
-        public int $quantity,
+        public int|float $quantity,
         public string $unitPrice,
         public array $modifierIds,
         public string $lineTotal,

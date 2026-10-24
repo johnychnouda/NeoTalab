@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Services\AI\DTO\CartAction;
 use App\Support\BusinessKind;
 use App\Support\Money;
+use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -56,10 +57,8 @@ class ChatMenu
             'var' => $this->pickVariant($merchant, $conversation, $locale, $a),
             'mod' => $this->pickModifier($merchant, $conversation, $locale, $a),
             'done' => $this->nextGroup($merchant, $conversation, $locale),
-            'qty' => $this->add($merchant, $conversation, $locale, max(1, min(CartService::MAX_LINE_QUANTITY, (int) $a))),
-            'qtymore' => $this->list($this->t('how_many', $locale), $this->t('btn_choose', $locale), array_map(
-                fn ($n) => ['id' => "mn:qty:{$n}", 'title' => (string) $n, 'description' => ''], range(3, 10),
-            )),
+            'qty' => $this->add($merchant, $conversation, $locale, Quantity::from($a)),
+            'qtymore' => $this->moreQuantities($conversation, $locale),
             default => null,
         };
     }
@@ -295,8 +294,15 @@ class ChatMenu
         }
 
         $unit = $product->unit ? ' '.$this->unit($product->unit, $locale) : '';
-        // Remembered so a typed number ("2", "٢") answers this question like the buttons do.
+        // Remembered so a typed number ("2", "٢", "1.5") answers this question like the buttons do.
         $this->savePick($conversation, ['awaiting' => 'qty'] + $pick);
+
+        // By weight: half a kilo, a kilo, or more (1.5 … 5); a typed "1.25" works too.
+        if (Quantity::byWeight($product)) {
+            return $this->buttons($this->t('how_much_of', $locale, ['item' => $name]), [
+                ['mn:qty:0.5', "½{$unit}"], ['mn:qty:1', "1{$unit}"], ['mn:qtymore', "1.5+{$unit}"],
+            ]);
+        }
 
         return $this->buttons($this->t('how_many_of', $locale, ['item' => $name]), [
             ['mn:qty:1', "1{$unit}"], ['mn:qty:2', "2{$unit}"], ['mn:qtymore', "3+{$unit}"],
@@ -304,7 +310,20 @@ class ChatMenu
     }
 
     /** @return array<string, mixed> */
-    protected function add(Merchant $merchant, Conversation $conversation, string $locale, int $qty): array
+    protected function moreQuantities(Conversation $conversation, string $locale): array
+    {
+        $product = ($pick = $this->pick($conversation)) ? Product::query()->find($pick['product']) : null;
+        $weight = Quantity::byWeight($product);
+        $amounts = $weight ? [1.5, 2, 2.5, 3, 4, 5, 7.5, 10] : range(3, 10);
+        $unit = $product?->unit ? ' '.$this->unit($product->unit, $locale) : '';
+
+        return $this->list($this->t($weight ? 'how_much' : 'how_many', $locale), $this->t('btn_choose', $locale), array_map(
+            fn ($n) => ['id' => 'mn:qty:'.Quantity::format($n), 'title' => Quantity::format($n).($weight ? $unit : ''), 'description' => ''], $amounts,
+        ));
+    }
+
+    /** @return array<string, mixed> */
+    protected function add(Merchant $merchant, Conversation $conversation, string $locale, int|float $qty): array
     {
         $pick = $this->pick($conversation);
         if (! $pick) {
@@ -324,10 +343,12 @@ class ChatMenu
 
         $product = Product::query()->find($pick['product']);
         $cart->refresh();
-        $count = (int) $cart->items()->sum('quantity');
+        // Pieces are counted one by one; a weighed line (1.5 kg) counts as one item.
+        $count = (int) $cart->items()->with('product')->get()->sum(fn ($i) => Quantity::byWeight($i->product) ? 1 : $i->quantity);
+        $added = Quantity::normalize($qty, $product);
 
-        return $this->buttons($this->t('added', $locale, [
-            'qty' => $qty,
+        return $this->buttons($this->t(Quantity::byWeight($product) ? 'added_weight' : 'added', $locale, [
+            'qty' => Quantity::format($added).(Quantity::byWeight($product) ? ' '.$this->unit((string) $product->unit, $locale) : ''),
             'item' => $this->name($product, $locale),
             'cart' => $this->itemsCount($count, $locale),
             'total' => $this->money($merchant, (float) $cart->subtotal),
@@ -382,11 +403,13 @@ class ChatMenu
     {
         $pick = $this->pick($conversation);
         $digits = strtr(trim((string) $text), ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
-        if (($pick['awaiting'] ?? null) !== 'qty' || ! preg_match('/^(?:x\s*)?(\d{1,2})$/iu', $digits, $m) || (int) $m[1] < 1) {
+        $digits = str_replace(['½', '¼', '¾', '٫'], ['0.5', '0.25', '0.75', '.'], $digits);
+        if (($pick['awaiting'] ?? null) !== 'qty' || ! preg_match('/^(?:x\s*)?(\d{1,2}(?:[.,]\d{1,3})?)\s*(?:kg|kilo|كيلو|كغ)?$/iu', $digits, $m) || Quantity::from($m[1]) <= 0) {
             return null;
         }
 
-        return $this->add($merchant, $conversation, $locale, min(CartService::MAX_LINE_QUANTITY, (int) $m[1]));
+        // Rounded by the cart: a weight to a quarter kilo, anything else to a whole number.
+        return $this->add($merchant, $conversation, $locale, Quantity::from($m[1]));
     }
 
     /** @return array<string, mixed>|null */

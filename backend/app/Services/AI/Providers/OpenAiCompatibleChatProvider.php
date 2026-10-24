@@ -63,7 +63,8 @@ Services are booked, never added to the cart. "appointment" must be null for eve
 Cancelling: if the customer wants to cancel an order they already placed, ask them to confirm; once they confirm, return recommended_action "cancel_order" (the server checks whether it is still possible and replies).
 Talking to a person: if the customer asks for a human, the owner, a manager, or is upset/complaining, return recommended_action "handoff" — the bot then steps back and the shop answers personally.
 
-For "add" actions set quantity >= 1; set unused fields to null (modifier_ids to []).
+Items whose unit is "kg" are sold by weight: quantity is the weight in kg and may be a decimal in quarter steps ("half a kilo", "nos kilo", "نص كيلو", "un demi-kilo" = 0.5; "1.5 kg", "kilo w nos" = 1.5; "250 g" = 0.25). Every other item: a whole number.
+For "add" actions set quantity >= 1 (weight items >= 0.25); set unused fields to null (modifier_ids to []).
 Quantities: a number written before or after a product name is its quantity, in any language and script ("2 shawarma beef", "shawarma beef x2", "٢ شاورما", "2 chawarma beef", "deux falafels" = 2). The quantity is the number the customer wrote next to that product, never 1 by default. If a single message names several products, add each one with its own quantity.
 
 Intents: greeting, order, modify_cart, inquiry, cancel, unknown.
@@ -215,7 +216,7 @@ PROMPT;
                             'product_id' => $nullableString,
                             'variant_id' => $nullableString,
                             'cart_item_id' => $nullableString,
-                            'quantity' => ['type' => 'integer'],
+                            'quantity' => ['type' => 'number'],
                             'modifier_ids' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'notes' => $nullableString,
                         ],

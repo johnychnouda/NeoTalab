@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use App\Models\Concerns\BelongsToTenant;
 use App\Support\CurrentTenant;
 use Database\Factories\ProductFactory;
@@ -51,7 +52,7 @@ class Product extends Model
             'staff_check' => 'boolean',
             'is_available' => 'boolean',
             'track_inventory' => 'boolean',
-            'stock_quantity' => 'integer',
+            'stock_quantity' => QuantityCast::class,
             'low_stock_threshold' => 'integer',
             'prep_time_mins' => 'integer',
             'sort_order' => 'integer',

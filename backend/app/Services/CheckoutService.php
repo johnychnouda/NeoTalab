@@ -19,6 +19,7 @@ use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Money;
+use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Facades\DB;
 
@@ -164,6 +165,7 @@ class CheckoutService
                     'variant_id' => $item->variant_id,
                     'product_name' => $this->lineName($item),
                     'quantity' => $item->quantity,
+                    'unit' => Quantity::byWeight($item->product) ? $item->product->unit : null,
                     'unit_price' => $item->unit_price,
                     'item_total' => $item->line_total,
                     'modifiers' => collect($item->modifier_ids ?? [])->map(fn ($id) => $modifierNames[$id] ?? null)->filter()->values()->all(),

@@ -2,6 +2,8 @@
 
 namespace App\Services\AI\DTO;
 
+use App\Support\Quantity;
+
 /**
  * One cart mutation the AI wants applied. Resolved against the tenant catalog
  * by CartService, IDs may be rejected if they don't belong to this merchant.
@@ -16,7 +18,7 @@ final readonly class CartAction
         public ?string $productId = null,
         public ?string $variantId = null,
         public ?string $cartItemId = null,
-        public int $quantity = 1,
+        public int|float $quantity = 1,
         public array $modifierIds = [],
         public ?string $notes = null,
     ) {}
@@ -28,13 +30,13 @@ final readonly class CartAction
             productId: $data['product_id'] ?? null,
             variantId: $data['variant_id'] ?? null,
             cartItemId: $data['cart_item_id'] ?? null,
-            quantity: (int) ($data['quantity'] ?? 1),
+            quantity: Quantity::from($data['quantity'] ?? 1),
             modifierIds: array_values($data['modifier_ids'] ?? []),
             notes: $data['notes'] ?? null,
         );
     }
 
-    public function withQuantity(int $quantity): self
+    public function withQuantity(int|float $quantity): self
     {
         return new self(
             action: $this->action,

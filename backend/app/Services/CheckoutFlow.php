@@ -11,6 +11,7 @@ use App\Models\Modifier;
 use App\Models\Order;
 use App\Services\AI\CartEditsFromMessage;
 use App\Support\Money;
+use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Str;
 
@@ -403,7 +404,7 @@ class CheckoutFlow
         $lines = $items->map(function (CartItem $i) use ($merchant, $modifiers) {
             $extras = collect($i->modifier_ids ?? [])->map(fn ($id) => $modifiers[$id] ?? null)->filter();
             $name = ($i->product?->name ?? '?').($i->variant ? " ({$i->variant->name})" : '');
-            $line = "{$i->quantity}× {$name} — {$this->money($merchant, (float) $i->line_total)}";
+            $line = Quantity::line($i->quantity, Quantity::byWeight($i->product) ? $i->product->unit : null, $name).' — '.$this->money($merchant, (float) $i->line_total);
             if ($extras->isNotEmpty()) {
                 $line .= "\n   + ".$extras->join(', ');
             }

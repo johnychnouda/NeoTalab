@@ -9,6 +9,7 @@ use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
 use App\Support\Money;
+use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -89,7 +90,7 @@ class DailyReportService
                 ->orderByDesc('qty')
                 ->limit(3)
                 ->get()
-                ->map(fn ($r) => "{$r->product_name} ×{$r->qty}")
+                ->map(fn ($r) => "{$r->product_name} ×".Quantity::format($r->qty))
                 ->implode(', ');
         } finally {
             $this->tenant->forget();

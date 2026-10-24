@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -28,7 +29,7 @@ class CartItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
+            'quantity' => QuantityCast::class,
             'unit_price' => 'decimal:2',
             'line_total' => 'decimal:2',
             'modifier_ids' => 'array',

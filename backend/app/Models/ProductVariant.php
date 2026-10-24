@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -33,7 +34,7 @@ class ProductVariant extends Model
             'price' => 'decimal:2',
             'is_active' => 'boolean',
             'is_available' => 'boolean',
-            'stock_quantity' => 'integer',
+            'stock_quantity' => QuantityCast::class,
             'sort_order' => 'integer',
         ];
     }
@@ -59,7 +60,7 @@ class ProductVariant extends Model
      * A size's own stock, when the item tracks stock and the size has a number, also limits that
      * size (the item's stock stays the total).
      */
-    public function hasStockFor(Product $product, int $quantity): bool
+    public function hasStockFor(Product $product, int|float $quantity): bool
     {
         return ! $product->track_inventory || $this->stock_quantity === null || $this->stock_quantity >= $quantity;
     }

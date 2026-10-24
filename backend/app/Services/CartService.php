@@ -11,6 +11,7 @@ use App\Services\AI\CatalogResolver;
 use App\Services\AI\DTO\CartAction;
 use App\Services\AI\DTO\CartLineSnapshot;
 use App\Support\Conversation\CartStatus;
+use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -131,7 +132,7 @@ class CartService
 
         $this->requireChoices($product, $variant, $modifiers);
 
-        $qty = max(1, min(self::MAX_LINE_QUANTITY, $action->quantity));
+        $qty = Quantity::normalize($action->quantity, $product);
         $unitPrice = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);
         if ((float) $unitPrice < 0.01) {
             throw new InvalidArgumentException('Product is not orderable.'); // never a free or negative line
@@ -195,7 +196,7 @@ class CartService
             throw new InvalidArgumentException('Cart item not found.');
         }
 
-        $qty = max(1, min(self::MAX_LINE_QUANTITY, $action->quantity));
+        $qty = Quantity::normalize($action->quantity, $item->product);
         $item->update([
             'quantity' => $qty,
             'line_total' => number_format((float) $item->unit_price * $qty, 2, '.', ''),

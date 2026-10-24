@@ -21,6 +21,7 @@ final readonly class CatalogProductSnapshot
         public array $variants = [],
         public array $modifierGroups = [],
         public bool $needsCheck = false,
+        public ?string $unit = null,
     ) {}
 
     public function toArray(): array
@@ -35,6 +36,7 @@ final readonly class CatalogProductSnapshot
             'variants' => $this->variants,
             'modifier_groups' => $this->modifierGroups,
             'needs_check' => $this->needsCheck,
+            'unit' => $this->unit,
         ];
     }
 }

@@ -25,7 +25,7 @@ final class OrderMessage
             'currency' => (string) $merchant->currency,
             'payment' => __($order->payment_method === 'whish' ? 'whatsapp.staff.pay_whish' : 'whatsapp.staff.pay_cash', [], $locale),
             'items' => $order->items
-                ->map(fn ($i) => "• {$i->quantity}× {$i->product_name}".($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
+                ->map(fn ($i) => '• '.Quantity::line($i->quantity, $i->unit, $i->product_name).($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
                 ->implode("\n"),
             'address' => self::addressWithPin($order),
             'phone' => self::phone($order->customer?->phone),
