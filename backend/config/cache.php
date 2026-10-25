@@ -114,4 +114,16 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | Only plain values (flags, counters, locks) are cached, so no PHP object is
+    | ever unserialized from the cache (Laravel 13 hardening).
+    |
+    */
+
+    'serializable_classes' => false,
+
 ];
