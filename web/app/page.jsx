@@ -62,11 +62,6 @@ export default async function Home() {
       </section>
 
       <section className="proof" aria-label={t.proof.builtOn}>
-        <ul className="proof-stats">
-          {t.proof.stats.map(([value, label]) => (
-            <li key={label}><strong dir="ltr">{value.replace("{shops}", demo.scenarios.length)}</strong><span>{label}</span></li>
-          ))}
-        </ul>
         <p className="proof-partners">
           <span><Icon name="shield" size={16} />{t.proof.builtOn}</span>
           <span>

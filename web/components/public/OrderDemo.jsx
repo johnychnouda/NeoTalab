@@ -82,8 +82,6 @@ export default function OrderDemo({ demo }) {
   const [typing, setTyping] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
-  // On a phone screen one chat shows at a time; a tab the visitor picks holds until the next message.
-  const [view, setView] = useState(null);
   const rootRef = useRef(null);
   const stripRef = useRef(null);
   const tabsRef = useRef(null);
@@ -141,7 +139,6 @@ export default function OrderDemo({ demo }) {
   const next = messages[count];
   const action = started && next?.chat === "c" && next.out ? customerAction(messages, count) : null;
   const activeChat = typing || (action ? "c" : last?.chat) || chats[0];
-  const shownChat = view && view.at === count && chats.includes(view.chat) ? view.chat : activeChat;
   const finished = messages.length > 0 && count >= messages.length;
 
   useEffect(() => {
@@ -154,7 +151,21 @@ export default function OrderDemo({ demo }) {
     if (strip && phone && strip.scrollWidth > strip.clientWidth + 4) {
       strip.scrollTo({ left: phone.offsetLeft - (strip.clientWidth - phone.clientWidth) / 2, behavior: "smooth" });
     }
-  }, [count, typing, activeChat, shownChat, scenarioIndex]);
+  }, [count, typing, activeChat, scenarioIndex]);
+
+  // The phones are drawn 300px wide and zoomed to fit their column, so all of them show on any screen.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const col = strip.querySelector(".wa-col");
+      if (col) strip.style.setProperty("--wa-scale", String(Math.min(1, col.clientWidth / 300)));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [chats.length]);
 
   function pickScenario(i) {
     const tabs = tabsRef.current;
@@ -264,23 +275,11 @@ export default function OrderDemo({ demo }) {
         <p className="wa-caption" aria-live="polite">{scenario.captions[step]}</p>
       </div>
 
-      {chats.length > 1 && (
-        <div className="wa-phone-tabs" role="tablist" aria-label={demo.title}>
-          {chats.map((chat) => (
-            <button key={chat} type="button" role="tab" aria-selected={shownChat === chat} className={shownChat === chat ? "active" : ""}
-              onClick={() => setView({ chat, at: count })}>
-              {demo.who[chat]}
-              {activeChat === chat && shownChat !== chat && <i className="wa-phone-tab-dot" aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>
         {chats.map((chat) => {
           const shown = messages.map((m, i) => ({ ...m, i })).filter((m) => m.chat === chat && m.i < count);
           return (
-            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}${shownChat === chat ? " is-shown" : ""}`} data-chat={chat}>
+            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}`} data-chat={chat}>
               <p className="wa-who">{demo.who[chat]}</p>
               <div className="wa-phone">
                 <div className="wa-status" aria-hidden="true">

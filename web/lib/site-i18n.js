@@ -22,7 +22,6 @@ export const SITE = {
       trust: ["Arabic, English and French", "Cash in $ or lira, and Whish", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
       proof: {
-        stats: [["{shops}", "kinds of shops ready to go"], ["3", "languages, plus Arabizi"], ["24/7", "answers, nights and weekends too"], ["0", "apps for your customers"]],
         builtOn: "Built on the official WhatsApp Business Platform by Meta", payWith: "Online payments by",
       },
       voicesTitle: "What shop owners say",
@@ -81,7 +80,6 @@ export const SITE = {
       trust: ["العربية والإنجليزية والفرنسية", "نقدًا بالدولار أو بالليرة، وWhish", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
       proof: {
-        stats: [["{shops}", "نوع محل جاهز للعمل"], ["3", "لغات، والعربيزي كمان"], ["24/7", "ردود، حتى بالليل والعطل"], ["0", "تطبيقات لزبائنك"]],
         builtOn: "مبني على منصّة واتساب للأعمال الرسمية من Meta", payWith: "الدفع أونلاين عبر",
       },
       voicesTitle: "شو بيقولوا أصحاب المحلات",
@@ -140,7 +138,6 @@ export const SITE = {
       trust: ["Arabe, anglais et français", "Espèces en $ ou en livres, et Whish", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
       proof: {
-        stats: [["{shops}", "types de commerces prêts à l'emploi"], ["3", "langues, plus l'arabizi"], ["24/7", "réponses, nuits et week-ends compris"], ["0", "application pour vos clients"]],
         builtOn: "Basé sur la plateforme officielle WhatsApp Business de Meta", payWith: "Paiement en ligne avec",
       },
       voicesTitle: "Ce qu'en disent les commerçants",

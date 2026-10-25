@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Header links to the homepage sections; the one on screen is highlighted.
- * On phones and tablets they fold into a ☰ menu so the header stays one line.
+ * On phones and tablets they fold into a ☰ menu so the header stays one line; on small phones the
+ * merchant login moves into that menu too.
  */
-export default function SiteNavLinks({ links, menuLabel }) {
+export default function SiteNavLinks({ links, menuLabel, login }) {
   const [active, setActive] = useState(null);
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -50,6 +51,7 @@ export default function SiteNavLinks({ links, menuLabel }) {
             {label}
           </a>
         ))}
+        {login && <a href={login[0]} className="site-links-login">{login[1]}</a>}
       </div>
     </div>
   );
