@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 
 const OUT_DELAY = 2600;
 const TYPING_DELAY = 1600;
 // Extra pauses when the next message is on another phone, or starts a new step.
 const SWITCH_DELAY = 1400;
 const STEP_DELAY = 2000;
+// Pause on the finished order before it starts over.
+const RESTART_DELAY = 5000;
 // The visitor plays the customer: their next tap glows, and the demo taps it for them after this.
 const AUTO_DELAY = 4000;
 // Time to read the message just shown: longer messages (an order summary) stay longer.
@@ -82,6 +83,9 @@ export default function OrderDemo({ demo }) {
   const [typing, setTyping] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+  // On a phone screen one phone shows at a time: it follows the order, and a tab the visitor picks
+  // holds until the next message.
+  const [view, setView] = useState(null);
   const rootRef = useRef(null);
   const stripRef = useRef(null);
   const tabsRef = useRef(null);
@@ -114,10 +118,10 @@ export default function OrderDemo({ demo }) {
   useEffect(() => {
     if (!started || !playing) return;
     let timer;
-    // At the end it stops; Play or Replay starts it again.
+    // At the end it waits a moment, then plays the same order again from the start, like a video on loop.
     if (count >= messages.length) {
-      setPlaying(false);
-      return;
+      timer = setTimeout(() => setCount(opening(messages)), RESTART_DELAY);
+      return () => clearTimeout(timer);
     }
     const msg = messages[count];
     const prev = messages[count - 1];
@@ -139,7 +143,7 @@ export default function OrderDemo({ demo }) {
   const next = messages[count];
   const action = started && next?.chat === "c" && next.out ? customerAction(messages, count) : null;
   const activeChat = typing || (action ? "c" : last?.chat) || chats[0];
-  const finished = messages.length > 0 && count >= messages.length;
+  const shownChat = view && view.at === count && chats.includes(view.chat) ? view.chat : activeChat;
 
   useEffect(() => {
     Object.values(bodyRefs.current).forEach((el) => {
@@ -151,7 +155,7 @@ export default function OrderDemo({ demo }) {
     if (strip && phone && strip.scrollWidth > strip.clientWidth + 4) {
       strip.scrollTo({ left: phone.offsetLeft - (strip.clientWidth - phone.clientWidth) / 2, behavior: "smooth" });
     }
-  }, [count, typing, activeChat, scenarioIndex]);
+  }, [count, typing, activeChat, shownChat, scenarioIndex]);
 
   // The phones are drawn 300px wide and zoomed to fit their column, so all of them show on any screen.
   useEffect(() => {
@@ -159,7 +163,9 @@ export default function OrderDemo({ demo }) {
     if (!strip || typeof ResizeObserver === "undefined") return;
     // Each column gets its own zoom: on a phone screen the phone in use is wider than the others.
     const fit = () => {
-      strip.querySelectorAll(".wa-col").forEach((col) => col.style.setProperty("--wa-scale", String(Math.min(1, col.clientWidth / 300))));
+      strip.querySelectorAll(".wa-col").forEach((col) => {
+        if (col.clientWidth) col.style.setProperty("--wa-scale", String(Math.min(1, col.clientWidth / 300)));
+      });
     };
     fit();
     // Watch the phones' columns too: a change of window height resizes them without resizing the row.
@@ -198,11 +204,6 @@ export default function OrderDemo({ demo }) {
   }
 
 
-  function jumpToStep(step) {
-    setCount(messages.findIndex((m) => m.step === step));
-    setStarted(true);
-    setPlaying(true);
-  }
 
   return (
     <div className="wa-demo" ref={rootRef}>
@@ -255,11 +256,23 @@ export default function OrderDemo({ demo }) {
       {/* What is happening now, in words. The demo plays by itself; the end card offers to watch again. */}
       <p className="wa-caption" aria-live="polite">{scenario.captions[step]}</p>
 
+      {chats.length > 1 && (
+        <div className="wa-phone-tabs" role="tablist" aria-label={demo.title}>
+          {chats.map((chat) => (
+            <button key={chat} type="button" role="tab" aria-selected={shownChat === chat} className={shownChat === chat ? "active" : ""}
+              onClick={() => setView({ chat, at: count })}>
+              {demo.who[chat]}
+              {activeChat === chat && shownChat !== chat && <i className="wa-phone-tab-dot" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>
         {chats.map((chat) => {
           const shown = messages.map((m, i) => ({ ...m, i })).filter((m) => m.chat === chat && m.i < count);
           return (
-            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}`} data-chat={chat}>
+            <div key={chat} className={`wa-col${activeChat === chat ? " is-active" : ""}${shownChat === chat ? " is-shown" : ""}`} data-chat={chat}>
               <p className="wa-who">{demo.who[chat]}</p>
               <div className="wa-phone">
                 <div className="wa-status" aria-hidden="true">
@@ -345,16 +358,8 @@ export default function OrderDemo({ demo }) {
         })}
       </div>
 
-      {finished && (
-        <div className="wa-end">
-          <p>{demo.end.title}</p>
-          <div className="wa-end-actions">
-            <Link href="/join" className="btn-hero primary">{demo.end.cta}</Link>
-            <button type="button" className="btn-hero ghost" onClick={() => jumpToStep(0)}>{demo.end.again}</button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
 }
+

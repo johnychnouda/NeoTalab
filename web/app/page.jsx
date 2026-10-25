@@ -5,6 +5,7 @@ import { getSiteLang } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
+import PriceSwitch from "@/components/public/PriceSwitch";
 import { orderDemo } from "@/lib/order-demo";
 import { getPlan } from "@/lib/api";
 
@@ -93,22 +94,12 @@ export default async function Home() {
             <h2>{t.pricingTitle}</h2>
             <p className="lead">{n(t.pricingLead)}</p>
           </div>
-          <div className="plans">
-            {/* Prices and trial days come from the owner portal; a plan without a price is not shown. */}
-            {[["monthly", plan.monthly_price, t.perMonth], ["yearly", plan.yearly_price, t.perYear]].filter(([, price]) => price > 0).map(([key, price, per]) => (
-              <div className={`plan${key === best ? " plan-best" : ""}`} key={key}>
-                <div className="plan-top">
-                  <h3>{t[key]}</h3>
-                  {key === "yearly" && saving > 0 ? <span className="plan-save">{t.save.replace("{pct}", saving)}</span> : null}
-                </div>
-                <p className="plan-price"><strong dir="ltr">{money(price)}</strong><span>{per}</span></p>
-                <ul className="ticks">
-                  {t.included.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
-                </ul>
-                <Link href="/join" className={`btn-hero ${key === best ? "primary" : "ghost"}`}>{t.trial}</Link>
-              </div>
-            ))}
-          </div>
+          {/* Prices and trial days come from the owner portal; a plan without a price is not shown. */}
+          <PriceSwitch
+            plans={[["monthly", plan.monthly_price, t.perMonth], ["yearly", plan.yearly_price, t.perYear]].filter(([, price]) => price > 0)
+              .map(([key, price, per]) => ({ key, label: t[key], price: money(price), per }))}
+            initial={best} save={saving > 0 ? t.save.replace("{pct}", saving) : null}
+            included={t.included} cta={t.trial} label={t.pricingTitle} />
           <p className="plans-note">{t.metaFees}</p>
         </section>
       ) : null}
@@ -135,8 +126,7 @@ export default async function Home() {
           ))}
         </ol>
         <div className="hero-actions">
-          <Link href="/join" className="btn-hero primary">{t.trial}<Icon name="arrow" size={18} /></Link>
-          <Link href="/contact" className="btn-hero ghost">{t.contactUs}</Link>
+          <Link href="/contact" className="btn-hero primary">{t.contactUs}<Icon name="arrow" size={18} /></Link>
         </div>
       </section>
     </SiteShell>
