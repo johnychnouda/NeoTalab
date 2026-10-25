@@ -69,6 +69,12 @@ the real-model suites were rerun in the lab (`gpt-4o-mini`, WhatsApp stand-in):
 | `s11` languages | **3/4**: French chat handed off twice; one French reply came back in Arabizi | 4/4 |
 | Probe: cart, then "what time do you close today?" ×5 | handed off 2 of 3 | answered 4 of 5; the 5th exposed D31 (question saved as the address), fixed, then answered in EN and AR with nothing saved |
 
+New features with the real model (`qa/s25_new_features_real_ai.py`, 25 Oct): **16/16 on two runs**: "kilo w nos" →
+1.5 kg, "half a kilo" → 0.5 kg, 2.3 kg → a quarter step; a sold-out Medium Red never added, Medium Blue added once;
+booked with the named stylist at the menu price, never double-booked, an unknown stylist not invented; a quote request
+saved with no price, the customer cannot set the price, the shop-phone price sent, one order on Accept even with two
+taps; "deliver on Friday?" makes no order and promises no booked time.
+
 Still seen and not fixed: the model sometimes says "I'll prepare 2 zaatar" or "I added … to your order" before
 the customer has ordered (wording only: nothing is placed without the Confirm tap), and an English chat
 answered once in Arabizi ("zedtlak").

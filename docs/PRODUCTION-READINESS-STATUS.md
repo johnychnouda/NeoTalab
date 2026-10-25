@@ -18,11 +18,16 @@ is proof on the live outside services and a tested production restore.
    production, every cash order paid part in dollars, part in lira fails there. If any shop already took split
    orders, check Owner → Inbox → System for failed checkouts.
 1. **Live WhatsApp and Whish never tested end to end** (Meta App Review and access verification pending since 23 Oct). All WhatsApp/Whish behaviour is proven against stand-ins only.
-2. **Production backup restore not tested.** A dump/restore was checked locally (7 tables equal), but the app's own backup command fails on this computer (client version) and has not been restored from production files.
+2. **Production backup restore not tested.** The app's own backup → restore procedure now works end to end on MySQL 26.10
+   (25 Oct: `backup:run --only-db`, restored into an empty database in 1 s, **all 40 tables byte-identical**, Arabic text,
+   kg quantities and split-cash orders intact; steps under "Restore procedure" below). Still not done: restoring a real
+   production backup file (the backup storage keys are only in Railway), and the production pairing of MariaDB's
+   dump tool with a MySQL server.
 3. **Uptime alert not set up** (needs the owner's UptimeRobot account).
 
 ### Before a wider launch
-- Laravel 12 security support ends **24 Feb 2027**: upgrade to 13 (plan in the technology audit).
+- Laravel 12 security support ends **24 Feb 2027**: the upgrade to 13 is **done and tested on branch `upgrade/laravel-13`**
+  (515/515 on PHP 8.4 and 8.5, SQLite and MySQL); merge it after a run on a Railway test environment.
 - Pin the Node version for the web build (CI uses 22, Railway is unpinned).
 - Free-text AI replies are not checked against the data (see AI report).
 
@@ -38,7 +43,7 @@ is proof on the live outside services and a tested production restore.
 | Pricing and transaction integrity | pass | today's price at checkout, last-item races on MySQL (5 buyers × 10 rounds), size stock (D24), totals in `s24` |
 | Automated tests and builds | pass | backend 515/515 on SQLite **and on MySQL 26.10**, Pint clean, web unit 10/10, web build OK (25 Oct). CI now also runs the suite on MySQL 8.4 (`backend-mysql` job: not yet run on GitHub) |
 | Dependency and runtime risks documented | done | technology audit |
-| Backup and recovery tested | **partial** | local restore only (blocker 2) |
+| Backup and recovery tested | **partial** | app backup + restore verified on MySQL (40/40 tables equal); production files not yet (blocker 2) |
 | Integrations classified | done | WhatsApp: simulated · Whish: simulated · OpenAI chat and speech: live-tested in lab · Google travel times: live-tested · email (Resend): unverified this checkpoint |
 | Skipped tests and blockers accounted for | done | this file |
 | Deployment and rollback plan | documented | below |
@@ -77,6 +82,29 @@ Not measured: hundreds of simultaneous chats on Railway's real resources, OpenAI
 - New: the whole suite runs on MySQL (local 26.10: 515/515; CI job added). Real parallel MySQL races on closing an
   order: 0 wrong in 60 rounds × 2 kinds, with old and new code (D28 rests on the simulated race test).
 - Quotes: tenant isolation tested (another shop's staff cannot price a request).
+
+## Checkpoint 10 (25 October 2026, owner-approved list)
+- CI run #146 (checkpoint 9) passed, including the new MySQL job. The live API answers (`/up` 200); it migrates on
+  start and refuses to start if a migration fails, so the D29 fix is very likely live. **Not confirmed in the Railway
+  log** (Railway asks for a sign-in in my browser).
+- Production MySQL version and `OPENAI_MODEL`: **not read** (same reason).
+- Real AI on the 24–25 Oct features, new suite `qa/s25_new_features_real_ai.py`: **16/16 on two runs** (kg ×3, size ×
+  colour stock ×3, stylist choice and no double booking ×3, quotes end to end incl. shop phone price and one order ×6,
+  chosen delivery time ×1).
+- Laravel 13.38.0 + Tinker 3 + PHPUnit 12 on branch `upgrade/laravel-13`: 515/515 on PHP 8.4.17 and 8.5.8, SQLite and
+  MySQL; 53 migrations roll back and re-run; `composer audit` clean. Upgrade-guide items applied: request-forgery
+  middleware rename, cache never unserializes objects; checked and not affecting us: cache/session prefixes (already
+  set), `upsert`, queue events, joined deletes. Not merged.
+- Backup restore procedure verified (above). Not done by me: uptime alert (needs an account in your name), live
+  WhatsApp/Whish test (Meta review pending), pilot shops (your choice of shops).
+
+## Restore procedure (tested 25 Oct on MySQL 26.10)
+1. Download the newest zip from the backup storage (`BACKUP_S3_*` in Railway) and unzip it: `db-dumps/mysql-<db>.sql`.
+2. Create an **empty** database (never restore over the live one while it runs).
+3. `grep -v GTID_PURGED db-dumps/mysql-<db>.sql | mysql -h <host> -P <port> -u <user> -p <empty db>`
+   (MySQL refuses the `GTID_PURGED` line when the dump came from the same server.)
+4. Check: same tables and `CHECKSUM TABLE` per table as the source, or at least row counts of orders, customers, products.
+5. Point a copy of the API at it (`DB_DATABASE`) and open the owner portal before switching production over.
 
 ## Resume here
 - Lab (this checkpoint): API `127.0.0.1:8031`, WhatsApp stand-in `MOCK_GRAPH_PORT=8039`, `export QA_API=http://127.0.0.1:8031/api/v1`,

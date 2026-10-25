@@ -17,8 +17,7 @@ nightly report · AI in Arabic, Arabizi, English, French. Kinds set the wording 
 Automated evidence for all kinds: `BusinessKindsTest` (every sign-up type takes a pickup order and runs
 accept → ready → collected → cancel), lab `qa/s23_menus_by_type.py` (9 kinds, 144/144 checks, 23 Oct).
 The whole backend suite (513 tests) passes on SQLite **and on MySQL 26.10** (25 Oct). Features added on 24–25 Oct
-(weights, size × colour stock, team bookings, chosen times, quotes) have automated tests only: **not yet run in the
-lab with the real AI**.
+(weights, size × colour stock, team bookings, chosen times, quotes) also pass the real-AI lab suite `s25` (16/16 ×2, 25 Oct).
 
 ## Matrix
 
@@ -46,7 +45,6 @@ pending); these were tested with stand-ins only.
 ## Recommended order (demand × risk × effort)
 
 1. Keep launch scope to restaurants/cafés/bakeries first, plus grocery, salons, florists and clothing shops that accept the gaps above.
-2. Run the 24–25 Oct features (kg, size × colour, team bookings, chosen times, quotes) through the lab with the real AI before offering them to a pilot shop.
 3. Deposits (salons, made-to-order, repairs): medium; needs Whish partial payments.
 4. Substitution rule for groceries: small-medium.
 5. Wholesale tiers, multi-branch, digital: large; only with paying demand.
