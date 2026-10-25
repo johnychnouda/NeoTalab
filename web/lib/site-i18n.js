@@ -3,7 +3,7 @@
 
 export const SITE = {
   en: {
-    nav: { demo: "Live demo", features: "Features", pricing: "Pricing", faq: "FAQ", start: "Get started", sections: "Page sections", login: "Merchant login" },
+    nav: { demo: "Live demo", features: "Features", pricing: "Pricing", faq: "FAQ", start: "Get started", sections: "Page sections", menu: "Menu", login: "Merchant login" },
     place: { country: "Lebanon" },
     footer: {
       tagline: "AI WhatsApp ordering and booking for local businesses.",
@@ -21,6 +21,11 @@ export const SITE = {
       badge: "Official WhatsApp Business Platform",
       trust: ["Arabic, English and French", "Cash in $ or lira, and Whish", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
+      proof: {
+        stats: [["{shops}", "kinds of shops ready to go"], ["3", "languages, plus Arabizi"], ["24/7", "answers, nights and weekends too"], ["0", "apps for your customers"]],
+        builtOn: "Built on the official WhatsApp Business Platform by Meta", payWith: "Online payments by",
+      },
+      voicesTitle: "What shop owners say",
       steps: [
         ["Connect your number", "We link your WhatsApp Business number. You keep your app and your chats."],
         ["Add your menu", "Import prices from Excel or a photo, then set your hours and delivery areas."],
@@ -57,7 +62,7 @@ export const SITE = {
   },
 
   ar: {
-    nav: { demo: "عرض مباشر", features: "المزايا", pricing: "الأسعار", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", login: "دخول التاجر" },
+    nav: { demo: "عرض مباشر", features: "المزايا", pricing: "الأسعار", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", menu: "القائمة", login: "دخول التاجر" },
     place: { country: "لبنان" },
     footer: {
       tagline: "طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
@@ -75,6 +80,11 @@ export const SITE = {
       badge: "منصّة واتساب للأعمال الرسمية",
       trust: ["العربية والإنجليزية والفرنسية", "نقدًا بالدولار أو بالليرة، وWhish", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
+      proof: {
+        stats: [["{shops}", "نوع محل جاهز للعمل"], ["3", "لغات، والعربيزي كمان"], ["24/7", "ردود، حتى بالليل والعطل"], ["0", "تطبيقات لزبائنك"]],
+        builtOn: "مبني على منصّة واتساب للأعمال الرسمية من Meta", payWith: "الدفع أونلاين عبر",
+      },
+      voicesTitle: "شو بيقولوا أصحاب المحلات",
       steps: [
         ["اربط رقمك", "نربط رقم واتساب للأعمال. تحتفظ بتطبيقك ومحادثاتك."],
         ["أضف قائمتك", "استورد الأسعار من Excel أو من صورة، ثم حدّد ساعات العمل ومناطق التوصيل."],
@@ -111,7 +121,7 @@ export const SITE = {
   },
 
   fr: {
-    nav: { demo: "Démo", features: "Fonctionnalités", pricing: "Tarifs", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", login: "Connexion" },
+    nav: { demo: "Démo", features: "Fonctionnalités", pricing: "Tarifs", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", menu: "Menu", login: "Connexion" },
     place: { country: "Liban" },
     footer: {
       tagline: "Commandes et réservations WhatsApp par IA pour les commerces locaux.",
@@ -129,6 +139,11 @@ export const SITE = {
       badge: "Plateforme officielle WhatsApp Business",
       trust: ["Arabe, anglais et français", "Espèces en $ ou en livres, et Whish", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
+      proof: {
+        stats: [["{shops}", "types de commerces prêts à l'emploi"], ["3", "langues, plus l'arabizi"], ["24/7", "réponses, nuits et week-ends compris"], ["0", "application pour vos clients"]],
+        builtOn: "Basé sur la plateforme officielle WhatsApp Business de Meta", payWith: "Paiement en ligne avec",
+      },
+      voicesTitle: "Ce qu'en disent les commerçants",
       steps: [
         ["Connectez votre numéro", "Nous relions votre numéro WhatsApp Business. Vous gardez votre application et vos discussions."],
         ["Ajoutez votre menu", "Importez vos prix depuis Excel ou une photo, puis réglez horaires et zones de livraison."],

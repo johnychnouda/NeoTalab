@@ -22,7 +22,7 @@ export async function SiteShell({ children }) {
       <header className="site-header" dir="ltr">
         <Link href="/" aria-label="NeoTalab home" style={{ textDecoration: "none" }}><Brand size={38} /></Link>
         <nav className="site-sections" aria-label={t.nav.sections} dir={lang === "ar" ? "rtl" : "ltr"}>
-          <SiteNavLinks links={[["demo", t.nav.demo], ["features", t.nav.features], ["pricing", t.nav.pricing], ["faq", t.nav.faq], ["start", t.nav.start]]} />
+          <SiteNavLinks links={[["demo", t.nav.demo], ["features", t.nav.features], ["pricing", t.nav.pricing], ["faq", t.nav.faq], ["start", t.nav.start]]} menuLabel={t.nav.menu} />
         </nav>
         <div className="site-nav">
           <LangSwitch current={lang} />

@@ -15,6 +15,11 @@ const READ_MS_PER_CHAR = 45;
 const READ_MAX = 7000;
 const readTime = (msg) => Math.min(READ_MAX, (msg?.text?.length || 0) * READ_MS_PER_CHAR);
 
+// A chat opens already started (the customer's hello and the bot's first answer), so the phone
+// is never blank; the visitor's next tap then glows.
+const opening = (messages) => messages.findIndex((m) => m.chat === "c" && !m.out) + 1;
+const messagesFor = (shop, mode, pay) => (shop.booking || shop[mode][pay]).messages;
+
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
   video: "M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11z",
@@ -73,7 +78,7 @@ function customerAction(messages, count) {
 /** Real NeoTalab conversations for several kinds of shops, on the phones of the people involved. */
 export default function OrderDemo({ demo }) {
   const [scenarioIndex, setScenarioIndex] = useState(0);
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useState(() => opening(messagesFor(demo.scenarios[0], demo.scenarios[0].defaultMode, "whish")));
   const [typing, setTyping] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
@@ -157,21 +162,21 @@ export default function OrderDemo({ demo }) {
     if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
     setScenarioIndex(i);
     setMode(demo.scenarios[i].defaultMode);
-    setCount(0);
+    setCount(opening(messagesFor(demo.scenarios[i], demo.scenarios[i].defaultMode, pay)));
     setStarted(true);
     setPlaying(true);
   }
 
   function pickMode(next) {
     setMode(next);
-    setCount(0);
+    setCount(opening(messagesFor(shop, next, pay)));
     setStarted(true);
     setPlaying(true);
   }
 
   function pickPay(next) {
     setPay(next);
-    setCount(0);
+    setCount(opening(messagesFor(shop, mode, next)));
     setStarted(true);
     setPlaying(true);
   }
@@ -303,6 +308,7 @@ export default function OrderDemo({ demo }) {
                 </div>
                 <div className="wa-body" ref={(el) => { bodyRefs.current[chat] = el; }}>
                   <span className="wa-date">{demo.today}</span>
+                  {shown.length === 0 && typing !== chat && demo.waiting[chat] && <p className="wa-waiting">{demo.waiting[chat]}</p>}
                   {shown.map((m, k) => {
                     const prev = shown[k - 1];
                     const first = !prev || prev.out !== m.out || !!m.day || !!m.human !== !!prev.human;

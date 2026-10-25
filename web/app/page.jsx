@@ -7,6 +7,7 @@ import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
 import { orderDemo } from "@/lib/order-demo";
 import { getPlan } from "@/lib/api";
+import { testimonials } from "@/lib/testimonials";
 
 export const metadata = {
   title: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
@@ -60,6 +61,22 @@ export default async function Home() {
         </div>
       </section>
 
+      <section className="proof" aria-label={t.proof.builtOn}>
+        <ul className="proof-stats">
+          {t.proof.stats.map(([value, label]) => (
+            <li key={label}><strong dir="ltr">{value.replace("{shops}", demo.scenarios.length)}</strong><span>{label}</span></li>
+          ))}
+        </ul>
+        <p className="proof-partners">
+          <span><Icon name="shield" size={16} />{t.proof.builtOn}</span>
+          <span>
+            {t.proof.payWith}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/whish.png" alt="" width={18} height={18} /><strong>Whish</strong>
+          </span>
+        </p>
+      </section>
+
       <section className="section" id="demo">
         <div className="section-head">
           <h2>{demo.title}</h2>
@@ -67,7 +84,7 @@ export default async function Home() {
         <OrderDemo demo={demo} />
       </section>
 
-      <section className="section" id="features">
+      <section className="section section-band" id="features">
         <div className="section-head">
           <h2>{t.featuresTitle}</h2>
           <p className="lead">{t.featuresLead}</p>
@@ -84,6 +101,20 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      {testimonials.length > 0 ? (
+        <section className="section" id="voices">
+          <div className="section-head"><h2>{t.voicesTitle}</h2></div>
+          <div className="voices">
+            {testimonials.map((v) => (
+              <figure className="voice" key={v.name}>
+                <blockquote>{v.quote[lang] || v.quote.en}</blockquote>
+                <figcaption><strong>{v.name}</strong><span>{[v.shop, v.city].filter(Boolean).join(" · ")}</span></figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {plan && plan.monthly_price > 0 ? (
         <section className="section" id="pricing">

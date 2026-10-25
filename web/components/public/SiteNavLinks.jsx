@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/** Header links to the homepage sections; the one on screen is highlighted. */
-export default function SiteNavLinks({ links }) {
+/**
+ * Header links to the homepage sections; the one on screen is highlighted.
+ * On phones and tablets they fold into a ☰ menu so the header stays one line.
+ */
+export default function SiteNavLinks({ links, menuLabel }) {
   const [active, setActive] = useState(null);
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
 
   useEffect(() => {
     const sections = links.map(([id]) => document.getElementById(id)).filter(Boolean);
@@ -22,13 +27,30 @@ export default function SiteNavLinks({ links }) {
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
   }, [links]);
 
+  // The menu closes on Escape or a tap anywhere else.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onTap = (e) => { if (!rootRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onTap);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onTap); };
+  }, [open]);
+
   return (
-    <div className="site-links">
-      {links.map(([id, label]) => (
-        <a key={id} href={`/#${id}`} className={active === id ? "active" : undefined} aria-current={active === id ? "location" : undefined}>
-          {label}
-        </a>
-      ))}
+    <div className="site-links-wrap" ref={rootRef}>
+      <button type="button" className="site-menu-btn" aria-expanded={open} aria-controls="site-links" aria-label={menuLabel} onClick={() => setOpen(!open)}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+        </svg>
+      </button>
+      <div className={`site-links${open ? " open" : ""}`} id="site-links">
+        {links.map(([id, label]) => (
+          <a key={id} href={`/#${id}`} className={active === id ? "active" : undefined} aria-current={active === id ? "location" : undefined} onClick={() => setOpen(false)}>
+            {label}
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
