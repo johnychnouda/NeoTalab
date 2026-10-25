@@ -7,7 +7,6 @@ import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
 import { orderDemo } from "@/lib/order-demo";
 import { getPlan } from "@/lib/api";
-import { testimonials } from "@/lib/testimonials";
 
 export const metadata = {
   title: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
@@ -29,6 +28,8 @@ export default async function Home() {
     const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: v % 1 ? 2 : 0 }).format(v);
     return plan.currency === "USD" ? `${amount}$` : `${amount} ${plan.currency}`;
   };
+  // The yearly plan is the highlighted one when the owner portal gives it a price.
+  const best = plan?.yearly_price > 0 ? "yearly" : "monthly";
   const saving = plan && plan.monthly_price > 0 ? Math.round((1 - plan.yearly_price / (12 * plan.monthly_price)) * 100) : 0;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -61,17 +62,6 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="proof" aria-label={t.proof.builtOn}>
-        <p className="proof-partners">
-          <span><Icon name="shield" size={16} />{t.proof.builtOn}</span>
-          <span>
-            {t.proof.payWith}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/whish.png" alt="" width={18} height={18} /><strong>Whish</strong>
-          </span>
-        </p>
-      </section>
-
       <section className="section" id="demo">
         <div className="section-head">
           <h2>{demo.title}</h2>
@@ -97,20 +87,6 @@ export default async function Home() {
         </div>
       </section>
 
-      {testimonials.length > 0 ? (
-        <section className="section" id="voices">
-          <div className="section-head"><h2>{t.voicesTitle}</h2></div>
-          <div className="voices">
-            {testimonials.map((v) => (
-              <figure className="voice" key={v.name}>
-                <blockquote>{v.quote[lang] || v.quote.en}</blockquote>
-                <figcaption><strong>{v.name}</strong><span>{[v.shop, v.city].filter(Boolean).join(" · ")}</span></figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {plan && plan.monthly_price > 0 ? (
         <section className="section" id="pricing">
           <div className="section-head">
@@ -118,8 +94,9 @@ export default async function Home() {
             <p className="lead">{n(t.pricingLead)}</p>
           </div>
           <div className="plans">
-            {[["monthly", plan.monthly_price, t.perMonth], ["yearly", plan.yearly_price, t.perYear]].map(([key, price, per]) => (
-              <div className={`plan${key === "yearly" ? " plan-best" : ""}`} key={key}>
+            {/* Prices and trial days come from the owner portal; a plan without a price is not shown. */}
+            {[["monthly", plan.monthly_price, t.perMonth], ["yearly", plan.yearly_price, t.perYear]].filter(([, price]) => price > 0).map(([key, price, per]) => (
+              <div className={`plan${key === best ? " plan-best" : ""}`} key={key}>
                 <div className="plan-top">
                   <h3>{t[key]}</h3>
                   {key === "yearly" && saving > 0 ? <span className="plan-save">{t.save.replace("{pct}", saving)}</span> : null}
@@ -128,10 +105,11 @@ export default async function Home() {
                 <ul className="ticks">
                   {t.included.map((item) => <li key={item}><Icon name="check" size={16} />{item}</li>)}
                 </ul>
-                <Link href="/join" className={`btn-hero ${key === "yearly" ? "primary" : "ghost"}`}>{n(t.trialButton)}</Link>
+                <Link href="/join" className={`btn-hero ${key === best ? "primary" : "ghost"}`}>{t.trial}</Link>
               </div>
             ))}
           </div>
+          <p className="plans-note">{t.metaFees}</p>
         </section>
       ) : null}
 
@@ -139,7 +117,7 @@ export default async function Home() {
         <div className="section-head"><h2>{t.faqTitle}</h2></div>
         <div className="faq-list">
           {t.faq.map(([q, a]) => (
-            <details key={q}><summary>{q}</summary><p>{n(a)}</p></details>
+            <details key={q}><summary>{n(q)}</summary><p>{n(a)}</p></details>
           ))}
         </div>
       </section>
@@ -157,7 +135,7 @@ export default async function Home() {
           ))}
         </ol>
         <div className="hero-actions">
-          <Link href="/join" className="btn-hero primary">{t.apply}<Icon name="arrow" size={18} /></Link>
+          <Link href="/join" className="btn-hero primary">{t.trial}<Icon name="arrow" size={18} /></Link>
           <Link href="/contact" className="btn-hero ghost">{t.contactUs}</Link>
         </div>
       </section>

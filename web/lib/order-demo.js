@@ -21,25 +21,25 @@ const UI = {
     steps: { order: "Order", accept: "Shop accepts", whish: "Whish payment", delivery: "Delivery", pickup: "Pickup", rating: "Rating", book: "Booking", remind: "Reminder", visit: "Visit" },
     captions: { order: "The customer orders on WhatsApp", accept: "The shop taps ✅ to accept", whish: "The customer pays with Whish", delivery: "The order is on its way", pickup: "The customer picks it up at the shop", rating: "The customer rates the order", book: "The customer books a time on WhatsApp", remind: "NeoTalab reminds them before the visit", visit: "The visit, then a rating" },
     end: { title: "That's it. No app, no website, just WhatsApp.", cta: "Start your free trial", again: "Watch again" },
-    bookingNote: "🗓 This shop works by appointment",
-    choose: { mode: "How the customer gets it", pay: "How the customer pays" },
+    bookingNote: "🗓 By appointment",
+    choose: { shop: "Your business", mode: "Delivery or pickup", pay: "Payment", booking: "How it works" },
     pays: { whish: "💳 Whish", cash: "💵 Cash" },
   },
   ar: {
-    title: "شوف NeoTalab عم يشتغل",
-    lead: "اختار محل وتابع طلب من أوله لآخره على واتساب الزبون وصاحب المحل والسائق.",
+    title: "شاهد NeoTalab أثناء العمل",
+    lead: "اختر نوع المحل وتابع طلبًا من البداية إلى النهاية على واتساب الزبون وصاحب المحل والسائق.",
     online: "متصل", typing: "يكتب…", today: "اليوم", message: "مراسلة",
     modes: { delivery: "🛵 توصيل", pickup: "🏪 استلام من المحل" }, pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية", sendLabel: "إرسال",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
-    waiting: { s: "🔔 الطلبات الجديدة بتوصل لهون", d: "🛵 التوصيلات بتوصل لهون" },
+    waiting: { s: "🔔 تصل الطلبات الجديدة هنا", d: "🛵 تصل التوصيلات هنا" },
     bot: "NeoTalab",
     menuButtons: { menu: "📋 القائمة", products: "📋 المنتجات", catalogue: "📋 الكتالوج", price_list: "📋 لائحة الأسعار", services: "📋 الخدمات" },
-    steps: { order: "الطلب", accept: "المحل بيقبل", whish: "دفع Whish", delivery: "التوصيل", pickup: "الاستلام", rating: "التقييم", book: "الحجز", remind: "التذكير", visit: "الزيارة" },
-    captions: { order: "الزبون بيطلب على واتساب", accept: "المحل بيكبس ✅ ليقبل الطلب", whish: "الزبون بيدفع بـ Whish", delivery: "الطلب عالطريق", pickup: "الزبون بياخد طلبه من المحل", rating: "الزبون بيقيّم الطلب", book: "الزبون بيحجز موعد على واتساب", remind: "NeoTalab بيذكّره قبل الموعد", visit: "الزيارة، وبعدها التقييم" },
-    end: { title: "وهيك بس. لا تطبيق ولا موقع، بس واتساب.", cta: "ابدأ تجربتك المجانية", again: "شوف مرة تانية" },
-    bookingNote: "🗓 هالمحل بيشتغل بالمواعيد",
-    choose: { mode: "كيف بياخد الزبون طلبه", pay: "كيف بيدفع الزبون" },
-    pays: { whish: "💳 Whish", cash: "💵 كاش" },
+    steps: { order: "الطلب", accept: "المحل يقبل", whish: "دفع Whish", delivery: "التوصيل", pickup: "الاستلام", rating: "التقييم", book: "الحجز", remind: "التذكير", visit: "الزيارة" },
+    captions: { order: "الزبون يطلب عبر واتساب", accept: "المحل يضغط ✅ لقبول الطلب", whish: "الزبون يدفع عبر Whish", delivery: "الطلب في الطريق", pickup: "الزبون يستلم طلبه من المحل", rating: "الزبون يقيّم الطلب", book: "الزبون يحجز موعدًا عبر واتساب", remind: "NeoTalab يذكّره قبل الموعد", visit: "الزيارة، ثم التقييم" },
+    end: { title: "هذا كل شيء. لا تطبيق ولا موقع، فقط واتساب.", cta: "ابدأ تجربتك المجانية", again: "شاهد مرة أخرى" },
+    bookingNote: "🗓 بالمواعيد",
+    choose: { shop: "نوع عملك", mode: "توصيل أو استلام", pay: "الدفع", booking: "طريقة العمل" },
+    pays: { whish: "💳 Whish", cash: "💵 نقدًا" },
   },
   fr: {
     title: "NeoTalab en action",
@@ -53,8 +53,8 @@ const UI = {
     steps: { order: "Commande", accept: "Le commerce accepte", whish: "Paiement Whish", delivery: "Livraison", pickup: "Retrait", rating: "Note", book: "Réservation", remind: "Rappel", visit: "Visite" },
     captions: { order: "Le client commande sur WhatsApp", accept: "Le commerce appuie sur ✅ pour accepter", whish: "Le client paie avec Whish", delivery: "La commande est en route", pickup: "Le client récupère sa commande", rating: "Le client note la commande", book: "Le client réserve sur WhatsApp", remind: "NeoTalab lui rappelle le rendez-vous", visit: "La visite, puis la note" },
     end: { title: "C'est tout. Ni appli, ni site : juste WhatsApp.", cta: "Commencer l'essai gratuit", again: "Revoir" },
-    bookingNote: "🗓 Ce commerce fonctionne sur rendez-vous",
-    choose: { mode: "Comment le client la reçoit", pay: "Comment le client paie" },
+    bookingNote: "🗓 Sur rendez-vous",
+    choose: { shop: "Votre commerce", mode: "Livraison ou retrait", pay: "Paiement", booking: "Fonctionnement" },
     pays: { whish: "💳 Whish", cash: "💵 Espèces" },
   },
 };
@@ -68,13 +68,13 @@ const SHOPS = [
   {
     id: "restaurant", icon: "🥙", menu: "menu", kind: "minutes", prep: 15, travel: 10, fee: 1,
     label: { en: "Restaurant", ar: "مطعم", fr: "Restaurant" },
-    shop: { en: "Foren Al Hara", ar: "فرن الحارة", fr: "Foren Al Hara" },
+    shop: { en: "Snack Al Hara", ar: "سناك الحارة", fr: "Snack Al Hara" },
     town: { en: "Jbeil", ar: "جبيل", fr: "Jbeil" },
     address: { en: "Main street, near the church, building Haddad, 2nd floor", ar: "الشارع العام حد الكنيسة، بناية حداد، الطابق الثاني", fr: "Rue principale près de l'église, immeuble Haddad, 2e étage" },
     shopAddress: { en: "Jbeil, main street", ar: "جبيل، الشارع العام", fr: "Jbeil, rue principale" },
     items: [
-      [2, 1.0, L("Zaatar man'oushe", "منقوشة زعتر", "Man'oushé zaatar")],
-      [1, 2.5, L("Cheese man'oushe", "منقوشة جبنة", "Man'oushé fromage")],
+      [2, 3.5, L("Chicken shawarma", "شاورما دجاج", "Chawarma poulet")],
+      [1, 2.0, L("Fries", "بطاطا مقلية", "Frites")],
     ],
   },
   {
@@ -573,15 +573,22 @@ function build(shop, lang, delivery, whish) {
 }
 
 // Same order as the business types on the sign-up form.
-const ORDER = ["restaurant", "bakery", "market", "butcher", "clothing", "electronics", "flowers", "water", "laundry", "salon", "pets", "home", "retail"];
+// The demo offers four families of shops; each plays one example and names the shops it stands for.
+const FAMILIES = [
+  { id: "food", icon: "🍽", label: L("Food", "أكل", "Restauration"), example: "restaurant", members: ["restaurant", "bakery", "butcher"] },
+  { id: "shops", icon: "🛒", label: L("Shops", "محلات", "Boutiques"), example: "market", members: ["market", "clothing", "electronics", "home", "pets", "retail"] },
+  { id: "delivery", icon: "💐", label: L("Gifts & delivery", "هدايا وتوصيل", "Cadeaux et livraison"), example: "flowers", members: ["flowers", "water"] },
+  { id: "services", icon: "💇", label: L("Services", "خدمات", "Services"), example: "salon", members: ["salon", "laundry"] },
+];
 
 export function orderDemo(lang) {
   const key = UI[lang] ? lang : "en";
   return {
     ...UI[key],
-    scenarios: ORDER.map((id) => {
-      const shop = SHOPS.find((s) => s.id === id);
-      const base = { id, icon: shop.icon, label: shop.label[key] };
+    scenarios: FAMILIES.map((family) => {
+      const shop = SHOPS.find((s) => s.id === family.example);
+      const members = family.members.map((id) => SHOPS.find((s) => s.id === id).label[key]).join(" · ");
+      const base = { id: family.id, icon: family.icon, label: family.label[key], members };
       // Salons take bookings; every other shop takes orders, delivered or picked up.
       if (shop.kind === "booking") return { ...base, defaultMode: "pickup", booking: build(shop, key, false, false) };
       return {

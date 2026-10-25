@@ -157,20 +157,19 @@ export default function OrderDemo({ demo }) {
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip || typeof ResizeObserver === "undefined") return;
+    // Each column gets its own zoom: on a phone screen the phone in use is wider than the others.
     const fit = () => {
-      const col = strip.querySelector(".wa-col");
-      if (col) strip.style.setProperty("--wa-scale", String(Math.min(1, col.clientWidth / 300)));
+      strip.querySelectorAll(".wa-col").forEach((col) => col.style.setProperty("--wa-scale", String(Math.min(1, col.clientWidth / 300))));
     };
     fit();
+    // Watch the phones' columns too: a change of window height resizes them without resizing the row.
     const observer = new ResizeObserver(fit);
     observer.observe(strip);
+    strip.querySelectorAll(".wa-col").forEach((col) => observer.observe(col));
     return () => observer.disconnect();
   }, [chats.length]);
 
   function pickScenario(i) {
-    const tabs = tabsRef.current;
-    const tab = tabs?.querySelector(`[data-tab="${i}"]`);
-    if (tabs && tab) tabs.scrollTo({ left: tab.offsetLeft - (tabs.clientWidth - tab.clientWidth) / 2, behavior: "smooth" });
     setScenarioIndex(i);
     setMode(demo.scenarios[i].defaultMode);
     setCount(opening(messagesFor(demo.scenarios[i], demo.scenarios[i].defaultMode, pay)));
@@ -192,22 +191,12 @@ export default function OrderDemo({ demo }) {
     setPlaying(true);
   }
 
-  // The arrows beside the shop list pick the previous or next kind of shop.
-  function slideTabs(direction) {
-    pickScenario((scenarioIndex + direction + demo.scenarios.length) % demo.scenarios.length);
-  }
-
   function send() {
     setStarted(true);
     setPlaying(true);
     setCount(count + 1);
   }
 
-  function togglePlay() {
-    setStarted(true);
-    if (!playing && count >= messages.length) setCount(0);
-    setPlaying(!playing);
-  }
 
   function jumpToStep(step) {
     setCount(messages.findIndex((m) => m.step === step));
@@ -217,30 +206,28 @@ export default function OrderDemo({ demo }) {
 
   return (
     <div className="wa-demo" ref={rootRef}>
-      <div className="wa-tabs-wrap">
-        <button type="button" className="wa-icon-btn wa-prev wa-tabs-arrow" onClick={() => slideTabs(-1)} aria-label={demo.prevShop}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-        <div className="wa-tabs" role="tablist" ref={tabsRef}>
-          {demo.scenarios.map((s, i) => (
-            <button key={s.id} type="button" role="tab" aria-selected={i === scenarioIndex} data-tab={i}
-              className={i === scenarioIndex ? "active" : ""} onClick={() => pickScenario(i)}>
-              <span aria-hidden="true">{s.icon}</span>{s.label}
-            </button>
-          ))}
+      {/* What to watch: the kind of business, then how the customer gets the order and pays. */}
+      <div className="wa-picks">
+        <div className="wa-pick wa-pick-shop">
+          <span className="wa-pick-label" id="wa-shop-label">{demo.choose.shop}</span>
+          <div className="wa-tabs" role="tablist" aria-labelledby="wa-shop-label" ref={tabsRef}>
+            {demo.scenarios.map((s, i) => (
+              <button key={s.id} type="button" role="tab" aria-selected={i === scenarioIndex} data-tab={i}
+                className={i === scenarioIndex ? "active" : ""} onClick={() => pickScenario(i)}>
+                <span aria-hidden="true">{s.icon}</span>{s.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <button type="button" className="wa-icon-btn wa-next wa-tabs-arrow" onClick={() => slideTabs(1)} aria-label={demo.nextShop}>
-          <Svg d={icons.chevron} size={18} />
-        </button>
-      </div>
-
-      <div className="wa-controls">
         {shop.booking ? (
-          <p className="wa-options wa-booking-note">{demo.bookingNote}</p>
+          <div className="wa-pick">
+            <span className="wa-pick-label">{demo.choose.booking}</span>
+            <p className="wa-booking-note">{demo.bookingNote}</p>
+          </div>
         ) : (
-          <div className="wa-options">
-            <div className="wa-choice">
-              <span id="wa-mode-label">{demo.choose.mode}</span>
+          <>
+            <div className="wa-pick">
+              <span className="wa-pick-label" id="wa-mode-label">{demo.choose.mode}</span>
               <div className="wa-modes" role="radiogroup" aria-labelledby="wa-mode-label">
                 {["delivery", "pickup"].map((m) => (
                   <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => pickMode(m)}>
@@ -249,8 +236,8 @@ export default function OrderDemo({ demo }) {
                 ))}
               </div>
             </div>
-            <div className="wa-choice">
-              <span id="wa-pay-label">{demo.choose.pay}</span>
+            <div className="wa-pick">
+              <span className="wa-pick-label" id="wa-pay-label">{demo.choose.pay}</span>
               <div className="wa-modes" role="radiogroup" aria-labelledby="wa-pay-label">
                 {["whish", "cash"].map((p) => (
                   <button key={p} type="button" role="radio" aria-checked={pay === p} className={pay === p ? "active" : ""} onClick={() => pickPay(p)}>
@@ -259,21 +246,14 @@ export default function OrderDemo({ demo }) {
                 ))}
               </div>
             </div>
-          </div>
+          </>
         )}
-        <div className="wa-player">
-          <button type="button" className="wa-icon-btn" onClick={finished ? () => jumpToStep(0) : togglePlay}
-            aria-label={finished ? demo.replay : playing ? demo.pause : demo.play}>
-            <Svg d={finished ? icons.replay : playing ? icons.pause : icons.play} size={18} />
-          </button>
-          <div className="wa-progress">
-            {scenario.steps.map((label, i) => (
-              <button key={label} type="button" className={i < step || finished ? "done" : i === step ? "current" : ""} onClick={() => jumpToStep(i)} aria-label={label} title={label} />
-            ))}
-          </div>
-        </div>
-        <p className="wa-caption" aria-live="polite">{scenario.captions[step]}</p>
       </div>
+
+      <p className="wa-members">{shop.members}</p>
+
+      {/* What is happening now, in words. The demo plays by itself; the end card offers to watch again. */}
+      <p className="wa-caption" aria-live="polite">{scenario.captions[step]}</p>
 
       <div className={`wa-strip wa-count-${chats.length}`} ref={stripRef}>
         {chats.map((chat) => {

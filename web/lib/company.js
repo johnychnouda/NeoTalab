@@ -11,8 +11,9 @@ export const company = {
   country: env(process.env.NEXT_PUBLIC_COMPANY_COUNTRY, "Lebanon"),
   email: env(process.env.NEXT_PUBLIC_CONTACT_EMAIL, "support@neotalab.com"),
   phone: env(process.env.NEXT_PUBLIC_CONTACT_PHONE),
-  whatsapp: env(process.env.NEXT_PUBLIC_CONTACT_WHATSAPP),
-  // Support number shown to signed-in shops only (dashboard help button), not on the public site.
+  // Public WhatsApp contact; defaults to the support number.
+  whatsapp: env(process.env.NEXT_PUBLIC_CONTACT_WHATSAPP, env(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP, "+96170207078")),
+  // Support number: the website's "Chat with us on WhatsApp" button and footer, and the dashboard help button.
   supportWhatsapp: env(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP, "+96170207078"),
   siteUrl: env(process.env.NEXT_PUBLIC_SITE_URL, "https://neotalab.com"),
   // Meta Business Settings → Brand safety → Domains → "Meta-tag verification" content value.
