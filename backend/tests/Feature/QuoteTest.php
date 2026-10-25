@@ -166,4 +166,13 @@ class QuoteTest extends TestCase
         $this->assertStringContainsString('no open', strtolower($this->body($this->lastTo(self::STAFF))));
         $this->assertSame(0, Quote::query()->withoutGlobalScopes()->count());
     }
+
+    public function test_any_shop_can_switch_quotes_on_in_its_settings(): void
+    {
+        $this->merchant->update(['business_type' => 'Restaurant / Café', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto', 'quotes' => true]]);
+        $this->say('quote please: custom cake with my logo for 30 people');
+
+        $this->assertSame(1, Quote::query()->withoutGlobalScopes()->count());
+        $this->assertStringContainsString('quote #1', $this->body($this->lastTo(self::CUSTOMER)));
+    }
 }

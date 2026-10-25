@@ -29,7 +29,7 @@ const GROUPS = {
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
     late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
-    scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders,
+    scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders, quotes: !!p.quotes,
   }),
   payments: (p) => ({
     whish_channel: p.whish_channel || "", ...(p.whish_secret_new ? { whish_secret: p.whish_secret_new } : {}),
@@ -277,6 +277,8 @@ function Settings() {
               label={t("ops.scheduled")} hint={t("ops.scheduledHint")} />
             <Switch checked={!!p.gift_orders} onChange={(on) => setP("gift_orders", on)}
               label={t("ops.gift")} hint={t("ops.giftHint")} />
+            <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
+              label={t("ops.quotes")} hint={t("ops.quotesHint")} />
           </Card>
         </>)}
       </>)}
