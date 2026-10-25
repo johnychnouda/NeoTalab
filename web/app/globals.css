@@ -2843,6 +2843,14 @@ button.wa-mic { border: 0; cursor: pointer; }
   .wa-demo .wa-who { display: none; }
 }
 
+/* Features: small tiles, two per row on a phone. */
+@media (max-width: 640px) {
+  .features { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .feature { flex-direction: column; gap: 10px; padding: 14px; }
+  .feature h3 { font-size: 15px; margin: 0 0 4px; }
+  .feature p { font-size: 13px; line-height: 1.5; }
+}
+
 /* ── Item editor: one calm page; extras open in place ─── */
 .modal.modal-editor { max-width: 780px; }
 .ie { display: grid; gap: 16px; }

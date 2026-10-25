@@ -17,7 +17,7 @@ export const SITE = {
     },
     home: {
       h1a: "Your WhatsApp, now an ", h1b: "AI sales assistant",
-      intro: "Customers order, book and pay on your business WhatsApp. NeoTalab answers them, takes the order and sends it to your team, while you watch it all from your WhatsApp Business app.",
+      intro: "Customers order, pay and book on your WhatsApp, day and night. You just tap ✅.",
       badge: "Official WhatsApp Business Platform",
       trust: ["Arabic, English and French", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
@@ -72,7 +72,7 @@ export const SITE = {
     },
     home: {
       h1a: "واتساب الخاص بك، أصبح الآن ", h1b: "مساعد مبيعات ذكي",
-      intro: "يطلب زبائنك ويحجزون ويدفعون عبر واتساب عملك. يردّ NeoTalab عليهم، يأخذ الطلب ويرسله إلى فريقك، وأنت تتابع كل شيء من تطبيق واتساب للأعمال.",
+      intro: "يطلب زبائنك ويدفعون ويحجزون على واتساب محلك، ليلًا ونهارًا. وأنت تضغط ✅ فقط.",
       badge: "منصّة واتساب للأعمال الرسمية",
       trust: ["العربية والإنجليزية والفرنسية", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
@@ -127,7 +127,7 @@ export const SITE = {
     },
     home: {
       h1a: "Votre WhatsApp, désormais un ", h1b: "assistant de vente IA",
-      intro: "Vos clients commandent, réservent et paient sur le WhatsApp de votre commerce. NeoTalab leur répond, prend la commande et l'envoie à votre équipe, pendant que vous suivez tout depuis WhatsApp Business.",
+      intro: "Vos clients commandent, paient et réservent sur votre WhatsApp, jour et nuit. Vous n'avez qu'à appuyer sur ✅.",
       badge: "Plateforme officielle WhatsApp Business",
       trust: ["Arabe, anglais et français", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
