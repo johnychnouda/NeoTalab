@@ -18,7 +18,7 @@ checkpoint: every row below is a recommendation unless it says "done".
 | Vitest, Playwright | 5.0.4, 1.64.1 | 5.0.5 | patch | optional |
 | npm advisories | — | `npm audit`: 0 | ok | — |
 | PHPUnit | 11.5.55 | 13.4.3 | 11 works with Laravel 12 | move to the version Laravel 13 asks for, during that upgrade |
-| MySQL | Railway MySQL service; server version not read in this check | — | **unverified** | Read it in Railway (`SELECT VERSION();`) and record it. Local lab: MySQL 26.10. The backup client in the image is MariaDB's `mysqldump`: the backup must be test-restored from production files (see readiness) |
+| MySQL | Railway MySQL service; server version not read in this check | — | **unverified**; since 25 Oct CI runs the suite on `mysql:8.4` (LTS) and it passes locally on 26.10 — set the CI image to production's version once read | Read it in Railway (`SELECT VERSION();`) and record it. Local lab: MySQL 26.10. The backup client in the image is MariaDB's `mysqldump`: the backup must be test-restored from production files (see readiness) |
 | AI model | `OPENAI_MODEL` (default `gpt-4o-mini`; deploy example `gpt-6-luna`) | — | **unverified** which model production runs | Read the Railway variable; rerun `qa/s24`, `s10`, `s11` after any model change |
 | WhatsApp Cloud API, Whish | Graph API via `WHATSAPP_GRAPH_BASE` | — | live tests blocked by Meta App Review | — |
 

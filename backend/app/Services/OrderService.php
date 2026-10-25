@@ -76,7 +76,7 @@ class OrderService
             throw ValidationException::withMessages(['order' => ['This order was already accepted or closed.']]);
         }
 
-        $order->forceFill(['status' => 'confirmed', 'accepted_at' => now()])->save();
+        $this->move($order, ['status' => 'confirmed', 'accepted_at' => now()]);
 
         return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
     }
@@ -87,11 +87,10 @@ class OrderService
             throw ValidationException::withMessages(['order' => ['This order was already accepted or closed.']]);
         }
 
+        $this->move($order, ['status' => 'rejected', 'reject_reason' => $reason]);
         if ($order->driver_id) {
             $this->releaseDriver($order->driver_id);
         }
-
-        $order->forceFill(['status' => 'rejected', 'reject_reason' => $reason])->save();
 
         return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
     }
@@ -112,12 +111,12 @@ class OrderService
                 ]);
             }
 
-            $order->forceFill([
+            $this->move($order, [
                 'status' => 'cancelled',
                 'cancel_reason' => $reason,
                 'cancelled_by' => $by,
                 'cancelled_at' => now(),
-            ])->save();
+            ]);
         });
 
         // The driver may already be on the way to collect it.
@@ -224,12 +223,12 @@ class OrderService
             throw ValidationException::withMessages(['order' => ['Only an order on its way can be marked as not delivered.']]);
         }
 
-        $order->forceFill([
+        $this->move($order, [
             'status' => 'failed',
             'cancel_reason' => trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 200) : 'Customer not reachable',
             'cancelled_by' => 'driver',
             'cancelled_at' => now(),
-        ])->save();
+        ]);
         if ($order->driver_id) {
             $this->releaseDriver($order->driver_id);
         }
@@ -245,6 +244,7 @@ class OrderService
         }
 
         DB::transaction(function () use ($order) {
+            $this->move($order, ['status' => 'delivered', 'delivered_at' => now()]);
             if ($order->driver_id) {
                 $this->releaseDriver($order->driver_id);
                 Driver::query()->whereKey($order->driver_id)->increment('total_deliveries');
@@ -253,11 +253,23 @@ class OrderService
                     Driver::query()->whereKey($order->driver_id)->increment('cash_on_hand', (float) $order->total);
                 }
             }
-
-            $order->forceFill(['status' => 'delivered', 'delivered_at' => now()])->save();
         });
 
         return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
+    }
+
+    /**
+     * Saves a status change only if nobody changed the order since it was read: when two people
+     * close the same order at the same moment (the customer cancels while the staff refuse it, two
+     * Delivered taps), the second is refused instead of giving stock back or counting cash twice.
+     */
+    protected function move(Order $order, array $changes): void
+    {
+        $moved = Order::query()->whereKey($order->id)->where('status', $order->getOriginal('status'))->update($changes);
+        if ($moved === 0) {
+            throw ValidationException::withMessages(['order' => ['This order was just changed by someone else.']]);
+        }
+        $order->forceFill($changes)->syncOriginal();
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
+use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ServiceProvider;
@@ -29,6 +30,7 @@ use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -386,7 +388,12 @@ class ConversationService
             return __('whatsapp.checkout.cancel_kept', ['number' => $order->number], $locale);
         }
 
-        $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer']);
+        try {
+            $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer']);
+        } catch (ValidationException) {
+            // The shop closed it at the same moment.
+            return __('whatsapp.checkout.cancel_none', [], $locale);
+        }
 
         return '';
     }
@@ -608,6 +615,7 @@ class ConversationService
             'providers' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : ServiceProvider::query()->where('is_active', true)->orderBy('sort_order')->get()
                 ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name, 'service_ids' => $p->service_ids ?: 'all'])->values()->all(),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),
+            'opening_hours_today' => $this->todaysHours($merchant),
             'opening_hours' => ShopHour::week()
                 ->map(fn (ShopHour $h) => [
                     'day' => $days[$h->day_of_week] ?? (string) $h->day_of_week,
@@ -623,6 +631,14 @@ class ConversationService
                     'minimum_order' => (string) $z->minimum_order,
                 ])->values()->all(),
         ];
+    }
+
+    /** "09:00-23:00" or "closed", for the shop's own today (the model mixed up weekdays). */
+    private function todaysHours(Merchant $merchant): string
+    {
+        $today = ShopHour::week()->get(now()->setTimezone($merchant->timezone ?: config('app.timezone'))->dayOfWeek);
+
+        return ! $today || $today->is_closed ? 'closed' : "{$today->opens_at}-{$today->closes_at}";
     }
 
     /**

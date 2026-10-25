@@ -9,6 +9,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\PlatformSetting;
 use App\Models\Product;
+use App\Models\Quote;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\SpeechToText;
 use App\Services\AppointmentService;
@@ -514,6 +515,18 @@ class WhatsAppInboundService
             Customer::query()->where('phone', $to)->update(['bot_paused_until' => null]);
         } elseif (in_array($command, self::ACCEPT_COMMANDS, true) || in_array($command, self::REFUSE_COMMANDS, true)) {
             $this->answerFromShopPhone($merchant, $to, in_array($command, self::ACCEPT_COMMANDS, true));
+        } elseif (($price = QuoteService::parse($command, false)) !== null) {
+            $this->quoteFromShopPhone($merchant, $to, $price);
+        }
+    }
+
+    /** "quote 45 Screen replacement" typed in a customer's chat from the shop phone: the price for their open request. */
+    protected function quoteFromShopPhone(Merchant $merchant, string $customerPhone, array $price): void
+    {
+        $customer = Customer::query()->where('phone', $customerPhone)->first();
+        $quote = $customer ? Quote::query()->where('customer_id', $customer->id)->whereIn('status', ['requested', 'sent'])->latest()->first() : null;
+        if ($quote && ! app(QuoteService::class)->send($merchant, $quote, $price['price'], $price['title'])) {
+            Log::info('Shop-phone quote not sent (price out of range)', ['quote_id' => $quote->id]);
         }
     }
 

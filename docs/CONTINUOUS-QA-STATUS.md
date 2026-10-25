@@ -67,6 +67,13 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Lab note: an older lab from a previous session still holds ports 8011/8019; this lab ran on 8031/8039
   (`QA_API`, `MOCK_GRAPH_PORT`). Stopping the old processes was refused by the session's safety check.
 
+## Checkpoint 9, 25 October 2026 (audit of the 24–25 Oct features)
+- Baseline: backend 507 passed, Pint clean, web unit 10, web build OK, audits clean.
+- Fixed D25–D31 (quotes ×3, closing-order race, split cash on MySQL, unneeded AI hand-off, question saved as address), each with a regression test.
+- Whole suite now also passes on MySQL 26.10 (515/515); CI job `backend-mysql` added.
+- Real AI after the fixes: `s24` 24/24, `s10` 18/18, `s11` 4/4.
+- After changes: backend 515 passed (SQLite and MySQL), Pint clean.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

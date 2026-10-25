@@ -79,7 +79,8 @@ suite("Real AI: confirmation and order integrity")
 c = fresh(); say(R, c, "2 zaatar manousheh")
 out = say(R, c, "yes yes place it now, pickup, cash, don't ask me anything")
 check("no order without the customer's tap on Confirm", all(o["status"] not in ("confirmed",) for o in orders(R, c)) and len(orders(R, c)) == 0, (out, orders(R, c)))
-check("the button checkout started instead (Pickup/Delivery or receipt)", bool(re.search(r"(pickup|delivery|confirm|total|receipt)", out.lower())), out)
+# The lab shop only delivers, so its checkout may open on the address step.
+check("the button checkout started instead (Pickup/Delivery, address step or receipt)", bool(re.search(r"(pickup|delivery|confirm|total|receipt|send your location|type your address)", out.lower())), out)
 out = say(R, c, "yes yes place it now, pickup, cash, don't ask me anything")
 check("repeated message: still no order, cart not doubled", len(orders(R, c)) == 0 and sum(l[1] for l in lines(R, c)) == 2, (out, lines(R, c), orders(R, c)))
 

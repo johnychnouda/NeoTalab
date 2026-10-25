@@ -65,6 +65,15 @@ class CheckoutFlow
         return $this->next($merchant, $conversation, $locale);
     }
 
+    /** "what time do you close?", "Vous fermez à quelle heure", "ايمتى بتسكرو؟", "addesh el delivery": not an address. */
+    public static function looksLikeQuestion(string $text): bool
+    {
+        $text = mb_strtolower(trim($text));
+
+        return (bool) preg_match('/[?؟]\s*$/u', $text)
+            || (bool) preg_match('/^(what|when|how|why|do you|does|is it|is there|are you|can i|can you|could you|est-ce|quand|combien|pourquoi|vous (avez|fermez|ouvrez|livrez)|quel(le)?s? |shu |chou |aymta|emta|addesh|adesh|2adesh|ade[s]?h |شو |ايمتى|إيمتى|امتى|قديش|كم |هل |متى|ليش|في عندكم)/u', $text);
+    }
+
     /**
      * A customer who typed "deliver to Sassine, bldg Rizk" is not asked Delivery or Pickup, nor
      * for the address again; the area, fee and minimum are still checked by the next steps.
@@ -208,8 +217,10 @@ class CheckoutFlow
             ]));
         }
 
-        // A change of mind while we wait for the address ("actually make it 3"): back to the assistant.
-        if (in_array($step, ['location', 'details'], true) && ! $location && $text !== null && CartEditsFromMessage::looksLikeCartChange($text)) {
+        // A change of mind ("actually make it 3") or a question ("what time do you close?") while we
+        // wait for the address: back to the assistant, never saved as where to deliver.
+        if (in_array($step, ['location', 'details'], true) && ! $location && $text !== null
+            && (CartEditsFromMessage::looksLikeCartChange($text) || self::looksLikeQuestion($text))) {
             $this->exit($conversation);
 
             return null;

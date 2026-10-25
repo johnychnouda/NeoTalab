@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Quote;
+use App\Services\QuoteService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
@@ -174,5 +175,63 @@ class QuoteTest extends TestCase
 
         $this->assertSame(1, Quote::query()->withoutGlobalScopes()->count());
         $this->assertStringContainsString('quote #1', $this->body($this->lastTo(self::CUSTOMER)));
+    }
+
+    public function test_a_price_with_a_thousands_comma_is_read_as_the_whole_number(): void
+    {
+        $this->say('quote: rebuild the whole sofa, three seats');
+        $this->say('quote 1 1,500 Sofa rebuild', self::STAFF);
+
+        $this->assertSame('1500.00', number_format((float) $this->quote()->price, 2, '.', ''));
+        $this->assertSame('Sofa rebuild', $this->quote()->title);
+        $this->assertSame(['number' => 3, 'price' => 12.5, 'title' => 'Hem'], QuoteService::parse('quote 3 12,5 Hem', true), 'a comma before 1–2 digits is a decimal');
+        $this->assertNull(QuoteService::parse('quote 3 1,5000 Hem', true), 'a number that is neither is not guessed');
+    }
+
+    public function test_a_lira_shop_can_quote_a_real_lira_price(): void
+    {
+        $this->merchant->update(['currency' => 'LBP']);
+        $this->say('quote: fix my washing machine drum please');
+        $this->say('quote 1 4500000 Drum repair', self::STAFF);
+
+        $this->assertSame('sent', $this->quote()->status);
+        $this->assertStringContainsString('4,500,000 LBP', $this->body($this->lastTo(self::CUSTOMER)));
+    }
+
+    public function test_a_shop_with_no_staff_numbers_quotes_from_the_shop_phone(): void
+    {
+        Driver::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->delete();
+        $this->say('quote please: screen replacement for my iPhone 12');
+        $this->assertStringContainsString('quote 45', $this->body($this->lastTo(self::CUSTOMER)), 'the shop phone sees how to answer in the chat');
+
+        // The shop types the price in that chat from the WhatsApp Business app (coexistence echo).
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+            'metadata' => ['phone_number_id' => '555'],
+            'message_echoes' => [['id' => 'wamid.ECHO1', 'from' => '555', 'to' => ltrim(self::CUSTOMER, '+'), 'type' => 'text', 'text' => ['body' => 'quote 45 Screen replacement']]],
+        ]]]]]]);
+
+        $this->assertSame('sent', $this->quote()->status);
+        $this->assertSame('45.00', number_format((float) $this->quote()->price, 2, '.', ''));
+        $this->assertStringContainsString('Price: 45.00$', $this->body($this->lastTo(self::CUSTOMER)));
+    }
+
+    public function test_one_shops_staff_cannot_price_another_shops_request(): void
+    {
+        [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
+            'name' => 'Other Fix', 'currency' => 'USD', 'timezone' => 'Asia/Beirut', 'business_type' => 'Laundry / Dry cleaning',
+            'settings' => ['bot' => ['phone_id' => '777'], 'mode' => 'auto', 'fulfillment' => 'pickup', 'business_mode' => 'orders'],
+        ]);
+        Driver::query()->forceCreate(['merchant_id' => $other->id, 'name' => 'Desk B', 'role' => 'staff', 'phone' => '+96171555777',
+            'whatsapp_number' => '+96171555777', 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
+        $this->staffWroteToShop($other, '+96171555777');
+        $this->say('quote please: screen replacement for my iPhone 12');
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+            'metadata' => ['phone_number_id' => '777'],
+            'messages' => [['id' => 'wamid.B1', 'from' => '96171555777', 'type' => 'text', 'text' => ['body' => 'quote 1 1 Hacked']]],
+        ]]]]]]);
+
+        $this->assertSame('requested', $this->quote()->status);
+        $this->assertNull($this->quote()->price);
     }
 }

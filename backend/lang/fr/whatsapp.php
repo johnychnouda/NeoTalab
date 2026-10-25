@@ -315,9 +315,11 @@ return [
     ],
     'quote' => [
         'staff_none' => 'Aucune demande de devis ouverte avec ce numéro.',
-        'staff_bad_price' => 'Ce prix n’est pas valable (un nombre entre 0,01 et 100 000).',
+        'staff_bad_price' => 'Ce prix n’est pas valable. Tapez le prix complet, de 1$ à 100 000$ (ou l’équivalent en livres), par exemple « quote 12 45 Écran ».',
         'staff_sent' => '✅ Devis n° :number envoyé : :price. Le client acceptera ou refusera.',
         'requested' => 'Merci, nous avons votre demande (devis n° :number) chez :shop. Nous vous enverrons un prix ici très vite.',
+        'requested_shop_phone' => 'Merci, nous avons votre demande (devis n° :number) chez :shop. Nous vous enverrons un prix ici très vite.
+(:shop : répondez ici avec « quote 45 le travail » pour envoyer le prix.)',
         'offer' => 'Devis n° :number de :shop
 :title
 Prix : :price (valable :days jours)',

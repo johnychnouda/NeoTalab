@@ -288,6 +288,20 @@ class CheckoutFlowTest extends TestCase
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
     }
 
+    public function test_a_question_while_asked_for_the_address_is_not_taken_as_the_address(): void
+    {
+        foreach (['what time do you close today?', 'Vous fermez à quelle heure', 'ايمتى بتسكرو؟', 'addesh el delivery'] as $question) {
+            $this->menuOrder();
+            $this->pickRow("co:zone:{$this->jbeil->id}");
+            $this->assertSame('location_request_message', $this->last()['interactive']['type']);
+
+            $this->say($question);
+
+            $this->assertArrayNotHasKey('checkout', Conversation::query()->withoutGlobalScopes()->firstOrFail()->state ?? [], "\"{$question}\" is not saved as the address");
+        }
+        $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
+    }
+
     public function test_assistant_checkout_starts_the_buttons_and_old_buttons_expire(): void
     {
         $this->say('add 2 zaatar');

@@ -49,18 +49,19 @@ class QuoteService
         $body = __('whatsapp.quote.staff_request', [
             'number' => $quote->number, 'phone' => OrderMessage::phone($customer->phone), 'text' => $quote->description,
         ], $merchant->locale ?? 'en');
+        $reached = false;
         foreach ($this->staff->staff($merchant) as $member) {
-            $this->staff->send($merchant, $member, $body, []);
+            $reached = $this->staff->send($merchant, $member, $body, []) || $reached;
         }
 
-        return __('whatsapp.quote.requested', ['number' => $quote->number, 'shop' => $merchant->name], $locale);
+        // No staff number got it: whoever holds the shop phone sees this chat and prices it here.
+        return __($reached ? 'whatsapp.quote.requested' : 'whatsapp.quote.requested_shop_phone', ['number' => $quote->number, 'shop' => $merchant->name], $locale);
     }
 
     /** The shop's price: the customer gets it with Accept / No thanks. Null when there is no such request. */
     public function send(Merchant $merchant, ?Quote $quote, float $price, string $title): ?Quote
     {
-        // A quote is at least one dollar: a cent is a typo, never a job.
-        if (! $quote || ! in_array($quote->status, ['requested', 'sent'], true) || $price < 1) {
+        if (! $quote || ! in_array($quote->status, ['requested', 'sent'], true) || ! self::priceAllowed($merchant, $price)) {
             return null;
         }
         $quote->update(['price' => round($price, 2), 'title' => mb_substr(trim($title) ?: $quote->description, 0, 150), 'status' => 'sent', 'sent_at' => now()]);
@@ -149,16 +150,28 @@ class QuoteService
         ], $locale), $order];
     }
 
-    /** "quote 12 45 Screen replacement" (staff) → the request number, the price and what it is. */
+    /** A quote is at least one dollar (a cent is a typo, never a job) and at most 100,000 dollars, or the same in lira. */
+    public static function priceAllowed(Merchant $merchant, float $price): bool
+    {
+        $lira = strtoupper((string) $merchant->currency) === 'LBP';
+
+        return $price >= ($lira ? 1000 : 1) && $price <= ($lira ? 10_000_000_000 : 100000);
+    }
+
+    /**
+     * "quote 12 45 Screen replacement" (staff) → the request number, the price and what it is.
+     * "1,500" is fifteen hundred and "12,5" twelve and a half; anything else ("1,5000") is not guessed.
+     */
     public static function parse(string $text, bool $withNumber): ?array
     {
         $digits = strtr(trim($text), ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
         $number = $withNumber ? '#?\s*(\d+)\s+' : '()';
-        if (! preg_match('/^(?:quote|price|سعر|devis)\s*'.$number.'\$?\s*(\d+(?:[.,]\d{1,2})?)\s*\$?\s*(.*)$/iu', $digits, $m)) {
+        if (! preg_match('/^(?:quote|price|سعر|devis)\s*'.$number.'\$?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?=\s|\$|$)\s*\$?\s*(.*)$/iu', $digits, $m)) {
             return null;
         }
+        $price = preg_match('/^\d{1,3}(?:,\d{3})+/', $m[2]) ? str_replace(',', '', $m[2]) : str_replace(',', '.', $m[2]);
 
-        return ['number' => $m[1] === '' ? null : (int) $m[1], 'price' => (float) str_replace(',', '.', $m[2]), 'title' => trim($m[3], ' -—:')];
+        return ['number' => $m[1] === '' ? null : (int) $m[1], 'price' => (float) $price, 'title' => trim($m[3], ' -—:')];
     }
 
     private function tellStaff(Merchant $merchant, string $body): void

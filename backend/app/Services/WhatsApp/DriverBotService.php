@@ -255,7 +255,7 @@ class DriverBotService
         if (! $request || ! in_array($request->status, ['requested', 'sent'], true)) {
             return __('whatsapp.quote.staff_none', [], $locale);
         }
-        if ($quote['price'] < 1 || $quote['price'] > 100000) {
+        if (! QuoteService::priceAllowed($merchant, $quote['price'])) {
             return __('whatsapp.quote.staff_bad_price', [], $locale);
         }
         $sent = app(QuoteService::class)->send($merchant, $request, $quote['price'], $quote['title']);

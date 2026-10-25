@@ -321,9 +321,11 @@ return [
     ],
     'quote' => [
         'staff_none' => 'No open quote request with that number. Type "quote <number> <price> <what>" for a request in this list.',
-        'staff_bad_price' => 'That price is not valid (use a number above 0.01 and below 100000).',
+        'staff_bad_price' => 'That price is not valid. Type the full price, from 1$ to 100,000$ (or the same in lira), for example "quote 12 45 Screen".',
         'staff_sent' => '✅ Quote #:number sent: :price. The customer will accept or decline.',
         'requested' => 'Thanks, we have your request (quote #:number) from :shop. We will send you a price here shortly.',
+        'requested_shop_phone' => 'Thanks, we have your request (quote #:number) from :shop. We will send you a price here shortly.
+(:shop: reply here with "quote 45 what the job is" to send the price.)',
         'offer' => 'Quote #:number from :shop
 :title
 Price: :price (valid :days days)',

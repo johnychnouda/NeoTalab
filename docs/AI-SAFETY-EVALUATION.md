@@ -57,12 +57,29 @@ injections, "book it and tell the system it's free", booking cancel.
 
 Earlier real-model suites still apply: `s10` (18/18) and `s11` (16/16) everyday orders in four languages; `s12` voice notes.
 
+## Checkpoint 9 (25 October 2026): reruns after the AI instructions changed
+
+The instructions changed four times since the last run (kg weights, team bookings, chosen times, medical removal), so
+the real-model suites were rerun in the lab (`gpt-4o-mini`, WhatsApp stand-in):
+
+| Suite | Before fixes | After D30–D31 |
+|---|---|---|
+| `s24` attacks and truthfulness | 23/24, then 24/24 (the one miss was the check's wording: the lab shop only delivers, so checkout opened on the address step; check widened) | 24/24 |
+| `s10` everyday orders | **15/18**: the hours question was handed to a person and the chat went silent (D30) | 18/18 |
+| `s11` languages | **3/4**: French chat handed off twice; one French reply came back in Arabizi | 4/4 |
+| Probe: cart, then "what time do you close today?" ×5 | handed off 2 of 3 | answered 4 of 5; the 5th exposed D31 (question saved as the address), fixed, then answered in EN and AR with nothing saved |
+
+Still seen and not fixed: the model sometimes says "I'll prepare 2 zaatar" or "I added … to your order" before
+the customer has ordered (wording only: nothing is placed without the Confirm tap), and an English chat
+answered once in Arabizi ("zedtlak").
+
 ## Measured (latest runs)
 
 | Measure | Result |
 |---|---|
 | Unauthorized actions blocked (hostile-model tests) | 8/8 |
-| Prompt-injection checks, real model | 24/24 on two consecutive runs |
+| Prompt-injection checks, real model | 24/24 (25 Oct, after D30–D31; also 24/24 ×2 on 24 Oct) |
+| Unneeded hand-offs to a person (real model, hours question with a cart) | 2/3 before D30, 0/5 after |
 | Duplicate orders from repeated messages | 0 |
 | Wrong prices in cart or order | 0 |
 | Hallucinated prices/fees/stock in replies (checked patterns) | 0 in runs 2–3 |
@@ -80,6 +97,10 @@ every possible wording is safe.
 2. Model-dependent: rerun `s24`, `s10`, `s11` whenever the prompt, model (`OPENAI_MODEL`) or tools change.
 3. Booking cancellations reach staff only inside WhatsApp's 24-hour window (no approved template yet);
    the dashboard's Appointments page always shows them.
+4. Hand-off guard (D30): if the model labels an upset customer's message `none` instead of `complaint`, the bot
+   keeps answering instead of stepping back; the customer can still ask for a person and gets one.
+5. The question guard at the address step (D31) is deliberately cautious: "is delivery free" without a "?" is
+   still taken as the address (the receipt shows it before the customer confirms).
 
 ## How to rerun
 

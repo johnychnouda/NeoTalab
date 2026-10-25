@@ -303,4 +303,21 @@ class AiActionSafetyTest extends TestCase
 
         $this->assertSame('checkout', $output->recommendedAction->value, 'the button receipt asks the customer to confirm');
     }
+
+    public function test_the_real_model_hands_off_only_when_the_customer_asked_for_a_person(): void
+    {
+        config(['ai.openai.api_key' => 'test-key']);
+        $reply = fn (string $reason) => ['model' => 'gpt-4o-mini', 'usage' => [], 'choices' => [['message' => ['content' => json_encode([
+            'intent' => 'inquiry', 'confidence' => 1, 'entities' => [], 'cart_actions' => [], 'conversation_state' => ['phase' => 'ordering'],
+            'missing_fields' => [], 'recommended_action' => 'handoff', 'handoff_reason' => $reason, 'assistant_message' => 'I can connect you with the team for that.',
+            'checkout' => null, 'appointment' => null,
+        ])]]]];
+        Http::fake(['api.openai.com/*' => Http::sequence()->push($reply('none'))->push($reply('customer_asked_for_person'))]);
+        $ask = fn (string $message) => app(OpenAiCompatibleChatProvider::class)->processTurn(new ConversationTurnInput(
+            message: $message, locale: 'en', history: [], catalog: [], cartLines: [], conversationPhase: 'ordering', shop: ['name' => 'Beirut Bites'],
+        ));
+
+        $this->assertSame('none', $ask('what time do you close today?')->recommendedAction->value, 'a question keeps the bot answering');
+        $this->assertSame('handoff', $ask('can I talk to someone please')->recommendedAction->value);
+    }
 }
