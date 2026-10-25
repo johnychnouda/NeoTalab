@@ -26,8 +26,8 @@ is proof on the live outside services and a tested production restore.
 3. **Uptime alert not set up** (needs the owner's UptimeRobot account).
 
 ### Before a wider launch
-- Laravel 12 security support ends **24 Feb 2027**: the upgrade to 13 is **done and tested on branch `upgrade/laravel-13`**
-  (515/515 on PHP 8.4 and 8.5, SQLite and MySQL); merge it after a run on a Railway test environment.
+- Laravel 12 security support ends **24 Feb 2027**: the upgrade to 13 is **done and merged into `main` (25 Oct, CI run #148 green)**
+  (515/515 on PHP 8.4 and 8.5, SQLite and MySQL). Merged without a separate Railway test environment, at the owner's request.
 - Pin the Node version for the web build (CI uses 22, Railway is unpinned).
 - Free-text AI replies are not checked against the data (see AI report).
 
