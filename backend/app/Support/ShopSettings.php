@@ -35,6 +35,7 @@ final class ShopSettings
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
         'scheduled_orders' => [false, 'bool'], // customers pick a delivery/pickup day and time (florists, cakes)
         'gift_orders' => [false, 'bool'],      // customers can send it to someone else, with a card message
+        'quotes' => [false, 'bool'],           // repair / custom work: the customer asks for a price, the shop sends it
     ];
 
     public function __construct(private readonly array $settings) {}
@@ -204,6 +205,7 @@ final class ShopSettings
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
             'scheduled_orders' => ['sometimes', 'boolean'],
             'gift_orders' => ['sometimes', 'boolean'],
+            'quotes' => ['sometimes', 'boolean'],
         ];
     }
 }

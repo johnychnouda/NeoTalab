@@ -70,6 +70,14 @@ final class BusinessKind
 
     public const HEALTH_KEEP_DAYS = 30;
 
+    /** Shops that quote a price for each job: repairs and custom work (laundry, tailoring, repairs). */
+    public static function quotes(Merchant $merchant): bool
+    {
+        // Laundry and any shop that switched it on in its settings (repairs, tailoring, custom work).
+        return (bool) (($merchant->settings ?? [])['quotes'] ?? false)
+            || (string) $merchant->business_type === 'Laundry / Dry cleaning';
+    }
+
     public static function menuWord(Merchant $merchant): string
     {
         return self::KINDS[self::of($merchant)][0];

@@ -314,4 +314,24 @@ return [
     'privacy' => [
         'health_note' => '🔒 Merci de ne pas envoyer de détails médicaux ni de résultats d\'analyses ici : nous avons seulement besoin de ce que vous voulez et quand.',
     ],
+    'quote' => [
+        'staff_none' => 'Aucune demande de devis ouverte avec ce numéro.',
+        'staff_bad_price' => 'Ce prix n’est pas valable (un nombre entre 0,01 et 100 000).',
+        'staff_sent' => '✅ Devis n° :number envoyé : :price. Le client acceptera ou refusera.',
+        'requested' => 'Merci, nous avons votre demande (devis n° :number) chez :shop. Nous vous enverrons un prix ici très vite.',
+        'offer' => 'Devis n° :number de :shop
+:title
+Prix : :price (valable :days jours)',
+        'btn_accept' => '✅ Accepter',
+        'btn_decline' => '❌ Non merci',
+        'accepted' => '✅ Merci ! La commande n° :number est confirmée : :title, :price. :when',
+        'declined' => 'Bien noté. :shop sait que vous avez refusé.',
+        'not_open' => 'Ce devis n’est plus ouvert.',
+        'staff_request' => '🔧 Nouvelle demande n° :number de :phone :
+:text
+Tapez « devis :number 45 description du travail » pour envoyer un prix.',
+        'staff_declined' => '❌ :phone a refusé le devis n° :number.',
+        'order_note' => 'Du devis n° :number',
+        'ask' => 'Dites-nous ce qui doit être réparé ou fabriqué, avec les détails (taille, modèle, description de la photo). Nous enverrons un prix.',
+    ],
 ];

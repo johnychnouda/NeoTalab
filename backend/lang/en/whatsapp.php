@@ -320,4 +320,24 @@ return [
     'privacy' => [
         'health_note' => '🔒 Please don\'t send medical details or test results in this chat: we only need what you want and when.',
     ],
+    'quote' => [
+        'staff_none' => 'No open quote request with that number. Type "quote <number> <price> <what>" for a request in this list.',
+        'staff_bad_price' => 'That price is not valid (use a number above 0.01 and below 100000).',
+        'staff_sent' => '✅ Quote #:number sent: :price. The customer will accept or decline.',
+        'requested' => 'Thanks, we have your request (quote #:number) from :shop. We will send you a price here shortly.',
+        'offer' => 'Quote #:number from :shop
+:title
+Price: :price (valid :days days)',
+        'btn_accept' => '✅ Accept',
+        'btn_decline' => '❌ No thanks',
+        'accepted' => '✅ Thank you! Order #:number is confirmed: :title, :price. :when',
+        'declined' => 'Understood. :shop has noted that you declined.',
+        'not_open' => 'That quote is no longer open.',
+        'staff_request' => '🔧 New request #:number from :phone:
+:text
+Type "quote :number 45 what the job is" to send a price.',
+        'staff_declined' => '❌ Quote #:number was declined by :phone.',
+        'order_note' => 'From quote #:number',
+        'ask' => 'Tell us what needs fixing or making, and any details (size, model, photo description). We will send a price.',
+    ],
 ];

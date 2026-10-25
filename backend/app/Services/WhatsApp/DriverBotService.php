@@ -8,10 +8,12 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Quote;
 use App\Services\DriverDispatcher;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
 use App\Services\OrderTiming;
+use App\Services\QuoteService;
 use App\Support\Money;
 use App\Support\OrderMessage;
 use Illuminate\Support\Facades\Log;
@@ -101,6 +103,11 @@ class DriverBotService
 
         // "refunded 128": the shop has sent the money back to a customer whose cancelled Whish order was paid.
         $typed = trim((string) ($msg['text']['body'] ?? ''));
+
+        // "quote 12 45 Screen replacement" (or the shop's ticket "quote 45 …"): the price for a customer's request.
+        if ($buttonId === '' && ($quote = QuoteService::parse($typed, true)) !== null) {
+            return $this->sendQuote($merchant, $quote, $locale);
+        }
         if (preg_match('/^(?:refunded|refund done|مسترد|remboursé|rembourse)\s*#?\s*(\d+)$/iu', $typed, $m)) {
             $order = Order::query()->where('number', (int) $m[1])->where('payment_status', 'refund_due')->first();
             if (! $order) {
@@ -237,6 +244,25 @@ class DriverBotService
         }
 
         return __($approve ? 'whatsapp.check.staff_approved' : 'whatsapp.check.staff_refused', ['item' => $product->name, 'phone' => OrderMessage::phone($customer->phone)], $locale);
+    }
+
+    /** The shop's price for the customer's latest open request; the reply is for the staff member. */
+    protected function sendQuote(Merchant $merchant, array $quote, string $locale): string
+    {
+        $request = $quote['number'] !== null
+            ? Quote::query()->where('number', $quote['number'])->first()
+            : Quote::query()->where('status', 'requested')->latest()->first();
+        if (! $request || ! in_array($request->status, ['requested', 'sent'], true)) {
+            return __('whatsapp.quote.staff_none', [], $locale);
+        }
+        if ($quote['price'] < 1 || $quote['price'] > 100000) {
+            return __('whatsapp.quote.staff_bad_price', [], $locale);
+        }
+        $sent = app(QuoteService::class)->send($merchant, $request, $quote['price'], $quote['title']);
+
+        return $sent
+            ? __('whatsapp.quote.staff_sent', ['number' => $sent->number, 'price' => Money::format((float) $sent->price, $merchant->currency)], $locale)
+            : __('whatsapp.quote.staff_none', [], $locale);
     }
 
     protected function startShift(Driver $driver, string $locale): string

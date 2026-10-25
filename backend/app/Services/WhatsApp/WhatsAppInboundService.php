@@ -17,6 +17,8 @@ use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
+use App\Services\QuoteService;
+use App\Support\BusinessKind;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
@@ -312,6 +314,21 @@ class WhatsAppInboundService
                 if ($text !== '') {
                     $this->reply($merchant, $fromPhone, $text);
                 }
+
+                return;
+            }
+
+            // Accept / No thanks under a repair quote.
+            if ($buttonId !== null && preg_match('/^qt:(yes|no):(.+)$/', $buttonId, $qm)) {
+                [$text, $order] = app(QuoteService::class)->answer($merchant, $conversation->customer, $qm[2], $qm[1] === 'yes');
+                $this->reply($merchant, $fromPhone, $text);
+
+                return;
+            }
+
+            // "I need a quote" (repair shops): the request goes to the staff, the customer waits for the price.
+            if ($buttonId === null && $text !== null && $this->wantsQuote($merchant, $text)) {
+                $this->reply($merchant, $fromPhone, app(QuoteService::class)->request($merchant, $conversation, $text));
 
                 return;
             }
@@ -690,6 +707,17 @@ class WhatsAppInboundService
             'name' => (string) ($loc['name'] ?? ''),
             'address' => trim(implode(', ', array_filter([(string) ($loc['name'] ?? ''), (string) ($loc['address'] ?? '')]))),
         ];
+    }
+
+    /**
+     * A customer asks for a price ("quote", "devis", "سعر") in a shop that takes repair or custom work.
+     * Other shops answer the same words as before (their menu).
+     */
+    protected function wantsQuote(Merchant $merchant, string $text): bool
+    {
+        return BusinessKind::quotes($merchant)
+            && (bool) preg_match('/^\s*(quote|price|how much to (fix|repair|make)|devis|سعر|تسعيرة|تقدير)\b/iu', $text)
+            && mb_strlen(trim($text)) >= 12;
     }
 
     protected function reply(Merchant $merchant, string $toPhone, string $text): void
