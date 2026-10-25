@@ -41,10 +41,7 @@ the automated suite only; nothing destructive was run against production.
 
 ## Open items (need the owner)
 
-1. **Old local secrets file**: `deploy/secrets-for-render.env` (git-ignored, never committed) still holds an
-   `APP_KEY` and database settings from the old Render setup. If that key is the one production uses, anyone
-   with this computer's files can read the encrypted shop tokens. Delete the file if it is no longer needed and
-   confirm the production `APP_KEY` is different.
+1. (Closed 25 Oct: the old `deploy/secrets-for-render.env` is no longer on this computer. Not checked: whether its `APP_KEY` was the one production uses; if it was, rotate it.)
 2. (Closed 25 Oct: pharmacies and clinics are no longer accepted, so health details are no longer collected on purpose.)
 3. Database user privileges on Railway: not checked (needs the Railway console).
 4. Railway forwarded-address header: still unconfirmed (see status); the sign-in limits no longer depend on it.
