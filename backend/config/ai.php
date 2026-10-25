@@ -38,7 +38,7 @@ return [
     /*
     | Big catalogs: up to full_max active items the AI sees the whole catalog; above that it gets
     | only the items matching the conversation (at most max_items, topped up with best sellers
-    | to min_items) — faster, cheaper and more accurate for supermarkets and pharmacies.
+    | to min_items) — faster, cheaper and more accurate for supermarkets and big shops.
     */
     'catalog' => [
         'full_max' => (int) env('AI_CATALOG_FULL_MAX', 80),

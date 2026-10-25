@@ -183,8 +183,8 @@ class ChatMenu
     }
 
     /**
-     * An item the team must check first (prescription, age): never added by the bot. The customer
-     * is asked for a photo of the prescription; the staff get Approve / Refuse buttons, or, with
+     * An item the team must check first (for example an age limit): never added by the bot. The
+     * customer is asked to wait; the staff get Approve / Refuse buttons, or, with
      * only the shop phone, whoever holds it types ✅ or ❌ in this chat.
      *
      * @return array<string, mixed>

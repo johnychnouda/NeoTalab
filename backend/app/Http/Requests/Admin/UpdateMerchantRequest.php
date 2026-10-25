@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\BusinessKind;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateMerchantRequest extends FormRequest
@@ -40,8 +41,8 @@ class UpdateMerchantRequest extends FormRequest
             'defaultLocale' => ['sometimes', 'string', 'max:5'],
             'default_locale' => ['sometimes', 'string', 'max:5'],
             'locale' => ['sometimes', 'string', 'max:5'],
-            'businessType' => ['sometimes', 'string', 'max:60'],
-            'business_type' => ['sometimes', 'string', 'max:60'],
+            'businessType' => ['sometimes', 'string', 'max:60', BusinessKind::notBlocked()],
+            'business_type' => ['sometimes', 'string', 'max:60', BusinessKind::notBlocked()],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'street' => ['sometimes', 'nullable', 'string', 'max:255'],

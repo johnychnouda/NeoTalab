@@ -14,7 +14,6 @@ final class BusinessKind
     public const KINDS = [
         'restaurant' => ['menu', 'minutes', 'orders', ['Extras'], []],
         'grocery' => ['products', 'minutes', 'orders', [], ['piece', 'kg', 'pack']],
-        'pharmacy' => ['products', 'minutes', 'orders', [], ['piece', 'box', 'pack']],
         'retail' => ['catalogue', 'days', 'orders', ['Color'], []],
         'flowers' => ['products', 'hours', 'orders', ['Color'], []],
         'water' => ['products', 'hours', 'orders', [], ['gallon', 'cylinder', 'pack']],
@@ -29,7 +28,6 @@ final class BusinessKind
         'Bakery / Sweets' => 'restaurant',
         'Supermarket / Grocery' => 'grocery',
         'Butcher / Fruits & Vegetables' => 'grocery',
-        'Pharmacy' => 'pharmacy',
         'Clothing / Shoes' => 'retail',
         'Boutique / Clothing' => 'retail',
         'Electronics / Phones' => 'retail',
@@ -39,7 +37,6 @@ final class BusinessKind
         'Water / Gas delivery' => 'water',
         'Laundry / Dry cleaning' => 'laundry',
         'Salon / Barber / Beauty' => 'services',
-        'Clinic / Dentist' => 'services',
         'Pet Shop' => 'retail',
         'Home & Furniture' => 'retail',
         'General Retail' => 'retail',
@@ -56,19 +53,27 @@ final class BusinessKind
         return self::TYPES[(string) $merchant->business_type] ?? 'other';
     }
 
-    /** Business types whose customers may write about their health. */
-    public const HEALTH_TYPES = ['Clinic / Dentist', 'Pharmacy'];
-
     /**
-     * Pharmacies and clinics: the assistant never asks for medical details, the first reply asks the
-     * customer not to send them, and chat text is erased after HEALTH_KEEP_DAYS (`chats:forget`).
+     * Medical businesses are not on the platform (no clinics, dentists, doctors or pharmacies).
+     * New sign-ups with these types are refused by the server, not only hidden on the website.
      */
-    public static function isHealth(Merchant $merchant): bool
+    public const BLOCKED_TYPES = ['Pharmacy', 'Clinic / Dentist'];
+
+    /** A validation rule: the type must not be a medical business. */
+    public static function notBlocked(): \Closure
     {
-        return self::of($merchant) === 'pharmacy' || in_array((string) $merchant->business_type, self::HEALTH_TYPES, true);
+        return function (string $attribute, mixed $value, \Closure $fail) {
+            if (is_string($value) && self::blocked($value)) {
+                $fail('Medical businesses (clinics, dentists, doctors, pharmacies) are not supported on NeoTalab.');
+            }
+        };
     }
 
-    public const HEALTH_KEEP_DAYS = 30;
+    public static function blocked(string $type): bool
+    {
+        return in_array(mb_strtolower(trim($type)), array_map('mb_strtolower', self::BLOCKED_TYPES), true)
+            || in_array(mb_strtolower(trim($type)), ['pharmacy', 'clinic', 'clinic / dentist', 'dentist', 'doctor', 'pharmacie', 'clinique'], true);
+    }
 
     /** Shops that quote a price for each job: repairs and custom work (laundry, tailoring, repairs). */
     public static function quotes(Merchant $merchant): bool

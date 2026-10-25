@@ -961,7 +961,7 @@ class WhatsAppOperationsTest extends TestCase
 
     public function test_pickup_shop_takes_orders_without_address_or_driver(): void
     {
-        $this->shopSettings(['fulfillment' => 'pickup', 'pickup_address' => 'Hamra St, next to the pharmacy']);
+        $this->shopSettings(['fulfillment' => 'pickup', 'pickup_address' => 'Hamra St, next to the bakery']);
         $rami = $this->driver();
 
         $order = $this->order(confirm: 'confirm');
@@ -970,7 +970,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertNull($order->driver_id, 'pickup orders never go to a driver');
         $this->assertEquals(0.0, (float) $order->delivery_fee);
         $this->assertStringContainsString('ready for pickup around', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('at Hamra St, next to the pharmacy', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('at Hamra St, next to the bakery', $this->lastTo(self::CUSTOMER));
         $this->assertSame([], $this->sentTo($rami->whatsapp_number));
     }
 

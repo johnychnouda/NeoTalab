@@ -306,8 +306,8 @@ return [
         'staff_closed' => 'This booking for :service was already cancelled or closed, so it was not changed.',
     ],
     'check' => [
-        'ask' => '💊 ":item" needs a check by our team first (for example a prescription). Please send a photo of your prescription here and the team will answer you in this chat.',
-        'staff' => "💊 :phone asked for \":item\", which needs your check (prescription, age). They were asked to send a photo in the chat.\nApprove to let them order it today, or refuse.",
+        'ask' => '💊 :item needs a check by our team first. Please wait here, and the team will answer you in this chat.',
+        'staff' => '💊 :phone asked for ":item", which needs your check. Approve to let them order it today, or refuse.',
         'alert' => ':phone asked for :item, which needs a check',
         'button_approve' => '✅ Approve',
         'button_refuse' => '❌ Refuse',
@@ -318,7 +318,6 @@ return [
         'staff_refused' => '":item" refused for :phone. The customer was told.',
     ],
     'privacy' => [
-        'health_note' => '🔒 Please don\'t send medical details or test results in this chat: we only need what you want and when.',
     ],
     'quote' => [
         'staff_none' => 'No open quote request with that number. Type "quote <number> <price> <what>" for a request in this list.',

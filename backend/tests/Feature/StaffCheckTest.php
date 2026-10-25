@@ -21,7 +21,7 @@ use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
 /**
- * Pharmacies: an item the team must check first (prescription, age) is never sold by the bot. The
+ * An item the team must check first (for example an age limit) is never sold by the bot. The
  * customer is asked for a photo; the staff (or whoever holds the shop phone) approve or refuse.
  */
 class StaffCheckTest extends TestCase
@@ -47,16 +47,16 @@ class StaffCheckTest extends TestCase
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
 
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
-            'name' => 'City Pharmacy', 'currency' => 'USD', 'timezone' => 'Asia/Beirut', 'business_type' => 'Pharmacy',
+            'name' => 'City Grocer', 'currency' => 'USD', 'timezone' => 'Asia/Beirut', 'business_type' => 'Supermarket / Grocery',
             'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto', 'fulfillment' => 'pickup'],
         ]);
-        $this->antibiotic = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Amoxicillin', 'price' => 6, 'staff_check' => true]);
-        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Panadol', 'price' => 3]);
+        $this->antibiotic = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cigarettes', 'price' => 6, 'staff_check' => true]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Biscuits', 'price' => 3]);
     }
 
     private function staff(): void
     {
-        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Pharmacist', 'role' => 'staff', 'phone' => self::STAFF,
+        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'phone' => self::STAFF,
             'whatsapp_number' => self::STAFF, 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
         $this->staffWroteToShop($this->merchant, self::STAFF);
     }
@@ -111,27 +111,27 @@ class StaffCheckTest extends TestCase
         return (int) $this->customer()->conversations()->withoutGlobalScopes()->latest()->first()?->cart?->items()->withoutGlobalScopes()->count();
     }
 
-    public function test_the_bot_asks_for_the_prescription_and_the_staff_get_approve_and_refuse(): void
+    public function test_the_bot_asks_for_the_check_and_the_staff_get_approve_and_refuse(): void
     {
         $this->staff();
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
 
         $this->assertSame(0, $this->cartCount(), 'never added without the team');
         $this->assertStringContainsString('needs a check by our team', $this->body($this->lastTo(self::CUSTOMER)));
         $ticket = $this->lastTo(self::STAFF);
-        $this->assertStringContainsString('Amoxicillin', $this->body($ticket));
+        $this->assertStringContainsString('Cigarettes', $this->body($ticket));
         $this->assertSame("stf:approve:{$this->customer()->id}:{$this->antibiotic->id}", $ticket['interactive']['action']['buttons'][0]['reply']['id']);
         $this->assertSame((string) $this->antibiotic->id, $this->customer()->hasPendingCheck());
 
         // Ordinary items still go straight in.
-        $this->say('add 1 Panadol');
+        $this->say('add 1 Biscuits');
         $this->assertSame(1, $this->cartCount());
     }
 
     public function test_after_approval_the_customer_orders_it_once(): void
     {
         $this->staff();
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         $this->tap("stf:approve:{$this->customer()->id}:{$this->antibiotic->id}", self::STAFF);
 
         $told = $this->lastTo(self::CUSTOMER);
@@ -148,14 +148,14 @@ class StaffCheckTest extends TestCase
         $this->assertFalse($this->customer()->isApproved($this->antibiotic->id), 'one approval, one order');
 
         Carbon::setTestNow(now()->addMinute()); // the next conversation is the latest one
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         $this->assertSame(0, $this->cartCount(), 'a new order needs a new check');
     }
 
     public function test_a_refusal_is_told_to_the_customer_and_nothing_is_added(): void
     {
         $this->staff();
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         $this->tap("stf:refuse:{$this->customer()->id}:{$this->antibiotic->id}", self::STAFF);
 
         $this->assertStringContainsString('could not approve', $this->body($this->lastTo(self::CUSTOMER)));
@@ -166,7 +166,7 @@ class StaffCheckTest extends TestCase
 
     public function test_with_only_the_shop_phone_a_typed_tick_approves(): void
     {
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         $this->echo('✅');
 
         $this->assertTrue($this->customer()->isApproved($this->antibiotic->id));
@@ -176,7 +176,7 @@ class StaffCheckTest extends TestCase
     public function test_an_approval_ends_after_a_day(): void
     {
         $this->staff();
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         $this->tap("stf:approve:{$this->customer()->id}:{$this->antibiotic->id}", self::STAFF);
         $this->tap("mn:item:{$this->antibiotic->id}");
         $this->tap('mn:qty:1');
@@ -188,7 +188,7 @@ class StaffCheckTest extends TestCase
 
     public function test_another_shops_staff_cannot_approve(): void
     {
-        $this->say('add 1 Amoxicillin');
+        $this->say('add 1 Cigarettes');
         [$other] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['settings' => ['bot' => ['phone_id' => '556'], 'mode' => 'auto']]);
         Driver::query()->forceCreate(['merchant_id' => $other->id, 'name' => 'x', 'role' => 'staff', 'phone' => '+96171000009',
             'whatsapp_number' => '+96171000009', 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
@@ -201,11 +201,11 @@ class StaffCheckTest extends TestCase
         $this->assertFalse($this->customer()->isApproved($this->antibiotic->id));
     }
 
-    public function test_a_menu_file_can_mark_items_that_need_a_prescription(): void
+    public function test_a_menu_file_can_mark_items_that_need_a_check(): void
     {
         app(CurrentTenant::class)->set($this->merchant);
         $service = app(MenuImportService::class);
-        $rows = [['Name', 'Price', 'Prescription'], ['Augmentin', '9', 'yes'], ['Vitamin C', '4', 'no']];
+        $rows = [['Name', 'Price', 'Team check'], ['Cigarettes', '9', 'yes'], ['Biscuits', '4', 'no']];
         $file = tempnam(sys_get_temp_dir(), 'menu').'.csv';
         $handle = fopen($file, 'w');
         foreach ($rows as $row) {
@@ -216,7 +216,7 @@ class StaffCheckTest extends TestCase
         $preview = $service->preview(new UploadedFile($file, 'menu.csv', 'text/csv', null, true));
         $service->import($preview);
 
-        $this->assertTrue((bool) Product::query()->where('name', 'Augmentin')->value('staff_check'));
-        $this->assertFalse((bool) Product::query()->where('name', 'Vitamin C')->value('staff_check'));
+        $this->assertTrue((bool) Product::query()->where('name', 'Cigarettes')->value('staff_check'));
+        $this->assertFalse((bool) Product::query()->where('name', 'Biscuits')->value('staff_check'));
     }
 }

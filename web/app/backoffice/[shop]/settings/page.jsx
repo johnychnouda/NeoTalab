@@ -445,7 +445,7 @@ function PwInput({ id, value, onChange, shown, onToggle, autoComplete, invalid, 
 }
 
 /**
- * Stylists, barbers, doctors customers can book with by name. Each has their own calendar; with
+ * Stylists and barbers customers can book with by name. Each has their own calendar; with
  * nobody listed the shop books by "customers at the same time". Saved right away.
  */
 function TeamCard({ api, t, toast }) {

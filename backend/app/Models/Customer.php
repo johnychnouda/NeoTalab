@@ -67,10 +67,10 @@ class Customer extends Model
         $this->forceFill(['addresses' => array_slice($saved, 0, self::MAX_SAVED_ADDRESSES)])->save();
     }
 
-    /** Approval lasts a day: long enough to order, short enough that an old prescription is checked again. */
+    /** Approval lasts a day: long enough to order, short enough that an old check is done again. */
     public const APPROVAL_HOURS = 24;
 
-    /** Whether the team approved this item for this customer (prescription seen, age checked). */
+    /** Whether the team approved this item for this customer (age checked). */
     public function isApproved(string $productId): bool
     {
         $value = ($this->approvals ?? [])[$productId] ?? null;

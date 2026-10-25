@@ -218,7 +218,7 @@ class DriverBotService
     }
 
     /**
-     * The team approved (prescription seen) or refused an item for a customer: the customer is told
+     * The team approved or refused an item for a customer: the customer is told
      * and, when approved, gets a button to add it (the approval lasts a day, for one order).
      */
     public function answerCheck(Merchant $merchant, Customer $customer, Product $product, bool $approve, string $locale): string

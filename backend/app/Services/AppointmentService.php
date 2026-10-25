@@ -83,7 +83,7 @@ class AppointmentService
     }
 
     /**
-     * The people who do this service (stylists, doctors). Empty: the shop books by capacity only.
+     * The people who do this service (stylists, barbers). Empty: the shop books by capacity only.
      *
      * @return Collection<int, ServiceProvider>
      */

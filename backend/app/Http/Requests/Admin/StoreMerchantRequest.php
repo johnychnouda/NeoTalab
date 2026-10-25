@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\BusinessKind;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreMerchantRequest extends FormRequest
@@ -14,7 +15,7 @@ class StoreMerchantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'business_type' => ['nullable', 'string', 'max:60'],
+            'business_type' => ['nullable', 'string', 'max:60', BusinessKind::notBlocked()],
             'business_name' => ['required', 'string', 'max:150'],
             'locale' => ['nullable', 'string', 'max:5'],
             'currency' => ['nullable', 'string', 'size:3'],

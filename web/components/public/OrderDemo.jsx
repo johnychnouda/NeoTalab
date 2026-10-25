@@ -87,7 +87,7 @@ export default function OrderDemo({ demo }) {
   const shop = demo.scenarios[scenarioIndex];
   const [mode, setMode] = useState(shop.defaultMode);
   const [pay, setPay] = useState("whish");
-  // Salons and clinics take bookings, so there is nothing to pick.
+  // Salons take bookings, so there is nothing to pick.
   const scenario = shop.booking || shop[mode][pay];
   const { messages, chats } = scenario;
 

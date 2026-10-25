@@ -51,7 +51,7 @@ class WhatsAppInboundService
     /** WhatsApp profile names in the payload being handled, by number (digits only). */
     protected array $profileNames = [];
 
-    /** Customers send these to ask about something (a medicine box, a prescription, "do you have this?"). */
+    /** Customers send these to ask about something (a product, a document, "do you have this?"). */
     public const PHOTO_TYPES = ['image', 'video', 'document'];
 
     /** Message types the assistant can't read: answered with a polite note and the menu. */
@@ -535,7 +535,7 @@ class WhatsAppInboundService
             ->first();
 
         if (! $order) {
-            // No order waiting: ✅ / ❌ answers a check the customer is waiting for (prescription seen).
+            // No order waiting: ✅ / ❌ answers a check the customer is waiting for.
             $customer = Customer::query()->where('phone', $customerPhone)->first();
             $productId = $customer?->hasPendingCheck();
             $product = $productId ? Product::query()->find($productId) : null;

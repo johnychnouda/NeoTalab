@@ -76,7 +76,6 @@ function PrivacyPageEn() {
         <li>Conversation history used by the assistant is limited to the most recent messages of each chat.</li>
         <li>Orders, bookings and customer records are kept while the merchant uses {company.brand} so the merchant can serve and support its customers, and deleted within 90 days after the merchant&apos;s account is closed.</li>
         <li>Login sessions expire after 30 days. Server logs are kept for a limited period for security.</li>
-        <li>Pharmacies and clinics: the assistant never asks for medical details and asks customers not to send them. Chat text with these businesses is erased after 30 days; prescription photos stay in the business&apos;s WhatsApp and are not stored by {company.brand}. Orders and bookings are kept as above.</li>
       </ul>
 
       <h2 id="analytics">Website analytics and cookies</h2>
@@ -161,7 +160,6 @@ function PrivacyPageAr({ p }) {
         <li>يقتصر سجلّ المحادثة الذي يستخدمه المساعد على أحدث الرسائل في كل محادثة.</li>
         <li>نحتفظ بالطلبات والحجوزات وسجلات الزبائن طوال استخدام التاجر لـ {b} ليتمكّن من خدمة زبائنه، ونحذفها خلال 90 يومًا من إغلاق حساب التاجر.</li>
         <li>تنتهي جلسات الدخول بعد 30 يومًا. ونحتفظ بسجلات الخادم لفترة محدودة لأغراض الأمان.</li>
-        <li>الصيدليات والعيادات: لا يطلب المساعد أي تفاصيل طبية ويطلب من الزبائن عدم إرسالها. يُحذف نص المحادثات مع هذه الأعمال بعد 30 يومًا، وتبقى صور الوصفات في واتساب العمل ولا يخزّنها {b}. تُحفظ الطلبات والحجوزات كما ورد أعلاه.</li>
       </ul>
 
       <h2 id="analytics">تحليلات الموقع وملفات تعريف الارتباط</h2>
@@ -232,7 +230,6 @@ function PrivacyPageFr({ p }) {
         <li>L&apos;historique utilisé par l&apos;assistant se limite aux messages les plus récents de chaque discussion.</li>
         <li>Commandes, réservations et fiches clients sont conservées tant que le commerçant utilise {b}, puis supprimées dans les 90 jours suivant la fermeture de son compte.</li>
         <li>Les sessions expirent après 30 jours. Les journaux serveur sont conservés pour une durée limitée à des fins de sécurité.</li>
-        <li>Pharmacies et cliniques : l&apos;assistant ne demande jamais de détails médicaux et invite les clients à ne pas en envoyer. Le texte des discussions avec ces commerces est effacé après 30 jours ; les photos d&apos;ordonnance restent dans le WhatsApp du commerce et ne sont pas stockées par {b}. Les commandes et réservations sont conservées comme ci-dessus.</li>
       </ul>
 
       <h2 id="analytics">Statistiques du site et cookies</h2>

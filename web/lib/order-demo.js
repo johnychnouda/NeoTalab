@@ -1,7 +1,7 @@
 // The homepage demo: real NeoTalab conversations for each kind of shop, on the phones of the
 // customer, the shop and the driver. The bot's messages are its real texts; each kind of shop
 // follows its own flow: food and groceries in minutes with a driver, flowers and water in hours,
-// shops counting in days deliver themselves, and salons and clinics take bookings.
+// shops counting in days deliver themselves, and salons take bookings.
 //
 // A message is [chat, text, extras]:
 //   lower-case chat = sent by the shop's NeoTalab number, upper-case = sent by that phone's owner
@@ -111,18 +111,6 @@ const SHOPS = [
     ],
   },
   {
-    id: "pharmacy", icon: "💊", menu: "products", kind: "minutes", prep: 10, travel: 20, fee: 1,
-    label: { en: "Pharmacy", ar: "صيدلية", fr: "Pharmacie" },
-    shop: { en: "Pharmacie Al Shifa", ar: "صيدلية الشفاء", fr: "Pharmacie Al Shifa" },
-    town: { en: "Achrafieh", ar: "الأشرفية", fr: "Achrafieh" },
-    address: { en: "Sursock street, building 12, 3rd floor", ar: "شارع سرسق، بناية 12، الطابق الثالث", fr: "Rue Sursock, immeuble 12, 3e étage" },
-    shopAddress: { en: "Achrafieh, Sassine square", ar: "الأشرفية، ساحة ساسين", fr: "Achrafieh, place Sassine" },
-    items: [
-      [1, 4.0, L("Panadol Extra", "Panadol Extra", "Panadol Extra")],
-      [1, 6.0, L("Vitamin C 1000", "فيتامين C 1000", "Vitamine C 1000")],
-    ],
-  },
-  {
     id: "clothing", icon: "👗", menu: "catalogue", kind: "days", prep: [1, 2], fee: 3,
     label: L("Clothing & shoes", "ألبسة وأحذية", "Vêtements"),
     shop: L("Boutique Lina", "بوتيك لينا", "Boutique Lina"),
@@ -190,15 +178,6 @@ const SHOPS = [
     address: { en: "Fouad Chehab street, building Nassar, 4th floor", ar: "شارع فؤاد شهاب، بناية نصار، الطابق الرابع", fr: "Rue Fouad Chehab, immeuble Nassar, 4e étage" },
     shopAddress: { en: "Jounieh, old souk", ar: "جونيه، السوق القديم", fr: "Jounieh, vieux souk" },
     booking: { service: L("Layered haircut", "قصة layers", "Coupe dégradée"), price: 25, slots: ["14:00", "15:30", "16:30", "17:30"], time: "16:30" },
-  },
-  {
-    id: "clinic", icon: "🦷", menu: "services", kind: "booking",
-    label: L("Clinic & dentist", "عيادة وطبيب أسنان", "Clinique et dentiste"),
-    shop: L("Smile Dental", "سمايل دنتال", "Smile Dental"),
-    town: L("Jdeideh", "الجديدة", "Jdeideh"),
-    address: L("Main road, building Nasr, 1st floor", "الطريق العام، بناية نصر، الطابق الأول", "Route principale, immeuble Nasr, 1er étage"),
-    shopAddress: L("Jdeideh, main road", "الجديدة، الطريق العام", "Jdeideh, route principale"),
-    booking: { service: L("Dental check-up", "فحص أسنان", "Contrôle dentaire"), price: 40, slots: ["09:00", "11:30", "14:00", "16:00"], time: "11:30" },
   },
   {
     id: "pets", icon: "🐾", menu: "catalogue", kind: "days", prep: [1, 2], fee: 3,
@@ -591,7 +570,7 @@ function build(shop, lang, delivery, whish) {
 }
 
 // Same order as the business types on the sign-up form.
-const ORDER = ["restaurant", "bakery", "market", "butcher", "pharmacy", "clothing", "electronics", "flowers", "water", "laundry", "salon", "clinic", "pets", "home", "retail"];
+const ORDER = ["restaurant", "bakery", "market", "butcher", "clothing", "electronics", "flowers", "water", "laundry", "salon", "pets", "home", "retail"];
 
 export function orderDemo(lang) {
   const key = UI[lang] ? lang : "en";
@@ -600,7 +579,7 @@ export function orderDemo(lang) {
     scenarios: ORDER.map((id) => {
       const shop = SHOPS.find((s) => s.id === id);
       const base = { id, icon: shop.icon, label: shop.label[key] };
-      // Salons and clinics take bookings; every other shop takes orders, delivered or picked up.
+      // Salons take bookings; every other shop takes orders, delivered or picked up.
       if (shop.kind === "booking") return { ...base, defaultMode: "pickup", booking: build(shop, key, false, false) };
       return {
         ...base,

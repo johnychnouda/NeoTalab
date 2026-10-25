@@ -29,10 +29,10 @@ class MenuImportService
         'description' => ['description', 'details', 'desc', 'الوصف', 'وصف', 'détails'],
         'name_ar' => ['name_ar', 'arabic', 'arabic name', 'الاسم بالعربي', 'بالعربي'],
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
-        // Minutes a service takes (salons, clinics): "duration", "minutes", "mins"…
+        // Minutes a service takes (salons, barbers): "duration", "minutes", "mins"…
         'duration' => ['duration', 'duration mins', 'duration min', 'duration_mins', 'minutes', 'mins', 'min', 'مدة', 'المدة', 'durée', 'duree'],
-        // Pharmacies: "yes" = the team checks it first (prescription, age).
-        'check' => ['prescription', 'rx', 'needs check', 'check', 'staff check', 'وصفة', 'وصفة طبية', 'ordonnance'],
+        // "yes" = the team checks it first (for example an age limit).
+        'check' => ['needs check', 'check', 'staff check', 'team check'],
     ];
 
     /** Set by preview(): true when every price in the file is in Lebanese lira (each item also carries its own "lbp" flag). */

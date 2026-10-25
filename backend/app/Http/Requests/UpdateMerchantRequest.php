@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BusinessKind;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class UpdateMerchantRequest extends FormRequest
         $merchantId = $this->user()?->merchant_id;
 
         return [
-            'business_type' => ['sometimes', 'string', 'max:60'],
+            'business_type' => ['sometimes', 'string', 'max:60', BusinessKind::notBlocked()],
             'name' => ['sometimes', 'string', 'max:150'],
             'name_ar' => ['nullable', 'string', 'max:150'],
             'name_fr' => ['nullable', 'string', 'max:150'],

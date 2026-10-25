@@ -19,7 +19,6 @@ use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
 use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
-use App\Support\BusinessKind;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
@@ -191,12 +190,6 @@ class ConversationService
             default => [Money::fromAiText($output->assistantMessage), null],
         };
 
-        // Pharmacies and clinics: the first answer asks the customer to keep medical details out of the chat.
-        $merchant = app(CurrentTenant::class)->get();
-        if (($state['messages'] ?? []) === [] && $merchant && BusinessKind::isHealth($merchant) && $reply !== '') {
-            $reply .= "\n\n".__('whatsapp.privacy.health_note', [], $conversation->customer->locale ?? 'en');
-        }
-
         $now = now()->toIso8601String();
         $messages = $state['messages'] ?? [];
         $messages[] = ['role' => 'customer', 'content' => $message, 'at' => $now];
@@ -227,7 +220,7 @@ class ConversationService
             // First answer in a conversation, or the customer asked for the menu: attach the menu list.
             'menu_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'appointments'
                 && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
-            // Salons and clinics: the first answer (or a request for the menu) lists the services.
+            // Salons: the first answer (or a request for the menu) lists the services.
             'services_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'orders'
                 && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
         ];
@@ -526,7 +519,7 @@ class ConversationService
         return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);
     }
 
-    /** The stylist / doctor the customer asked for, if they do this service; null = anyone free. */
+    /** The stylist or barber the customer asked for, if they do this service; null = anyone free. */
     private function resolveProvider(?string $id, Product $service): ?ServiceProvider
     {
         $provider = $id ? ServiceProvider::query()->where('is_active', true)->find($id) : null;
@@ -604,7 +597,6 @@ class ConversationService
             'fulfillment' => ShopSettings::for($merchant)->fulfillment(),
             'whish_enabled' => $this->whish->enabled($merchant),
             'business_mode' => ShopSettings::for($merchant)->businessMode(),
-            'health_privacy' => BusinessKind::isHealth($merchant),
             // The checkout asks for the day and time / the recipient and card; the assistant never does.
             'scheduled_orders' => ShopSettings::for($merchant)->scheduledOrders(),
             'gift_orders' => ShopSettings::for($merchant)->giftOrders(),
@@ -612,7 +604,7 @@ class ConversationService
             'services' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : $this->appointments->services()
                 ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])
                 ->values()->all(),
-            // Stylists, barbers, doctors the customer can ask for by name (empty: anyone).
+            // Stylists and barbers the customer can ask for by name (empty: anyone).
             'providers' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : ServiceProvider::query()->where('is_active', true)->orderBy('sort_order')->get()
                 ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name, 'service_ids' => $p->service_ids ?: 'all'])->values()->all(),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),

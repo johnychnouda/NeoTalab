@@ -42,12 +42,12 @@ class PlatformAdminTest extends TestCase
         $admin = $this->platformAdmin();
 
         $this->withToken($this->tokenFor($admin))->postJson('/api/v1/admin/merchants/provision', [
-            'business_name' => 'Pharma One',
-            'business_type' => 'pharmacy',
+            'business_name' => 'Grocer One',
+            'business_type' => 'Supermarket / Grocery',
             'owner_name' => 'Owner One',
             'owner_email' => 'owner@pharma.com',
             'owner_password' => 'password123',
-        ])->assertCreated()->assertJsonPath('data.name', 'Pharma One');
+        ])->assertCreated()->assertJsonPath('data.name', 'Grocer One');
 
         $this->assertDatabaseHas('users', ['email' => 'owner@pharma.com']);
         $owner = User::where('email', 'owner@pharma.com')->firstOrFail();

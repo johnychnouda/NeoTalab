@@ -300,8 +300,8 @@ return [
         'staff_closed' => 'Ce rendez-vous pour :service était déjà annulé ou clôturé, il n\'a donc pas été modifié.',
     ],
     'check' => [
-        'ask' => '💊 « :item » doit d\'abord être validé par notre équipe (par exemple une ordonnance). Envoyez une photo de votre ordonnance ici et l\'équipe vous répondra dans cette conversation.',
-        'staff' => "💊 :phone a demandé « :item », qui doit être validé (ordonnance, âge). On lui a demandé d'envoyer une photo dans la conversation.\nValidez pour qu'il puisse le commander aujourd'hui, ou refusez.",
+        'ask' => '💊 :item doit d\'abord être validé par notre équipe. Patientez ici, l\'équipe vous répondra dans cette conversation.',
+        'staff' => "💊 :phone a demandé « :item », qui doit être validé. Validez pour qu'il puisse le commander aujourd'hui, ou refusez.",
         'alert' => ':phone asked for :item, which needs a check',
         'button_approve' => '✅ Valider',
         'button_refuse' => '❌ Refuser',
@@ -312,7 +312,6 @@ return [
         'staff_refused' => '« :item » refusé pour :phone. Le client a été prévenu.',
     ],
     'privacy' => [
-        'health_note' => '🔒 Merci de ne pas envoyer de détails médicaux ni de résultats d\'analyses ici : nous avons seulement besoin de ce que vous voulez et quand.',
     ],
     'quote' => [
         'staff_none' => 'Aucune demande de devis ouverte avec ce numéro.',

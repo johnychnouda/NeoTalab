@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
-/** Salons, barbers, clinics: customers book with a named person, each with their own calendar. */
+/** Salons and barbers: customers book with a named person, each with their own calendar. */
 class ServiceProviderTest extends TestCase
 {
     use InteractsWithTenants, RefreshDatabase;

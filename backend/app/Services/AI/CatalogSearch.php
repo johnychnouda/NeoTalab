@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Picks the items of a big catalog that match what the customer wrote, so the AI gets a few
- * dozen relevant items instead of the whole shop (a supermarket or pharmacy has thousands).
+ * dozen relevant items instead of the whole shop (a supermarket has thousands).
  * Matching is forgiving: Arabic letter variants, accents, plurals/prefixes and small typos
  * ("shwarma" → "Shawarma"). When few items match, the shop's best sellers fill the list.
  */

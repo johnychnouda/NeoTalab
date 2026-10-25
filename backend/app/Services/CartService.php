@@ -113,7 +113,7 @@ class CartService
             throw new InvalidArgumentException('Services are booked as appointments, not added to the cart.');
         }
 
-        // Prescription medicine, age-limited items: only once the team approved it for this customer.
+        // Items the team must check first (age-limited): only once the team approved it for this customer.
         if ($product->staff_check && ! $cart->conversation?->customer?->isApproved($product->id)) {
             throw new InvalidArgumentException(self::NEEDS_CHECK);
         }

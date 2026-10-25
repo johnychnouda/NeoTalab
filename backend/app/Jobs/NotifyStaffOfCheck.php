@@ -15,7 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * A customer asked for an item the team must check first (prescription, age): the staff get
+ * A customer asked for an item the team must check first (an age limit): the staff get
  * Approve / Refuse buttons. Staff outside the 24-hour window get the person-needed template, and
  * then the bot steps back in that chat, as that template says.
  */

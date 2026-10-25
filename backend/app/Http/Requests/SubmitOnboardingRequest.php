@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BusinessKind;
 use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -41,8 +42,8 @@ class SubmitOnboardingRequest extends FormRequest
             'shop_name' => ['required_without:shopName', 'string', 'max:150'],
             'contactName' => ['required_without:contact_name', 'string', 'max:120'],
             'contact_name' => ['required_without:contactName', 'string', 'max:120'],
-            'businessType' => ['required_without:business_type', 'string', 'max:60'],
-            'business_type' => ['required_without:businessType', 'string', 'max:60'],
+            'businessType' => ['required_without:business_type', 'string', 'max:60', BusinessKind::notBlocked()],
+            'business_type' => ['required_without:businessType', 'string', 'max:60', BusinessKind::notBlocked()],
             'country' => ['required', 'string', Rule::in(Countries::codes())],
             'whatsapp' => ['required', 'string', 'max:30', 'regex:/^\+[1-9]\d{6,14}$/', function (string $attribute, mixed $value, \Closure $fail) {
                 if (in_array($this->input('country'), Countries::codes(), true) && ! Countries::numberMatches($this->input('country'), (string) $value)) {

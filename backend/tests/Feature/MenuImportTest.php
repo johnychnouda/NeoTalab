@@ -317,14 +317,14 @@ class MenuImportTest extends TestCase
         $this->assertNull(Product::query()->where('name', 'Shampoo')->value('duration_mins'), 'no minutes: a plain item');
     }
 
-    public function test_through_the_api_arabic_and_french_names_and_the_prescription_column_are_kept(): void
+    public function test_through_the_api_arabic_and_french_names_and_the_check_column_are_kept(): void
     {
-        $items = $this->preview($this->csv("Name,Arabic name,French name,Price,Prescription\nAugmentin,أوغمنتين,Augmentine,9,yes\n"))->assertOk()->json('items');
+        $items = $this->preview($this->csv("Name,Arabic name,French name,Price,Team check\nCigarettes,سجائر,Cigarettes,9,yes\n"))->assertOk()->json('items');
         $this->withToken($this->token)->postJson('/api/v1/menu/import', ['items' => $items])->assertOk();
 
-        $product = Product::withoutGlobalScopes()->where('name', 'Augmentin')->sole();
-        $this->assertSame('أوغمنتين', $product->name_ar);
-        $this->assertSame('Augmentine', $product->name_fr);
+        $product = Product::withoutGlobalScopes()->where('name', 'Cigarettes')->sole();
+        $this->assertSame('سجائر', $product->name_ar);
+        $this->assertSame('Cigarettes', $product->name_fr);
         $this->assertTrue($product->staff_check);
     }
 }

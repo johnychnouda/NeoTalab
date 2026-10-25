@@ -6,7 +6,7 @@ use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
-/** A person customers book with (stylist, barber, doctor), with their own calendar. */
+/** A person customers book with (stylist, barber), with their own calendar. */
 class ServiceProvider extends Model
 {
     use BelongsToTenant, HasUuids;

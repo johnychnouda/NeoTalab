@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** The shop's team for bookings (stylists, barbers, doctors): set up once in the dashboard. */
+/** The shop's team for bookings (stylists, barbers): set up once in the dashboard. */
 class ServiceProviderController extends Controller
 {
     public function index(): JsonResponse

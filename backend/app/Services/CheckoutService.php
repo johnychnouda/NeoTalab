@@ -210,7 +210,7 @@ class CheckoutService
             $cart->update(['status' => CartStatus::Converted]);
             $conversation->update(['status' => ConversationStatus::Closed]);
 
-            // One approval (prescription seen), one order.
+            // One approval, one order.
             foreach ($cart->items as $item) {
                 if ($item->product?->staff_check) {
                     $conversation->customer->useApproval($item->product_id);
