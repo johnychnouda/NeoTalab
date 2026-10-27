@@ -54,7 +54,7 @@ won't expire soon on Railway, OpenAI, Meta and Google: a failed payment can stop
 
 ## Running locally
 
-You need PHP 8.4 with Composer, Node.js, and a MySQL database called `neotalab`.
+You need PHP 8.5 with Composer, Node.js, and a MySQL database called `neotalab`.
 
 ```bash
 cd backend

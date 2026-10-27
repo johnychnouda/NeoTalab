@@ -7,7 +7,7 @@ checkpoint: every row below is a recommendation unless it says "done".
 
 | Area | In use | Latest checked | Status | Recommendation |
 |---|---|---|---|---|
-| PHP (production) | 8.4 (`dunglas/frankenphp:1-php8.4-alpine`, CI 8.4) | 8.5 | 8.4: active support to 31 Dec 2026, security to 31 Dec 2028 | **Stay on 8.4** for now. Move to 8.5 together with Laravel 13 (local dev already runs 8.5.8 and all 470 tests pass on it) |
+| PHP (production) | 8.5.12 (`dunglas/frankenphp:1-php8.5.12-alpine`, CI 8.5) | 8.5 | 8.5: active support to 31 Dec 2027, security to 31 Dec 2029 | **Done 2026-10-27:** moved from 8.4 to 8.5.12 (the PHP2Shell fix); all 515 tests pass on 8.5 |
 | `composer.json` PHP constraint | `^8.2` (main) | — | 8.2 security ends 31 Dec 2026 | `^8.4` on the Laravel 13 branch |
 | Laravel | 12.69.3 (main) | 13.38.0 | **12 stopped receiving bug fixes on 13 Aug 2026; security fixes end 24 Feb 2027** | **Done on branch `upgrade/laravel-13` (25 Oct)**: 13.38.0, Tinker 3.0.2, PHPUnit 12.5.40, PHP `^8.4`; 515/515 on PHP 8.4/8.5 × SQLite/MySQL. Merged into `main` 25 Oct (owner's decision, no separate test environment); CI #148 green |
 | Sanctum, permission, activitylog, sentry, openspout, resend | 4.3.2, 8.3.0, 5.0.0, 4.28.0, 5.12.0, 1.16.0 | 4.3.3, 8.3.2, 5.1.3, 4.29.0, 5.12.2, 1.17.0 | patch/minor, no advisories | Update in one `composer update` with the full test suite |
