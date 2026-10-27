@@ -1912,7 +1912,7 @@ tr.action-highlight { background: #f9731618 !important; }
 .hero::before { content: ""; position: absolute; z-index: -1; inset: -40px calc(50% - 50vw) 0; pointer-events: none;
   background: radial-gradient(ellipse 55% 70% at 50% 0%, #25d3662b, transparent 70%), radial-gradient(ellipse 30% 40% at 85% 30%, #25d36612, transparent 70%); }
 .hero-copy { max-width: 820px; }
-.hero .hero-copy > p { margin-inline: auto; }
+.hero .hero-copy > p { margin-inline: auto; max-width: 800px; }
 .hero .hero-actions, .hero .hero-trust { justify-content: center; }
 .hero-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--green); background: #25d36614; border: 1px solid #25d36633;
   padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
