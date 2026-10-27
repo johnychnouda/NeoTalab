@@ -152,7 +152,8 @@ def texts(msgs):
             res.append("TEMPLATE " + b["template"]["name"] + " " + json.dumps(b["template"].get("components", []))[:400])
         else:
             res.append(json.dumps(b)[:300])
-    return res
+    # The newer model writes curly apostrophes ("can’t"); the checks look for plain ones.
+    return [x.replace("\u2019", "'") for x in res]
 
 
 # ── results ──────────────────────────────────────────────────

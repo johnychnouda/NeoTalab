@@ -27,6 +27,7 @@ use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\Money;
 use App\Support\OrderMessage;
+use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -191,6 +192,11 @@ class ConversationService
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [Money::fromAiText($output->assistantMessage), null],
         };
+        // A weight the cart cut to a quarter kilo: the customer is told the amount really in the cart, not the one asked.
+        if (($cartResult['rounded'] ?? []) !== [] && $output->recommendedAction !== RecommendedAction::PlaceOrder) {
+            $line = $cartResult['rounded'][0];
+            $reply = __('whatsapp.cart.rounded', ['item' => Quantity::line($line['quantity'], $line['unit'], $line['name'])], in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en'));
+        }
 
         $now = now()->toIso8601String();
         $messages = $state['messages'] ?? [];

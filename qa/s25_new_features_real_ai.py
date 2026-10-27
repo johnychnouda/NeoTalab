@@ -66,9 +66,9 @@ check("'kilo w nos' → 1.5 kg tomatoes at 3.00$", bool(t) and t[0]["qty"] == 1.
 c = fresh(); say(G, c, "half a kilo of tomatoes please")
 t = [x for x in cart(G, c) if x["name"] == "Tomatoes"]
 check("'half a kilo' → 0.5 kg at 1.00$", bool(t) and t[0]["qty"] == 0.5 and t[0]["line"] == 1.0, t)
-c = fresh(); say(G, c, "2.3 kg tomatoes")
+c = fresh(); lastout = say(G, c, "2.3 kg tomatoes")
 t = [x for x in cart(G, c) if x["name"] == "Tomatoes"]
-check("2.3 kg is rounded to a quarter step (2.25 or 2.5)", bool(t) and t[0]["qty"] in (2.25, 2.5), t)
+check("2.3 kg: 2.25 or 2.5 in the cart, or asked first - and the reply never says 2.3 was added", (bool(t) and t[0]["qty"] in (2.25, 2.5) and "2.3" not in lastout) or (not t and bool(re.search(r"2\.25|2\.5", lastout))), (t, lastout))
 
 suite("Real AI: stock per size and colour")
 c = fresh(); out = say(RT, c, "I want one medium red t-shirt")
@@ -96,7 +96,7 @@ b2 = tj('$c=App\\Models\\Customer::withoutGlobalScopes()->where("merchant_id","'
         'echo json_encode($a?["at"=>$a->starts_at->setTimezone("Asia/Beirut")->format("H:i"),"who"=>$a->provider?->name]:null);')
 check("Maya is never double-booked at 15:00", not (b2 and b2["who"] == "Maya" and b2["at"] == "15:00"), (b2, out2))
 c3 = fresh(); out3 = say(SL, c3, "can I book with Jessica tomorrow?")
-check("an unknown stylist is not invented", not count("Appointment", SL, c3, '->where("status","booked")') and "jessica" not in re.sub(r"(no|not|n't|don't have|isn't)[^.]*jessica", "", out3.lower()) or "not" in out3.lower(), out3)
+check("an unknown stylist is not invented", not count("Appointment", SL, c3, '->where("status","booked")') and bool(re.search(r"(not|n't|no )", out3.lower())), out3)
 
 suite("Real AI: quotes (repair shop)")
 c = fresh(); out = say(RT, c, "quote please: my iPhone 13 screen is cracked, how much to fix it?")

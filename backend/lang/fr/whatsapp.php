@@ -139,6 +139,10 @@ return [
         'button' => '📋 Voir le menu',
     ],
 
+    'cart' => [
+        'rounded' => '✅ Ajouté : :item (nous vendons ceci par quart de kilo). Autre chose ?',
+    ],
+
     'checkout' => [
         'schedule_invalid' => 'Désolé, ce créneau n\'est plus disponible. Choisissez-en un autre.',
         'shop_reply' => '(:shop : répondez ✅ ici pour accepter, ou ❌ si vous ne pouvez pas la prendre.)',

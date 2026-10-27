@@ -5,7 +5,7 @@ from lib import *
 
 s = state(); R = s["shops"]["rest"]
 RUN = str(int(time.time()))[-5:]
-FR = re.compile(r"\b(vous|votre|nous|bonjour|livraison|j'ai|désolé|touchez|commande|souhaitez|voulez)\b", re.I)
+FR = re.compile(r"\b(vous|votre|nous|bonjour|livraison|j'ai|désolé|touchez|commande|souhaitez|voulez|bien sûr|manouchés|d'accord|merci)\b", re.I)
 CASES = {
     "en": ["Hi, I'd like 2 zaatar manousheh please", "what time do you close today?", "how much is delivery to Hamra?", "do you have sushi?"],
     "fr": ["Bonjour, je voudrais 2 manouchés au zaatar", "Vous fermez à quelle heure aujourd'hui ?", "Combien coûte la livraison à Hamra ?", "Vous avez des sushis ?"],

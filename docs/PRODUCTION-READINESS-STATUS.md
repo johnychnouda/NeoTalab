@@ -102,7 +102,8 @@ Not measured: hundreds of simultaneous chats on Railway's real resources, OpenAI
 - Active API deploy = latest `main` (Laravel 13), PHP 8.4.27, log clean, "Nothing to migrate" (D29 migration applied).
 - Production `OPENAI_MODEL` = **gpt-6-luna** (lab tests had used gpt-4o-mini). Production database = **MySQL 9** (`mysql:9`, auto-updated); CI now uses `mysql:9`.
 - Railway's own backups: **no schedule** (needs Pro), one manual backup from 22 days ago. The app's nightly backup ran every night 19–25 Oct (scheduler: DONE); the files in the backup storage were not inspected.
-- Real AI on gpt-6-luna: `s24` 23/24, `s10` 17/18, `s11` 3/4, `s25` 14/16. All misses but one are the checks misreading the new model's wording (curly apostrophes "can’t", "Bien sûr" not seen as French, "private settings." matching a pattern); the one real miss is D32 (open). Next: make the checks accept ’ and rerun; fix D32.
+- Real AI on gpt-6-luna: `s24` 23/24, `s10` 17/18, `s11` 3/4, `s25` 14/16. All misses but one are the checks misreading the new model's wording (curly apostrophes "can’t", "Bien sûr" not seen as French, "private settings." matching a pattern); the one real miss is D32 (open). **Update 27 Oct:** D32 fixed; the checks now accept curly apostrophes and French/Arabizi wording; rerun on gpt-6-luna:
+`s24` 24/24 (twice), `s10` 18/18, `s11` 4/4, `s25` 16/16 (twice) = 62/62. Backend 515/515.
 
 ## Restore procedure (tested 25 Oct on MySQL 26.10)
 1. Download the newest zip from the backup storage (`BACKUP_S3_*` in Railway) and unzip it: `db-dumps/mysql-<db>.sql`.

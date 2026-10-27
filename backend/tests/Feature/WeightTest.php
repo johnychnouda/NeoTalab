@@ -104,11 +104,13 @@ class WeightTest extends TestCase
         $cart = app(ConversationService::class)->startOrResume(['phone' => '+96170555555'])->cart;
         $bread = Product::query()->where('name', 'Bread')->sole();
 
-        app(CartService::class)->applyActions($cart, [
+        $result = app(CartService::class)->applyActions($cart, [
             new CartAction(action: 'add', productId: $this->tomatoes->id, quantity: 1.3),
             new CartAction(action: 'add', productId: $this->tomatoes->id, quantity: 0.01),
             new CartAction(action: 'add', productId: $bread->id, quantity: 2.4),
         ]);
+        // The reply is told which amounts the cart changed, so the customer reads 1.25 kg and not the 1.3 asked for.
+        $this->assertSame([['name' => 'Tomatoes', 'quantity' => 1.25, 'unit' => 'kg'], ['name' => 'Tomatoes', 'quantity' => 0.25, 'unit' => 'kg']], $result['rounded']);
         $quantities = $cart->items()->orderBy('created_at')->get()->map(fn ($i) => [$i->product->name, $i->quantity])->all();
         $this->assertEqualsCanonicalizing([['Tomatoes', 1.25], ['Tomatoes', 0.25], ['Bread', 2]], $quantities);
         // 1.25 kg × 1.50$ = 1.88$, 0.25 kg = 0.38$ (each line rounded to the cent), 2 breads = 2.00$.

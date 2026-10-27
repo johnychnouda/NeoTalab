@@ -47,6 +47,7 @@ class CartService
     {
         $applied = 0;
         $rejected = [];
+        $this->rounded = [];
 
         DB::transaction(function () use ($cart, $actions, &$applied, &$rejected) {
             foreach ($actions as $action) {
@@ -67,7 +68,7 @@ class CartService
             $this->recalculateSubtotal($cart);
         });
 
-        return ['applied' => $applied, 'rejected' => $rejected];
+        return ['applied' => $applied, 'rejected' => $rejected, 'rounded' => $this->rounded];
     }
 
     /**
@@ -92,6 +93,17 @@ class CartService
     public function loadWithItems(Cart $cart): Cart
     {
         return $cart->load(['items.product', 'items.variant']);
+    }
+
+    /** @var list<array{name: string, quantity: int|float, unit: ?string}> amounts the cart changed from what was asked (a weight cut to a quarter kilo) */
+    private array $rounded = [];
+
+    /** The cart may sell a different amount than asked (2.3 kg → 2.25 kg): remembered so the reply says the real one. */
+    private function noteRounding(string $name, mixed $asked, int|float $sold, ?Product $product): void
+    {
+        if (Quantity::byWeight($product) && abs(Quantity::from($asked) - $sold) > 0.0001) {
+            $this->rounded[] = ['name' => $name, 'quantity' => $sold, 'unit' => $product->unit];
+        }
     }
 
     private function addItem(Cart $cart, CartAction $action): void
@@ -137,6 +149,7 @@ class CartService
         }
 
         $qty = Quantity::normalize($action->quantity, $product);
+        $this->noteRounding($product->name, $action->quantity, $qty, $product);
         $unitPrice = $this->catalog->calculateUnitPrice($product, $variant, $modifiers);
         if ((float) $unitPrice < 0.01) {
             throw new InvalidArgumentException('Product is not orderable.'); // never a free or negative line
@@ -201,6 +214,7 @@ class CartService
         }
 
         $qty = Quantity::normalize($action->quantity, $item->product);
+        $this->noteRounding($item->product->name, $action->quantity, $qty, $item->product);
         $item->update([
             'quantity' => $qty,
             'line_total' => number_format((float) $item->unit_price * $qty, 2, '.', ''),

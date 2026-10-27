@@ -142,6 +142,10 @@ return [
         'button' => '📋 View menu',
     ],
 
+    'cart' => [
+        'rounded' => '✅ Added :item (we sell this by the quarter kilo). Anything else?',
+    ],
+
     'checkout' => [
         'schedule_invalid' => 'Sorry, that time is no longer available. Please choose another one.',
         'shop_reply' => '(:shop: reply ✅ here to accept, or ❌ if you can\'t take it.)',
