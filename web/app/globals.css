@@ -107,7 +107,7 @@ a { color: inherit; }
 .auth-secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12.5px; }
 .auth-secure svg { width: 14px; height: 14px; }
 /* A text button under a sign-in or reset form ("Forgot password?", "Back to sign in"). */
-.auth-link { display: block; width: 100%; margin-top: 14px; background: none; border: 0; color: var(--green); font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; }
+.auth-link { display: block; width: 100%; min-height: 32px; margin-top: 8px; background: none; border: 0; color: var(--green); font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; }
 .auth-link:hover { text-decoration: underline; }
 .auth-rules { list-style: none; margin: -4px 0 18px; display: grid; gap: 6px; }
 .auth-rules li { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; transition: color 0.15s; }
@@ -1783,13 +1783,15 @@ tr.action-highlight { background: #f9731618 !important; }
     width: min(300px, 86vw);
     z-index: 100;
     transform: translateX(-105%);
-    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Hidden once it has slid away, so keyboards and screen readers skip the closed menu. */
+    visibility: hidden;
+    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.26s;
     box-shadow: 16px 0 48px rgba(0, 0, 0, 0.35);
     padding-top: env(safe-area-inset-top, 0);
     padding-bottom: env(safe-area-inset-bottom, 0);
     overflow: hidden;
   }
-  .app-shell.nav-open .sidebar { transform: translateX(0); }
+  .app-shell.nav-open .sidebar { transform: translateX(0); visibility: visible; transition-delay: 0s; }
 
   .main {
     margin-left: 0 !important;

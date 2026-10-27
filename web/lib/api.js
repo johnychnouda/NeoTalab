@@ -2,6 +2,18 @@ export const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001/api
 
 const TOKEN_KEYS = { owner: "nt_owner_token", merchant: "nt_merchant_token" };
 
+// Shown when NeoTalab's server can't be reached, in the page's language (set by the language switch).
+const OFFLINE = {
+  en: "Can't connect to NeoTalab right now. Check your internet and try again.",
+  ar: "تعذّر الاتصال بـ NeoTalab الآن. تحقّق من الإنترنت وحاول مجددًا.",
+  fr: "Impossible de joindre NeoTalab pour le moment. Vérifiez votre connexion internet et réessayez.",
+};
+
+function offlineMessage() {
+  const lang = typeof document === "undefined" ? null : document.cookie.match(/(?:^|; )nt_lang=(en|ar|fr)\b/)?.[1];
+  return OFFLINE[lang] || OFFLINE.en;
+}
+
 /** Saving anything tells every open page to reload (see lib/live.js), in this tab and other tabs. */
 export const DATA_CHANGED_EVENT = "nt:data-changed";
 export const DATA_CHANGED_KEY = "nt_data_changed";
@@ -168,7 +180,7 @@ export async function apiFetch(role, method, path, body) {
   try {
     r = await fetch(API + path, opts);
   } catch {
-    throw new Error(`Cannot reach the API at ${API}. Is the backend running?`);
+    throw new Error(offlineMessage());
   }
 
   let data = {};
@@ -226,7 +238,7 @@ export async function publicPost(path, body) {
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error(`Cannot reach the API at ${API}. Is the backend running?`);
+    throw new Error(offlineMessage());
   }
 
   let data = {};

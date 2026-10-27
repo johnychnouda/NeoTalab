@@ -176,7 +176,7 @@ export default function MerchantsPage() {
       </PageHeader>
 
       <div className="filter-row">
-        <input type="text" className="search-input" placeholder={t("ow.m.search")}
+        <input type="text" className="search-input" placeholder={t("ow.m.search")} aria-label={t("ow.m.search")}
           value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="filter-pills">
           {MERCHANT_FILTERS.map((f) => (

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { LegalPage, place } from "@/components/public/SiteShell";
 import { company } from "@/lib/company";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 
-export const metadata = {
-  title: "Contact — NeoTalab",
-  description: "Contact NeoTalab: sales, support and privacy requests.",
-  alternates: { canonical: "/contact" },
-};
+export function generateMetadata() {
+  return pageMetadata("contact", {
+    description: "Contact NeoTalab: sales, support and privacy requests.",
+    alternates: { canonical: "/contact" },
+  });
+}
 
 const T = {
   en: {

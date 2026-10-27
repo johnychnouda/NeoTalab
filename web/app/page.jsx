@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SiteShell } from "@/components/public/SiteShell";
 import { company } from "@/lib/company";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 import { siteText } from "@/lib/site-i18n";
 import Icon from "@/components/public/Icon";
 import OrderDemo from "@/components/public/OrderDemo";
@@ -9,12 +9,13 @@ import PriceSwitch from "@/components/public/PriceSwitch";
 import { orderDemo } from "@/lib/order-demo";
 import { getPlan } from "@/lib/api";
 
-export const metadata = {
-  title: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
-  description:
-    "NeoTalab turns your business WhatsApp into an AI sales assistant: customers order or book in any language, drivers and staff update orders with one tap, and you see everything in your WhatsApp Business app.",
-  alternates: { canonical: "/" },
-};
+export function generateMetadata() {
+  return pageMetadata("home", {
+    description:
+      "NeoTalab turns your business WhatsApp into an AI sales assistant: customers order or book in any language, drivers and staff update orders with one tap, and you see everything in your WhatsApp Business app.",
+    alternates: { canonical: "/" },
+  });
+}
 
 export default async function Home() {
   const lang = await getSiteLang();

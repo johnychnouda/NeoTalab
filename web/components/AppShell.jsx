@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useLang } from "@/lib/i18n";
 
 /**
  * Responsive app chrome: fixed sidebar on desktop/tablet landscape,
  * off-canvas drawer + top bar on phones and narrow tablets.
  */
 export default function AppShell({ brand = "NeoTalab", children, sidebar, className = "", topbarExtra = null }) {
+  const { t } = useLang();
   const [navOpen, setNavOpen] = useState(false);
   const pathname = usePathname();
+  const openBtnRef = useRef(null);
+  const closeBtnRef = useRef(null);
 
   useEffect(() => {
     setNavOpen(false);
@@ -30,9 +34,13 @@ export default function AppShell({ brand = "NeoTalab", children, sidebar, classN
     };
     document.addEventListener("keydown", onKey);
     document.body.classList.add("nav-lock");
+    closeBtnRef.current?.focus();
+    const openBtn = openBtnRef.current;
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.classList.remove("nav-lock");
+      // Back to the menu button, unless the drawer closed because a link took focus elsewhere.
+      if (openBtn?.offsetParent && document.activeElement?.closest?.(".sidebar, .sidebar-backdrop")) openBtn.focus();
     };
   }, [navOpen]);
 
@@ -41,8 +49,9 @@ export default function AppShell({ brand = "NeoTalab", children, sidebar, classN
       <header className="mobile-topbar">
         <button
           type="button"
+          ref={openBtnRef}
           className="mobile-nav-btn"
-          aria-label="Open menu"
+          aria-label={t("nav.openMenu")}
           aria-expanded={navOpen}
           onClick={() => setNavOpen(true)}
         >
@@ -59,18 +68,19 @@ export default function AppShell({ brand = "NeoTalab", children, sidebar, classN
       <button
         type="button"
         className="sidebar-backdrop"
-        aria-label="Close menu"
+        aria-label={t("nav.closeMenu")}
         tabIndex={navOpen ? 0 : -1}
         onClick={() => setNavOpen(false)}
       />
 
-      <aside className="sidebar" aria-hidden={false}>
+      <aside className="sidebar">
         <div className="sidebar-mobile-head">
           <span className="sidebar-mobile-title">{brand}</span>
           <button
             type="button"
+            ref={closeBtnRef}
             className="sidebar-close-btn"
-            aria-label="Close menu"
+            aria-label={t("nav.closeMenu")}
             onClick={() => setNavOpen(false)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">

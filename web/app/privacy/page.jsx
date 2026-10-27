@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { LegalPage, place } from "@/components/public/SiteShell";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 import { company } from "@/lib/company";
 
-export const metadata = {
-  title: "Privacy Policy — NeoTalab",
-  description: "How NeoTalab collects, uses, shares and deletes personal data when businesses use WhatsApp ordering and booking.",
-  alternates: { canonical: "/privacy" },
-};
+export function generateMetadata() {
+  return pageMetadata("privacy", {
+    description: "How NeoTalab collects, uses, shares and deletes personal data when businesses use WhatsApp ordering and booking.",
+    alternates: { canonical: "/privacy" },
+  });
+}
 
 export default async function PrivacyPage() {
   const lang = await getSiteLang();

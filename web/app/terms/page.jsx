@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { LegalPage, place } from "@/components/public/SiteShell";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 import { company } from "@/lib/company";
 
-export const metadata = {
-  title: "Terms of Service — NeoTalab",
-  description: "The terms that apply to businesses using NeoTalab for WhatsApp ordering and booking.",
-  alternates: { canonical: "/terms" },
-};
+export function generateMetadata() {
+  return pageMetadata("terms", {
+    description: "The terms that apply to businesses using NeoTalab for WhatsApp ordering and booking.",
+    alternates: { canonical: "/terms" },
+  });
+}
 
 export default async function TermsPage() {
   const lang = await getSiteLang();

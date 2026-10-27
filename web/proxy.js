@@ -10,6 +10,15 @@ export function proxy(request) {
     url.port = "";
     return NextResponse.redirect(url, 308);
   }
+  // Whish sends customers back to /pay/... with ?lang= set to their WhatsApp language. They have no
+  // language cookie on this site, so the page (layout direction included) is rendered in that language.
+  const lang = request.nextUrl.searchParams.get("lang");
+  if (request.nextUrl.pathname.startsWith("/pay/") && ["en", "ar", "fr"].includes(lang)) {
+    const headers = new Headers(request.headers);
+    const others = (request.headers.get("cookie") || "").split(/;\s*/).filter((c) => c && !c.startsWith("nt_lang="));
+    headers.set("cookie", [...others, `nt_lang=${lang}`].join("; "));
+    return NextResponse.next({ request: { headers } });
+  }
   return NextResponse.next();
 }
 

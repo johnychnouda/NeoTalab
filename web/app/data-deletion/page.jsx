@@ -1,12 +1,13 @@
 import { LegalPage } from "@/components/public/SiteShell";
 import { company } from "@/lib/company";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 
-export const metadata = {
-  title: "Data Deletion — NeoTalab",
-  description: "How customers and businesses can ask NeoTalab to delete their personal data.",
-  alternates: { canonical: "/data-deletion" },
-};
+export function generateMetadata() {
+  return pageMetadata("deletion", {
+    description: "How customers and businesses can ask NeoTalab to delete their personal data.",
+    alternates: { canonical: "/data-deletion" },
+  });
+}
 
 // Meta App Dashboard → App settings → Basic → "User data deletion" → Data deletion instructions URL.
 export default async function DataDeletionPage() {

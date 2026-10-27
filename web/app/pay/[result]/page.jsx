@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import Brand from "@/components/Brand";
-import { getSiteLang } from "@/lib/site-lang";
+import { getSiteLang, pageMetadata } from "@/lib/site-lang";
 
-export const metadata = { title: "Payment — NeoTalab", robots: { index: false } };
+export function generateMetadata() {
+  return pageMetadata("payment", { robots: { index: false } });
+}
 
 const T = {
   en: {
@@ -24,19 +26,18 @@ const T = {
 
 // Whish sends the customer here after paying. This page never confirms anything by itself: the
 // order is confirmed on WhatsApp only once NeoTalab has verified the payment with Whish.
-export default async function PaymentResult({ params, searchParams }) {
+export default async function PaymentResult({ params }) {
   const { result } = await params;
   if (result !== "success" && result !== "failure") notFound(); // the only two results Whish sends back
-  const { lang } = await searchParams;
   const ok = result === "success";
-  const t = T[lang] || T[await getSiteLang()]; // ?lang= is the customer's WhatsApp language
+  const t = T[await getSiteLang()]; // the proxy turns ?lang= (the customer's WhatsApp language) into the page language
 
   return (
     <div className="login-wrap">
       <div className="login-card" style={{ maxWidth: 440, textAlign: "center" }}>
         <div className="login-logo" style={{ marginBottom: 20 }}><Brand size={36} /></div>
         <div style={{ fontSize: 44, marginBottom: 10 }} aria-hidden="true">{ok ? "✅" : "❌"}</div>
-        <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>{ok ? t.okTitle : t.koTitle}</h2>
+        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>{ok ? t.okTitle : t.koTitle}</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14, lineHeight: 1.6 }}>{ok ? t.okBody : t.koBody}</p>
         <a href="whatsapp://" className="btn-primary" style={{ display: "inline-flex", marginTop: 18 }}>{t.back}</a>
       </div>
