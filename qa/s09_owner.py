@@ -10,7 +10,7 @@ for path in ["/admin/merchants", "/admin/onboarding", "/admin/usage", "/admin/ac
     check(f"owner GET {path} -> 200", code == 200, (code, str(b)[:150]))
 code, b = api("GET", "/admin/merchants", OWN)
 names = json.dumps(b)
-check("merchant list shows all 7 lab shops", all(n in names for n in ("QA Manakish", "QA Pharmacy", "QA Salon", "QA Clinic")), names[:200])
+check("merchant list shows the lab shops", all(n in names for n in ("QA Manakish", "QA Supermarket", "QA Phone Shop", "QA Salon")), names[:200])
 code, b = api("GET", f"/admin/merchants/{s['shops']['rest']['id']}", OWN)
 blob = json.dumps(b)
 check("merchant detail never contains the shop's WhatsApp access token", "lab-shop-token" not in blob, blob[:200])
@@ -34,7 +34,9 @@ check("owner email change needs the right password", code == 422, code)
 
 suite("Lifecycle: trial ends unpaid → suspended → reactivated")
 W = s["shops"]["whole"]
-tinker(f'$m=App\\Models\\Merchant::find("{W["id"]}"); $m->forceFill(["trial_ends_at"=>now()->subHour(),"status"=>"active"])->save();')
+# trials:expire is global: give every other lab shop a long trial first, so only the shop under test can expire.
+tinker(f'App\\Models\\Merchant::withoutGlobalScopes()->where("id","!=","{W["id"]}")->update(["trial_ends_at"=>"2099-01-01","status"=>"active"]);')
+tinker(f'$m=App\\Models\\Merchant::find("{W["id"]}"); $st=$m->settings ?? []; $st["subscription_status"]="trial"; $m->forceFill(["trial_ends_at"=>now()->subHour(),"status"=>"active","settings"=>$st])->save();')
 out = subprocess.run([f"{LAB}/lab.sh", "php", "artisan", "trials:expire"], capture_output=True, text=True, timeout=120)
 st = tj(f'echo json_encode(App\\Models\\Merchant::find("{W["id"]}")->status);')
 check("trials:expire suspends the shop whose trial ended", st == "suspended", (st, out.stdout[-200:], out.stderr[-300:]))

@@ -65,7 +65,8 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
         continue
     code, prof = api("GET", "/settings/profile", tok)
     got = (prof.get("profile") or prof) if isinstance(prof, dict) else {}
-    rec(kind, "the shop's type sets its menu wording and mode", got.get("business_kind") == kind or (kind == "restaurant" and got.get("business_kind")), (got.get("business_kind"), got.get("menu_word")))
+    expected_kind = "other" if kind == "pharmacy" else kind  # pharmacies were removed from the platform on 25 Oct
+    rec(kind, "the shop's type sets its menu wording and mode", got.get("business_kind") == expected_kind or (kind == "restaurant" and got.get("business_kind")), (got.get("business_kind"), got.get("menu_word")))
 
     # 1. Build the menu by hand: category, items (with unit where the trade sells by weight/count)
     code, cat = api("POST", "/categories", tok, {"name": "Main"})
@@ -142,15 +143,16 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
                     rec(kind, "customer is asked which size, with prices", bool(var) and any("6" in x for x in qty), qty[:1])
                     if var:
                         qty = wa(pid, cust.lstrip("+"), list_id=f"mn:var:{var[0]}")
+                qty_button = "mn:qty:1" if unit == "kg" else "mn:qty:2"  # kg items: ½ kg, 1 kg, 1.5+ kg
                 for _ in range(4):  # answer the extras question ("No, thanks") until the quantity question
-                    if any("mn:done=" in x for x in qty) and not any("mn:qty:2" in x for x in qty):
+                    if any("mn:done=" in x for x in qty) and not any(qty_button in x for x in qty):
                         qty = wa(pid, cust.lstrip("+"), list_id="mn:done")
                     else:
                         break
                 question = qty  # the "how many?" question, before answering it
                 if unit:
                     rec(kind, f"quantity buttons show the unit ({unit})", any(unit in x for x in question), question[:1])
-                qty = wa(pid, cust.lstrip("+"), button="mn:qty:2") if any("mn:qty:2" in x for x in qty) else qty
+                qty = wa(pid, cust.lstrip("+"), button=qty_button) if any(qty_button in x for x in qty) else qty
                 cart = tj('echo json_encode(App\\Models\\CartItem::withoutGlobalScopes()->whereHas("product", fn($q)=>$q->withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '"))->count());')
                 rec(kind, "customer adds the item to the cart", cart >= 1, (cart, qty[:1]))
 

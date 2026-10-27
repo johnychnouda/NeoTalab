@@ -91,6 +91,16 @@ class ServiceProviderTest extends TestCase
         $this->assertStringContainsString('just taken', $third);
     }
 
+    public function test_a_customer_cannot_hold_two_bookings_at_the_same_time_with_two_people(): void
+    {
+        // Found by the lab (salon, 27 Oct): the same customer asking for 10:00 twice got Rami, then Lea.
+        $this->say('book haircut 2026-10-07 10:00', '+96170000001');
+        $second = $this->say('book haircut 2026-10-07 10:00', '+96170000001');
+
+        $this->assertSame(['Rami'], $this->bookings()->map(fn ($a) => $a->provider->name)->all());
+        $this->assertStringContainsString('just taken', $second);
+    }
+
     public function test_a_customer_books_with_the_person_they_name(): void
     {
         $staff = Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Desk', 'role' => 'staff', 'phone' => '+96171555000',

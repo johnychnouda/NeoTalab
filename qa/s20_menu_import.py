@@ -47,15 +47,16 @@ check("'3$' and '18' stay dollars", by.get("Gallon 19L", {}).get("lbp") is False
 check("'3,50' read as 3.50", abs(float(by.get("Gallon 19L (cold)", {}).get("price", 0)) - 3.5) < 0.001, by.get("Gallon 19L (cold)"))
 before = len(products())
 code, b = api("POST", "/menu/import", T, {"items": items})
-check("import saves the rows", code == 200 and b["result"]["created"] == 5, (code, b))
+check("import saves the rows (new or updated from an earlier run)", code == 200 and b["result"]["created"] + b["result"]["updated"] == 5, (code, b))
 pr = {p[0]: p for p in products()}
 check("lira rows converted at 89,500: 250,000 LL → 2.79$", pr.get("Small bottle pack", [0, 0])[1] == "2.79", pr.get("Small bottle pack"))
 check("1,500,000 LL → 16.76$", pr.get("Gas refill", [0, 0])[1] == "16.76", pr.get("Gas refill"))
 check("categories created from the file", pr.get("Gas cylinder", [0, 0, 0])[2] == "Gas", pr.get("Gas cylinder"))
 
+before2 = len(products())
 code, b = api("POST", "/menu/import", T, {"items": [{"name": "Gallon 19L", "price": 3.25, "category": "Water", "lbp": False}]})
 pr2 = {p[0]: p for p in products()}
-check("importing again updates the price instead of adding a copy", code == 200 and b["result"]["updated"] == 1 and pr2["Gallon 19L"][1] == "3.25" and len(products()) == before + 5, (b, pr2.get("Gallon 19L")))
+check("importing again updates the price instead of adding a copy", code == 200 and b["result"]["updated"] == 1 and pr2["Gallon 19L"][1] == "3.25" and len(products()) == before2, (b, pr2.get("Gallon 19L")))
 
 n0 = len(products())
 code, b = api("POST", "/menu/import", T, {"items": [{"name": "Good item", "price": 4, "category": "Water"}, {"name": "Typo item", "price": 0, "category": "Water"}]})
@@ -86,7 +87,9 @@ code, b = api("POST", "/menu/import", T, {"items": [{"name": "Formula", "price":
 print("  formula-looking category:", code)
 
 suite("Menu import: access")
-code, b = upload(csv, "menu.csv", token=s["rest_staff"]["token"])
+# Staff cannot sign in to the dashboard, so mint their token the way the lab set them up (see s03).
+STAFF_TOKEN = tj('$u=App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->first(); echo json_encode($u->createToken("qa-s20")->plainTextToken);')
+code, b = upload(csv, "menu.csv", token=STAFF_TOKEN)
 check("shop staff cannot import", code == 403, code)
 code, b = api("POST", "/menu/import", s["shops"]["rest"]["token"], {"items": [{"name": "Gallon 19L", "price": 99, "category": "Water"}]})
 pr3 = {p[0]: p for p in products()}

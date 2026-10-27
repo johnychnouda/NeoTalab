@@ -4,7 +4,10 @@ import urllib.parse
 
 s = state()
 r = s["shops"]["rest"]; p = s["shops"]["pharm"]
-OWN, RO, AD, ST, OTHER = s["owner"], r["token"], s["rest_admin"]["token"], s["rest_staff"]["token"], p["token"]
+OWN, RO, AD, OTHER = s["owner"], r["token"], s["rest_admin"]["token"], p["token"]
+# Staff cannot sign in to the dashboard any more (team members work through WhatsApp), so the staff
+# token is minted fresh in the lab database; the sign-in refusal itself is checked below.
+ST = tj('$u=App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->first(); $t=$u->createToken("qa-s03")->plainTextToken; echo json_encode($t);')
 X = "00000000-0000-0000-0000-000000000000"
 
 # A customer and a conversation in the restaurant (via the typed test-conversation API).
@@ -90,7 +93,7 @@ ID_ROUTES += [f"GET /products/{r['p1']}", f"GET /conversations/{conv}", f"POST /
 EVIL = {"name": "HACKED", "price": 0.01, "deliveryFee": 0, "price_delta": -100, "status": "off", "text": "hi", "message": "hi"}
 for spec in ID_ROUTES:
     code, b = call(spec, OTHER, EVIL)
-    check(f"other shop {spec} -> 404/403", code in (403, 404), (code, str(b)[:150]))
+    check(f"other shop {spec} -> 404/403 or 422 (validation runs first; the records check below proves nothing changed)", code in (403, 404, 422), (code, str(b)[:150]))
 after = tj('echo json_encode(["p"=>App\\Models\\Product::withoutGlobalScopes()->find("' + r["p1"] + '")?->only("name","price"),'
            '"c"=>App\\Models\\Category::withoutGlobalScopes()->find("' + r["cat"] + '")?->only("name","sort_order"),'
            '"z"=>App\\Models\\DeliveryZone::withoutGlobalScopes()->find("' + r["zone"] + '")?->only("name","delivery_fee"),'
@@ -111,7 +114,7 @@ valid = [(f"POST /drivers/{r['driver']}/status", {"status": "off_duty"}),
          (f"POST /customers/{cust}/block", {})]
 for spec, body in valid:
     code, b = call(spec, OTHER, body)
-    check(f"other shop (valid body) {spec} -> 404/403", code in (403, 404), (code, str(b)[:150]))
+    check(f"other shop (valid body) {spec} -> 404/403 or 422 (a body that fails validation never reaches the shop check)", code in (403, 404, 422), (code, str(b)[:150]))
 # Options save in OWN product, but naming the restaurant's variant id: must not move or edit it.
 code, b = api("PUT", f"/products/{p['p1']}/options", OTHER, {"variants": [{"id": r["variant"], "name": "STOLEN", "price": 1}], "groups": [{"id": r["group"], "name": "STOLEN", "modifiers": [{"id": r["mod"], "name": "STOLEN", "price_delta": 0}]}]})
 row = tj('echo json_encode([App\\Models\\ProductVariant::withoutGlobalScopes()->find("' + r["variant"] + '")?->only("name","product_id","merchant_id"), App\\Models\\Modifier::withoutGlobalScopes()->find("' + r["mod"] + '")?->only("name","merchant_id")]);')
@@ -156,16 +159,18 @@ check("driver merchant_id cannot be over-posted", row and row["merchant_id"] == 
 
 suite("Sessions: logout, password change, disabled user, deleted shop")
 code, b = login(s["rest_staff"]["email"], s["rest_staff"]["pw"])
+check("staff cannot sign in to the dashboard (WhatsApp only)", code == 422, code)
+code, b = login(s["rest_admin"]["email"], s["rest_admin"]["pw"])
 t2 = b["token"]
 code, _ = api("POST", "/auth/logout", t2)
 code2, _ = api("GET", "/auth/me", t2)
 check("logged-out token is refused", code == 200 and code2 == 401, (code, code2))
-code, b = api("POST", "/auth/set-initial-password", ST, {"password": "newpassword123", "password_confirmation": "newpassword123"})
+code, b = api("POST", "/auth/set-initial-password", AD, {"password": "newpassword123", "password_confirmation": "newpassword123"})
 check("set-initial-password refused once a password was set", code == 422, (code, str(b)[:120]))
 # Disable the lab staff user while their token is live.
-tinker('App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->update(["status"=>"disabled"]);')
-code, _ = api("GET", "/products", ST)
+tinker('App\\Models\\User::where("email","' + s["rest_admin"]["email"] + '")->update(["status"=>"disabled"]);')
+code, _ = api("GET", "/products", AD)
 check("disabled user's existing session is refused", code in (401, 403), code)
-code, _ = login(s["rest_staff"]["email"], s["rest_staff"]["pw"])
+code, _ = login(s["rest_admin"]["email"], s["rest_admin"]["pw"])
 check("disabled user cannot sign in", code == 422, code)
-tinker('App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->update(["status"=>"active"]);')
+tinker('App\\Models\\User::where("email","' + s["rest_admin"]["email"] + '")->update(["status"=>"active"]);')

@@ -146,7 +146,7 @@ def texts(msgs):
             s = (i.get("body") or {}).get("text", "")
             act = i.get("action", {})
             btns = [x["reply"]["id"] + "=" + x["reply"]["title"] for x in act.get("buttons", [])]
-            rows = [row["id"] for sec in act.get("sections", []) for row in sec.get("rows", [])]
+            rows = [row["id"] + "=" + row.get("title", "") for sec in act.get("sections", []) for row in sec.get("rows", [])]
             res.append(s + (" [BTN " + " | ".join(btns) + "]" if btns else "") + (" [LIST " + ",".join(rows) + "]" if rows else ""))
         elif t == "template":
             res.append("TEMPLATE " + b["template"]["name"] + " " + json.dumps(b["template"].get("components", []))[:400])

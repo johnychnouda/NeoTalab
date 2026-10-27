@@ -145,10 +145,16 @@ class AppointmentService
                 return null;
             }
 
+            $slotEnd = $localStart->copy()->addMinutes((int) $service->duration_mins);
+
+            // One customer holds one time: with a team, a second person must not be booked for the same customer.
+            if ($sameDay->contains(fn ($a) => $a->customer_id === $customer->id && $a->starts_at->lt($slotEnd) && $a->ends_at->gt($localStart))) {
+                return null;
+            }
+
             // With a team: the person asked for, else whoever is free with the fewest bookings that day.
             $providers = $this->providersFor($service);
             if ($providers->isNotEmpty()) {
-                $slotEnd = $localStart->copy()->addMinutes((int) $service->duration_mins);
                 $overlapping = $sameDay->filter(fn ($a) => $a->starts_at->lt($slotEnd) && $a->ends_at->gt($localStart));
                 $provider = $this->freeProviders($providers, $overlapping, $provider)
                     ->sortBy(fn (ServiceProvider $p) => $sameDay->where('provider_id', $p->id)->count())->first();
