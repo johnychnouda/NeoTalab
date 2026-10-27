@@ -105,6 +105,9 @@ Not measured: hundreds of simultaneous chats on Railway's real resources, OpenAI
 - Real AI on gpt-6-luna: `s24` 23/24, `s10` 17/18, `s11` 3/4, `s25` 14/16. All misses but one are the checks misreading the new model's wording (curly apostrophes "can’t", "Bien sûr" not seen as French, "private settings." matching a pattern); the one real miss is D32 (open). **Update 27 Oct:** D32 fixed; the checks now accept curly apostrophes and French/Arabizi wording; rerun on gpt-6-luna:
 `s24` 24/24 (twice), `s10` 18/18, `s11` 4/4, `s25` 16/16 (twice) = 62/62. Backend 515/515.
 
+**27 Oct:** restoring a real production backup file was postponed at the owner's request. It stays blocker 2 until someone
+downloads the newest zip from the backup storage and restores it into an empty database (steps below).
+
 ## Restore procedure (tested 25 Oct on MySQL 26.10)
 1. Download the newest zip from the backup storage (`BACKUP_S3_*` in Railway) and unzip it: `db-dumps/mysql-<db>.sql`.
 2. Create an **empty** database (never restore over the live one while it runs).
