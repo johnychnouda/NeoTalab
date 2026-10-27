@@ -6,7 +6,7 @@
 |---------|-----------------|-----|
 | **mysql** | Railway MySQL | Database |
 | **neotalab-api** | `backend/` | Laravel API + WhatsApp webhook |
-| **neotalab-queue** | `backend/` | `docker/queue.sh` (3 workers) |
+| **neotalab-queue** | `backend/` | `docker/queue.sh` (20 workers) |
 | **neotalab-web** | `web/` | Next.js dashboards |
 
 Do **not** use Vercel, TiDB, AWS, or Render free (sleep). Use any local MySQL for development.
@@ -85,7 +85,7 @@ seeder prints a generated password once; save it, then change it after first log
 docker/queue.sh
 ```
 
-That script runs 3 workers side by side (`QUEUE_WORKERS`, default 3). Each worker stops a job after 75 seconds, which is shorter than the 150-second retry window, so a slow voice note is not handled twice. Do not replace this with a single `php artisan queue:work`.
+That script runs 20 workers side by side (`QUEUE_WORKERS`, default 20; a load test on 27 Oct 2026 showed 3 made customers wait minutes at busy times). Each worker stops a job after 75 seconds, which is shorter than the 150-second retry window, so a slow voice note is not handled twice. Do not replace this with a single `php artisan queue:work`.
 
 (Do not run `php artisan serve` on this service.)
 

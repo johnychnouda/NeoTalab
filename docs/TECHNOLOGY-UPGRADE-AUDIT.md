@@ -8,18 +8,18 @@ checkpoint: every row below is a recommendation unless it says "done".
 | Area | In use | Latest checked | Status | Recommendation |
 |---|---|---|---|---|
 | PHP (production) | 8.5.12 (`dunglas/frankenphp:1-php8.5.12-alpine`, CI 8.5) | 8.5 | 8.5: active support to 31 Dec 2027, security to 31 Dec 2029 | **Done 2026-10-27:** moved from 8.4 to 8.5.12 (the PHP2Shell fix); all 515 tests pass on 8.5 |
-| `composer.json` PHP constraint | `^8.2` (main) | — | 8.2 security ends 31 Dec 2026 | `^8.4` on the Laravel 13 branch |
-| Laravel | 12.69.3 (main) | 13.38.0 | **12 stopped receiving bug fixes on 13 Aug 2026; security fixes end 24 Feb 2027** | **Done on branch `upgrade/laravel-13` (25 Oct)**: 13.38.0, Tinker 3.0.2, PHPUnit 12.5.40, PHP `^8.4`; 515/515 on PHP 8.4/8.5 × SQLite/MySQL. Merged into `main` 25 Oct (owner's decision, no separate test environment); CI #148 green |
-| Sanctum, permission, activitylog, sentry, openspout, resend | 4.3.2, 8.3.0, 5.0.0, 4.28.0, 5.12.0, 1.16.0 | 4.3.3, 8.3.2, 5.1.3, 4.29.0, 5.12.2, 1.17.0 | patch/minor, no advisories | Update in one `composer update` with the full test suite |
+| `composer.json` PHP constraint | `^8.4` | — | ok | **Done** with Laravel 13 |
+| Laravel | 13.39.0 | 13.39.0 | latest (12 lost bug fixes on 13 Aug 2026, security fixes on 24 Feb 2027) | **Done on branch `upgrade/laravel-13` (25 Oct)**: 13.38.0, Tinker 3.0.2, PHPUnit 12.5.40, PHP `^8.4`; 515/515 on PHP 8.4/8.5 × SQLite/MySQL. Merged into `main` 25 Oct (owner's decision, no separate test environment); CI #148 green. **27 Oct:** 13.39.0 with all packages at their latest |
+| Sanctum, permission, activitylog, sentry, openspout, resend | 4.3.3, 8.3.2, 5.1.3, 4.29.0, 5.13.0, 1.17.0 | same | latest, no advisories | **Done 27 Oct** (`composer update`, 515/515) |
 | Composer advisories | — | `composer audit`: none | ok | — |
-| Node.js | local 24.11.1, CI 22, Railway web: not pinned | 24.22.1 (LTS "Krypton"), 26 (Current) | 22 and 24 both LTS | **Pin one version**: `"engines": {"node": "24.x"}` in `web/package.json`, CI `node-version: '24'`. Today CI builds on 22 and Railway picks its own default: the build is not reproducible |
+| Node.js | local 24.11.1; CI and Railway web pinned to 24 (`engines` `24.x`, 27 Oct) | 24.22.1 (LTS "Krypton"), 26 (Current) | 24 LTS | **Done 27 Oct**: `"engines": {"node": "24.x"}` in `web/package.json`, CI `node-version: '24'`. Local Mac: update to 24.22.1 from nodejs.org |
 | Next.js | 16.4.3 | 16.4.3 | latest; critical advisory of 16.4.0 fixed at checkpoint 7 | stay |
-| React / React DOM | 19.3.0 | 19.3.1 | patch | update with the next web change |
-| Vitest, Playwright | 5.0.4, 1.64.1 | 5.0.5 | patch | optional |
+| React / React DOM | 19.3.1 | 19.3.1 | latest | **Done 27 Oct** |
+| Vitest, Playwright | 5.0.5, 1.64.1 | 5.0.5, 1.64.1 | latest | **Done 27 Oct** |
 | npm advisories | — | `npm audit`: 0 | ok | — |
-| PHPUnit | 11.5.55 | 13.4.3 | 11 works with Laravel 12 | move to the version Laravel 13 asks for, during that upgrade |
-| MySQL | Railway MySQL service; server version not read in this check | — | **unverified**; since 25 Oct CI runs the suite on `mysql:8.4` (LTS) and it passes locally on 26.10 — set the CI image to production's version once read | Read it in Railway (`SELECT VERSION();`) and record it. Local lab: MySQL 26.10. The backup client in the image is MariaDB's `mysqldump`: the backup must be test-restored from production files (see readiness) |
-| AI model | `OPENAI_MODEL` (default `gpt-4o-mini`; deploy example `gpt-6-luna`) | — | **unverified** which model production runs | Read the Railway variable; rerun `qa/s24`, `s10`, `s11` after any model change |
+| PHPUnit | 13.4.5 | 13.4.5 | latest | **Done 27 Oct**: 515/515 on SQLite and MySQL |
+| MySQL | Railway MySQL 9 (`mysql:9`, read 25 Oct) | — | ok; CI runs the suite on `mysql:9` | The backup client in the image is MariaDB's `mysqldump`: the backup must be test-restored from production files (see readiness) |
+| AI model | production `OPENAI_MODEL` = `gpt-6-luna` (read 25 Oct) | — | ok; real-AI checks 62/62 on it (27 Oct) | Rerun `qa/s24`, `s10`, `s11`, `s25` after any model change |
 | WhatsApp Cloud API, Whish | Graph API via `WHATSAPP_GRAPH_BASE` | — | live tests blocked by Meta App Review | — |
 
 ## Laravel 12 → 13 plan

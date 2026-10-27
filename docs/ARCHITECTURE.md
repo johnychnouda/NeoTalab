@@ -6,7 +6,7 @@ How NeoTalab is built and how to work on it. Product and technical decisions are
 
 NeoTalab is a generic, multi-tenant "AI WhatsApp Commerce OS": WhatsApp is the merchant's storefront, an AI agent sells, and web dashboards manage the business. It must stay **business-type agnostic** (restaurants, pharmacies, retail, services…), so don't add vertical-specific assumptions to core code.
 
-- `backend/`: Laravel 12 API (PHP 8.4+), the only backend.
+- `backend/`: Laravel 13 API (PHP 8.5), the only backend.
 - `web/`: Next.js 16 / React 19 dashboards in plain JSX (no TypeScript), EN/AR/FR.
 - `deploy/`, `docs/`: Railway runbook and release guides. Production is **Railway** (web + API + queue worker + MySQL); the web app is served at `https://neotalab.com` (DNS at Namecheap, `@` is an ALIAS to Railway; it must not be a CNAME, it breaks the TXT/MX records). The API is still on its `*.up.railway.app` domain.
 

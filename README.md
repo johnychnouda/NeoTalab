@@ -4,7 +4,7 @@ WhatsApp commerce for local shops. Customers order, book and pay inside a WhatsA
 assistant takes the order, and the shop runs everything from a web backoffice. Multi-tenant: one
 platform, many shops (restaurants, pharmacies, retail, services).
 
-- `backend/` Laravel 12 API and queue workers
+- `backend/` Laravel 13 API and queue workers
 - `web/` Next.js 16 (owner portal, shop backoffice, public site)
 - `deploy/` Railway setup and secrets template
 - `docs/` architecture, decisions, WhatsApp setup, local testing

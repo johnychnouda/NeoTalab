@@ -105,6 +105,10 @@ Not measured: hundreds of simultaneous chats on Railway's real resources, OpenAI
 - Real AI on gpt-6-luna: `s24` 23/24, `s10` 17/18, `s11` 3/4, `s25` 14/16. All misses but one are the checks misreading the new model's wording (curly apostrophes "can’t", "Bien sûr" not seen as French, "private settings." matching a pattern); the one real miss is D32 (open). **Update 27 Oct:** D32 fixed; the checks now accept curly apostrophes and French/Arabizi wording; rerun on gpt-6-luna:
 `s24` 24/24 (twice), `s10` 18/18, `s11` 4/4, `s25` 16/16 (twice) = 62/62. Backend 515/515.
 
+**27 Oct, updates:** production moved to PHP 8.5.12 (PHP2Shell fix, CVE-2026-109618/-109619), Laravel 13.39.0 and every
+package at its latest; queue raised to `QUEUE_WORKERS=20` after a load test (1000 customers × 3 messages answered in ~3 s);
+the owner saw 20 workers running in the Railway console.
+
 **27 Oct:** restoring a real production backup file was postponed at the owner's request. It stays blocker 2 until someone
 downloads the newest zip from the backup storage and restores it into an empty database (steps below).
 

@@ -14,8 +14,8 @@ groceries, retail, salons, clinics, services).
 
 | Part | Choice |
 |------|--------|
-| API | Laravel 12, PHP 8.5 (`backend/`) |
-| Web | Next.js 15 / React 19, plain JSX, English / Arabic / French (`web/`) |
+| API | Laravel 13, PHP 8.5 (`backend/`) |
+| Web | Next.js 16 / React 19, plain JSX, English / Arabic / French (`web/`) |
 | Database | MySQL in production, in-memory SQLite for tests |
 | Hosting | Railway: web, API (with the scheduler), queue worker, MySQL |
 | WhatsApp | Meta WhatsApp Cloud API, shops connected with Embedded Signup (WhatsApp Business app kept: "coexistence") |

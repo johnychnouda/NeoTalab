@@ -1,4 +1,4 @@
-# NeoTalab Backend (Laravel 12)
+# NeoTalab Backend (Laravel 13)
 
 Multi-tenant WhatsApp Commerce OS API. Generic across business types (restaurant, pharmacy,
 retail, services, …). See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) and
@@ -20,14 +20,14 @@ Migrations run on boot when `RUN_MIGRATIONS=true`.
 
 ## Stack
 
-- **Laravel 12** / PHP 8.4+
+- **Laravel 13** / PHP 8.5
 - **MySQL** (Railway in production; any local MySQL for development)
 - **Sanctum** bearer tokens · **spatie/laravel-permission** · **spatie/laravel-activitylog**
-- **Queue:** database driver (`docker/queue.sh` as a second Railway service, 3 workers)
+- **Queue:** database driver (`docker/queue.sh` as a second Railway service, 20 workers: `QUEUE_WORKERS`)
 
 ## Local development
 
-Prerequisites: `php` 8.4 + `composer`, and a local MySQL database named `neotalab`.
+Prerequisites: `php` 8.5 + `composer`, and a local MySQL database named `neotalab`.
 
 ```bash
 cd backend
