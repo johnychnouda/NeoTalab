@@ -142,10 +142,12 @@ for q in ("Falafel", "QA Iso", "%", "' OR 1=1 --", "\" OR \"\"=\""):
     check(f"search {q!r} stays inside the shop", code == 200 and code2 == 200 and r["p1"] not in blob and "QA Iso" not in blob, (code, code2))
 
 suite("Mass assignment / over-posting")
-code, b = api("PATCH", "/merchant", RO, {"status": "active", "plan": "enterprise", "trial_ends_at": "2099-01-01", "subscription_status": "paid",
+# s09 sets every other lab shop's trial to 2099, so compare with the value before the attempt, not with a fixed date.
+trial_before = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->only("trial_ends_at"));')["trial_ends_at"]
+code, b = api("PATCH", "/merchant", RO, {"status": "active", "plan": "enterprise", "trial_ends_at": "2030-01-01", "subscription_status": "paid",
                                          "settings": {"subscription_status": "paid", "bot": {"phone_id": "PNID111002"}}, "id": p["id"], "merchant_id": p["id"]})
 m = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->only("id","status","plan","trial_ends_at") + ["sub"=>App\\Models\\Merchant::find("' + r["id"] + '")->settings["subscription_status"]??null, "phone"=>App\\Models\\Merchant::find("' + r["id"] + '")->settings["bot"]["phone_id"]??null]);')
-check("shop cannot mark itself paid / change plan / steal another number", m["plan"] != "enterprise" and m["sub"] != "paid" and m["phone"] == r["phone_id"] and not str(m["trial_ends_at"]).startswith("2099"), m)
+check("shop cannot mark itself paid / change plan / steal another number", m["plan"] != "enterprise" and m["sub"] != "paid" and m["phone"] == r["phone_id"] and m["trial_ends_at"] == trial_before, (m, trial_before))
 code, b = api("PATCH", "/settings/profile", RO, {"settings": {"subscription_status": "paid"}, "subscription_status": "paid", "status": "active", "merchant_id": p["id"]})
 m2 = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->settings["subscription_status"]??null);')
 check("profile save cannot set subscription status", m2 != "paid", (code, m2))

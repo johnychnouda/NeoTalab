@@ -121,7 +121,9 @@ code, out, allout = say(drv_phone, button=f"drv:delivered:{o['id']}", wait=0.8)
 o = order_of(C1)
 check("Delivered → delivered", o["status"] == "delivered", o)
 free = tj('echo json_encode(App\\Models\\Driver::withoutGlobalScopes()->where("phone","+' + drv_phone + '")->first()->only("active_order_id","availability"));')
-check("driver is free again", free["active_order_id"] is None, free)
+# The driver may be given an older waiting order from an earlier run (the queue hands it over on purpose),
+# so the check is that they are no longer on THIS order.
+check("driver is no longer on this order", free["active_order_id"] != o["id"], free)
 code, out, _ = say(drv_phone, button=f"drv:delivered:{o['id']}")
 code, out, _ = say(STAFF, button=f"stf:reject:{o['id']}")
 check("delivered order cannot be refused afterwards", order_of(C1)["status"] == "delivered", out)

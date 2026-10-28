@@ -102,6 +102,24 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   The Arabic fallback reply in the stand-in is English for an English shop.
 - Blocked: live WhatsApp (Meta template not approved), live Whish, OpenAI-backed suites (not run), MySQL race suites (not run).
 
+## Checkpoint 11, 28 October 2026 (lab rerun after the 27 Oct run)
+- Lab: same SQLite lab, services restarted by hand (API 8011, WhatsApp stand-in 8039, Whish stand-in 8029, queue worker).
+  The MySQL lab was not used (reading the app's database settings was denied, so `s04`, `s04b`, `s13` are not run).
+- `s15` sessions 22/22 after a lab-only fix: the grocer account's password was reset in the lab database to a known
+  value, the lab's sign-in counters were cleared, and the brute-force check now waits a minute first (earlier logins used the
+  per-minute allowance, so the check started with 429s). The product behaved correctly.
+- Background run of the other lab suites (`s03`, `s05`–`s09`, `s14`, `s16`–`s23`): 11 failing checks, all in `s03` and `s05`.
+- `s03` authz: the over-posting check compared against a fixed 2099 date, but `s09` sets every other lab shop's trial to
+  2099 during its setup. The check now compares with the value before the attempt. Rerun: 322/322. The earlier
+  `GET /customers` 500 was SQLite "database is locked" while suites wrote to the same lab database at once; not seen in the quiet rerun.
+- `s05` journey: the lab driver was still assigned to order #2 from 27 October, so the app correctly gave no new order.
+  That driver was freed in the lab database only. Rerun: 37 of 38 pass. The one failure was the script, not the product:
+  after "Delivered", the app handed the driver an older waiting order (#8, left from an earlier run). That is the
+  dispatcher's normal behaviour (`DriverDispatcher::dispatchWaiting`). The check now asks only whether the driver is still on
+  this run's order. A second run then found both lab drivers still busy with leftover orders, so the lab's open orders for the
+  restaurant shop were cancelled in the lab database and its drivers reset (lab only). Rerun: 38 of 38 pass.
+- Not run: `s04`, `s04b`, `s13` (MySQL lab), `s10`, `s11`, `s12`, `s24`, `s25` (paid OpenAI calls).
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

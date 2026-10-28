@@ -1,5 +1,5 @@
 """Sessions: 30-day expiry, support-session expiry, password change, sign out other devices, owner email change."""
-import secrets
+import secrets, time
 from lib import *
 
 s = state(); OWN = s["owner"]; G = s["shops"]["grocer"]
@@ -64,6 +64,7 @@ code, b = api("PATCH", "/admin/account/email", new_owner, {"email": ENV["OWNER_E
 check("changed back", code == 200, code)
 s["owner"] = b["token"]; save_state(s)
 
-# Brute force on sign-in
-codes = [login(G["email"], "wrong-" + secrets.token_hex(3), retries=1)[0] for _ in range(7)]
+# Brute force on sign-in. Earlier logins above use this email's per-minute allowance, so wait for a clean minute first.
+time.sleep(65)
+codes =[login(G["email"], "wrong-" + secrets.token_hex(3), retries=1)[0] for _ in range(7)]
 check("repeated wrong passwords are slowed down (429 after 5)", codes.count(429) >= 1 and codes[:5].count(422) == 5, codes)
