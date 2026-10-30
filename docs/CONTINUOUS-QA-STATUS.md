@@ -219,3 +219,9 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   `neotalab_update`, `neotalab_paid` in review; `neotalab_welcome_v2` and `neotalab_access_v2` rejected (no reason given).
 - Reworked as `_v3` (login button instead of link in the text) and a longer nightly report text. Backend 535/535 after this change. Not yet
   submitted to Meta: needs `php artisan templates:sync` in production after the deploy.
+
+### Checkpoint 14, 30 October (live WhatsApp badge)
+- The owner portal's green "Connected" only meant an ID and a token were filled in. It now asks Meta (`GET /admin/platform-settings/whatsapp-status`,
+  `PlatformWhatsAppCheck`): Connected · number, Not working + Meta's message, or Not connected; a "Check again" button; a note when Meta has no approved
+  display name. Meta's answer for +961 70 207 078 on 30 Oct: status CONNECTED, display name not approved (`NON_EXISTS`). Tests: `PlatformWhatsAppCheckTest` (6),
+  browser `e2e/whatsapp-badge.spec.js`. The QR "Connect NeoTalab's number" button is a different method (a number on the WhatsApp Business app) and is not needed here.

@@ -178,6 +178,7 @@ Route::prefix('v1')->group(function () {
             Route::patch('account/email', [AuthController::class, 'updateEmail']);
             Route::get('platform-settings', [PlatformSettingsController::class, 'show']);
             Route::get('platform-settings/whatsapp-access-token', [PlatformSettingsController::class, 'revealWhatsAppAccessToken']);
+            Route::get('platform-settings/whatsapp-status', [PlatformSettingsController::class, 'whatsappStatus']);
             Route::patch('platform-settings', [PlatformSettingsController::class, 'update']);
         });
     });

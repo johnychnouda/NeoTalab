@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdatePlatformSettingsRequest;
 use App\Http\Resources\PlatformSettingsResource;
 use App\Services\PlatformSettingsService;
+use App\Services\WhatsApp\PlatformWhatsAppCheck;
 use App\Support\MerchantWhatsAppCredentials;
 use App\Support\StoredSecret;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,12 @@ class PlatformSettingsController extends Controller
             $setting,
             passwordChangedAt: $request->user()->password_changed_at?->toIso8601String(),
         );
+    }
+
+    /** Owner-only: asks Meta whether NeoTalab's own WhatsApp number is really connected. */
+    public function whatsappStatus(PlatformWhatsAppCheck $check): JsonResponse
+    {
+        return response()->json($check->run());
     }
 
     /** Owner-only: reveal the platform WhatsApp access token shown in Settings. */

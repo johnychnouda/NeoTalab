@@ -133,6 +133,8 @@ function OwnerSettingsContent() {
   const [showWaToken, setShowWaToken] = useState(false);
   const [waTokenConfigured, setWaTokenConfigured] = useState(false);
   const [waQr, setWaQr] = useState({ connected: false, phone: null });
+  // What Meta says about the number right now: "checking", or { state: "connected" | "problem" | "not_set", phone, message }.
+  const [waLive, setWaLive] = useState(null);
   const [revealedWaToken, setRevealedWaToken] = useState("");
   const [s, setS] = useState({
     price: "30", yearlyPrice: "300", trialDays: "3",
@@ -215,6 +217,16 @@ function OwnerSettingsContent() {
 
   useEffect(() => { load(); }, [load]);
 
+  const checkWa = useCallback(async () => {
+    setWaLive("checking");
+    try {
+      setWaLive(await api("GET", "/admin/platform-settings/whatsapp-status"));
+    } catch (e) {
+      setWaLive({ state: "problem", message: e.message });
+    }
+  }, [api]);
+  useEffect(() => { if (tab === "whatsapp" && !loading) checkWa(); }, [tab, loading, checkWa]);
+
   async function runSave(key, fn) {
     setSaving(key);
     try { await fn(); } finally { setSaving(""); }
@@ -291,6 +303,7 @@ function OwnerSettingsContent() {
       if (payload.wa_access_token) {
         setWaTokenConfigured(true);
       }
+      checkWa();
       setS((x) => ({ ...x, waToken: "" }));
       setRevealedWaToken("");
       setShowWaToken(false);
@@ -452,12 +465,23 @@ function OwnerSettingsContent() {
                 title={t("ow.set.waTitle")}
                 desc={t("ow.set.waDesc")}
                 badge={
-                  <span className={`set-badge ${waConfigured ? "ok" : "warn"}`}>
+                  <span className={`set-badge ${waLive?.state === "connected" ? "ok" : "warn"}`}>
                     <span className="set-badge-dot" />
-                    {t(waConfigured ? "ow.wa.connected" : "ow.wa.notSet")}
+                    {waLive === "checking" || waLive === null
+                      ? t("ow.wa.checking")
+                      : waLive.state === "connected"
+                        ? `${t("ow.wa.connected")}${waLive.phone ? ` · ${waLive.phone}` : ""}`
+                        : t(waLive.state === "problem" ? "ow.wa.problem" : "ow.wa.notSet")}
                   </span>
                 }
               />
+              {waLive && waLive !== "checking" && (
+                <p className="set-hint" role="status">
+                  {waLive.state === "problem" && `${waLive.message} `}
+                  {waLive.state === "connected" && waLive.name_status === "NON_EXISTS" && `${t("ow.wa.nameMissing")} `}
+                  <button type="button" className="btn-sm" onClick={checkWa}>{t("ow.wa.recheck")}</button>
+                </p>
+              )}
               <SetNote tone="wa">{t("ow.set.waNote")}</SetNote>
               <div className="set-card-body">
                 <div className="set-form-block">
