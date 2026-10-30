@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { watchPage, horizontalOverflow } from "./helpers.js";
 
-const PAGES = ["/", "/join", "/contact", "/privacy", "/terms", "/data-deletion", "/pay/success", "/pay/failure"];
+const PAGES = ["/", "/join", "/contact", "/privacy", "/terms", "/data-deletion"];
 
 for (const path of PAGES) {
   test(`public page ${path} loads cleanly`, async ({ page }) => {

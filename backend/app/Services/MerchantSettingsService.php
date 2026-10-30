@@ -187,14 +187,22 @@ class MerchantSettingsService
         }
         if (array_key_exists('whish_number', $payload)) {
             // Digits only: the number customers send their Whish payment to. Empty turns Whish off for the shop.
-            $digits = preg_replace('/\D+/', '', (string) $payload['whish_number']);
-            if ($digits !== '' && (strlen($digits) < 6 || strlen($digits) > 15)) {
+            $typed = trim((string) $payload['whish_number']);
+            $digits = preg_replace('/\D+/', '', $typed);
+            // Spaces, dashes, brackets and a leading + are fine; letters are a mistake, not "no number".
+            $badShape = $typed !== '' && preg_match('/[^\d\s+\-()]/', $typed) === 1;
+            if ($badShape || ($digits !== '' && (strlen($digits) < 6 || strlen($digits) > 15))) {
                 throw ValidationException::withMessages(['whish_number' => [__('Enter the shop\'s Whish number, digits only.')]]);
             }
             $settings['whish'] = array_merge($settings['whish'] ?? [], ['number' => $digits]);
         }
         if (array_key_exists('wishTimeoutMins', $payload) || array_key_exists('wish_timeout_mins', $payload)) {
-            $settings['wish_timeout_mins'] = (int) ($payload['wishTimeoutMins'] ?? $payload['wish_timeout_mins']);
+            $minutes = $payload['wishTimeoutMins'] ?? $payload['wish_timeout_mins'];
+            // The same 5 to 120 the settings screen allows.
+            if (! is_numeric($minutes) || (int) $minutes < 5 || (int) $minutes > 120) {
+                throw ValidationException::withMessages(['wish_timeout_mins' => [__('Choose between 5 and 120 minutes.')]]);
+            }
+            $settings['wish_timeout_mins'] = (int) $minutes;
         }
 
         // Changing the type of business resets its defaults (time unit, orders or bookings).

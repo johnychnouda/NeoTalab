@@ -279,6 +279,32 @@ class WhishTransferTest extends TestCase
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->where('payment_method', 'whish')->count());
     }
 
+    public function test_a_whish_number_that_is_not_a_number_is_refused_and_does_not_switch_whish_off(): void
+    {
+        foreach (['not a number', 'abc', '70123456abc'] as $bad) {
+            $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['whish_number' => $bad])
+                ->assertStatus(422)->assertJsonValidationErrors('whish_number');
+        }
+
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['whish_number' => '+961 70 123 456'])->assertOk();
+        $this->assertSame('96170123456', ($this->merchant->fresh()->settings['whish'] ?? [])['number']);
+
+        // An empty value still turns Whish off on purpose.
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['whish_number' => ''])->assertOk();
+        $this->assertSame('', ($this->merchant->fresh()->settings['whish'] ?? [])['number']);
+    }
+
+    public function test_the_payment_window_is_kept_between_5_and_120_minutes(): void
+    {
+        foreach ([0, -5, 4, 121, 99999999] as $bad) {
+            $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['wish_timeout_mins' => $bad])->assertStatus(422);
+        }
+        $this->assertSame(15, $this->merchant->fresh()->settings['wish_timeout_mins']);
+
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['wish_timeout_mins' => 30])->assertOk();
+        $this->assertSame(30, $this->merchant->fresh()->settings['wish_timeout_mins']);
+    }
+
     public function test_the_old_whish_callback_is_gone(): void
     {
         $this->postJson('/api/v1/webhooks/whish/1/success')->assertNotFound();
