@@ -21,8 +21,6 @@ class PlatformTemplateService
     // The login is a button, the text has only the shop name and email, and the code goes alone in CODE.
     public const WELCOME = 'neotalab_welcome_v4';
 
-    public const ACCESS = 'neotalab_access_v4';
-
     /** The login code on its own, in Meta's Authentication format (its wording is fixed by Meta; the shop taps "Copy code"). */
     public const CODE = 'neotalab_code';
 
@@ -58,11 +56,6 @@ class PlatformTemplateService
             self::DAILY_REPORT => [
                 'text' => "📊 Here is the daily report for {{1}} on {{2}}, sent by NeoTalab.\n\nOrders delivered today: {{3}}\nTotal sales today: {{4}}\nAverage customer rating: {{5}}\nOrders that were late: {{6}}\nBest selling items today: {{7}}\n\nOpen your dashboard at any time to see more details about your shop and your customers.",
                 'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
-            ],
-            self::ACCESS => [
-                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nYour email address is {{2}}\n\nTap the button below to open your dashboard. Your new access details follow in the next message.",
-                'examples' => ['Abou Ali Snack', 'abouali@merchant.neotalab'],
-                'login_button' => true,
             ],
         ];
     }

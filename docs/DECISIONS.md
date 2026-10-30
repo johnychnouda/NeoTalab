@@ -106,6 +106,8 @@ groceries, retail, salons, clinics, services).
   `neotalab_daily_report` was never approved ("too many variables for its length"); its text is longer now.
 - `_v3` was rejected within seconds too, so `_v4` drops every mention of codes, passwords and logging in from the welcome and access texts (a test checks this);
   the login page tells a first-time shop to use the 6-digit code from WhatsApp, valid 24 hours.
+- Meta passed `neotalab_welcome_v4` into review but rejected `neotalab_access_v4` within seconds: "get back into your account" reads as account recovery. There is no
+  separate access template any more; a regained login sends the welcome template and a fresh code.
 - After a deploy, `php artisan templates:sync` submits the new templates to Meta; old rejected names are left behind.
 
 ## Before going live with real shops

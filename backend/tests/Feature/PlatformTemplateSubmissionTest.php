@@ -33,7 +33,9 @@ class PlatformTemplateSubmissionTest extends TestCase
     {
         $sent = $this->submitted();
 
-        foreach ([PlatformTemplateService::WELCOME, PlatformTemplateService::ACCESS] as $name) {
+        $this->assertArrayNotHasKey('neotalab_access_v4', $sent, 'Meta refuses an account-recovery text, so there is none');
+
+        foreach ([PlatformTemplateService::WELCOME] as $name) {
             $components = collect($sent[$name]['components']);
             $body = $components->firstWhere('type', 'BODY');
             $button = $components->firstWhere('type', 'BUTTONS')['buttons'][0];

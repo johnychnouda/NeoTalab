@@ -94,7 +94,8 @@ class MerchantWelcomeService
 
         // A new shop has never written to the platform number, so outside WhatsApp's 24-hour window
         // only an approved template is delivered (Meta drops plain text without an error).
-        $template = $variant === 'regain' ? PlatformTemplateService::ACCESS : PlatformTemplateService::WELCOME;
+        // A regained login uses the welcome wording too: Meta refused every "get back into your account" text (it reads as account recovery).
+        $template = PlatformTemplateService::WELCOME;
         // A code must never go as plain text: outside the 24-hour window Meta accepts it and drops it,
         // so the owner would be told it was sent when it never arrived. Until both templates are approved
         // the caller opens the chat instead, and the owner sends the message from their own WhatsApp.
