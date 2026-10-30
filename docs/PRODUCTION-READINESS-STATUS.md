@@ -115,7 +115,8 @@ downloads the newest zip from the backup storage and restores it into an empty d
 ## Restore procedure (tested 25 Oct on MySQL 26.10)
 1. Download the newest zip from the backup storage (`BACKUP_S3_*` in Railway) and unzip it: `db-dumps/mysql-<db>.sql`.
 2. Create an **empty** database (never restore over the live one while it runs).
-3. `grep -v GTID_PURGED db-dumps/mysql-<db>.sql | mysql -h <host> -P <port> -u <user> -p <empty db>`
+3. (Railway console, 30 Oct: the `mysql` client there is MariaDB's and rejects the server's self-signed certificate; add `--skip-ssl-verify-server-cert`. Download the zip from the `backups` disk with `Storage::disk("backups")`, no keys needed.)
+   `grep -v GTID_PURGED db-dumps/mysql-<db>.sql | mysql -h <host> -P <port> -u <user> -p <empty db>`
    (MySQL refuses the `GTID_PURGED` line when the dump came from the same server.)
 4. Check: same tables and `CHECKSUM TABLE` per table as the source, or at least row counts of orders, customers, products.
 5. Point a copy of the API at it (`DB_DATABASE`) and open the owner portal before switching production over.

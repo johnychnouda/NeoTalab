@@ -18,21 +18,25 @@ touch: the live WhatsApp number and a real Whish transfer. Both are in Meta's re
 cover that.
 
 ## Blockers before any real customer
-1. **Live WhatsApp never tested end to end.** Meta App Review and access verification have been pending since 23 October.
-   Everything WhatsApp is proven against a stand-in only. The new payment-check template (`neotalab_payment_check`) is
+1. **Live WhatsApp never tested end to end.** Update, 30 October: Meta's App Review is now **approved** (owner's screenshot:
+   `whatsapp_business_messaging`, `whatsapp_business_management`, `public_profile`, `email`, submitted 30 Oct 02:50). Business
+   verification and a real number going live are not confirmed. Everything WhatsApp is still proven against a stand-in only. The new payment-check template (`neotalab_payment_check`) is
    not approved either, so a shop outside WhatsApp's 24-hour window will not get a payment alert yet.
 2. **A real Whish transfer has never been made through the flow.** There is no Whish API any more; the shop checks its own
    Whish account by hand. The flow is tested with simulated WhatsApp messages only.
-3. **Production backup restore not tested** with a real production file (the procedure works on a local MySQL copy).
+3. ~~Production backup restore~~ **Done 30 Oct.** The newest real backup (01:00 that day) was downloaded from the backup storage inside the Railway console and restored into a scratch database on the production MySQL server (since dropped). Table list and row counts matched the live database, apart from cache, locks, sessions, 3 newer migrations and the new `subscription_payments` table. **Limit:** production has 0 shops, 0 customers and 0 orders (one login), so this proves the mechanism, not a restore of real shop data.
 4. **No uptime alert** (needs the owner's UptimeRobot account).
-5. **Run `php artisan migrate` in production.** Three migrations from 29–30 October (Whish settings removed,
-   `subscription_payments` added, old Whish order columns dropped) only run if `RUN_MIGRATIONS` is on.
-   Not confirmed in this session; I did not read the Railway console.
+5. ~~Migrations in production~~ **Confirmed 30 Oct** through the Railway console: `migrate:status` shows the three
+   29–30 October migrations as Ran.
 
 ## Testing statistics (this session, 30 October, run by me)
 | What | Passed | Failed | Skipped | Notes |
 |---|---|---|---|---|
 | Backend PHPUnit (SQLite) | 522 | 0 | 0 | 520 at start; +2 regression tests. Pint clean |
+| Backend PHPUnit (MySQL 26.10) | 522 | 0 | 0 | plus migrations rolled back and re-run (3 steps) |
+| Lab stock races on MySQL (`s04`, `s04b`) | 4 checks | 0 | 0 | 2 buyers × 10 rounds, 5 buyers × 6 rounds: never oversold |
+| Lab speed on MySQL (`s13`) | 7 | 0 | 0 | see performance report |
+| Real AI, production model (`s10`, `s11`, `s24`, `s25`) | 18 + 3 + 23 + 15 | 0 + 1 + 1 + 1 | 0 | `s24` rerun 24/24; `s11` and `s25` miss the same check on both runs. See bugs file (D37) |
 | Web unit (Vitest) | 10 | 0 | 0 | `next build` succeeds |
 | Lab `s03` authorisation | 322 | 0 | 0 | |
 | Lab `s05` delivery journey | 38 | 0 | 0 | first run 29/9: lab drivers still held by old orders; lab reset, rerun clean |
@@ -44,11 +48,10 @@ cover that.
 | Browser, new Whish number test | 3 | 0 | 0 | desktop, phone, tablet |
 | `composer audit`, `npm audit` | clean | | | after updating `symfony/mime` |
 
-Not run this session: MySQL suite and MySQL races (`s04`, `s04b`, `s13`), real-AI suites (`s10`, `s11`, `s12`, `s24`, `s25`;
-paid calls), tablet, Firefox and WebKit full runs, load tests. Last results for those are in the status file.
+Not run this session: voice/call suite `s12`, tablet, Firefox and WebKit full runs, load tests beyond `s13`. Last results for those are in the status file.
 
-Defects this session: 3 found, 3 fixed, 0 open (see [NEOTALAB_BUGS_AND_FIXES.md](NEOTALAB_BUGS_AND_FIXES.md)).
-Across the project: 36 logged (D1–D33 plus the three here), all fixed.
+Defects this session: 4 found, 3 fixed, 1 open (D37, medium) (see [NEOTALAB_BUGS_AND_FIXES.md](NEOTALAB_BUGS_AND_FIXES.md)).
+Across the project: 37 logged (D1–D33 plus four here), 36 fixed, D37 open.
 
 ## What I did not do from the brief, and why
 The brief asks for every vertical, every role and every persona to be driven from scratch. Not redone here. The
@@ -61,12 +64,12 @@ in [NEOTALAB_REMAINING_WORK.md](NEOTALAB_REMAINING_WORK.md).
 |---|---|
 | Backend and database | solid in tests; suite passes on SQLite and (checkpoint 9) MySQL |
 | Tenant isolation and roles | pass: `s03` 322 checks plus isolation tests |
-| AI | live-model suites 62/62 at 27 Oct on the production model; free-text figures in replies are not checked against data |
+| AI | rerun 30 Oct on the production model: mostly passing, one intermittent false price claim (D37); free-text figures in replies are not checked against data |
 | WhatsApp | simulated only |
 | Payments | cash and Whish-by-transfer tested in simulation; nothing automatic, nothing live |
 | Security | see [NEOTALAB_SECURITY_AUDIT.md](NEOTALAB_SECURITY_AUDIT.md) |
-| Performance | measured 23 and 27 Oct, not rerun; see [NEOTALAB_PERFORMANCE_REPORT.md](NEOTALAB_PERFORMANCE_REPORT.md) |
-| Infrastructure | Railway, Laravel 13, PHP 8.5; no staging environment; backup restore from production untested |
+| Performance | rerun 30 Oct on MySQL lab (fast); not tested on Railway under load; see [NEOTALAB_PERFORMANCE_REPORT.md](NEOTALAB_PERFORMANCE_REPORT.md) |
+| Infrastructure | Railway, Laravel 13, PHP 8.5; no staging environment; backup restore verified 30 Oct; production database is still empty of shops |
 
 Related: [NEOTALAB_MERCHANT_COMPATIBILITY_MATRIX.md](NEOTALAB_MERCHANT_COMPATIBILITY_MATRIX.md) ·
 [NEOTALAB_TEST_COVERAGE_REPORT.md](NEOTALAB_TEST_COVERAGE_REPORT.md) ·

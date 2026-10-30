@@ -22,9 +22,8 @@ run against production.
 | D36 | Low | Shop settings API | Payment window had no limits server-side | A shop could hold a customer's order open for years or cancel orders in 1 minute | Fixed, regression test |
 
 ## Open items
-- **Request limit and real users.** The API allows 120 requests a minute per user. My browser suite hits it when run back to back
-  (HTTP 429). I have not measured how many requests a real dashboard session makes, so I cannot say whether a busy shop
-  with two tabs open would hit it. Measure before raising or lowering it.
+- **Request limit and real users.** Measured 30 Oct: 2 to 4 calls per page and about 12 a minute left open, against a limit of 120 a minute. Not a concern for normal use; the 429s in my browser suite came from fast automated clicking.
+- **D37 (open, medium):** the real AI can repeat a customer-invented price as if it were true (the cart stays correct). See the bugs file.
 - **Forwarded-address header on Railway**: the sign-in limits no longer depend on it (D17), the per-address limits still do.
   Needs an answer from Railway support.
 - **Not tested this session:** SSRF and path traversal (no code path takes a user URL or path except menu import, tested at

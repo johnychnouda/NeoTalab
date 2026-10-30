@@ -1,22 +1,35 @@
 # NeoTalab performance report
 
-**Nothing was measured in this session.** The figures below are from earlier checkpoints and were not rerun on today's code.
-I am not inventing new ones.
+Updated 30 October 2026. Everything here is from a laptop lab, not from Railway under real load.
 
-## Measured earlier
-- 23 Oct, MySQL lab, 500 items, 400 customers, 2,000 orders, 20 calls each. Medians: menu 43 ms, customers 33 ms,
-  reports 129 ms, owner shop list 37 ms, WhatsApp "hi" 89 ms with the fake AI. The real AI adds 1 to 4 s per reply.
-- 27 Oct, production queue raised to 20 workers after a load test: 1000 customers × 3 messages each answered in about 3 s
-  (see the memory note on workers; this was with the stand-in, not live WhatsApp).
-- Stock races (last item, 5 buyers × 10 rounds) on MySQL: never oversold. Closing an order at the same moment from two sides:
-  0 wrong in 60 rounds × 2 kinds.
+## Measured 30 Oct (MySQL 26.10 lab, `qa/s13_speed.py`)
+Dataset: 513 items, 450 customers, 2,016 orders (my own seed; the 23 Oct set was similar but not identical). 20 calls each.
+| Call | Median | 95% under |
+|---|---|---|
+| Shop menu list | 46 ms | 54 ms |
+| Shop customers list | 38 ms | 42 ms |
+| Shop reports | 103 ms | 107 ms |
+| Setup checklist | 33 ms | 37 ms |
+| Owner shop list | 39 ms | 44 ms |
+| Owner usage | 38 ms | 43 ms |
+| WhatsApp "hi" (stand-in AI) | 20 ms | 24 ms |
+The real AI adds 1 to 4 s per reply (earlier measurement).
+
+## Stock races on MySQL, 30 Oct
+Last item, 2 buyers × 10 rounds and 5 buyers × 6 rounds: an order every round, never oversold.
+
+## Dashboard request volume, 30 Oct (browser, SQLite lab)
+A logged-in shop dashboard makes 2 to 4 API calls per page load and about 12 calls a minute when left open on the home
+page. The API limit is 120 a minute per user, so five open tabs use half of it. The 429 errors seen in my browser suite came
+from the suite clicking quickly, not from normal use.
+
+## Measured earlier, not rerun
+- 27 Oct: production queue raised to 20 workers after a load test: 1000 customers × 3 messages answered in about 3 s (stand-in WhatsApp).
+- Closing one order from two sides at once: 0 wrong in 60 rounds × 2 kinds (MySQL).
 - One chat is answered one message at a time (per-customer lock); other chats run in parallel.
 
 ## Not measured
-- Hundreds of simultaneous chats on Railway's real resources, and OpenAI rate limits at peak.
-- Requests per dashboard session against the 120 per minute per user API limit (browser suites do hit it, see the security audit).
-- Thousands of products with the real AI; large reporting periods beyond the 2,000-order dataset.
-- Database connection failure and deadlock behaviour beyond what the race tests show.
-- Resource use (memory, CPU) on Railway.
-
-To refresh: start the MySQL lab, run `qa/s13_speed.py`, `qa/s04_stock_race.py`, `qa/s04b_stock_race5.py`.
+- Hundreds of simultaneous chats on Railway's real resources; OpenAI rate limits at peak.
+- Memory and CPU on Railway.
+- Thousands of products with the real AI.
+- Database connection failures and deadlocks beyond what the race tests show.

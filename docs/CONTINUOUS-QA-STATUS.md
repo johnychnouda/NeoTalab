@@ -193,3 +193,11 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Ask Railway support which forwarded-address header is guaranteed and whether callers can overwrite it. Not blocking: the login limits no longer depend on it.
 
 ## Backlog (next exact tasks, in order; items 1–5 done at checkpoint 1, 6–9 at checkpoint 2, 10 at checkpoint 3)
+
+### Checkpoint 14, later on 30 October
+- Pushed to `main`; Railway redeployed. `migrate:status` in the production console: all migrations Ran (batches 26 to 27).
+- Meta App Review approved 30 Oct (owner's screenshot). Business verification and a live number: not confirmed.
+- MySQL 26.10: backend 522/522; the three new migrations roll back and re-run; stock races (`s04`, `s04b`) pass; `s13` speed fine.
+- Real AI on the production model: `s10` 18/18; `s24` 23/24 then 24/24; `s11` 3/4 twice; `s25` 15/16 twice. New open finding D37 (medium).
+- Dashboard request volume: 2 to 4 calls per page, about 12 a minute left open (limit 120).
+- Production backup: newest file restored into a scratch database on the production MySQL; matches live; scratch database dropped. Production has no shops yet.
