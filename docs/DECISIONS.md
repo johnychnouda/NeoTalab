@@ -101,7 +101,10 @@ groceries, retail, salons, clinics, services).
 - The code is the shop's first password. It lasts 24 hours (`users.activation_expires_at`); once used, one more hour to choose
   a password; choosing one ends the limit. A wrong password never reveals that a code existed or expired.
 - If either template is not approved, nothing is sent and the owner sends the login details from their own WhatsApp (as before).
-- After a deploy, `php artisan templates:sync` submits the three new templates to Meta; the old rejected names are left behind.
+- Meta also rejected the code-free versions (`_v2`), so the code was not the reason (Meta gives none). `_v3`: the login is a URL button
+  (`/backoffice/{{1}}`, the slug is the button value), the text holds only the shop name and email, the code stays in `neotalab_code`.
+  `neotalab_daily_report` was never approved ("too many variables for its length"); its text is longer now.
+- After a deploy, `php artisan templates:sync` submits the new templates to Meta; old rejected names are left behind.
 
 ## Before going live with real shops
 

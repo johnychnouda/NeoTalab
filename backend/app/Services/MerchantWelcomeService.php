@@ -111,10 +111,14 @@ class MerchantWelcomeService
                 $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
                     'name' => $template,
                     'language' => ['code' => config('alerts.whatsapp_language')],
-                    'components' => [['type' => 'body', 'parameters' => array_map(
-                        fn (string $v) => ['type' => 'text', 'text' => $v],
-                        [$merchant->name, $loginUrl, $email],
-                    )]],
+                    'components' => [
+                        ['type' => 'body', 'parameters' => array_map(
+                            fn (string $v) => ['type' => 'text', 'text' => $v],
+                            [$merchant->name, $email],
+                        )],
+                        // The button opens the shop's login page: its address ends in the slug.
+                        ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => (string) $merchant->slug]]],
+                    ],
                 ]]);
                 $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
                     'name' => PlatformTemplateService::CODE,

@@ -17,10 +17,10 @@ class PlatformTemplateService
 {
     public function __construct(protected WhatsAppService $whatsapp) {}
 
-    // _v2: Meta rejected the first versions, which carried the login code inside the text. The code now goes in CODE.
-    public const WELCOME = 'neotalab_welcome_v2';
+    // _v3: Meta rejected the earlier versions (the code, then the login link, typed into the text). The login is now a button and the code goes in CODE.
+    public const WELCOME = 'neotalab_welcome_v3';
 
-    public const ACCESS = 'neotalab_access_v2';
+    public const ACCESS = 'neotalab_access_v3';
 
     /** The login code on its own, in Meta's Authentication format (its wording is fixed by Meta; the shop taps "Copy code"). */
     public const CODE = 'neotalab_code';
@@ -44,8 +44,9 @@ class PlatformTemplateService
             ],
             // Login details for a newly approved shop, which has never written to the platform number. The code follows in CODE.
             self::WELCOME => [
-                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nLog in: {{2}}\nEmail: {{3}}\n\nYour activation code comes in the next message. It works for 24 hours: use it as your first password, then choose your own.",
-                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab'],
+                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nYour login email is {{2}}\n\nTap the button below to open your dashboard. Your activation code comes in the next message. It works for 24 hours: use it as your first password, then choose your own.",
+                'examples' => ['Abou Ali Snack', 'abouali@merchant.neotalab'],
+                'login_button' => true,
             ],
             self::CODE => ['authentication' => true],
             // Sent to a shop owner when a subscription payment is recorded.
@@ -54,12 +55,13 @@ class PlatformTemplateService
                 'examples' => ['Abou Ali Snack', '21 November 2026'],
             ],
             self::DAILY_REPORT => [
-                'text' => "📊 {{1}} — {{2}}\nOrders delivered: {{3}}\nSales: {{4}}\nAverage rating: {{5}}\nLate orders: {{6}}\nTop items: {{7}}",
+                'text' => "📊 Here is the daily report for {{1}} on {{2}}, sent by NeoTalab.\n\nOrders delivered today: {{3}}\nTotal sales today: {{4}}\nAverage customer rating: {{5}}\nOrders that were late: {{6}}\nBest selling items today: {{7}}\n\nOpen your dashboard at any time to see more details about your shop and your customers.",
                 'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
             ],
             self::ACCESS => [
-                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\n\nYour new code comes in the next message. It works for 24 hours: sign in with it, then set a new password right away.",
-                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab'],
+                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nYour login email is {{2}}\n\nTap the button below to open your dashboard. Your new code comes in the next message. It works for 24 hours: sign in with it, then set a new password right away.",
+                'examples' => ['Abou Ali Snack', 'abouali@merchant.neotalab'],
+                'login_button' => true,
             ],
         ];
     }
@@ -130,11 +132,20 @@ class PlatformTemplateService
                 'language' => config('alerts.whatsapp_language'),
                 'category' => 'UTILITY',
                 'allow_category_change' => true,
-                'components' => [[
-                    'type' => 'BODY',
-                    'text' => $def['text'],
-                    'example' => ['body_text' => [$def['examples']]],
-                ]],
+                'components' => array_values(array_filter([
+                    [
+                        'type' => 'BODY',
+                        'text' => $def['text'],
+                        'example' => ['body_text' => [$def['examples']]],
+                    ],
+                    // The login page is a button whose address ends in the shop's slug, never a link typed into the text.
+                    isset($def['login_button']) ? ['type' => 'BUTTONS', 'buttons' => [[
+                        'type' => 'URL',
+                        'text' => 'Open my dashboard',
+                        'url' => rtrim((string) config('app.frontend_url'), '/').'/backoffice/{{1}}',
+                        'example' => [rtrim((string) config('app.frontend_url'), '/').'/backoffice/abou-ali-snack'],
+                    ]]] : null,
+                ])),
             ];
         $response = Http::withToken($token)->acceptJson()->post($this->whatsapp->graphUrl("{$wabaId}/message_templates"), $payload);
 

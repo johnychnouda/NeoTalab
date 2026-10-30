@@ -40,7 +40,7 @@ class MerchantWelcomeTest extends TestCase
             'wa_access_token' => 'EAAX_platform',
         ])->assertOk();
         $platform = PlatformSetting::singleton();
-        $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_welcome_v2' => 'APPROVED', 'neotalab_code' => 'APPROVED']]);
+        $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_welcome_v3' => 'APPROVED', 'neotalab_code' => 'APPROVED']]);
         $platform->save();
 
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
@@ -71,7 +71,7 @@ class MerchantWelcomeTest extends TestCase
         $platform = PlatformSetting::singleton();
         $platform->settings = array_merge($platform->settings ?? [], [
             'wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform',
-            'wa_templates' => ['neotalab_welcome_v2' => 'APPROVED', 'neotalab_code' => 'APPROVED'],
+            'wa_templates' => ['neotalab_welcome_v3' => 'APPROVED', 'neotalab_code' => 'APPROVED'],
         ]);
         $platform->save();
 
@@ -85,8 +85,10 @@ class MerchantWelcomeTest extends TestCase
         $this->assertCount(2, $sent);
 
         $welcome = $sent[0];
-        $this->assertSame('neotalab_welcome_v2', $welcome['template']['name']);
-        $this->assertSame(['Foren', 'https://neotalab.com/backoffice/foren', $user->email], array_column($welcome['template']['components'][0]['parameters'], 'text'));
+        $this->assertSame('neotalab_welcome_v3', $welcome['template']['name']);
+        $this->assertSame(['Foren', $user->email], array_column($welcome['template']['components'][0]['parameters'], 'text'));
+        $this->assertSame(['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => 'foren']]], $welcome['template']['components'][1], 'the login is a button that ends in the shop slug');
+        $this->assertStringNotContainsString('http', json_encode($welcome['template']['components'][0]), 'no link is typed into the text');
         $this->assertStringNotContainsString('123456', $welcome->body(), 'the welcome carries no code');
 
         $code = $sent[1];
@@ -101,7 +103,7 @@ class MerchantWelcomeTest extends TestCase
         $token = $this->tokenFor($this->platformAdmin());
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
 
-        foreach ([['neotalab_welcome_v2' => 'APPROVED'], ['neotalab_code' => 'APPROVED']] as $templates) {
+        foreach ([['neotalab_welcome_v3' => 'APPROVED'], ['neotalab_code' => 'APPROVED']] as $templates) {
             $platform = PlatformSetting::singleton();
             $platform->settings = array_merge($platform->settings ?? [], ['wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform', 'wa_templates' => $templates]);
             $platform->save();

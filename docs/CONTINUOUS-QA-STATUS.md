@@ -213,3 +213,9 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   must be submitted and approved first) and not run on MySQL here (CI runs it).
 - Platform number: WABA id had to be saved by hand (`wa_waba_id`) because a phone number ID typed in the portal never stores it, so
   `templates:sync` did nothing. The portal has no field for it yet (open).
+
+### Checkpoint 14, 30 October (templates v3)
+- Production: migration `add_activation_expires_at_to_users` ran; `templates:sync` run. Meta: `neotalab_code` (Authentication), `system_alert`,
+  `neotalab_update`, `neotalab_paid` in review; `neotalab_welcome_v2` and `neotalab_access_v2` rejected (no reason given).
+- Reworked as `_v3` (login button instead of link in the text) and a longer nightly report text. Backend 535/535 after this change. Not yet
+  submitted to Meta: needs `php artisan templates:sync` in production after the deploy.
