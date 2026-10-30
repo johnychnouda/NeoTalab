@@ -173,6 +173,18 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   removes `whish_external_id` and `whish_collect_url`. Rolled back and re-applied on the lab; backend 520 of 520 pass; Pint clean.
   The old values are gone for good; `down()` only restores empty columns.
 
+## Checkpoint 14, 30 October 2026 (autonomous readiness pass on the Whish-by-transfer commit)
+- Baseline: backend 520 passed, Pint clean, web unit 10, `npm audit` clean, `composer audit` showed one new advisory (D34).
+- Fixed: D34 (`symfony/mime` 8.1.10), D35 (non-numeric Whish number silently switched Whish off), D36 (payment window unchecked).
+  Cleaned up after the Whish API removal: the `/pay/*` branch in `web/proxy.js` and the two stale `/pay/*` page checks in `e2e/public.spec.js`.
+- After the fixes: backend 522 passed, Pint clean, web unit 10.
+- Lab (restarted the stale queue workers; lab database only: old open orders cancelled and drivers freed):
+  `s03` 322/322 · `s05` 38/38 (29/9 before the reset: leftover orders held the drivers) · `s06` 33/33 · `s09` 27/27 · `s26` 21/21.
+- Browser, lab: new `e2e/whish-number.spec.js` passes on desktop, phone and tablet. Full desktop and phone runs: 54 passed, 3 failed,
+  1 skipped each; every failure is a 429 from the API's request limit when the suite runs back to back, and the failing tests pass alone.
+- Not run: MySQL suites, real-AI suites, tablet/Firefox/WebKit full runs, load.
+- Consolidated reports: `docs/NEOTALAB_*.md` (eight files).
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

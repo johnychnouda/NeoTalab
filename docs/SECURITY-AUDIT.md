@@ -29,7 +29,7 @@ the automated suite only; nothing destructive was run against production.
 | SQL injection | no user input in raw SQL (only cast integers and bound values) | code search 24 Oct: `whereRaw`/`selectRaw`/`DB::raw` |
 | XSS | dashboard never renders user text as HTML; join-form names tested | `qa/xss.mjs` |
 | WhatsApp webhook signature | required; production refuses everything if `WHATSAPP_APP_SECRET` is unset; the "skip signature" switch is ignored in production | `WhatsAppService.php:193`, `s06` |
-| Whish callbacks | never trusted alone: status is verified with Whish; signed route | `WhishPaymentTest`, `s18` |
+| Whish callbacks | removed 29 Oct: there is no Whish API or callback any more (the old address returns 404); a payment is marked paid only by the shop (customer payments) or the owner (subscriptions) after checking the Whish account by hand | `WhishTransferTest`, `SubscriptionPaymentTest`, `s06`, `s26` |
 | Secrets at rest | WhatsApp tokens and Whish secrets encrypted with APP_KEY (`StoredSecret`); hidden in the owner portal | `StoredSecretTest`, `s09` |
 | Secrets in git | none ever committed (history searched for `.env`, OpenAI and Meta token shapes, APP_KEYs) | `git log`, `git grep` 24 Oct |
 | Security headers, version leaks | fixed (D14) | `SecurityHeadersTest` |
