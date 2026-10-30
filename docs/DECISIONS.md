@@ -104,6 +104,8 @@ groceries, retail, salons, clinics, services).
 - Meta also rejected the code-free versions (`_v2`), so the code was not the reason (Meta gives none). `_v3`: the login is a URL button
   (`/backoffice/{{1}}`, the slug is the button value), the text holds only the shop name and email, the code stays in `neotalab_code`.
   `neotalab_daily_report` was never approved ("too many variables for its length"); its text is longer now.
+- `_v3` was rejected within seconds too, so `_v4` drops every mention of codes, passwords and logging in from the welcome and access texts (a test checks this);
+  the login page tells a first-time shop to use the 6-digit code from WhatsApp, valid 24 hours.
 - After a deploy, `php artisan templates:sync` submits the new templates to Meta; old rejected names are left behind.
 
 ## Before going live with real shops

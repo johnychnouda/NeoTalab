@@ -39,6 +39,8 @@ class PlatformTemplateSubmissionTest extends TestCase
             $button = $components->firstWhere('type', 'BUTTONS')['buttons'][0];
 
             $this->assertStringNotContainsString('http', $body['text']);
+            // Meta refused every version that talked about codes, passwords or logging in; the code has its own template.
+            $this->assertDoesNotMatchRegularExpression('/code|password|log ?in|sign ?in|credential/i', $body['text']);
             $this->assertSame(2, preg_match_all('/\{\{\d\}\}/', $body['text']), 'only the shop name and the email change');
             $this->assertSame('URL', $button['type']);
             $this->assertSame('https://neotalab.com/backoffice/{{1}}', $button['url']);

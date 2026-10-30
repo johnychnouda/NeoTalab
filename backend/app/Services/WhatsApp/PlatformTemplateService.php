@@ -17,10 +17,11 @@ class PlatformTemplateService
 {
     public function __construct(protected WhatsAppService $whatsapp) {}
 
-    // _v3: Meta rejected the earlier versions (the code, then the login link, typed into the text). The login is now a button and the code goes in CODE.
-    public const WELCOME = 'neotalab_welcome_v3';
+    // _v4: Meta rejected the earlier versions within seconds (the code, then the login link, then any mention of codes and passwords).
+    // The login is a button, the text has only the shop name and email, and the code goes alone in CODE.
+    public const WELCOME = 'neotalab_welcome_v4';
 
-    public const ACCESS = 'neotalab_access_v3';
+    public const ACCESS = 'neotalab_access_v4';
 
     /** The login code on its own, in Meta's Authentication format (its wording is fixed by Meta; the shop taps "Copy code"). */
     public const CODE = 'neotalab_code';
@@ -44,7 +45,7 @@ class PlatformTemplateService
             ],
             // Login details for a newly approved shop, which has never written to the platform number. The code follows in CODE.
             self::WELCOME => [
-                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nYour login email is {{2}}\n\nTap the button below to open your dashboard. Your activation code comes in the next message. It works for 24 hours: use it as your first password, then choose your own.",
+                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nYour email address is {{2}}\n\nTap the button below to open your dashboard. Your access details follow in the next message.",
                 'examples' => ['Abou Ali Snack', 'abouali@merchant.neotalab'],
                 'login_button' => true,
             ],
@@ -59,7 +60,7 @@ class PlatformTemplateService
                 'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
             ],
             self::ACCESS => [
-                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nYour login email is {{2}}\n\nTap the button below to open your dashboard. Your new code comes in the next message. It works for 24 hours: sign in with it, then set a new password right away.",
+                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nYour email address is {{2}}\n\nTap the button below to open your dashboard. Your new access details follow in the next message.",
                 'examples' => ['Abou Ali Snack', 'abouali@merchant.neotalab'],
                 'login_button' => true,
             ],
