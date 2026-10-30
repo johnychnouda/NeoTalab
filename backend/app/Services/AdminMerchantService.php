@@ -254,7 +254,7 @@ class AdminMerchantService
             ])->save();
 
             if (! empty($payload['forcePasswordChange'])) {
-                $user->forceFill(['password_changed_at' => null])->save();
+                $user->forceFill(['password_changed_at' => null, 'activation_expires_at' => now()->addDay()])->save();
             }
 
             return ['merchant' => $merchant->fresh(), 'user' => $user];

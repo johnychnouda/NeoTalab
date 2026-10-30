@@ -17,9 +17,13 @@ class PlatformTemplateService
 {
     public function __construct(protected WhatsAppService $whatsapp) {}
 
-    public const WELCOME = 'neotalab_welcome';
+    // _v2: Meta rejected the first versions, which carried the login code inside the text. The code now goes in CODE.
+    public const WELCOME = 'neotalab_welcome_v2';
 
-    public const ACCESS = 'neotalab_access';
+    public const ACCESS = 'neotalab_access_v2';
+
+    /** The login code on its own, in Meta's Authentication format (its wording is fixed by Meta; the shop taps "Copy code"). */
+    public const CODE = 'neotalab_code';
 
     public const PAID = 'neotalab_paid';
 
@@ -38,11 +42,12 @@ class PlatformTemplateService
                 'text' => '🎉 Good news from NeoTalab: {{1}}. Tap the link to open it in your owner portal.',
                 'examples' => ['New shop request: Abou Ali Snack (Restaurant, Beirut). Contact: Ali +96170000000. Review it: https://neotalab.com/owner?req=1'],
             ],
-            // Login details for a newly approved shop, which has never written to the platform number.
+            // Login details for a newly approved shop, which has never written to the platform number. The code follows in CODE.
             self::WELCOME => [
-                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nLog in: {{2}}\nEmail: {{3}}\nActivation code: {{4}}\n\nUse the code as your first password, then choose your own.",
-                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab', '482913'],
+                'text' => "Welcome to NeoTalab! 🎉 Your account for {{1}} is ready.\n\nLog in: {{2}}\nEmail: {{3}}\n\nYour activation code comes in the next message. It works for 24 hours: use it as your first password, then choose your own.",
+                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab'],
             ],
+            self::CODE => ['authentication' => true],
             // Sent to a shop owner when a subscription payment is recorded.
             self::PAID => [
                 'text' => 'Thank you! Your NeoTalab subscription for {{1}} is paid until {{2}}. Thank you for trusting NeoTalab.',
@@ -53,8 +58,8 @@ class PlatformTemplateService
                 'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
             ],
             self::ACCESS => [
-                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\nTemporary code: {{4}}\n\nSign in with this code, then set a new password right away.",
-                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab', '482913'],
+                'text' => "Here is how to get back into your NeoTalab account for {{1}}.\n\nLog in: {{2}}\nEmail: {{3}}\n\nYour new code comes in the next message. It works for 24 hours: sign in with it, then set a new password right away.",
+                'examples' => ['Abou Ali Snack', 'https://neotalab.com/backoffice/abou-ali-snack', 'abouali@merchant.neotalab'],
             ],
         ];
     }
@@ -108,18 +113,30 @@ class PlatformTemplateService
     protected function submit(string $wabaId, string $token, string $name): ?string
     {
         $def = self::definitions()[$name];
-        // Meta may file it under another category; that is allowed so it still gets approved.
-        $response = Http::withToken($token)->acceptJson()->post($this->whatsapp->graphUrl("{$wabaId}/message_templates"), [
-            'name' => $name,
-            'language' => config('alerts.whatsapp_language'),
-            'category' => 'UTILITY',
-            'allow_category_change' => true,
-            'components' => [[
-                'type' => 'BODY',
-                'text' => $def['text'],
-                'example' => ['body_text' => [$def['examples']]],
-            ]],
-        ]);
+        // A login code uses Meta's own format: Meta writes the text, the shop gets a "Copy code" button.
+        $payload = isset($def['authentication'])
+            ? [
+                'name' => $name,
+                'language' => config('alerts.whatsapp_language'),
+                'category' => 'AUTHENTICATION',
+                'components' => [
+                    ['type' => 'BODY', 'add_security_recommendation' => true],
+                    ['type' => 'BUTTONS', 'buttons' => [['type' => 'OTP', 'otp_type' => 'COPY_CODE']]],
+                ],
+            ]
+            // Meta may file it under another category; that is allowed so it still gets approved.
+            : [
+                'name' => $name,
+                'language' => config('alerts.whatsapp_language'),
+                'category' => 'UTILITY',
+                'allow_category_change' => true,
+                'components' => [[
+                    'type' => 'BODY',
+                    'text' => $def['text'],
+                    'example' => ['body_text' => [$def['examples']]],
+                ]],
+            ];
+        $response = Http::withToken($token)->acceptJson()->post($this->whatsapp->graphUrl("{$wabaId}/message_templates"), $payload);
 
         if (! $response->successful()) {
             Log::warning('Platform template submission failed', ['template' => $name, 'body' => $response->json()]);

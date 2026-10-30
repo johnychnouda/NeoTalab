@@ -42,6 +42,16 @@ class AuthService
             ]);
         }
 
+        // The activation code is a first password: valid for 24 hours, and once used the shop has one more hour to choose its own.
+        if ($user->password_changed_at === null && $user->activation_expires_at !== null) {
+            if ($user->activation_expires_at->isPast()) {
+                throw ValidationException::withMessages([
+                    'email' => ['This activation code has expired. Ask NeoTalab to send you a new one.'],
+                ]);
+            }
+            $user->forceFill(['activation_expires_at' => $user->activation_expires_at->min(now()->addHour())])->save();
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         return ['user' => $user, 'token' => $token];
@@ -61,6 +71,7 @@ class AuthService
         $user->forceFill([
             'password' => $password,
             'password_changed_at' => now(),
+            'activation_expires_at' => null,
         ])->save();
 
         return ['message' => 'Password updated.'];
@@ -80,6 +91,7 @@ class AuthService
         $user->forceFill([
             'password' => $newPassword,
             'password_changed_at' => now(),
+            'activation_expires_at' => null,
         ])->save();
 
         $user->tokens()->delete();
@@ -150,7 +162,7 @@ class AuthService
         $status = Password::broker()->reset(
             ['email' => strtolower(trim($email)), 'token' => $token, 'password' => $password],
             function (User $user, string $newPassword) {
-                $user->forceFill(['password' => $newPassword, 'password_changed_at' => now()])->save();
+                $user->forceFill(['password' => $newPassword, 'password_changed_at' => now(), 'activation_expires_at' => null])->save();
                 $user->tokens()->delete();
             },
         );

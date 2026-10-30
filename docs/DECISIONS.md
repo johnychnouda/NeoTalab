@@ -94,6 +94,15 @@ groceries, retail, salons, clinics, services).
   in `web/lib/i18n*.js`. Every new text is added in all three languages.
 - Tests never call outside services: every HTTP call is faked.
 
+## A new shop's login code (30 October 2026)
+- The code goes only through WhatsApp, never by email (owner's rule). Meta rejected the first welcome and access templates,
+  which carried the code inside a Utility text (no reason given). Now: a welcome without the code (`neotalab_welcome_v2`,
+  `neotalab_access_v2`), then the code alone in Meta's Authentication format (`neotalab_code`, "Copy code" button).
+- The code is the shop's first password. It lasts 24 hours (`users.activation_expires_at`); once used, one more hour to choose
+  a password; choosing one ends the limit. A wrong password never reveals that a code existed or expired.
+- If either template is not approved, nothing is sent and the owner sends the login details from their own WhatsApp (as before).
+- After a deploy, `php artisan templates:sync` submits the three new templates to Meta; the old rejected names are left behind.
+
 ## Before going live with real shops
 
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:

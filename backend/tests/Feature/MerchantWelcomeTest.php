@@ -40,7 +40,7 @@ class MerchantWelcomeTest extends TestCase
             'wa_access_token' => 'EAAX_platform',
         ])->assertOk();
         $platform = PlatformSetting::singleton();
-        $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_welcome' => 'APPROVED']]);
+        $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_welcome_v2' => 'APPROVED', 'neotalab_code' => 'APPROVED']]);
         $platform->save();
 
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
@@ -64,28 +64,53 @@ class MerchantWelcomeTest extends TestCase
         });
     }
 
-    public function test_once_approved_the_welcome_goes_as_a_template_so_it_reaches_a_new_shop(): void
+    public function test_once_approved_the_welcome_and_the_code_go_as_two_templates_and_the_code_is_only_in_the_second(): void
     {
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
         config(['app.frontend_url' => 'https://neotalab.com']);
         $platform = PlatformSetting::singleton();
         $platform->settings = array_merge($platform->settings ?? [], [
             'wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform',
-            'wa_templates' => ['neotalab_welcome' => 'APPROVED'],
+            'wa_templates' => ['neotalab_welcome_v2' => 'APPROVED', 'neotalab_code' => 'APPROVED'],
         ]);
         $platform->save();
 
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'slug' => 'foren', 'whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
+        [$merchant, $user] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'slug' => 'foren', 'whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
 
         $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/welcome", ['otp' => '123456'])
             ->assertOk()->assertJsonPath('sent', true);
 
-        Http::assertSent(fn ($r) => str_contains($r->url(), '111222333/messages')
-            && $r['type'] === 'template' && $r['template']['name'] === 'neotalab_welcome'
-            && array_column($r['template']['components'][0]['parameters'], 'text')[0] === 'Foren'
-            && array_column($r['template']['components'][0]['parameters'], 'text')[1] === 'https://neotalab.com/backoffice/foren'
-            && array_column($r['template']['components'][0]['parameters'], 'text')[3] === '123456');
+        $sent = Http::recorded()->map(fn ($p) => $p[0])->filter(fn ($r) => str_contains($r->url(), '111222333/messages'))->values();
+        $this->assertCount(2, $sent);
+
+        $welcome = $sent[0];
+        $this->assertSame('neotalab_welcome_v2', $welcome['template']['name']);
+        $this->assertSame(['Foren', 'https://neotalab.com/backoffice/foren', $user->email], array_column($welcome['template']['components'][0]['parameters'], 'text'));
+        $this->assertStringNotContainsString('123456', $welcome->body(), 'the welcome carries no code');
+
+        $code = $sent[1];
+        $this->assertSame('neotalab_code', $code['template']['name']);
+        $this->assertSame('123456', $code['template']['components'][0]['parameters'][0]['text']);
+        $this->assertSame(['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => '123456']]], $code['template']['components'][1]);
+    }
+
+    public function test_nothing_is_sent_unless_both_the_welcome_and_the_code_template_are_approved(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
+
+        foreach ([['neotalab_welcome_v2' => 'APPROVED'], ['neotalab_code' => 'APPROVED']] as $templates) {
+            $platform = PlatformSetting::singleton();
+            $platform->settings = array_merge($platform->settings ?? [], ['wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform', 'wa_templates' => $templates]);
+            $platform->save();
+
+            $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/welcome", ['otp' => '123456', 'regenerateAccess' => true])
+                ->assertOk()->assertJsonPath('sent', false);
+        }
+
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '111222333/messages'));
     }
 
     public function test_a_code_is_never_sent_as_plain_text_before_the_template_is_approved(): void

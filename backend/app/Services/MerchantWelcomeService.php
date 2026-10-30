@@ -40,6 +40,7 @@ class MerchantWelcomeService
         $user->forceFill([
             'password' => $otp,
             'password_changed_at' => null,
+            'activation_expires_at' => now()->addDay(),
         ])->save();
 
         // Force re-login everywhere with the new temporary code.
@@ -95,27 +96,37 @@ class MerchantWelcomeService
         // only an approved template is delivered (Meta drops plain text without an error).
         $template = $variant === 'regain' ? PlatformTemplateService::ACCESS : PlatformTemplateService::WELCOME;
         // A code must never go as plain text: outside the 24-hour window Meta accepts it and drops it,
-        // so the owner would be told it was sent when it never arrived. Until the template is approved
+        // so the owner would be told it was sent when it never arrived. Until both templates are approved
         // the caller opens the chat instead, and the owner sends the message from their own WhatsApp.
-        if ($otp && ! app(PlatformTemplateService::class)->approved($template)) {
+        $templates = app(PlatformTemplateService::class);
+        if ($otp && (! $templates->approved($template) || ! $templates->approved(PlatformTemplateService::CODE))) {
             throw ValidationException::withMessages([
-                'whatsapp' => ['The login template is not approved by Meta yet.'],
+                'whatsapp' => ['The login templates are not approved by Meta yet.'],
             ]);
         }
 
-        $message = $otp
-            ? ['type' => 'template', 'template' => [
-                'name' => $template,
-                'language' => ['code' => config('alerts.whatsapp_language')],
-                'components' => [['type' => 'body', 'parameters' => array_map(
-                    fn (string $v) => ['type' => 'text', 'text' => $v],
-                    [$merchant->name, $loginUrl, $email, $otp],
-                )]],
-            ]]
-            : ['type' => 'text', 'text' => $body];
-
         try {
-            $this->whatsapp->sendPlatform($to, $message);
+            if ($otp) {
+                // The details first (no code in them), then the code in Meta's Authentication format.
+                $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
+                    'name' => $template,
+                    'language' => ['code' => config('alerts.whatsapp_language')],
+                    'components' => [['type' => 'body', 'parameters' => array_map(
+                        fn (string $v) => ['type' => 'text', 'text' => $v],
+                        [$merchant->name, $loginUrl, $email],
+                    )]],
+                ]]);
+                $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
+                    'name' => PlatformTemplateService::CODE,
+                    'language' => ['code' => config('alerts.whatsapp_language')],
+                    'components' => [
+                        ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $otp]]],
+                        ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $otp]]],
+                    ],
+                ]]);
+            } else {
+                $this->whatsapp->sendPlatform($to, ['type' => 'text', 'text' => $body]);
+            }
         } catch (RuntimeException $e) {
             throw ValidationException::withMessages([
                 'whatsapp' => [$e->getMessage()],
@@ -139,7 +150,7 @@ class MerchantWelcomeService
             ."🔗 Login: {$loginUrl}\n"
             ."📧 Email: {$email}\n"
             .$otpLine
-            ."Use the activation code as your first password — you'll set your own password right after.\n\n"
+            ."Use the activation code as your first password within 24 hours — you'll set your own password right after.\n\n"
             .'Need help? Just reply here! 🙌';
     }
 
@@ -152,7 +163,7 @@ class MerchantWelcomeService
             ."🔗 Login: {$loginUrl}\n"
             ."📧 Email: {$email}\n"
             .$otpLine
-            ."Sign in with this temporary code, then set a new password right away.\n\n"
+            ."Sign in with this temporary code within 24 hours, then set a new password right away.\n\n"
             ."If you didn't ask for this, reply here and we'll help.";
     }
 

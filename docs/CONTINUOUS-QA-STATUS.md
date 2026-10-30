@@ -206,3 +206,10 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - D37 fixed (price-echo guard). Backend 524/524, Pint clean. Real AI: `s24` 24/24 twice, `s10` 18/18, `s25` 15/16 (same stylist miss).
 - Meta: NeoTalab's number +961 70 207 078 is registered (phone number ID 251311448055371); webhook subscription for it is off; payment card not yet added; access token not checked.
 - Lab note: killing the lab's WhatsApp stand-in (port 8039) made suites see empty replies; restart it with `MOCK_GRAPH_PORT=8039 python3 qa/mock_graph.py qa/.lab/graph.jsonl`.
+
+### Checkpoint 14, late 30 October (login code rework)
+- Meta rejected `neotalab_welcome` and `neotalab_access` (code inside a Utility text). Reworked: welcome without the code, the code in an
+  Authentication template; 24-hour expiry, one more hour after first use. Backend 530/530, Pint clean. Not yet tested against Meta (templates
+  must be submitted and approved first) and not run on MySQL here (CI runs it).
+- Platform number: WABA id had to be saved by hand (`wa_waba_id`) because a phone number ID typed in the portal never stores it, so
+  `templates:sync` did nothing. The portal has no field for it yet (open).
