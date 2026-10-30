@@ -919,6 +919,7 @@ class WhatsAppOperationsTest extends TestCase
         ], $submitted);
         $newOrder = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === ShopTemplateService::NEW_ORDER);
         $this->assertSame(['Accept', "Can't take it"], array_column($newOrder['components'][1]['buttons'], 'text'));
+        $this->assertTrue($newOrder['allow_category_change'], 'Meta may refile a shop template instead of rejecting it');
         $this->assertSame('PENDING', $this->merchant->fresh()->settings['bot']['templates'][ShopTemplateService::NEW_ORDER]['status']);
 
         app(ShopTemplateService::class)->sync($this->merchant->fresh());

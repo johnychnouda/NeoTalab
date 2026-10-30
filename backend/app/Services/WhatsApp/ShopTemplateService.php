@@ -167,6 +167,8 @@ class ShopTemplateService
             'name' => $name,
             'language' => 'en',
             'category' => 'UTILITY',
+            // Meta may file one (e.g. the renewal reminder) under Marketing; that is allowed so it still gets approved.
+            'allow_category_change' => true,
             'components' => $components,
         ]);
 
