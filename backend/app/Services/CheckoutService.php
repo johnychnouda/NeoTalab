@@ -109,7 +109,7 @@ class CheckoutService
         if (! in_array($payment, self::PAYMENT_METHODS, true)) {
             $payment = 'cash';
         }
-        if ($payment === 'whish' && ! app(WhishPayService::class)->enabled($merchant)) {
+        if ($payment === 'whish' && ShopSettings::for($merchant)->whishNumber() === null) {
             throw new CheckoutException('whish_unavailable', ['shop' => $merchant->name]);
         }
 
@@ -134,8 +134,8 @@ class CheckoutService
             'cash_main' => $split ? $cashMain : null,
             'exchange_rate' => ($inLbp || $split) ? $shop->lbpRate() : null,
             'total_lbp' => $split ? $shop->toLbp($total - $cashMain) : ($inLbp ? $shop->toLbp($total) : null),
-            // A Whish order is always accepted by the shop first ('placed') and gets its payment link
-            // only then, so a refused order never has to be refunded: by staff with the Accept
+            // A Whish order is always accepted by the shop first ('placed') and gets its payment
+            // instructions only then, so a refused order never has to be refunded: by staff with the Accept
             // button, or by whoever holds the shop phone typing ✅ in the customer's chat. Cash orders
             // wait for staff when the shop has some; otherwise the bot accepts them.
             'status' => $waitForShop || $payment === 'whish' ? 'placed' : 'confirmed',

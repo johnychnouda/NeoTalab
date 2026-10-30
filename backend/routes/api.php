@@ -25,7 +25,6 @@ use App\Http\Controllers\Api\V1\PublicPlanController;
 use App\Http\Controllers\Api\V1\ServiceProviderController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
-use App\Http\Controllers\Api\V1\WhishCallbackController;
 use App\Support\Roles;
 use Illuminate\Support\Facades\Route;
 
@@ -37,10 +36,6 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:login');
     Route::get('plan', PublicPlanController::class)->middleware('throttle:api');
     Route::post('onboarding/apply', [PublicOnboardingController::class, 'store'])->middleware('throttle:onboarding');
-
-    // Signed path (checked in the controller, which ignores anything Whish adds to the query).
-    Route::any('webhooks/whish/{order}/{result}', WhishCallbackController::class)
-        ->middleware('throttle:api')->name('whish.callback');
 
     Route::get('webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify']);
     Route::post('webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive']);
@@ -163,6 +158,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('merchants/{id}', [AdminMerchantController::class, 'destroy']);
             Route::post('merchants/{id}/impersonate', [AdminMerchantController::class, 'impersonate']);
             Route::get('merchants/{id}/payments', [AdminMerchantController::class, 'payments']);
+            Route::post('merchants/{id}/payments', [AdminMerchantController::class, 'recordPayment']);
             Route::patch('merchants/{id}/bot', [AdminMerchantController::class, 'updateBot']);
             Route::post('merchants/{id}/bot/test', [AdminMerchantController::class, 'testBot']);
             Route::post('merchants/{id}/bot/restart', [AdminMerchantController::class, 'restartBot']);

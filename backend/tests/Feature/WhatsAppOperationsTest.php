@@ -914,7 +914,8 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame([
             ShopTemplateService::BILLING_REMINDER.':UTILITY',
             ShopTemplateService::NEW_ORDER.':UTILITY', ShopTemplateService::STAFF_ALERT.':UTILITY',
-            ShopTemplateService::NEW_BOOKING.':UTILITY', ShopTemplateService::ORDER_DUE.':UTILITY', ShopTemplateService::REFUND_NEEDED.':UTILITY',
+            ShopTemplateService::NEW_BOOKING.':UTILITY', ShopTemplateService::ORDER_DUE.':UTILITY', ShopTemplateService::PAYMENT_CHECK.':UTILITY',
+            ShopTemplateService::REFUND_NEEDED.':UTILITY',
         ], $submitted);
         $newOrder = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === ShopTemplateService::NEW_ORDER);
         $this->assertSame(['Accept', "Can't take it"], array_column($newOrder['components'][1]['buttons'], 'text'));

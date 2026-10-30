@@ -73,13 +73,13 @@ class AuthTest extends TestCase
         $user->update(['email' => 'a@b.com', 'password' => 'secret123']);
         $merchant->update(['settings' => [
             'bot' => ['phone_id' => '123', 'access_token' => 'EAAG-shop-token', 'registration_pin' => 'enc-pin'],
-            'whish' => ['channel' => 'ch', 'secret' => 'enc-secret'],
+            'whish' => ['number' => '70123456', 'secret' => 'enc-secret'],
         ]]);
 
         $res = $this->postJson('/api/v1/auth/login', ['email' => 'a@b.com', 'password' => 'secret123'])
             ->assertOk()
             ->assertJsonPath('merchant.settings.bot.phone_id', '123')
-            ->assertJsonPath('merchant.settings.whish.channel', 'ch');
+            ->assertJsonPath('merchant.settings.whish.number', '70123456');
 
         $this->assertStringNotContainsString('EAAG-shop-token', $res->getContent());
         $this->assertStringNotContainsString('enc-pin', $res->getContent());

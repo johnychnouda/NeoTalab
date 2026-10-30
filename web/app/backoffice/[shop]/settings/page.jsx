@@ -32,8 +32,7 @@ const GROUPS = {
     scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders, quotes: !!p.quotes,
   }),
   payments: (p) => ({
-    whish_channel: p.whish_channel || "", ...(p.whish_secret_new ? { whish_secret: p.whish_secret_new } : {}),
-    whish_sandbox: !!p.whish_sandbox, wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
+    whish_number: p.whish_number || "", wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
   }),
   alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
 };
@@ -322,20 +321,13 @@ function Settings() {
         <Card title="Whish Pay" desc={t("db.whish.intro")}
           action={<span className={`sset-badge ${p.whish_connected ? "ok" : ""}`}>{p.whish_connected ? t("db.whish.ok") : t("db.whish.notConnected")}</span>}>
           <div className="sset-grid">
-            <Field id="w-ch" label={t("db.whish.channel")}>
-              <input id="w-ch" dir="ltr" value={p.whish_channel || ""} onChange={(e) => setP("whish_channel", e.target.value)} placeholder={t("db.whish.channelPh")} />
-            </Field>
-            <Field id="w-sec" label={t("db.whish.secret")}>
-              <input id="w-sec" dir="ltr" type="password" autoComplete="new-password" value={p.whish_secret_new || ""}
-                onChange={(e) => setP("whish_secret_new", e.target.value)} placeholder={p.whish_connected ? t("db.whish.secretSaved") : t("db.whish.secretPh")} />
+            <Field id="w-no" label={t("db.whish.number")}>
+              <input id="w-no" dir="ltr" inputMode="numeric" value={p.whish_number || ""} onChange={(e) => setP("whish_number", e.target.value)} placeholder={t("db.whish.numberPh")} />
             </Field>
           </div>
           <Field id="w-to" label={t("db.whish.timeout")} narrow>
             <input id="w-to" type="number" min="5" max="120" value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} />
           </Field>
-          {p.whish_sandbox_allowed && (
-            <Switch checked={!!p.whish_sandbox} onChange={(on) => setP("whish_sandbox", on)} label={t("db.whish.test")} />
-          )}
         </Card>
       )}
 

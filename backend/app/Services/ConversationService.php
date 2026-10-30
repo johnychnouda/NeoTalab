@@ -56,7 +56,6 @@ class ConversationService
         protected DriverDispatcher $dispatcher,
         protected OrderService $orders,
         protected OrderConfirmation $confirmation,
-        protected WhishPayService $whish,
         protected AppointmentService $appointments,
     ) {}
 
@@ -279,9 +278,11 @@ class ConversationService
             return [$e->customerMessage($locale), null];
         }
 
-        // Whish without a shop to accept first: the payment link goes out now.
+        // Whish without a shop to accept first: the payment instructions go out now.
         if ($order->status === 'pending_payment') {
-            return [$this->confirmation->startWhishPayment($merchant, $order, $locale), $order->fresh()];
+            $this->confirmation->startWhishTransfer($merchant, $order);
+
+            return ['', $order->fresh()];
         }
 
         $this->confirmation->afterPlaced($merchant, $order);
@@ -608,7 +609,7 @@ class ConversationService
             'timezone' => $merchant->timezone,
             'lbp_rate' => ShopSettings::for($merchant)->lbpRate(),
             'fulfillment' => ShopSettings::for($merchant)->fulfillment(),
-            'whish_enabled' => $this->whish->enabled($merchant),
+            'whish_enabled' => ShopSettings::for($merchant)->whishNumber() !== null,
             'business_mode' => ShopSettings::for($merchant)->businessMode(),
             // The checkout asks for the day and time / the recipient and card; the assistant never does.
             'scheduled_orders' => ShopSettings::for($merchant)->scheduledOrders(),

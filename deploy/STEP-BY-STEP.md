@@ -73,6 +73,17 @@ php artisan migrate --force --seed
 The owner account comes from `OWNER_EMAIL` / `OWNER_PASSWORD`. If `OWNER_PASSWORD` is empty, the
 seeder prints a generated password once; save it, then change it after first login.
 
+## Migrations after a release
+
+The API service runs `php artisan migrate --force` on start only while `RUN_MIGRATIONS` is `true`.
+Step 2 says to set it to `false` after the first deploy, so a later release needs the migrations run
+once by hand. Check the value on the API service first.
+
+- Before the release: `RUN_MIGRATIONS=true` runs them on the next start (set it back to `false` after).
+- Or run once from the Railway shell of the API service: `php artisan migrate --force`.
+
+Releases with new migrations: 29 October 2026 (`remove_whish_api_settings`, `create_subscription_payments_table`).
+
 ## Step 3: Queue worker (same `backend/`)
 
 1. **Add service** → same GitHub repo, root directory **`backend`** again.

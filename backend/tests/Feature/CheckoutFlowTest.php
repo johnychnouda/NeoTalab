@@ -11,7 +11,6 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\WhatsApp\WhatsAppInboundService;
-use App\Services\WhishPayService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -242,12 +241,28 @@ class CheckoutFlowTest extends TestCase
         $this->assertStringContainsString('minimum order for Jbeil is 3.00', $this->last()['interactive']['body']['text']);
     }
 
+    public function test_whish_offers_dollars_and_lira_but_never_a_split(): void
+    {
+        $settings = $this->merchant->settings;
+        $settings['fulfillment'] = 'both';
+        $settings['pickup_address'] = 'Jbeil main road';
+        $settings['lbp_rate'] = 89500;
+        $settings['whish'] = ['number' => '70123456'];
+        $this->merchant->update(['settings' => $settings]);
+
+        $this->menuOrder();
+        $this->tap('co:ful:pickup');
+        $this->tap('co:pay:whish');
+
+        $this->assertSame(['co:cur:USD', 'co:cur:LBP'], $this->buttonIds());
+    }
+
     public function test_pickup_with_whish_choice(): void
     {
         $settings = $this->merchant->settings;
         $settings['fulfillment'] = 'both';
         $settings['pickup_address'] = 'Jbeil main road';
-        WhishPayService::applySettings($settings, '10199', 'secret', true);
+        $settings['whish'] = ['number' => '70123456'];
         $this->merchant->update(['settings' => $settings]);
 
         $this->menuOrder();

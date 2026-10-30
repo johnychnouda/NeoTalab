@@ -37,10 +37,8 @@ class MerchantSettingsService
             'mode' => $settings['mode'] ?? 'auto',
             'default_locale' => $merchant->locale ?? 'en',
             'currency' => $merchant->currency ?: 'USD',
-            'whish_channel' => $settings['whish']['channel'] ?? '',
-            'whish_connected' => app(WhishPayService::class)->enabled($merchant),
-            'whish_sandbox' => (bool) ($settings['whish']['sandbox'] ?? false),
-            'whish_sandbox_allowed' => (bool) config('services.whish.sandbox_allowed'),
+            'whish_number' => ShopSettings::for($merchant)->whishNumber() ?? '',
+            'whish_connected' => ShopSettings::for($merchant)->whishNumber() !== null,
             'wish_timeout_mins' => $settings['wish_timeout_mins'] ?? 15,
             'business_kind' => BusinessKind::of($merchant),
             'menu_profile' => BusinessKind::profile($merchant),
@@ -80,7 +78,7 @@ class MerchantSettingsService
             $steps[] = ['key' => 'pickup', 'done' => $pin || $s->pickupAddress() !== '', 'required' => true];
         }
         $steps[] = ['key' => 'team', 'done' => $team->isNotEmpty(), 'required' => false];
-        $steps[] = ['key' => 'whish', 'done' => app(WhishPayService::class)->enabled($merchant), 'required' => false];
+        $steps[] = ['key' => 'whish', 'done' => ShopSettings::for($merchant)->whishNumber() !== null, 'required' => false];
         $steps[] = ['key' => 'report', 'done' => $s->reportWhatsapp() !== '', 'required' => false];
 
         return [
@@ -187,15 +185,13 @@ class MerchantSettingsService
                 (string) ($payload['opsWhatsapp'] ?? $payload['ops_whatsapp'] ?? ''),
             );
         }
-        if (array_key_exists('whish_channel', $payload) || array_key_exists('whish_secret', $payload) || array_key_exists('whish_sandbox', $payload)) {
-            $before = $settings['whish'] ?? [];
-            WhishPayService::applySettings(
-                $settings,
-                array_key_exists('whish_channel', $payload) ? (string) $payload['whish_channel'] : null,
-                isset($payload['whish_secret']) ? (string) $payload['whish_secret'] : null,
-                array_key_exists('whish_sandbox', $payload) ? (bool) $payload['whish_sandbox'] : null,
-            );
-            $this->checkWhish($merchant, $before, $settings);
+        if (array_key_exists('whish_number', $payload)) {
+            // Digits only: the number customers send their Whish payment to. Empty turns Whish off for the shop.
+            $digits = preg_replace('/\D+/', '', (string) $payload['whish_number']);
+            if ($digits !== '' && (strlen($digits) < 6 || strlen($digits) > 15)) {
+                throw ValidationException::withMessages(['whish_number' => [__('Enter the shop\'s Whish number, digits only.')]]);
+            }
+            $settings['whish'] = array_merge($settings['whish'] ?? [], ['number' => $digits]);
         }
         if (array_key_exists('wishTimeoutMins', $payload) || array_key_exists('wish_timeout_mins', $payload)) {
             $settings['wish_timeout_mins'] = (int) ($payload['wishTimeoutMins'] ?? $payload['wish_timeout_mins']);
@@ -387,31 +383,5 @@ class MerchantSettingsService
     protected function defaultHours(Merchant $merchant): array
     {
         return ShopHour::defaults($merchant->id);
-    }
-
-    /**
-     * New Whish details are tried with Whish before they are saved, so a typo shows up here and not
-     * when a customer tries to pay.
-     *
-     * @param  array<string, mixed>  $before  the old settings.whish
-     * @param  array<string, mixed>  $settings  the new merchant settings
-     */
-    private function checkWhish(Merchant $merchant, array $before, array $settings): void
-    {
-        $after = $settings['whish'] ?? [];
-        $changed = ($after['channel'] ?? null) !== ($before['channel'] ?? null)
-            || ($after['secret'] ?? null) !== ($before['secret'] ?? null)
-            || ($after['sandbox'] ?? null) !== ($before['sandbox'] ?? null);
-
-        $probe = $merchant->replicate();
-        $probe->settings = $settings;
-        $whish = app(WhishPayService::class);
-        $creds = $whish->credentials($probe);
-
-        if ($changed && $creds && $whish->verify($creds) === false) {
-            throw ValidationException::withMessages([
-                'whish_secret' => [__('Whish did not accept this channel and secret. Check them in your Whish business account and try again.')],
-            ]);
-        }
     }
 }

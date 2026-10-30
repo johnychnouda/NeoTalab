@@ -53,6 +53,14 @@ final class ShopSettings
         return $value === null || $value === '' ? $default : $value;
     }
 
+    /** The shop's Whish number (customers send money there), or null when the shop does not take Whish. */
+    public function whishNumber(): ?string
+    {
+        $number = trim((string) ($this->settings['whish']['number'] ?? ''));
+
+        return $number === '' ? null : $number;
+    }
+
     public function scheduledOrders(): bool
     {
         return (bool) $this->get('scheduled_orders');

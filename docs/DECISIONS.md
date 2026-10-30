@@ -42,13 +42,15 @@ groceries, retail, salons, clinics, services).
 - **Everything happens in WhatsApp.** Customers order and book in the chat (menu lists, buttons,
   location pins, voice notes). The shop sees every conversation in its WhatsApp Business app.
   The dashboard is only for setup: menu, hours, delivery areas, team, payments, reports. No
-  links are sent to customers, except the Whish payment page.
+  links are sent to customers. Whish is paid as a transfer to the shop's Whish number (no payment page).
 - **The shop accepts orders.** Staff numbers get a ticket with **Accept · usual time** and
   **Can't take it**. Shops with no staff accept from the shop phone by typing ✅ or ❌ in the
   customer's chat. Cash orders at shops with no reachable staff are accepted automatically.
-- **Whish payments:** the payment link is sent only after the shop accepts, so a refused order
-  is never paid. A payment counts only once Whish confirms the exact amount; checks run during the
-  payment window and a late payment is flagged for refund.
+- **Whish payments (no Whish API):** after the shop accepts, the customer gets the shop's Whish
+  number, the exact amount and the order number to write in the Whish note. The customer taps
+  "I paid"; the shop checks its own Whish account and taps Received or Not received. Nothing is
+  marked paid by the customer. If the customer never taps "I paid" in the payment window, the order
+  is cancelled. A payment the shop confirms goes ahead; one it refuses cancels the order.
 - **Meta's 24-hour rule:** messages to staff who haven't written recently go as approved message
   templates (new order, customer needs a person, new booking, due today, refund needed).
 - **Drivers** start and end shifts by sending "start" / "stop", get deliveries automatically
@@ -73,7 +75,10 @@ groceries, retail, salons, clinics, services).
 
 - New shops apply on `/join`; the platform owner approves them in the owner portal. There is no
   public self-registration.
-- Free trial, then monthly or yearly subscription, recorded in the owner portal. Shops whose
+- Free trial, then monthly or yearly subscription. Shops pay NeoTalab by Whish transfer to
+  NeoTalab's Whish number with the shop's reference. The platform owner checks the NeoTalab Whish
+  account and records the payment with its Whish reference: the only way a shop becomes paid. Each
+  reference can be used once. Early payments add the new period to the end of the current one. Shops whose
   trial ends unpaid are suspended automatically.
 - The platform has its own WhatsApp number (welcome messages and `system_alert` problem alerts),
   connected from Owner portal → Settings → WhatsApp. Nightly reports and subscription reminders

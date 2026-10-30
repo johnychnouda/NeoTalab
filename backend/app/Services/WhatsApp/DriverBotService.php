@@ -149,6 +149,25 @@ class DriverBotService
             return __('whatsapp.appointment.staff_updated', ['service' => $appointment->service_name], $locale);
         }
 
+        // Whish: the shop checked its Whish account and found the payment (ok) or did not (no).
+        if (preg_match('/^stf:wh_(ok|no):(.+)$/', $buttonId, $m)) {
+            $order = Order::query()->where('merchant_id', $merchant->id)->whereKey($m[2])->first();
+            if (! $order) {
+                return __('whatsapp.driver.not_yours', [], $locale);
+            }
+
+            $confirmation = app(OrderConfirmation::class);
+            if ($m[1] === 'ok') {
+                return $confirmation->shopConfirms($merchant, $order)
+                    ? __('whatsapp.staff.whish_confirmed', ['number' => $order->number], $locale)
+                    : __('whatsapp.staff.whish_already', ['number' => $order->number], $locale);
+            }
+
+            return $confirmation->shopRefuses($merchant, $order)
+                ? __('whatsapp.staff.whish_refused', ['number' => $order->number], $locale)
+                : __('whatsapp.staff.whish_already', ['number' => $order->number], $locale);
+        }
+
         if (preg_match('/^stf:(accept|reject|delay):(.+)$/', $buttonId, $m)) {
             $order = Order::query()->whereKey($m[2])->first();
             if (! $order) {

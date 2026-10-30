@@ -144,13 +144,15 @@ for q in ("Falafel", "QA Iso", "%", "' OR 1=1 --", "\" OR \"\"=\""):
 suite("Mass assignment / over-posting")
 # s09 sets every other lab shop's trial to 2099, so compare with the value before the attempt, not with a fixed date.
 trial_before = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->only("trial_ends_at"));')["trial_ends_at"]
+# Other suites may record a real payment for this shop (that is allowed); the attempt must not change the status.
+sub_before = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->settings["subscription_status"]??null);')
 code, b = api("PATCH", "/merchant", RO, {"status": "active", "plan": "enterprise", "trial_ends_at": "2030-01-01", "subscription_status": "paid",
                                          "settings": {"subscription_status": "paid", "bot": {"phone_id": "PNID111002"}}, "id": p["id"], "merchant_id": p["id"]})
 m = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->only("id","status","plan","trial_ends_at") + ["sub"=>App\\Models\\Merchant::find("' + r["id"] + '")->settings["subscription_status"]??null, "phone"=>App\\Models\\Merchant::find("' + r["id"] + '")->settings["bot"]["phone_id"]??null]);')
-check("shop cannot mark itself paid / change plan / steal another number", m["plan"] != "enterprise" and m["sub"] != "paid" and m["phone"] == r["phone_id"] and m["trial_ends_at"] == trial_before, (m, trial_before))
+check("shop cannot mark itself paid / change plan / steal another number", m["plan"] != "enterprise" and m["sub"] == sub_before and m["phone"] == r["phone_id"] and m["trial_ends_at"] == trial_before, (m, trial_before))
 code, b = api("PATCH", "/settings/profile", RO, {"settings": {"subscription_status": "paid"}, "subscription_status": "paid", "status": "active", "merchant_id": p["id"]})
 m2 = tj('echo json_encode(App\\Models\\Merchant::find("' + r["id"] + '")->settings["subscription_status"]??null);')
-check("profile save cannot set subscription status", m2 != "paid", (code, m2))
+check("profile save cannot change subscription status", m2 == sub_before, (code, m2, sub_before))
 code, b = api("POST", "/products", RO, {"name": "MA test", "price": 2, "merchant_id": p["id"], "id": X})
 pid = (b.get("data") or {}).get("id") if isinstance(b, dict) else None
 row = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("name","MA test")->first()?->only("id","merchant_id"));')

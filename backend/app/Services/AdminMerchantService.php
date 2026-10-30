@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
+use App\Models\SubscriptionPayment;
 use App\Models\User;
 use App\Support\BusinessKind;
 use App\Support\Countries;
@@ -41,6 +42,15 @@ class AdminMerchantService
         $settings = $merchant->settings ?? [];
         $feesBefore = [(float) ($settings['monthly_fee'] ?? 0), (float) ($settings['yearly_fee'] ?? 0)];
 
+        // A shop becomes paid only by recording a Whish payment (SubscriptionPaymentService), never by
+        // editing it. Saving a shop that is already paid, with its current values, is still allowed.
+        $paymentDate = $this->pick($payload, 'lastPaymentAt', 'last_payment_at');
+        $becomesPaid = $this->pick($payload, 'subscriptionStatus', 'subscription_status') === 'paid'
+            && ($settings['subscription_status'] ?? null) !== 'paid';
+        if (($paymentDate !== null && $paymentDate !== ($settings['last_payment_at'] ?? null)) || $becomesPaid) {
+            throw ValidationException::withMessages(['subscription' => [__('Record the payment with its Whish reference instead.')]]);
+        }
+
         $this->guardPaidPeriodBillingChanges($merchant, $settings, $payload);
 
         if ($status = $this->pick($payload, 'status')) {
@@ -62,8 +72,6 @@ class AdminMerchantService
         if (($subEnds = $this->pick($payload, 'subscription_ends_at', 'subscriptionEnds')) !== null) {
             $merchant->subscription_ends_at = $subEnds ?: null;
         }
-
-        $markingPaid = $this->pick($payload, 'lastPaymentAt', 'last_payment_at') !== null;
 
         foreach ([
             'monthly_fee' => ['monthly_fee', 'monthlyFee'],
@@ -148,18 +156,6 @@ class AdminMerchantService
             $this->applyCycleChoice($merchant, $settings, (string) $this->pick($payload, 'nextBillingCycle', 'next_billing_cycle'));
         }
 
-        $paidNow = $markingPaid && ($settings['subscription_status'] ?? null) === 'paid';
-        if ($paidNow) {
-            if (! empty($settings['next_billing_cycle'])) {
-                $merchant->billing_cycle = $settings['next_billing_cycle'];
-                unset($settings['next_billing_cycle']);
-            }
-            $this->appendPayment($settings, $merchant);
-            // The paid period runs one month or one year from the payment. Reminders and the stop use this date.
-            $paidOn = Carbon::parse($settings['last_payment_at']);
-            $merchant->subscription_ends_at = $merchant->billing_cycle === 'yearly' ? $paidOn->copy()->addYear() : $paidOn->copy()->addMonth();
-        }
-
         $feesAfter = [(float) ($settings['monthly_fee'] ?? 0), (float) ($settings['yearly_fee'] ?? 0)];
         if ($feesAfter !== $feesBefore) {
             $history = $settings['fee_history'] ?? [];
@@ -174,10 +170,6 @@ class AdminMerchantService
 
         $merchant->settings = $settings;
         $merchant->save();
-
-        if ($paidNow) {
-            app(BillingNoticeService::class)->paid($merchant->fresh());
-        }
 
         return $merchant->fresh();
     }
@@ -331,11 +323,26 @@ class AdminMerchantService
     /**
      * @return list<array<string,mixed>>
      */
+    /**
+     * The shop's recorded NeoTalab subscription payments, newest first.
+     *
+     * @return list<array<string, mixed>>
+     */
     public function payments(Merchant $merchant): array
     {
-        $settings = $merchant->settings ?? [];
-
-        return array_values($settings['payments'] ?? []);
+        return SubscriptionPayment::query()->where('merchant_id', $merchant->id)
+            ->orderByDesc('confirmed_at')->get()
+            ->map(fn (SubscriptionPayment $p) => [
+                'id' => $p->id,
+                'whish_reference' => $p->whish_reference,
+                'amount' => (string) $p->amount,
+                'currency' => $p->currency,
+                'cycle' => $p->cycle,
+                'period_start' => $p->period_start?->toIso8601String(),
+                'period_end' => $p->period_end?->toIso8601String(),
+                'confirmed_by' => $p->confirmed_by,
+                'confirmed_at' => $p->confirmed_at?->toIso8601String(),
+            ])->values()->all();
     }
 
     /**
@@ -365,27 +372,6 @@ class AdminMerchantService
     public function restartBot(Merchant $merchant): Merchant
     {
         return $this->bots->restartBot($merchant);
-    }
-
-    /**
-     * @param  array<string,mixed>  $settings
-     */
-    protected function appendPayment(array &$settings, Merchant $merchant): void
-    {
-        $payments = $settings['payments'] ?? [];
-        $amount = ($merchant->billing_cycle === 'yearly')
-            ? (float) ($settings['yearly_fee'] ?? 0)
-            : (float) ($settings['monthly_fee'] ?? 0);
-
-        $payments[] = [
-            'id' => (string) Str::uuid(),
-            'paid_at' => $settings['last_payment_at'],
-            'amount' => $amount,
-            'method' => 'Manual',
-            'cycle' => $merchant->billing_cycle ?? 'monthly',
-        ];
-
-        $settings['payments'] = $payments;
     }
 
     /**

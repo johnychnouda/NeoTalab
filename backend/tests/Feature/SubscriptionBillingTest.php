@@ -9,6 +9,7 @@ use App\Support\Roles;
 use Database\Seeders\PlatformSettingsSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
@@ -36,20 +37,19 @@ class SubscriptionBillingTest extends TestCase
         $this->assertSame('active', $inGrace->fresh()->status);
     }
 
-    public function test_marking_a_shop_paid_sets_the_period_end_a_month_or_a_year_ahead(): void
+    public function test_a_recorded_payment_sets_the_period_end_a_month_or_a_year_ahead(): void
     {
+        Carbon::setTestNow(Carbon::parse('2026-10-01 10:00', 'Asia/Beirut'));
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly']);
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly', 'settings' => ['monthly_fee' => 25, 'yearly_fee' => 250]]);
 
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => '2026-10-01', 'status' => 'active',
-        ])->assertOk();
+        $this->recordWhishPayment($token, $merchant)->assertCreated();
         $this->assertSame('2026-11-01', $merchant->fresh()->subscription_ends_at->toDateString());
 
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'billingCycle' => 'yearly', 'subscriptionStatus' => 'paid', 'lastPaymentAt' => '2026-10-01',
-        ])->assertOk();
-        $this->assertSame('2027-10-01', $merchant->fresh()->subscription_ends_at->toDateString());
+        // The next payment is for a year, and it starts after the month already paid.
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])->assertOk();
+        $this->recordWhishPayment($token, $merchant)->assertCreated();
+        $this->assertSame('2027-11-01', $merchant->fresh()->subscription_ends_at->toDateString());
     }
 
     public function test_the_cycle_choice_applies_at_once_when_nothing_paid_is_running(): void
@@ -69,13 +69,10 @@ class SubscriptionBillingTest extends TestCase
 
     public function test_in_a_paid_month_a_switch_to_yearly_waits_for_the_next_payment(): void
     {
+        Carbon::setTestNow(Carbon::parse('2026-10-01 10:00', 'Asia/Beirut'));
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly']);
-        $today = now()->toDateString();
-
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => $today, 'status' => 'active',
-        ])->assertOk();
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'monthly', 'settings' => ['monthly_fee' => 25, 'yearly_fee' => 250]]);
+        $this->recordWhishPayment($token, $merchant)->assertCreated();
 
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])
             ->assertOk()
@@ -89,24 +86,20 @@ class SubscriptionBillingTest extends TestCase
             ->assertJsonPath('merchant.next_billing_cycle', null);
 
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])->assertOk();
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => $today, 'status' => 'active',
-        ])->assertOk();
+        $this->recordWhishPayment($token, $merchant)->assertCreated();
 
         $merchant->refresh();
         $this->assertSame('yearly', $merchant->billing_cycle);
         $this->assertArrayNotHasKey('next_billing_cycle', $merchant->settings);
-        $this->assertSame(now()->addYear()->toDateString(), $merchant->subscription_ends_at->toDateString());
+        $this->assertSame('2027-11-01', $merchant->subscription_ends_at->toDateString());
     }
 
     public function test_a_paid_year_cannot_be_switched_back_to_monthly_until_it_ends(): void
     {
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly']);
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly', 'settings' => ['monthly_fee' => 25, 'yearly_fee' => 250]]);
 
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => now()->toDateString(), 'status' => 'active',
-        ])->assertOk()
+        $this->recordWhishPayment($token, $merchant)->assertCreated()
             ->assertJsonPath('merchant.cycle_locked_until', fn ($v) => $v !== null);
 
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'monthly'])
@@ -125,11 +118,9 @@ class SubscriptionBillingTest extends TestCase
     public function test_a_shop_whose_subscription_stopped_can_choose_any_cycle_again(): void
     {
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly']);
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['billing_cycle' => 'yearly', 'settings' => ['monthly_fee' => 25, 'yearly_fee' => 250]]);
 
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-            'subscriptionStatus' => 'paid', 'lastPaymentAt' => now()->toDateString(), 'status' => 'active',
-        ])->assertOk();
+        $this->recordWhishPayment($token, $merchant)->assertCreated();
         // The shop stopped (unpaid or ended): nothing paid is running any more.
         $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['subscriptionStatus' => 'pending', 'status' => 'suspended'])->assertOk();
 
@@ -182,16 +173,18 @@ class SubscriptionBillingTest extends TestCase
         $platform->settings = array_merge($platform->settings ?? [], ['wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform']);
         $platform->save();
         $token = $this->tokenFor($this->platformAdmin());
-        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
-        $payload = ['subscriptionStatus' => 'paid', 'lastPaymentAt' => '2026-10-01', 'status' => 'active'];
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
+            'whatsapp_number' => '+96171112233', 'phone' => '+96171112233',
+            'settings' => ['monthly_fee' => 25, 'yearly_fee' => 250],
+        ]);
 
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", $payload)->assertOk();
+        $this->recordWhishPayment($token, $merchant, 'WS-TPL-1')->assertCreated();
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '111222333/messages'));
 
         $platform = PlatformSetting::singleton();
         $platform->settings = array_merge($platform->settings ?? [], ['wa_templates' => ['neotalab_paid' => 'APPROVED']]);
         $platform->save();
-        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['lastPaymentAt' => '2026-11-01'] + $payload)->assertOk();
+        $this->recordWhishPayment($token, $merchant, 'WS-TPL-2')->assertCreated();
         Http::assertSent(fn ($r) => str_contains($r->url(), '111222333/messages') && $r['template']['name'] === 'neotalab_paid');
     }
 }

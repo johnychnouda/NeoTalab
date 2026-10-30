@@ -40,20 +40,16 @@ class AdminMerchantManagementTest extends TestCase
             ->assertJsonPath('merchant.yearly_fee', 250);
     }
 
-    public function test_admin_can_mark_merchant_paid_and_list_payments(): void
+    public function test_admin_can_record_a_whish_payment_and_list_payments(): void
     {
         [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['settings' => ['monthly_fee' => 30, 'yearly_fee' => 300]]);
-        $admin = $this->platformAdmin();
+        $token = $this->tokenFor($this->platformAdmin());
 
-        $this->withToken($this->tokenFor($admin))
-            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-                'subscriptionStatus' => 'paid',
-                'lastPaymentAt' => '2026-07-05',
-            ])
-            ->assertOk()
+        $this->recordWhishPayment($token, $merchant, 'WS-LIST-9')
+            ->assertCreated()
             ->assertJsonPath('merchant.subscription_status', 'paid');
 
-        $this->withToken($this->tokenFor($admin))
+        $this->withToken($token)
             ->getJson("/api/v1/admin/merchants/{$merchant->id}/payments")
             ->assertOk()
             ->assertJsonCount(1, 'payments');
@@ -106,24 +102,22 @@ class AdminMerchantManagementTest extends TestCase
                 'last_payment_at' => now()->toDateString(),
             ],
         ]);
-        $admin = $this->platformAdmin();
+        $token = $this->tokenFor($this->platformAdmin());
 
-        $this->withToken($this->tokenFor($admin))
-            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-                'billingCycle' => 'yearly',
-                'yearlyFee' => 290,
-                'subscriptionStatus' => 'paid',
-                'lastPaymentAt' => now()->toDateString(),
-            ])
-            ->assertOk()
+        // The switch waits for the next payment; recording it applies the yearly cycle and fee.
+        $this->withToken($token)
+            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['nextBillingCycle' => 'yearly'])
+            ->assertOk();
+        $this->recordWhishPayment($token, $merchant, 'WS-SWITCH-9')
+            ->assertCreated()
             ->assertJsonPath('merchant.billing_cycle', 'yearly')
             ->assertJsonPath('merchant.subscription_status', 'paid');
 
-        $this->withToken($this->tokenFor($admin))
+        $this->withToken($token)
             ->getJson("/api/v1/admin/merchants/{$merchant->id}/payments")
             ->assertOk()
             ->assertJsonPath('payments.0.cycle', 'yearly')
-            ->assertJsonPath('payments.0.amount', 290);
+            ->assertJsonPath('payments.0.amount', '290.00');
     }
 
     public function test_admin_can_save_and_test_bot_credentials(): void

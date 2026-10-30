@@ -32,6 +32,9 @@ class ShopTemplateService
     /** A Whish payment arrived after the order was cancelled: the shop must refund it. */
     public const REFUND_NEEDED = 'neotalab_refund_needed';
 
+    /** A customer says they paid by Whish: the shop checks its Whish account; buttons Received / Not received. */
+    public const PAYMENT_CHECK = 'neotalab_payment_check';
+
     public function __construct(protected WhatsAppService $whatsapp) {}
 
     /**
@@ -63,6 +66,11 @@ class ShopTemplateService
                 'body' => 'Order #{{1}} at {{2}} is due today: {{3}}. Tap Ready / on its way when it leaves, or Delay 1 day to move it to the next working day.',
                 'example' => ['57', 'Gadget Hub', '1× Phone case · Total 15.00 USD (cash) · Jbeil, Main St · +96170123456'],
                 'buttons' => ['Ready / on its way', 'Delay 1 day'],
+            ],
+            self::PAYMENT_CHECK => [
+                'body' => 'Payment to check for order #{{1}}: {{2}} from {{3}}. Look for the note {{1}} in your Whish account. Did the money arrive? Tap Received or Not received.',
+                'example' => ['128', '12.00$', '+96170123456'],
+                'buttons' => ['Received', 'Not received'],
             ],
             self::REFUND_NEEDED => [
                 'body' => 'Refund needed at {{1}}: order #{{2}} was paid with Whish ({{3}}) but it was cancelled. Customer: {{4}}. Please send the money back from your Whish account.',

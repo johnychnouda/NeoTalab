@@ -4,31 +4,29 @@ namespace App\Services;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
-use App\Jobs\CheckWhishPayment;
+use App\Jobs\CheckWhishTransfer;
 use App\Jobs\NotifyStaffOfOrder;
 use App\Jobs\NotifyStaffOfRefund;
+use App\Jobs\RemindShopOfWhishCheck;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
-use App\Support\CurrentTenant;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 /**
  * What happens once an order is accepted, straight away for cash, or when a Whish payment is
- * verified: hand it to a driver (delivery), send it to staff, and start the late-order timer.
+ * confirmed by the shop: hand it to a driver (delivery), send it to staff, and start the late-order timer.
  */
 class OrderConfirmation
 {
     public function __construct(
         protected DriverDispatcher $dispatcher,
-        protected WhishPayService $whish,
         protected WhatsAppService $whatsapp,
         protected OrderService $orders,
         protected OrderTiming $timing,
@@ -63,8 +61,8 @@ class OrderConfirmation
 
     /**
      * The shop tapped Accept: fix the promise, tell the customer, dispatch. A Whish order is
-     * accepted but waits for its payment: the customer gets the link now, and the order goes
-     * ahead (driver, staff ticket, arrival time) once Whish confirms the payment.
+     * accepted but waits for its payment: the customer gets the instructions now, and the order
+     * goes ahead (driver, staff ticket, arrival time) once the shop confirms the payment.
      */
     public function accept(Merchant $merchant, Order $order): Order
     {
@@ -73,13 +71,7 @@ class OrderConfirmation
                 throw ValidationException::withMessages(['order' => [__('whatsapp.driver.not_yours', [], $merchant->locale ?? 'en')]]);
             }
             $order = $order->fresh(['customer']);
-            $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
-            $text = $this->startWhishPayment($merchant, $order, $locale, 'whish_accepted');
-            try {
-                $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'text', 'text' => $text]);
-            } catch (\Throwable $e) {
-                Log::warning('Whish link message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
-            }
+            $this->startWhishTransfer($merchant, $order);
 
             return $order->fresh();
         }
@@ -152,117 +144,170 @@ class OrderConfirmation
         return $order;
     }
 
+    /** Cancel reason of an order the customer did not pay for in time. */
+    public const WINDOW_CLOSED = 'payment window closed';
+
     /**
-     * Creates the Whish payment link and schedules the payment checks; returns the message for
-     * the customer. If Whish cannot make a link, the order is cancelled and the customer is told
-     * to pay cash instead.
+     * Whish-to-Whish: the customer pays the shop's Whish number with the order number in the note,
+     * then taps "I paid". Nothing is marked paid until the shop has checked its own Whish account.
      */
-    public function startWhishPayment(Merchant $merchant, Order $order, string $locale, string $key = 'whish_link'): string
+    public function startWhishTransfer(Merchant $merchant, Order $order): void
     {
-        try {
-            $url = $this->whish->createLink($merchant, $order);
-        } catch (\Throwable $e) {
-            Log::warning('Whish link failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
-            $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer', 'silent' => true]);
-
-            return __('whatsapp.checkout.whish_unavailable', ['shop' => $merchant->name], $locale);
-        }
-
-        // Checks during the payment window, in case Whish's callback never reaches us, so a paying
-        // customer waits minutes, not the whole window; the last one closes the window.
-        $window = max(1, (int) (($merchant->settings ?? [])['wish_timeout_mins'] ?? 15));
-        foreach ([1, 3, 6, 10, 20, 30, 45] as $minute) {
-            if ($minute < $window) {
-                CheckWhishPayment::dispatch($order->id)->delay(now()->addMinutes($minute));
-            }
-        }
-        CheckWhishPayment::dispatch($order->id, true)->delay(now()->addMinutes($window));
-
-        return __("whatsapp.checkout.{$key}", [
+        $order->loadMissing('customer');
+        $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
+        $body = __('whatsapp.checkout.whish_instructions', [
             'number' => $order->number,
             'amount' => OrderMessage::paymentLine($order, $merchant),
-            'url' => $url,
-            'minutes' => $window,
+            'whish' => (string) ShopSettings::for($merchant)->whishNumber(),
             'shop' => $merchant->name,
+            'minutes' => $this->window($merchant),
         ], $locale);
+
+        $this->sendWithPaidButton($merchant, $order, $body, $locale);
+
+        // The customer has this long to tap "I paid"; after that the order is cancelled.
+        CheckWhishTransfer::dispatch($order->id)->delay(now()->addMinutes($this->window($merchant)));
+    }
+
+    /** The customer tapped "I paid": the shop checks its Whish account. Also for an order cancelled for lack of payment, within a day. */
+    public function customerPaid(Merchant $merchant, Order $order): void
+    {
+        $late = $order->status === 'cancelled'
+            && $order->payment_status === 'failed'
+            && $order->cancel_reason === self::WINDOW_CLOSED
+            && $order->cancelled_at?->isAfter(now()->subDay());
+
+        $claimed = $late
+            ? $this->claim($order, 'failed', 'cancelled', ['payment_status' => 'awaiting_check'])
+            : $this->claim($order, 'pending', 'pending_payment', ['payment_status' => 'awaiting_check']);
+        if (! $claimed) {
+            return; // already paid, cancelled for another reason, or already reported
+        }
+
+        $order = $order->fresh(['customer']);
+        $this->alertShopToCheck($merchant, $order, $late);
+        RemindShopOfWhishCheck::dispatch($order->id)->delay(now()->addMinutes(30));
+
+        $this->tell($merchant, $order, 'whish_received');
     }
 
     /**
-     * Ask Whish whether a pending order was paid and act on it. $final = the payment window is
-     * over: a still-pending payment then cancels the order. Returns the resulting payment status.
-     *
-     * Safe to run concurrently (callback + checks): each outcome is claimed with a conditional
-     * update, so an order is confirmed or cancelled exactly once. A payment that Whish confirms
-     * after the order was already cancelled is flagged refund_due instead of being lost.
+     * The shop is asked to check its Whish account: the Whish note and the amount identify the
+     * payment. Sent with the approved payment-check template outside WhatsApp's 24-hour window.
      */
-    public function settleWhish(Merchant $merchant, Order $order, bool $final = false): string
+    public function alertShopToCheck(Merchant $merchant, Order $order, bool $late = false): void
     {
-        if ($order->payment_method !== 'whish') {
-            return (string) $order->payment_status;
+        $order->loadMissing('customer');
+        $locale = $merchant->locale ?? 'en';
+        $amount = OrderMessage::paymentLine($order, $merchant).($late ? ' ('.__('whatsapp.staff.whish_late_note', ['number' => $order->number], $locale).')' : '');
+        $params = [
+            'number' => $order->number,
+            'amount' => $amount,
+            'phone' => OrderMessage::phone($order->customer?->phone),
+        ];
+        $text = __('whatsapp.staff.whish_check', $params, $locale);
+        $buttons = [
+            ["stf:wh_ok:{$order->id}", __('whatsapp.staff.btn_whish_received', [], $locale)],
+            ["stf:wh_no:{$order->id}", __('whatsapp.staff.btn_whish_missing', [], $locale)],
+        ];
+
+        $messenger = app(StaffMessenger::class);
+        foreach ($messenger->staff($merchant) as $member) {
+            $messenger->send($merchant, $member, $text, $buttons, ShopTemplateService::PAYMENT_CHECK, array_values($params));
+        }
+    }
+
+    /** The shop checked its Whish account and found the payment: the order goes ahead (or is refunded, if it was already cancelled). False if it was already decided. */
+    public function shopConfirms(Merchant $merchant, Order $order): bool
+    {
+        if ($order->status === 'cancelled') {
+            if (! $this->claim($order, 'awaiting_check', 'cancelled', ['payment_status' => 'refund_due'])) {
+                return false;
+            }
+            NotifyStaffOfRefund::dispatch($order->id)->afterCommit();
+            $this->tell($merchant, $order->fresh(), 'whish_late');
+
+            return true;
         }
 
-        $pending = $order->payment_status === 'pending' && $order->status === 'pending_payment';
-        $expired = $order->payment_status === 'failed' && $order->status === 'cancelled';
-        if (! $pending && ! $expired) {
-            return (string) $order->payment_status;
+        if (! $this->claim($order, 'awaiting_check', 'pending_payment', [
+            'payment_status' => 'paid', 'paid_at' => now(),
+            'status' => 'confirmed', 'accepted_at' => $order->accepted_at ?? now(),
+        ])) {
+            return false;
         }
 
-        $tenant = app(CurrentTenant::class);
-        $previous = $tenant->get();
-        $tenant->set($merchant);
+        $order = $order->fresh();
+        $this->afterConfirmed($merchant, $order);
+        $this->tell($merchant, $order, 'whish_paid');
 
+        return true;
+    }
+
+    /** The shop did not find the payment: the order is cancelled and the customer is told. False if it was already decided. */
+    public function shopRefuses(Merchant $merchant, Order $order): bool
+    {
+        if ($order->status === 'cancelled') {
+            // Late payment on an order already cancelled: nothing to cancel again, the customer is told.
+            if (! $this->claim($order, 'awaiting_check', 'cancelled', ['payment_status' => 'failed'])) {
+                return false;
+            }
+            $this->tell($merchant, $order, 'whish_not_received');
+
+            return true;
+        }
+
+        if (! $this->claim($order, 'awaiting_check', 'pending_payment', ['payment_status' => 'failed'])) {
+            return false;
+        }
+
+        $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => 'payment not received', 'by' => 'merchant', 'silent' => true]);
+        $this->tell($merchant, $order, 'whish_not_received');
+
+        return true;
+    }
+
+    /**
+     * No "I paid" tap by the end of the window: the order is cancelled, and the customer can still
+     * tap "I paid" for a day in case they paid late.
+     */
+    public function expireTransfer(Merchant $merchant, Order $order): void
+    {
+        if (! $this->claim($order, 'pending', 'pending_payment', ['payment_status' => 'failed'])) {
+            return;
+        }
+
+        $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => self::WINDOW_CLOSED, 'by' => 'customer', 'silent' => true]);
+        $order = $order->fresh(['customer']);
+        $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
+        $this->sendWithPaidButton($merchant, $order, __('whatsapp.checkout.whish_expired', [
+            'number' => $order->number, 'eta' => $order->eta_mins, 'shop' => $merchant->name, 'when' => '',
+        ], $locale), $locale);
+        if ($order->accepted_at) {
+            $this->tellStaffUnpaid($merchant, $order);
+        }
+    }
+
+    /** A text to the customer with the "I paid" button under it. */
+    private function sendWithPaidButton(Merchant $merchant, Order $order, string $body, string $locale): void
+    {
         try {
-            $status = $this->whish->status($merchant, $order);
-
-            if ($expired) {
-                if ($status === 'success' && $this->claim($order, 'failed', 'cancelled', ['payment_status' => 'refund_due', 'paid_at' => now()])) {
-                    Log::warning('Whish payment received for a cancelled order', ['order_id' => $order->id]);
-                    $this->tell($merchant, $order, 'whish_late');
-                    NotifyStaffOfRefund::dispatch($order->id)->afterCommit();
-
-                    return 'refund_due';
-                }
-
-                return (string) $order->fresh()->payment_status;
-            }
-
-            if ($status === 'success') {
-                // The order is already accepted (by the shop, or by the bot): it goes ahead now.
-                if (! $this->claim($order, 'pending', 'pending_payment', [
-                    'payment_status' => 'paid', 'paid_at' => now(),
-                    'status' => 'confirmed', 'accepted_at' => $order->accepted_at ?? now(),
-                ])) {
-                    return (string) $order->fresh()->payment_status; // another check got there first
-                }
-                $order = $order->fresh();
-                $this->afterConfirmed($merchant, $order);
-                $this->tell($merchant, $order->fresh(), 'whish_paid');
-
-                return 'paid';
-            }
-
-            if ($status === 'unknown' && $final) {
-                // Whish could not answer: never cancel on a guess, the job retries.
-                throw new RuntimeException("Whish status unavailable for order {$order->id}");
-            }
-
-            if ($status === 'failed' || ($final && $status === 'pending')) {
-                if (! $this->claim($order, 'pending', 'pending_payment', ['payment_status' => 'failed'])) {
-                    return (string) $order->fresh()->payment_status;
-                }
-                $this->orders->transition($merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'customer', 'silent' => true]);
-                $this->tell($merchant, $order, $status === 'failed' ? 'whish_failed' : 'whish_expired');
-                if ($order->accepted_at) {
-                    $this->tellStaffUnpaid($merchant, $order);
-                }
-
-                return 'failed';
-            }
-
-            return 'pending';
-        } finally {
-            $tenant->set($previous);
+            $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'interactive', 'interactive' => [
+                'type' => 'button',
+                'body' => ['text' => mb_substr($body, 0, 1024)],
+                'action' => ['buttons' => [['type' => 'reply', 'reply' => [
+                    'id' => "wh:paid:{$order->id}",
+                    'title' => mb_substr(__('whatsapp.checkout.btn_whish_paid', [], $locale), 0, 20),
+                ]]]],
+            ]]);
+        } catch (\Throwable $e) {
+            Log::warning('Whish message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }
+    }
+
+    private function window(Merchant $merchant): int
+    {
+        return max(1, (int) (($merchant->settings ?? [])['wish_timeout_mins'] ?? 15));
     }
 
     /**

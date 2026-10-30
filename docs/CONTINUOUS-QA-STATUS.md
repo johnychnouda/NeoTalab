@@ -120,6 +120,59 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   restaurant shop were cancelled in the lab database and its drivers reset (lab only). Rerun: 38 of 38 pass.
 - Not run: `s04`, `s04b`, `s13` (MySQL lab), `s10`, `s11`, `s12`, `s24`, `s25` (paid OpenAI calls).
 
+## Checkpoint 12, 29 October 2026 (Whish without the API; subscriptions recorded by the owner)
+- Changed: Whish payments no longer use the Whish API. After the shop accepts, the customer gets the shop's Whish number,
+  the amount and the order number for the note; "I paid" (`wh:paid`) moves the order to `awaiting_check`; the shop taps
+  Received or Not received. No payment in the window cancels the order (`CheckWhishTransfer`). Customers can pay in USD or LBP.
+  Removed: `WhishPayService`, the callback route and controller, `CheckWhishPayment`, the Whish config, the lab Whish stand-in.
+  Migration `2026_10_29_000001` deletes stored Whish channel and secret values (not recoverable).
+- Changed: a shop becomes paid only by a recorded payment (`POST /admin/merchants/{id}/payments`) with a unique Whish reference.
+  The amount is the shop's own fee. Paying early adds to the current end date. Editing a shop cannot mark it paid.
+  New table `subscription_payments` (migration `2026_10_29_000002`), owner billing screen has a "Record Whish payment" action.
+- The follow-up checks added earlier today for late Whish payments belonged to the removed API flow and are gone with it.
+- Backend: 513 passed (Pint clean). New tests: `WhishTransferTest` (15), `SubscriptionPaymentTest` (9). Replaced:
+  `WhishPaymentTest` (29, removed with the API). Old subscription tests now record payments instead of editing shops.
+- Web: unit 10 passed; `next build` OK (includes the owner billing and shop settings screens). Not clicked in a browser yet.
+- Lab (migrated the lab database only, lab worker restarted): `s05` 38/38 · `s06` 33/33 · `s03` 322/322 · `s07` 13/13 (the past-date
+  check now compares counts; old bookings sit on that day) · `s08` 28/28 · `s09` 27/27 · `s14` 11/11 · `s15` 22/22 (the suite
+  now resets its own password first) · `s16` 10/10 · `s17` 13/13 · `s19` 20/20 · `s20` 21/21 · `s21` 13/13 · `s22` 8/8 · `s23` 126/126 ·
+  `s26` 19/19 (new: live Whish transfer flow and owner payment recording).
+- Removed from the lab: `s18_whish.py` and `mock_whish.py`. `s06` now expects the old callback address to return 404.
+- Not run: `s04`, `s04b`, `s13` (MySQL lab, not available); `s10`, `s11`, `s12`, `s24`, `s25` (paid OpenAI calls).
+- Open, needs a decision or outside help:
+  - Staff alerts for a payment check reach the shop only inside WhatsApp's 24-hour window. Outside it, a Meta-approved
+    template is needed (none exists for this yet).
+  - Whish-to-Whish payments are checked by the shop, by hand. A customer who forgets the order number can only be matched by
+    amount and time.
+  - A payment that arrives after the order was cancelled is not flagged automatically; the shop has to notice it and refund.
+  - Subscription payments: the owner checks the NeoTalab Whish account by hand; this replaces the "never by hand" rule
+    (memory updated to match).
+  - Production needs `php artisan migrate` after deploy (two new migrations).
+  - Nothing committed or pushed in this checkpoint.
+
+## Checkpoint 13, 29 October 2026 (open items from Checkpoint 12, fixed)
+- Payment check reaches the shop outside WhatsApp's 24-hour window through the template `neotalab_payment_check`
+  (submitted to Meta by `templates:sync`; it works only once Meta approves it). The alert repeats 30 minutes later if
+  the shop has not checked (`RemindShopOfWhishCheck`).
+- The check message names the Whish note, the amount and the customer's number, so the shop can match the transfer.
+- Late payments: the expired message has an "I paid" button for a day. A late "Received" on a cancelled order sets
+  `refund_due` and tells the customer. "Not received" leaves it unpaid. "I paid" after a day is ignored.
+- Owner records a subscription payment only after ticking "I checked this transfer in the NeoTalab Whish account"
+  (`confirmed_check`, required by the API and the billing screen).
+- Browser check (lab, phone, desktop, Arabic, French): billing list, "Record Whish payment" form with the check box
+  (button disabled until ticked), a recorded payment moved the shop to paid and the totals updated.
+- Deploy: `deploy/STEP-BY-STEP.md` now says new migrations need running (`RUN_MIGRATIONS` is false after the first deploy).
+- Backend 520 passed (Pint clean). Web unit 10 passed, build OK. Lab: `s26` 21/21 (new late-payment checks), `s03` 322,
+  `s05` 38, `s06` 33, `s07` 13, `s08` 28, `s09` 27, `s14` 11, `s15` 22, `s16` 10, `s17` 13, `s19` 20, `s20` 21, `s21` 13,
+  `s22` 8, `s23` 126.
+- Lab fixes (test setup only): `s03` compares with the status before each attempt (a real recorded payment is allowed);
+  `s15` owner password taken from the lab config (set to the lab test value); `s05` lab leftovers cleared again.
+- Still open: the shop settings screen has not been clicked in a browser (needs a shop login); the payment-check
+  template needs Meta approval before it can reach a shop outside the 24-hour window.
+- Old Whish order columns dropped (owner decision, 30 October 2026): migration `2026_10_30_000001_drop_old_whish_order_columns`
+  removes `whish_external_id` and `whish_collect_url`. Rolled back and re-applied on the lab; backend 520 of 520 pass; Pint clean.
+  The old values are gone for good; `down()` only restores empty columns.
+
 ## Blockers (need the owner or an outside party)
 - **Live WhatsApp and Whish**: Meta App Review and Access verification are in review (submitted 23 Oct).
   Internal behaviour is tested with stand-ins; nothing live is claimed.

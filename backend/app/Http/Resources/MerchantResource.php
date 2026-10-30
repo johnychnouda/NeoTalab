@@ -37,11 +37,11 @@ class MerchantResource extends JsonResource
         ];
     }
 
-    /** Shop settings without the secrets (WhatsApp token and PIN, Whish secret); the dashboard never needs them. */
+    /** Shop settings without the secrets (WhatsApp token and PIN, and any old Whish API secret); the dashboard never needs them. */
     protected function publicSettings(): array
     {
         $settings = $this->settings ?? [];
-        unset($settings['bot']['access_token'], $settings['bot']['registration_pin'], $settings['whish']['secret']);
+        unset($settings['bot']['access_token'], $settings['bot']['registration_pin'], $settings['whish']['secret'], $settings['whish']['channel']);
 
         return $settings;
     }

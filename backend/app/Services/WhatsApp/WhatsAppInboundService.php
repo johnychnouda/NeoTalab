@@ -319,6 +319,17 @@ class WhatsAppInboundService
                 return;
             }
 
+            // "I paid" under the Whish payment instructions: the shop checks its Whish account next.
+            if ($buttonId !== null && preg_match('/^wh:paid:(.+)$/', $buttonId, $wm)) {
+                $order = Order::query()->where('merchant_id', $merchant->id)
+                    ->where('customer_id', $conversation->customer_id)->whereKey($wm[1])->first();
+                if ($order) {
+                    app(OrderConfirmation::class)->customerPaid($merchant, $order);
+                }
+
+                return;
+            }
+
             // Accept / No thanks under a repair quote.
             if ($buttonId !== null && preg_match('/^qt:(yes|no):(.+)$/', $buttonId, $qm)) {
                 [$text, $order] = app(QuoteService::class)->answer($merchant, $conversation->customer, $qm[2], $qm[1] === 'yes');

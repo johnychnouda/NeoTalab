@@ -41,8 +41,6 @@ class Order extends Model
         'payment_method',
         'payment_status',
         'paid_at',
-        'whish_external_id',
-        'whish_collect_url',
         'reject_reason',
         'cancel_reason',
         'cancelled_by',

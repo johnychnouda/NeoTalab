@@ -33,7 +33,6 @@ class CheckoutFlow
     public function __construct(
         protected ConversationService $conversations,
         protected CheckoutService $checkout,
-        protected WhishPayService $whish,
     ) {}
 
     public function active(Conversation $conversation): bool
@@ -401,7 +400,7 @@ class CheckoutFlow
         }
 
         if (empty($state['payment'])) {
-            if ($this->whish->enabled($merchant)) {
+            if (ShopSettings::for($merchant)->whishNumber() !== null) {
                 return $this->ask($conversation, $state, 'payment', $this->buttons($this->t('pay', $locale), [
                     ['co:pay:cash', $this->t($state['fulfillment'] === 'pickup' ? 'btn_cash_shop' : 'btn_cash', $locale)],
                     ['co:pay:whish', $this->t('btn_whish', $locale)],
@@ -412,15 +411,19 @@ class CheckoutFlow
 
         if (empty($state['currency'])) {
             $total = $this->total($conversation, $state);
-            if ($state['payment'] === 'cash' && ($lbp = $settings->toLbp($total)) !== null && strtoupper((string) $merchant->currency) !== 'LBP') {
-                // The total in both currencies: all in dollars, all in lira, or part of each.
-                return $this->ask($conversation, $state, 'currency', $this->buttons($this->t('currency', $locale, [
-                    'usd' => $this->money($merchant, $total), 'lbp' => Money::lbp($lbp),
-                ]), [
+            if (in_array($state['payment'], ['cash', 'whish'], true) && ($lbp = $settings->toLbp($total)) !== null && strtoupper((string) $merchant->currency) !== 'LBP') {
+                // The total in both currencies: all in dollars, or all in lira (cash can also be split).
+                $options = [
                     ['co:cur:'.$merchant->currency, Str::limit("💵 {$this->money($merchant, $total)}", 20, '')],
                     ['co:cur:LBP', Str::limit('🇱🇧 '.Money::lbp($lbp), 20, '')],
-                    ['co:cur:MIXED', $this->t('btn_split', $locale)],
-                ]));
+                ];
+                if ($state['payment'] === 'cash') {
+                    $options[] = ['co:cur:MIXED', $this->t('btn_split', $locale)];
+                }
+
+                return $this->ask($conversation, $state, 'currency', $this->buttons($this->t('currency', $locale, [
+                    'usd' => $this->money($merchant, $total), 'lbp' => Money::lbp($lbp),
+                ]), $options));
             }
             $state['currency'] = $merchant->currency;
         }

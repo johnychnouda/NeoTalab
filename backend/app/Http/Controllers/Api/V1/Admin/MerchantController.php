@@ -11,7 +11,9 @@ use App\Http\Requests\Admin\UpdateMerchantRequest;
 use App\Http\Resources\AdminMerchantResource;
 use App\Models\Merchant;
 use App\Services\AdminMerchantService;
+use App\Services\BillingNoticeService;
 use App\Services\MerchantWelcomeService;
+use App\Services\SubscriptionPaymentService;
 use App\Services\TenantProvisioningService;
 use App\Support\MapLocation;
 use App\Support\PlaceFromPin;
@@ -108,6 +110,25 @@ class MerchantController extends Controller
         return response()->json([
             'payments' => $adminMerchants->payments($adminMerchants->find($id)),
         ]);
+    }
+
+    /** The platform owner records a shop's Whish payment for NeoTalab, by its Whish reference. */
+    public function recordPayment(Request $request, string $id, AdminMerchantService $adminMerchants, SubscriptionPaymentService $payments): JsonResponse
+    {
+        // The owner must tick that they checked this transfer in the NeoTalab Whish account.
+        $data = $request->validate([
+            'whish_reference' => ['required', 'string', 'max:60'],
+            'confirmed_check' => ['required', 'accepted'],
+        ]);
+        $merchant = $adminMerchants->find($id);
+        $payment = $payments->record($merchant, $request->user(), $data['whish_reference']);
+        app(BillingNoticeService::class)->paid($merchant->fresh());
+
+        return response()->json([
+            'payment' => $adminMerchants->payments($merchant)[0] ?? null,
+            'merchant' => new AdminMerchantResource($merchant->fresh()),
+            'message' => __('Payment recorded. The shop is paid until :date.', ['date' => $payment->period_end->toDateString()]),
+        ], 201);
     }
 
     public function updateBot(UpdateMerchantBotRequest $request, string $id, AdminMerchantService $adminMerchants): JsonResponse

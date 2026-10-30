@@ -6,9 +6,20 @@ use App\Models\Merchant;
 use App\Models\User;
 use App\Models\WhatsAppMessage;
 use App\Support\Roles;
+use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 
 trait InteractsWithTenants
 {
+    /** The platform owner records a shop's Whish payment for NeoTalab (a unique reference unless given). */
+    protected function recordWhishPayment(string $token, Merchant $merchant, ?string $reference = null): TestResponse
+    {
+        return $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", [
+            'whish_reference' => $reference ?? 'WS-'.strtoupper(Str::random(8)),
+            'confirmed_check' => true,
+        ]);
+    }
+
     /**
      * Create a merchant plus one user with the given role.
      *

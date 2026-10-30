@@ -3,6 +3,10 @@ import secrets, time
 from lib import *
 
 s = state(); OWN = s["owner"]; G = s["shops"]["grocer"]
+# Start from a known password: earlier runs of this suite change it, and the "old password" check needs it.
+tinker(f'$u = App\\Models\\User::where("email", "{G["email"]}")->first(); $u->password = Hash::make("Grocer-old-1"); $u->save(); echo json_encode(true);')
+G["pw"] = "Grocer-old-1"
+save_state(s)
 suite("Sessions")
 
 

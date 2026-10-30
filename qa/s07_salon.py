@@ -46,8 +46,10 @@ b = [x for x in booked() if x[1] == f"{day} 11:00"]
 # Two stylists, four customers: exactly two bookings, one per stylist.
 check("4 customers racing for 11:00: one booking per stylist (2 of 4)", len(b) == 2 and len({x[4] for x in b}) == 2, b)
 
+# Bookings from earlier runs can already sit on that day: the check is that this request adds none.
+before_past = len([x for x in booked() if x[1].startswith(past)])
 out = say(c[0], f"book haircut {past} 10:00")
-check("past date refused", not [x for x in booked() if x[1].startswith(past)], out)
+check("past date refused (no new booking)", len([x for x in booked() if x[1].startswith(past)]) == before_past, out)
 out = say(c[1], f"book haircut {day} 23:30")
 check("after-hours time refused", not [x for x in booked() if x[1] == f"{day} 23:30"], out)
 out = say(c[0], "cancel my appointment")

@@ -35,6 +35,27 @@ export default function BillingPage() {
   const [filter, setFilter] = useState("");
   const [confirm, setConfirm] = useState(null);
   const [remindersModal, setRemindersModal] = useState(false);
+  const [paying, setPaying] = useState(null);
+  const [reference, setReference] = useState("");
+  const [checked, setChecked] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // The owner checks the NeoTalab Whish account, then records the payment with its reference.
+  async function recordPayment() {
+    if (!paying) return;
+    setSaving(true);
+    try {
+      await api("POST", `/admin/merchants/${paying.id}/payments`, { whish_reference: reference.trim(), confirmed_check: true });
+      toast(t("ow.b.paymentRecorded"));
+      setPaying(null);
+      setReference("");
+      setChecked(false);
+      load();
+    } catch (e) {
+      toast(e?.message || t("ow.b.paymentFailed"), "error");
+    }
+    setSaving(false);
+  }
 
   const load = useCallback(async () => {
     try {
@@ -254,10 +275,29 @@ export default function BillingPage() {
           {head}
           <tbody>
             {list.length === 0 && <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)", padding: 32 }}>{t("ow.m.none")}</td></tr>}
-            {list.map((m) => <BillingRow key={m.id} t={t} locale={locale} m={m} now={now} onRemind={() => sendReminder(m)} />)}
+            {list.map((m) => <BillingRow key={m.id} t={t} locale={locale} m={m} now={now} onRemind={() => sendReminder(m)} onRecord={() => setPaying(m)} />)}
           </tbody>
         </table>
       </div>
+
+      {paying && (
+        <Modal title={`${t("ow.b.recordTitle")} · ${paying.shop_name}`}
+          onClose={() => { setPaying(null); setReference(""); setChecked(false); }}
+          footer={<button type="button" className="btn-primary" disabled={saving || !reference.trim() || !checked} onClick={recordPayment}>{t("ow.b.recordConfirm")}</button>}>
+          <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>{t("ow.b.recordHint")}</p>
+          <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
+            {t("ow.b.referenceLabel")}
+            <input dir="ltr" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
+          </label>
+          <p style={{ fontSize: 13, marginTop: 12, fontWeight: 600 }}>
+            {t("ow.b.recordAmount", { amount: `${merchantFee(paying).toFixed(2)}$`, cycle: paying.billing_cycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly") })}
+          </p>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginTop: 12 }}>
+            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>{t("ow.b.recordCheck")}</span>
+          </label>
+        </Modal>
+      )}
 
       {remindersModal && (
         <Modal title={`${t("ow.b.remindAll")} (${overdueList.length})`} onClose={() => setRemindersModal(false)}>
@@ -293,7 +333,7 @@ export default function BillingPage() {
   );
 }
 
-function BillingRow({ t, locale, m, now, onRemind }) {
+function BillingRow({ t, locale, m, now, onRemind, onRecord }) {
   const isPaid = m.subscription_status === "paid";
   const isTrial = m.subscription_status === "trial";
   const isPending = m.subscription_status === "pending";
@@ -336,6 +376,7 @@ function BillingRow({ t, locale, m, now, onRemind }) {
       <td data-label={t("th.status")}>
         <div className="billing-row-actions">
           <span style={{ color: billingColor, fontWeight: 600, fontSize: 12 }}>{billingLabel}</span>
+          <button type="button" className="btn-sm" onClick={onRecord}>{t("ow.b.record")}</button>
           {isOverdue && waClean && (
             <button type="button" className="btn-sm" style={{ color: "#f59e0b", borderColor: "#f59e0b40" }} onClick={onRemind}>📨 {t("ow.b.remind")}</button>
           )}

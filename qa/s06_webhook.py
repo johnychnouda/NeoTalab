@@ -1,4 +1,4 @@
-"""Workflow 7: webhook authenticity, malformed payloads, unknown and suspended numbers, Whish callback."""
+"""Workflow 7: webhook authenticity, malformed payloads, unknown and suspended numbers. The Whish callback was removed with the Whish API (2026-10-29): the old address must now be gone."""
 from lib import *
 
 s = state(); r = s["shops"]["rest"]; PID = r["phone_id"]
@@ -81,12 +81,8 @@ code, mid, t0 = wa_msg(ph["phone_id"], cust, text="hi")
 settle(t0)
 check("reactivated shop answers again", len(outbox(to=cust, since=t0)) >= 1)
 
-suite("W7 Whish callback is signed")
+suite("W7 Whish callback is gone (no Whish API)")
 oid = tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")->value("id"));')
 for res in ("success", "failure"):
     code, b = api("GET", f"/webhooks/whish/{oid}/{res}")
-    check(f"unsigned Whish {res} callback refused", code in (401, 403), (code, str(b)[:120]))
-    code, b = api("GET", f"/webhooks/whish/{oid}/{res}?signature=" + "a" * 64 + "&expires=9999999999")
-    check(f"forged-signature Whish {res} callback refused", code in (401, 403), (code, str(b)[:120]))
-st = tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->find("' + oid + '")->payment_status);')
-check("order payment status untouched by forged callbacks", st != "paid", st)
+    check(f"old Whish {res} callback address no longer exists", code == 404, (code, str(b)[:120]))
