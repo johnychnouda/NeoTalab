@@ -23,7 +23,7 @@ run against production.
 
 ## Open items
 - **Request limit and real users.** Measured 30 Oct: 2 to 4 calls per page and about 12 a minute left open, against a limit of 120 a minute. Not a concern for normal use; the 429s in my browser suite came from fast automated clicking.
-- **D37 (open, medium):** the real AI can repeat a customer-invented price as if it were true (the cart stays correct). See the bugs file.
+- **D37 (fixed 30 Oct):** the real AI could repeat a customer-invented price as if it were true (the cart stayed correct). A server check now replaces such replies. Only digits the customer typed are caught.
 - **Forwarded-address header on Railway**: the sign-in limits no longer depend on it (D17), the per-address limits still do.
   Needs an answer from Railway support.
 - **Not tested this session:** SSRF and path traversal (no code path takes a user URL or path except menu import, tested at

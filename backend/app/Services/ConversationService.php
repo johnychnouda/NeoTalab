@@ -20,6 +20,7 @@ use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
 use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
+use App\Services\AI\ReplyFigures;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
@@ -189,7 +190,7 @@ class ConversationService
             RecommendedAction::CheckAvailability => [$this->availability($conversation, $output->appointment ?? []), null],
             RecommendedAction::BookAppointment => [$this->bookAppointment($conversation, $output->appointment ?? []), null],
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
-            default => [Money::fromAiText($output->assistantMessage), null],
+            default => [$this->withoutMadeUpPrice(Money::fromAiText($output->assistantMessage), $message, $input, $cart, $language, $conversation), null],
         };
         // A weight the cart cut to a quarter kilo: the customer is told the amount really in the cart, not the one asked.
         if (($cartResult['rounded'] ?? []) !== [] && $output->recommendedAction !== RecommendedAction::PlaceOrder) {
@@ -409,6 +410,32 @@ class ConversationService
      * The customer wants a person: the bot steps back in this chat until the merchant hands it
      * back (or the pause expires), the merchant sees the request in his WhatsApp Business app.
      */
+    /**
+     * The server ignores a price the customer made up, but the AI's reply could still say it was accepted.
+     * Such a reply is replaced by the real cart.
+     */
+    private function withoutMadeUpPrice(string $reply, string $message, ConversationTurnInput $input, $cart, ?string $language, Conversation $conversation): string
+    {
+        $items = $cart->items()->with('product')->get();
+        $total = (float) $items->sum('line_total');
+        $known = [json_decode(json_encode([$input->catalog, $input->cartLines, $input->shop]), true)];
+        if (! ReplyFigures::repeatsMadeUpAmount($reply, $message, $known, $total)) {
+            return $reply;
+        }
+
+        $locale = in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en');
+        $text = __('whatsapp.cart.price_fixed', [], $locale);
+        if ($items->isNotEmpty()) {
+            $currency = app(CurrentTenant::class)->get()?->currency;
+            $text .= "\n".__('whatsapp.cart.your_cart', [], $locale);
+            foreach ($items as $item) {
+                $text .= "\n• ".Quantity::line($item->quantity, $item->product?->unit, (string) ($item->product?->name ?? '')).' — '.Money::format((float) $item->line_total, $currency);
+            }
+        }
+
+        return $text;
+    }
+
     private function handoff(Conversation $conversation): string
     {
         $merchant = app(CurrentTenant::class)->get();

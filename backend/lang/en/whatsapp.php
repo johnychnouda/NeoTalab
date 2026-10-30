@@ -144,6 +144,8 @@ return [
 
     'cart' => [
         'rounded' => '✅ Added :item (we sell this by the quarter kilo). Anything else?',
+        'price_fixed' => 'Prices come from the shop\'s menu and I can\'t change them.',
+        'your_cart' => 'Your cart:',
     ],
 
     'checkout' => [

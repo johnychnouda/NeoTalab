@@ -6,7 +6,7 @@ percentage: no coverage tool was run.
 ## Automated suites
 | Suite | Where | Count | Last run |
 |---|---|---|---|
-| Backend PHPUnit (feature and unit) | `backend/tests` | 522 pass | 30 Oct, SQLite and MySQL 26.10 |
+| Backend PHPUnit (feature and unit) | `backend/tests` | 524 pass | 30 Oct, SQLite (522 on MySQL 26.10 before the D37 tests) |
 | Web unit | `web/tests` | 10 pass | 30 Oct |
 | Browser (Playwright) | `web/e2e` | 58 per browser profile (incl. the new Whish test) | 30 Oct: desktop and phone full runs 54 pass / 3 fail (429) / 1 skip; failures pass alone |
 | Lab scripts | `qa/s*.py` | see below | 30 Oct for the five named |

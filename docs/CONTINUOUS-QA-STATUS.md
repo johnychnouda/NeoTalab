@@ -201,3 +201,8 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
 - Real AI on the production model: `s10` 18/18; `s24` 23/24 then 24/24; `s11` 3/4 twice; `s25` 15/16 twice. New open finding D37 (medium).
 - Dashboard request volume: 2 to 4 calls per page, about 12 a minute left open (limit 120).
 - Production backup: newest file restored into a scratch database on the production MySQL; matches live; scratch database dropped. Production has no shops yet.
+
+### Checkpoint 14, evening of 30 October
+- D37 fixed (price-echo guard). Backend 524/524, Pint clean. Real AI: `s24` 24/24 twice, `s10` 18/18, `s25` 15/16 (same stylist miss).
+- Meta: NeoTalab's number +961 70 207 078 is registered (phone number ID 251311448055371); webhook subscription for it is off; payment card not yet added; access token not checked.
+- Lab note: killing the lab's WhatsApp stand-in (port 8039) made suites see empty replies; restart it with `MOCK_GRAPH_PORT=8039 python3 qa/mock_graph.py qa/.lab/graph.jsonl`.

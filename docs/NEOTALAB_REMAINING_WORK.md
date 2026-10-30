@@ -17,8 +17,8 @@ No known open defect. Everything below is either an outside action, something ne
 - Real voice notes and images from Meta.
 - A second, independent security test.
 
-## Open defect
-- D37: the real AI can repeat a customer-invented price in its reply (cart stays right). Needs a decision, see the bugs file.
+## Open defects
+None known.
 
 ## Product gaps (build, defer or exclude)
 | Gap | Advice |

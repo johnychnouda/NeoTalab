@@ -141,6 +141,8 @@ return [
 
     'cart' => [
         'rounded' => '✅ Ajouté : :item (nous vendons ceci par quart de kilo). Autre chose ?',
+        'price_fixed' => 'Les prix viennent du menu du commerce et je ne peux pas les modifier.',
+        'your_cart' => 'Votre panier :',
     ],
 
     'checkout' => [

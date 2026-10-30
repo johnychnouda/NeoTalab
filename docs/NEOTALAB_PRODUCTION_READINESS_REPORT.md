@@ -32,7 +32,7 @@ cover that.
 ## Testing statistics (this session, 30 October, run by me)
 | What | Passed | Failed | Skipped | Notes |
 |---|---|---|---|---|
-| Backend PHPUnit (SQLite) | 522 | 0 | 0 | 520 at start; +2 regression tests. Pint clean |
+| Backend PHPUnit (SQLite) | 524 | 0 | 0 | 520 at start; +4 regression tests (D35, D36, D37 ×2). Pint clean |
 | Backend PHPUnit (MySQL 26.10) | 522 | 0 | 0 | plus migrations rolled back and re-run (3 steps) |
 | Lab stock races on MySQL (`s04`, `s04b`) | 4 checks | 0 | 0 | 2 buyers × 10 rounds, 5 buyers × 6 rounds: never oversold |
 | Lab speed on MySQL (`s13`) | 7 | 0 | 0 | see performance report |
@@ -50,8 +50,8 @@ cover that.
 
 Not run this session: voice/call suite `s12`, tablet, Firefox and WebKit full runs, load tests beyond `s13`. Last results for those are in the status file.
 
-Defects this session: 4 found, 3 fixed, 1 open (D37, medium) (see [NEOTALAB_BUGS_AND_FIXES.md](NEOTALAB_BUGS_AND_FIXES.md)).
-Across the project: 37 logged (D1–D33 plus four here), 36 fixed, D37 open.
+Defects this session: 4 found, 4 fixed, 0 open (see [NEOTALAB_BUGS_AND_FIXES.md](NEOTALAB_BUGS_AND_FIXES.md)).
+Across the project: 37 logged (D1–D33 plus four here), all fixed.
 
 ## What I did not do from the brief, and why
 The brief asks for every vertical, every role and every persona to be driven from scratch. Not redone here. The
@@ -64,7 +64,7 @@ in [NEOTALAB_REMAINING_WORK.md](NEOTALAB_REMAINING_WORK.md).
 |---|---|
 | Backend and database | solid in tests; suite passes on SQLite and (checkpoint 9) MySQL |
 | Tenant isolation and roles | pass: `s03` 322 checks plus isolation tests |
-| AI | rerun 30 Oct on the production model: mostly passing, one intermittent false price claim (D37); free-text figures in replies are not checked against data |
+| AI | rerun 30 Oct on the production model: `s10` 18/18, `s24` 24/24 twice after the D37 guard; amounts the customer typed are no longer repeated as shop prices; other free-text figures are still not checked |
 | WhatsApp | simulated only |
 | Payments | cash and Whish-by-transfer tested in simulation; nothing automatic, nothing live |
 | Security | see [NEOTALAB_SECURITY_AUDIT.md](NEOTALAB_SECURITY_AUDIT.md) |
