@@ -24,4 +24,8 @@ test("owner WhatsApp tab: once Meta says the number is connected, the page no lo
   // The line under the QR title agrees with the badge, so the page never says "connect" and "connected" at once.
   await expect(page.getByText("Connected: +961 70 207 078")).toBeVisible();
   await expect(page.getByText(/Use a number that is on the WhatsApp Business app/)).toHaveCount(0);
+  // No big "Reconnect" button on a healthy connection: only a quiet link that opens it on demand.
+  await expect(page.locator("#wa-embedded-signup-platform")).toHaveCount(0);
+  await page.getByRole("button", { name: "Problem with the connection? Reconnect" }).click();
+  await expect(page.getByRole("button", { name: "Problem with the connection? Reconnect" })).toHaveCount(0);
 });

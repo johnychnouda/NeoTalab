@@ -135,6 +135,7 @@ function OwnerSettingsContent() {
   const [waQr, setWaQr] = useState({ connected: false, phone: null });
   // What Meta says about the number right now: "checking", or { state: "connected" | "problem" | "not_set", phone, message }.
   const [waLive, setWaLive] = useState(null);
+  const [showReconnect, setShowReconnect] = useState(false);
   const [revealedWaToken, setRevealedWaToken] = useState("");
   const [s, setS] = useState({
     price: "30", yearlyPrice: "300", trialDays: "3",
@@ -489,15 +490,19 @@ function OwnerSettingsContent() {
                   <p className="set-hint">
                     {waQr.connected || waLive?.state === "connected" ? t("ow.set.waQrConnected", { phone: waQr.phone || waLive?.phone || s.waPhoneId }) : t("ow.set.waQrHint")}
                   </p>
-                  <WhatsAppEmbeddedSignup
-                    api={api}
-                    toast={toast}
-                    endpoint="/admin/whatsapp/platform/embedded-signup"
-                    connected={waQr.connected || waLive?.state === "connected"}
-                    label={t("ow.set.waQrConnect")}
-                    buttonId="wa-embedded-signup-platform"
-                    onConnected={() => { logActivity("bot", t("ow.set.waQrDone")); load(); }}
-                  />
+                  {waLive?.state === "connected" && !showReconnect ? (
+                    <button type="button" className="set-link set-link-btn" onClick={() => setShowReconnect(true)}>{t("ow.wa.reconnectTrouble")}</button>
+                  ) : (
+                    <WhatsAppEmbeddedSignup
+                      api={api}
+                      toast={toast}
+                      endpoint="/admin/whatsapp/platform/embedded-signup"
+                      connected={waQr.connected || waLive?.state === "connected"}
+                      label={t("ow.set.waQrConnect")}
+                      buttonId="wa-embedded-signup-platform"
+                      onConnected={() => { logActivity("bot", t("ow.set.waQrDone")); load(); }}
+                    />
+                  )}
                 </div>
                 <div className="set-grid">
                   <SetField label={t("ow.set.phoneId")} className="span-full" htmlFor="set-phone-id">
