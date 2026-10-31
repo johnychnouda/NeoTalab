@@ -16,6 +16,7 @@ use App\Services\BillingReminderService;
 use App\Services\DailyReportService;
 use App\Services\OrderService;
 use App\Services\TrialExpiryService;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\PlatformTemplateService;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
@@ -911,12 +912,15 @@ class WhatsAppOperationsTest extends TestCase
         $submitted = Http::recorded()->map(fn ($p) => $p[0])
             ->filter(fn (Request $r) => $r->method() === 'POST' && str_ends_with($r->url(), '/waba-1/message_templates'))
             ->map(fn (Request $r) => $r['name'].':'.$r['category'])->values()->all();
-        $this->assertSame([
-            ShopTemplateService::BILLING_REMINDER.':UTILITY',
-            ShopTemplateService::NEW_ORDER.':UTILITY', ShopTemplateService::STAFF_ALERT.':UTILITY',
-            ShopTemplateService::NEW_BOOKING.':UTILITY', ShopTemplateService::ORDER_DUE.':UTILITY', ShopTemplateService::PAYMENT_CHECK.':UTILITY',
-            ShopTemplateService::REFUND_NEEDED.':UTILITY',
-        ], $submitted);
+        $staff = [
+            ShopTemplateService::BILLING_REMINDER, ShopTemplateService::NEW_ORDER, ShopTemplateService::STAFF_ALERT,
+            ShopTemplateService::NEW_BOOKING, ShopTemplateService::ORDER_DUE, ShopTemplateService::PAYMENT_CHECK, ShopTemplateService::REFUND_NEEDED,
+        ];
+        $customer = array_keys(CustomerTemplates::definitions());
+        $this->assertCount(7 + 18, $submitted, 'seven for the staff, six events in three languages for customers');
+        $this->assertSame(array_map(fn ($n) => $n.':UTILITY', [...$staff, ...$customer]), $submitted);
+        $arabic = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === 'neotalab_c_order_ready_ar');
+        $this->assertSame('ar', $arabic['language'], 'a customer template is submitted in its own language');
         $newOrder = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === ShopTemplateService::NEW_ORDER);
         $this->assertSame(['Accept', "Can't take it"], array_column($newOrder['components'][1]['buttons'], 'text'));
         $this->assertTrue($newOrder['allow_category_change'], 'Meta may refile a shop template instead of rejecting it');

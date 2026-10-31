@@ -19,6 +19,7 @@ use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
 use App\Services\QuoteService;
+use App\Services\SystemAlertService;
 use App\Support\BusinessKind;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
@@ -75,6 +76,37 @@ class WhatsAppInboundService
     }
 
     /**
+     * Meta accepts a message and tells us only afterwards, in a status report, that it could not be
+     * delivered (the customer's 24 hours were over, a blocked number, a template problem). Each failure
+     * becomes an owner alert, so a shop never believes a customer was told when they were not.
+     *
+     * @param  array<string,mixed>  $value
+     */
+    protected function reportFailedDeliveries(array $value): void
+    {
+        $phoneNumberId = (string) ($value['metadata']['phone_number_id'] ?? '');
+        $merchant = $phoneNumberId !== '' ? MerchantWhatsAppCredentials::findMerchantByPhoneId($phoneNumberId) : null;
+        $sender = $merchant ? $merchant->name : 'NeoTalab\'s own number';
+
+        foreach ($value['statuses'] as $status) {
+            if (! is_array($status) || ($status['status'] ?? null) !== 'failed') {
+                continue;
+            }
+            $error = is_array($status['errors'][0] ?? null) ? $status['errors'][0] : [];
+            $to = preg_replace('/\D+/', '', (string) ($status['recipient_id'] ?? ''));
+            $reason = trim(strip_tags((string) ($error['title'] ?? $error['message'] ?? 'unknown reason')));
+
+            app(SystemAlertService::class)->record('warning', sprintf(
+                'WhatsApp could not deliver a message from %s%s: %s%s.',
+                $sender,
+                $to !== '' ? " to +{$to}" : '',
+                mb_substr($reason, 0, 160),
+                isset($error['code']) ? ' (Meta code '.(int) $error['code'].')' : '',
+            ), ['merchant_id' => $merchant?->id]);
+        }
+    }
+
+    /**
      * @param  array<string,mixed>  $value
      */
     protected function handleChange(array $value): void
@@ -85,6 +117,10 @@ class WhatsAppInboundService
             $this->answerCalls($value);
 
             return;
+        }
+
+        if (is_array($value['statuses'] ?? null)) {
+            $this->reportFailedDeliveries($value);
         }
 
         $messages = is_array($value['messages'] ?? null) ? $value['messages'] : [];

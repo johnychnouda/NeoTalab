@@ -4,6 +4,7 @@ namespace App\Jobs\Concerns;
 
 use App\Models\Merchant;
 use App\Models\Order;
+use App\Services\WhatsApp\CustomerMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
@@ -45,6 +46,26 @@ trait SendsMerchantWhatsApp
 
         try {
             app(WhatsAppService::class)->sendToCustomer($merchant, $to, $message);
+        } finally {
+            $tenant->set($previous);
+        }
+    }
+
+    /**
+     * A message to a customer that may go out days after they last wrote: the normal message inside
+     * WhatsApp's 24-hour window, the approved template for the event outside it (see CustomerMessenger).
+     *
+     * @param  array<string, mixed>  $message
+     * @param  list<string>  $params  the template's variables
+     */
+    protected function sendCustomerAs(Merchant $merchant, string $to, array $message, ?string $event = null, array $params = [], ?string $locale = null): bool
+    {
+        $tenant = app(CurrentTenant::class);
+        $previous = $tenant->get();
+        $tenant->set($merchant);
+
+        try {
+            return app(CustomerMessenger::class)->send($merchant, $to, $message, $event, $params, $locale);
         } finally {
             $tenant->set($previous);
         }

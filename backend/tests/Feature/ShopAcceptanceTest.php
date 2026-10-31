@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyCustomerOfOrderStatus;
 use App\Jobs\NotifyStaffOfOrder;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
@@ -11,8 +12,10 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\SystemAlert;
 use App\Models\WhatsAppMessage;
 use App\Services\OrderTiming;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\OrderMessage;
@@ -121,6 +124,16 @@ class ShopAcceptanceTest extends TestCase
         $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, $values)]);
     }
 
+    /** Marks the shop's customer templates (English) as approved by Meta. */
+    private function approveCustomerTemplates(string ...$events): void
+    {
+        $bot = $this->merchant->fresh()->settings['bot'];
+        foreach ($events as $event) {
+            $bot['templates'][CustomerTemplates::name($event, 'en')] = ['status' => 'APPROVED'];
+        }
+        $this->settings(['bot' => $bot]);
+    }
+
     public function test_order_waits_for_the_shop_and_accept_gives_an_arrival_time(): void
     {
         DeliveryZone::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Hamra', 'delivery_fee' => 1, 'minimum_order' => 0, 'delivery_mins' => 20, 'is_active' => true]);
@@ -218,13 +231,17 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('(💵 cash)', $due['text'], 'the shop delivering itself knows what to collect');
         $this->assertSame(["stf:picked_up:{$order->id}", "stf:delay:{$order->id}"], $due['buttons']);
 
+        // Three days after the customer last wrote, WhatsApp only accepts the approved template.
+        $this->approveCustomerTemplates(CustomerTemplates::DELAYED);
         $this->tap("stf:delay:{$order->id}");
-        $this->assertSame('📅 Sorry, your order #1 is delayed — now delivered by Monday 19 October.', $this->lastTo(self::CUSTOMER)['text']);
+        $template = $this->lastTemplateTo(self::CUSTOMER);
+        $this->assertSame('neotalab_c_order_delayed_en', $template['template']['name']);
+        $this->assertSame(['1', 'Beirut Bites', 'delivered by Monday 19 October'], array_column($template['template']['components'][0]['parameters'], 'text'));
 
         // Nobody touched it on Monday: on Tuesday it moves on by itself.
         Carbon::setTestNow(Carbon::parse('2026-10-20 08:00', 'Asia/Beirut'));
         Artisan::call('orders:due');
-        $this->assertStringContainsString('delivered by Wednesday 21 October', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertStringContainsString('delivered by Wednesday 21 October', json_encode($this->lastTemplateTo(self::CUSTOMER)['template']['components'][0]['parameters']));
     }
 
     public function test_days_shop_pickup_estimate_says_ready_for_pickup(): void
@@ -358,11 +375,122 @@ class ShopAcceptanceTest extends TestCase
         $order = $this->order();
         $this->assertSame('placed', $order->status);
 
+        $this->approveCustomerTemplates(CustomerTemplates::ACCEPTED);
         $this->travel(25)->hours();
         NotifyStaffOfOrder::dispatchSync($order->id);
 
         $this->assertSame('confirmed', $order->fresh()->status);
+        // The customer wrote 25 hours ago: plain text would be dropped, so the approved template goes.
+        $template = $this->lastTemplateTo(self::CUSTOMER);
+        $this->assertSame('neotalab_c_order_accepted_en', $template['template']['name']);
+        $this->assertSame(['Beirut Bites', '1'], array_slice(array_column($template['template']['components'][0]['parameters'], 'text'), 0, 2));
+    }
+
+    public function test_a_customer_out_of_the_window_without_an_approved_template_is_never_sent_plain_text(): void
+    {
+        $order = $this->order();
+        $this->travel(25)->hours();
+        NotifyStaffOfOrder::dispatchSync($order->id);
+
+        $this->assertSame('confirmed', $order->fresh()->status);
+        $this->assertStringStartsWith('🧾 Order #1 sent', $this->lastTo(self::CUSTOMER)['text'], 'nothing new reached the customer');
+        $this->assertNull($this->lastTemplateTo(self::CUSTOMER));
+        $alert = SystemAlert::query()->where('message', 'like', '%was not told about "order_accepted"%')->first();
+        $this->assertNotNull($alert, 'the owner is told, so the shop can write to the customer');
+        $this->assertSame($this->merchant->id, $alert->merchant_id);
+    }
+
+    public function test_a_customer_inside_the_window_still_gets_plain_text(): void
+    {
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}");
+
         $this->assertStringContainsString('accepted your order #1', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertNull($this->lastTemplateTo(self::CUSTOMER));
+    }
+
+    /** @return array{0: string, 1: list<string>} the template's name and variables sent to the customer */
+    private function customerTemplate(): array
+    {
+        $sent = $this->lastTemplateTo(self::CUSTOMER);
+        $this->assertNotNull($sent, 'a template went to the customer');
+
+        return [$sent['template']['name'], array_column($sent['template']['components'][0]['parameters'], 'text')];
+    }
+
+    public function test_status_messages_days_later_use_the_matching_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::ON_THE_WAY, CustomerTemplates::READY, CustomerTemplates::CANCELLED);
+        $this->settings(['pickup_address' => 'Hamra, Bliss St']);
+        $order = $this->order();
+        $this->travel(3)->days();
+
+        $order->forceFill(['status' => 'picked_up'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame(['neotalab_c_order_on_the_way_en', ['1', 'Beirut Bites']], $this->customerTemplate());
+
+        $order->forceFill(['status' => 'ready', 'fulfillment' => 'pickup'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame('neotalab_c_order_ready_en', $this->customerTemplate()[0]);
+        $this->assertSame('Hamra, Bliss St', $this->customerTemplate()[1][2]);
+
+        $order->forceFill(['status' => 'cancelled'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame(['neotalab_c_order_cancelled_en', ['1', 'Beirut Bites']], $this->customerTemplate());
+    }
+
+    public function test_a_thank_you_days_later_is_skipped_without_bothering_the_owner(): void
+    {
+        $order = $this->order();
+        $this->travel(3)->days();
+
+        $order->forceFill(['status' => 'delivered'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+
+        $this->assertStringStartsWith('🧾 Order #1 sent', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertNull($this->lastTemplateTo(self::CUSTOMER));
+        $this->assertSame(0, SystemAlert::query()->count(), 'a missed thank-you is not a problem to act on');
+    }
+
+    public function test_the_customers_language_picks_the_template_and_english_is_the_fallback(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::ON_THE_WAY);
+        $order = $this->order();
+        $this->travel(3)->days();
+        $order->forceFill(['status' => 'picked_up'])->save();
+
+        // Arabic customer, only English approved: English goes out rather than nothing.
+        $order->customer->forceFill(['locale' => 'ar'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame('neotalab_c_order_on_the_way_en', $this->customerTemplate()[0]);
+
+        // Arabic approved too: the customer gets Arabic, marked with the Arabic language code.
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_c_order_on_the_way_ar'] = ['status' => 'APPROVED'];
+        $this->settings(['bot' => $bot]);
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $sent = $this->lastTemplateTo(self::CUSTOMER);
+        $this->assertSame('neotalab_c_order_on_the_way_ar', $sent['template']['name']);
+        $this->assertSame('ar', $sent['template']['language']['code']);
+
+        // A language we have no template in falls back to English.
+        $order->customer->forceFill(['locale' => 'de'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame('neotalab_c_order_on_the_way_en', $this->customerTemplate()[0]);
+    }
+
+    public function test_a_late_order_notice_after_the_window_uses_the_delayed_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::DELAYED);
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}");
+        $this->travel(2)->days();
+        $order->forceFill(['promised_at' => now()->subMinutes(5)])->save();
+
+        app()->call([new CheckLateOrder($order->id), 'handle']);
+
+        $this->assertSame('neotalab_c_order_delayed_en', $this->customerTemplate()[0]);
+        $this->assertSame(['1', 'Beirut Bites'], array_slice($this->customerTemplate()[1], 0, 2));
     }
 
     // ── photos ──────────────────────────────────────────────────────────────

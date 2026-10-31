@@ -43,6 +43,17 @@ class ShopTemplateService
     public static function definitions(): array
     {
         return [
+            ...self::staffDefinitions(),
+            ...CustomerTemplates::definitions(),
+        ];
+    }
+
+    /**
+     * @return array<string, array{body: string, example: list<string>, buttons?: list<string>}>
+     */
+    protected static function staffDefinitions(): array
+    {
+        return [
             self::BILLING_REMINDER => [
                 'body' => 'Hello {{1}}, your NeoTalab subscription ends on {{2}}. Please renew to keep your WhatsApp ordering bot running. Reply here if you need help.',
                 'example' => ['Beirut Bites', '2026-10-10'],
@@ -120,7 +131,7 @@ class ShopTemplateService
      * @param  list<string>  $buttonPayloads  one per quick-reply button, in order (comes back as the tap's payload)
      * @return array<string, mixed>
      */
-    public static function message(string $name, array $params, array $buttonPayloads = []): array
+    public static function message(string $name, array $params, array $buttonPayloads = [], string $language = 'en'): array
     {
         $components = [[
             'type' => 'body',
@@ -139,14 +150,14 @@ class ShopTemplateService
             'type' => 'template',
             'template' => [
                 'name' => $name,
-                'language' => ['code' => 'en'],
+                'language' => ['code' => $language],
                 'components' => $components,
             ],
         ];
     }
 
     /**
-     * @param  array{body: string, example: list<string>, buttons?: list<string>}  $def
+     * @param  array{body: string, example: list<string>, buttons?: list<string>, language?: string}  $def
      * @return array{id: ?string, status: ?string}|null
      */
     protected function submit(string $wabaId, string $token, string $name, array $def): ?array
@@ -165,7 +176,7 @@ class ShopTemplateService
 
         $response = Http::withToken($token)->acceptJson()->post($this->whatsapp->graphUrl("{$wabaId}/message_templates"), [
             'name' => $name,
-            'language' => 'en',
+            'language' => $def['language'] ?? 'en',
             'category' => 'UTILITY',
             // Meta may file one (e.g. the renewal reminder) under Marketing; that is allowed so it still gets approved.
             'allow_category_change' => true,

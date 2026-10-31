@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Jobs\Concerns\LoadsAppointment;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
+use App\Services\WhatsApp\CustomerTemplates;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +31,12 @@ class SendAppointmentReminder implements ShouldQueue
         $locale = $appointment->customer?->locale ?? $merchant->locale ?? 'en';
 
         try {
-            $this->sendAs($merchant, (string) $appointment->customer?->phone, __('whatsapp.appointment.reminder', $this->appointmentParams($appointment, $merchant, $locale), $locale));
+            $params = $this->appointmentParams($appointment, $merchant, $locale);
+            $this->sendCustomerAs(
+                $merchant, (string) $appointment->customer?->phone,
+                ['type' => 'text', 'text' => __('whatsapp.appointment.reminder', $params, $locale)],
+                CustomerTemplates::BOOKING, [$params['service'], $merchant->name, $params['date'], $params['time']], $locale,
+            );
         } catch (\Throwable $e) {
             Log::warning('Appointment reminder failed', ['appointment_id' => $appointment->id, 'error' => $e->getMessage()]);
         }

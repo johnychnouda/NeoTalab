@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Services\OrderTiming;
 use App\Services\TravelTime;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Support\CurrentTenant;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -47,11 +48,12 @@ class CheckLateOrder implements ShouldQueue
         $locale = $order->customer->locale ?? $merchant->locale ?? 'en';
 
         try {
-            $this->sendAs($merchant, $order->customer->phone, __('whatsapp.status.late', [
-                'number' => $order->number,
-                'shop' => $merchant->name,
-                'when' => $timing->phrase($merchant, $order, $locale),
-            ], $locale));
+            $when = $timing->phrase($merchant, $order, $locale);
+            $this->sendCustomerAs(
+                $merchant, $order->customer->phone,
+                ['type' => 'text', 'text' => __('whatsapp.status.late', ['number' => $order->number, 'shop' => $merchant->name, 'when' => $when], $locale)],
+                CustomerTemplates::DELAYED, [(string) $order->number, $merchant->name, $when], $locale,
+            );
         } catch (\Throwable $e) {
             Log::warning('Late-order message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }

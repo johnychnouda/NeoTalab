@@ -3,7 +3,7 @@
 The full table for D1 to D33, with reproduction, root cause, files and tests, is
 [CONTINUOUS-QA-BUG-LOG.md](CONTINUOUS-QA-BUG-LOG.md). It now also carries today's entries. All 37 are fixed.
 
-All 37 logged defects are fixed; none open.
+All 38 logged defects are fixed; none open.
 
 ## Found and fixed on 30 October 2026 (checkpoint 14)
 | ID | Sev | What happened | Root cause | Fix | Regression test |
@@ -22,6 +22,13 @@ Both regression tests were run before the fix and failed (200 instead of 422), t
 Verified: backend 524/524 (SQLite); real AI `s24` 24/24 twice, `s10` 18/18, `s25` 15/16 (same stylist-wording miss as before). Limits: only digits the customer typed are caught, and a harmless reply such as "20$ noted" can be replaced by the safe sentence.
 
 Also seen, low, not logged as defects: `s11` (Arabizi: one of four replies not in Latin letters) and `s25` ("can I book with Jessica?" with no such stylist: the bot hands the chat to the team instead of saying there is no Jessica). Both repeated on two runs. Nothing unsafe happens.
+
+
+## D38, found and fixed on 31 October
+
+| ID | Severity | What went wrong | Fix | Test |
+|---|---|---|---|---|
+| D38 | High (customers not told) | A customer message sent after the customer's 24 hours (delayed order, "on its way" days later, accepted next day, booking reminder) went out as plain text. Meta accepts it and drops it silently, and NeoTalab ignored Meta's failure reports | `CustomerMessenger`: normal message inside 24 hours, approved template (customer's language, else English) outside, an owner alert when none is approved; 6 events × EN/AR/FR customer templates per shop; Meta's failure reports become alerts | `ShopAcceptanceTest`, `AppointmentTest`, `CustomerTemplatesTest` (13 tests). Not tried against live Meta; each shop's customer templates need Meta's approval |
 
 ## Cleanup, not a defect
 Removing the Whish API on 29 October left `web/proxy.js` with a branch for `/pay/*` pages that no longer exist, and the browser

@@ -51,7 +51,7 @@ cover that.
 Not run this session: voice/call suite `s12`, tablet, Firefox and WebKit full runs, load tests beyond `s13`. Last results for those are in the status file.
 
 Defects this session: 4 found, 4 fixed, 0 open (see [NEOTALAB_BUGS_AND_FIXES.md](NEOTALAB_BUGS_AND_FIXES.md)).
-Across the project: 37 logged (D1–D33 plus four here), all fixed.
+Across the project: 38 logged (D1–D33 plus five since), all fixed. D38 (31 Oct): customer messages after the 24-hour window.
 
 ## What I did not do from the brief, and why
 The brief asks for every vertical, every role and every persona to be driven from scratch. Not redone here. The

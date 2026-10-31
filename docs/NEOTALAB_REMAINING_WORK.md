@@ -8,7 +8,8 @@ No known open defect. Everything below is either an outside action, something ne
 3. ~~Restore a real backup~~ Done 30 Oct. Repeat it once real shops exist.
 4. Uptime alert (UptimeRobot or similar).
 5. ~~Confirm the 29 and 30 Oct migrations ran~~ Done 30 Oct: `migrate:status` in the Railway console shows all three as Ran.
-6. Check Owner → Inbox → System for failed checkouts from the split-cash bug (D29), if any shop took such orders before the fix.
+6. Each shop's customer templates (`neotalab_c_*`, three languages) must be Approved by Meta before that shop's later-day messages (delays, reminders) reach customers; until then the owner sees an alert instead. Needs one live check with a real shop (the lab does not enforce the 24-hour rule).
+7. Check Owner → Inbox → System for failed checkouts from the split-cash bug (D29), if any shop took such orders before the fix.
 
 ## Not tested yet (could hide defects)
 - Voice and call suite `s12`.

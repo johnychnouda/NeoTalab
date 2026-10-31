@@ -110,6 +110,17 @@ groceries, retail, salons, clinics, services).
   separate access template any more; a regained login sends the welcome template and a fresh code.
 - After a deploy, `php artisan templates:sync` submits the new templates to Meta; old rejected names are left behind.
 
+## Messages to customers after 24 hours (31 October 2026)
+
+WhatsApp allows plain text only for 24 hours after the customer's last message. Later, Meta accepts plain text and
+drops it silently. Every customer message that can come that late (accepted, ready, on its way, delayed, cancelled,
+booking reminder) goes through `CustomerMessenger`: inside the window the normal message, outside it the approved
+template in the customer's language (English when there is none), and with no approved template nothing is sent and the
+owner sees an alert in Inbox → System so the shop can write to the customer. A thank-you that is late is skipped without
+an alert. Meta's failure reports for any message (shops and NeoTalab's own number) also become alerts.
+The templates are named `neotalab_c_{event}_{en|ar|fr}`, are factual so Meta files them under Utility, and a shop pays
+Meta for each one it sends outside the 24 hours.
+
 ## Before going live with real shops
 
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:

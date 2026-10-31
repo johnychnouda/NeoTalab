@@ -11,6 +11,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Product;
 use App\Models\ShopHour;
+use App\Models\SystemAlert;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\OrderMessage;
@@ -224,6 +225,37 @@ class AppointmentTest extends TestCase
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && str_contains($r['text']['body'] ?? '', 'Reminder'));
         $this->assertCount(1, $reminders);
         $this->assertStringContainsString('Haircut at Hair Studio is on Tue 6 Oct at 15:00', $reminders->first()['text']['body']);
+    }
+
+    public function test_reminder_days_after_the_booking_uses_the_approved_template(): void
+    {
+        $this->say('book haircut 2026-10-09 15:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_c_booking_reminder_en'] = ['status' => 'APPROVED'];
+        $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, ['bot' => $bot])]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-09 09:00', 'Asia/Beirut')); // three days after the customer last wrote
+        (new SendAppointmentReminder($appointment->id))->handle();
+
+        $sent = Http::recorded()->map(fn ($p) => $p[0])
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['type'] === 'template')->sole();
+        $this->assertSame('neotalab_c_booking_reminder_en', $sent['template']['name']);
+        $this->assertSame(['Haircut', 'Hair Studio', 'Fri 9 Oct', '15:00'], array_column($sent['template']['components'][0]['parameters'], 'text'));
+    }
+
+    public function test_reminder_days_after_the_booking_without_a_template_tells_the_owner_instead_of_sending_text(): void
+    {
+        $this->say('book haircut 2026-10-09 15:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+
+        Carbon::setTestNow(Carbon::parse('2026-10-09 09:00', 'Asia/Beirut'));
+        (new SendAppointmentReminder($appointment->id))->handle();
+
+        $reminders = Http::recorded()->map(fn ($p) => $p[0])
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && str_contains($r['text']['body'] ?? '', 'Reminder'));
+        $this->assertCount(0, $reminders, 'plain text outside the window would be dropped by Meta');
+        $this->assertNotNull(SystemAlert::query()->where('message', 'like', '%was not told about "booking_reminder"%')->first());
     }
 
     public function test_services_cannot_be_put_in_the_cart(): void

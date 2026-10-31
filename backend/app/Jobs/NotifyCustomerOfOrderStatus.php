@@ -3,8 +3,11 @@
 namespace App\Jobs;
 
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
+use App\Models\Merchant;
+use App\Models\Order;
 use App\Services\ChatMenu;
 use App\Services\OrderTiming;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -65,14 +68,34 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
             ]), $locale).($order->payment_status === 'refund_due' ? "\n".__('whatsapp.status.refund', ['shop' => $merchant->name], $locale) : '')
                 .($askRating ? "\n\n".__('whatsapp.rating.ask', [], $locale) : '');
 
-            // Accepted / on the way: with the "Where's my order?" button.
-            $this->sendMessageAs($merchant, $order->customer->phone, in_array($order->status, ['confirmed', 'picked_up'], true)
+            // Accepted / on the way: with the "Where's my order?" button. Days later, when the customer's
+            // 24 hours are over, the approved template for the event goes instead (the others are skipped).
+            $this->sendCustomerAs($merchant, $order->customer->phone, in_array($order->status, ['confirmed', 'picked_up'], true)
                 ? ChatMenu::withStatusButton($order, $text, $locale)
-                : ['type' => 'text', 'text' => $text]);
+                : ['type' => 'text', 'text' => $text], ...$this->template($key, $order, $merchant, $locale));
         } catch (\Throwable $e) {
             Log::warning('Order status notification failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
 
             throw $e;
         }
+    }
+
+    /**
+     * The template event and its variables for the statuses that matter to a customer who has gone quiet.
+     *
+     * @return array{0: ?string, 1: list<string>, 2: string}
+     */
+    protected function template(string $key, Order $order, Merchant $merchant, string $locale): array
+    {
+        $shop = $merchant->name;
+        $number = (string) $order->number;
+
+        return match ($key) {
+            'whatsapp.status.confirmed' => [CustomerTemplates::ACCEPTED, [$shop, $number, $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : ''], $locale],
+            'whatsapp.status.ready_pickup' => [CustomerTemplates::READY, [$number, $shop, ShopSettings::for($merchant)->pickupAddress() ?: $shop], $locale],
+            'whatsapp.status.out_for_delivery', 'whatsapp.status.picked_up' => [CustomerTemplates::ON_THE_WAY, [$number, $shop], $locale],
+            'whatsapp.status.rejected', 'whatsapp.status.cancelled', 'whatsapp.status.not_accepted' => [CustomerTemplates::CANCELLED, [$number, $shop], $locale],
+            default => [null, [], $locale],
+        };
     }
 }

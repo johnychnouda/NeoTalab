@@ -11,6 +11,8 @@ use App\Jobs\RemindShopOfWhishCheck;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Merchant;
 use App\Models\Order;
+use App\Services\WhatsApp\CustomerMessenger;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
@@ -133,10 +135,12 @@ class OrderConfirmation
         $order->loadMissing('customer');
         $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
         try {
-            $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'text', 'text' => __('whatsapp.status.delayed', [
-                'number' => $order->number,
-                'when' => $this->timing->phrase($merchant, $order, $locale),
-            ], $locale)]);
+            $when = $this->timing->phrase($merchant, $order, $locale);
+            app(CustomerMessenger::class)->send(
+                $merchant, (string) $order->customer?->phone,
+                ['type' => 'text', 'text' => __('whatsapp.status.delayed', ['number' => $order->number, 'when' => $when], $locale)],
+                CustomerTemplates::DELAYED, [(string) $order->number, $merchant->name, $when], $locale,
+            );
         } catch (\Throwable $e) {
             Log::warning('Delay message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }
