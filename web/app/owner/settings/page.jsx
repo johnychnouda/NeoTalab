@@ -477,11 +477,15 @@ function OwnerSettingsContent() {
                 }
               />
               {waLive && waLive !== "checking" && (
-                <p className="set-hint" role="status">
-                  {waLive.state === "problem" && `${waLive.message} `}
-                  {waLive.state === "connected" && waLive.name_status === "NON_EXISTS" && `${t("ow.wa.nameMissing")} `}
-                  <button type="button" className="btn-sm" onClick={checkWa}>{t("ow.wa.recheck")}</button>
-                </p>
+                <div className="set-card-body" style={{ paddingBottom: 0 }}>
+                  <p className="set-hint" role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                    <span>
+                      {waLive.state === "problem" && `${waLive.message} `}
+                      {waLive.state === "connected" && waLive.name_status === "NON_EXISTS" && `${t("ow.wa.nameMissing")} `}
+                    </span>
+                    <button type="button" className="set-link set-link-btn" onClick={checkWa}>{t("ow.wa.recheck")}</button>
+                  </p>
+                </div>
               )}
               <SetNote tone="wa">{t("ow.set.waNote")}</SetNote>
               <div className="set-card-body">
@@ -497,6 +501,7 @@ function OwnerSettingsContent() {
                       api={api}
                       toast={toast}
                       endpoint="/admin/whatsapp/platform/embedded-signup"
+                      quiet
                       connected={waQr.connected || waLive?.state === "connected"}
                       label={t("ow.set.waQrConnect")}
                       buttonId="wa-embedded-signup-platform"

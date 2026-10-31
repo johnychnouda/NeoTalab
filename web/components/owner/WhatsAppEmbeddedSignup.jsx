@@ -80,6 +80,8 @@ export default function WhatsAppEmbeddedSignup({
   connected = false,
   disabled = false,
   compact = false,
+  // A calm outlined button that fits its text, for screens where connecting is occasional.
+  quiet = false,
   buttonId,
   // Where the signup result is sent; defaults to the shop's number. NeoTalab's own number uses
   // /admin/whatsapp/platform/embedded-signup.
@@ -322,8 +324,8 @@ export default function WhatsAppEmbeddedSignup({
       <button
         id={buttonId}
         type="button"
-        className={compact ? "btn-primary" : "paction-btn paction-primary"}
-        style={{ justifyContent: "center", marginBottom: compact ? 0 : undefined, width: compact ? undefined : "100%" }}
+        className={compact ? "btn-primary" : quiet ? "paction-btn paction-green" : "paction-btn paction-primary"}
+        style={{ justifyContent: "center", marginBottom: compact ? 0 : undefined, width: compact ? undefined : quiet ? "fit-content" : "100%" }}
         onClick={startSignup}
         disabled={disabled || loading || !sdkReady}
       >

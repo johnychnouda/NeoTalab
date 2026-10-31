@@ -29,3 +29,21 @@ test("owner WhatsApp tab: once Meta says the number is connected, the page no lo
   await page.getByRole("button", { name: "Problem with the connection? Reconnect" }).click();
   await expect(page.getByRole("button", { name: "Problem with the connection? Reconnect" })).toHaveCount(0);
 });
+
+test("owner WhatsApp tab: when the number is not connected, the connect button is calm and fits its text", async ({ page }, info) => {
+  await page.route("**/admin/platform-settings/whatsapp-status", (route) => route.fulfill({ json: { state: "not_set" } }));
+  await page.route("**/admin/whatsapp/embedded-signup/config", (route) =>
+    route.fulfill({ json: { enabled: true, appId: "123", configId: "456" } }));
+  await page.route("https://connect.facebook.net/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: "window.FB={init(){},login(){}};" }));
+  await page.goto("/owner/settings?tab=whatsapp");
+
+  const button = page.locator("#wa-embedded-signup-platform");
+  await expect(button).toContainText("Connect NeoTalab's number");
+  await expect(button).not.toHaveClass(/paction-primary/);
+  const [box, card] = await Promise.all([button.boundingBox(), page.locator(".set-form-block").boundingBox()]);
+  // On a wide screen it is as wide as its words, not the whole card; on a phone it may fill the line.
+  if (page.viewportSize().width > 900) expect(box.width).toBeLessThan(card.width * 0.5);
+  expect(box.width).toBeLessThanOrEqual(card.width);
+  await page.screenshot({ path: `test-results/wa-not-connected-${info.project.name}.png`, fullPage: true });
+});
