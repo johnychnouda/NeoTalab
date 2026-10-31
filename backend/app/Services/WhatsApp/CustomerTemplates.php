@@ -25,7 +25,25 @@ class CustomerTemplates
 
     public const REFUND = 'order_refund';
 
+    public const OUTSIDE = 'order_outside';
+
+    public const DELIVERED = 'order_delivered';
+
+    /** The thank-you that also asks how it was (the shop asks for a rating). */
+    public const DELIVERED_RATE = 'order_delivered_rate';
+
+    /** The shop's price for a request, with Accept / No thanks buttons. */
+    public const QUOTE = 'quote_ready';
+
+    public const SCHEDULED = 'order_scheduled';
+
     public const LANGUAGES = ['en', 'ar', 'fr'];
+
+    /** Whether failing to reach the customer is worth an owner alert (a late thank-you is not). */
+    public static function critical(string $event): bool
+    {
+        return ! in_array($event, [self::DELIVERED, self::DELIVERED_RATE, self::SCHEDULED], true);
+    }
 
     /** The template for this event in the customer's language (English when we have none for it). */
     public static function name(string $event, ?string $locale): string
@@ -42,14 +60,15 @@ class CustomerTemplates
     }
 
     /**
-     * @return array<string, array{body: string, example: list<string>, language: string}>
+     * @return array<string, array{body: string, example: list<string>, language: string, buttons?: list<string>}>
      */
     public static function definitions(): array
     {
         $all = [];
         foreach (self::texts() as $event => $languages) {
-            foreach ($languages as $language => [$body, $example]) {
-                $all[self::name($event, $language)] = ['body' => $body, 'example' => $example, 'language' => $language];
+            foreach ($languages as $language => [$body, $example, $buttons]) {
+                $all[self::name($event, $language)] = ['body' => $body, 'example' => $example, 'language' => $language]
+                    + ($buttons ? ['buttons' => $buttons] : []);
             }
         }
 
@@ -57,11 +76,11 @@ class CustomerTemplates
     }
 
     /**
-     * @return array<string, array<string, array{0: string, 1: list<string>}>>
+     * @return array<string, array<string, array{0: string, 1: list<string>, 2: list<string>}>>
      */
     protected static function texts(): array
     {
-        return [
+        return self::withButtons([
             self::ACCEPTED => [
                 'en' => ['Good news! {{1}} accepted your order #{{2}}. Expected: {{3}}. We will keep you updated in this chat. Thank you for your order!', ['Beirut Bites', '128', 'around 11:25 AM']],
                 'ar' => ['أخبار سارة! قَبِل {{1}} طلبك رقم {{2}}. الموعد المتوقع: {{3}}. سنُبقيك على اطلاع في هذه المحادثة. شكراً لطلبك!', ['بيروت بايتس', '128', 'حوالي الساعة 11:25 صباحاً']],
@@ -92,11 +111,53 @@ class CustomerTemplates
                 'ar' => ['سيتم ردّ المبلغ الذي دفعته للطلب رقم {{1}} من {{2}} من قِبل المتجر. إذا كان لديك أي سؤال، يرجى مراسلتنا في هذه المحادثة.', ['128', 'بيروت بايتس']],
                 'fr' => ['Votre paiement pour la commande n° {{1}} chez {{2}} sera remboursé par la boutique. Pour toute question, écrivez-nous dans cette conversation.', ['128', 'Beirut Bites']],
             ],
+            self::OUTSIDE => [
+                'en' => ['Your driver {{1}} is outside with your order #{{2}}. You can reach the driver on {{3}} if needed.', ['Rami', '128', '+96170123456']],
+                'ar' => ['السائق {{1}} أمام الباب مع طلبك رقم {{2}}. يمكنك الاتصال بالسائق على {{3}} عند الحاجة.', ['رامي', '128', '+96170123456']],
+                'fr' => ['Votre livreur {{1}} est devant la porte avec votre commande n° {{2}}. Vous pouvez le joindre au {{3}} si besoin.', ['Rami', '128', '+96170123456']],
+            ],
+            self::DELIVERED => [
+                'en' => ['Your order #{{1}} from {{2}} was delivered. Thank you for ordering with us!', ['128', 'Beirut Bites']],
+                'ar' => ['تم تسليم طلبك رقم {{1}} من {{2}}. شكراً لطلبك منا!', ['128', 'بيروت بايتس']],
+                'fr' => ['Votre commande n° {{1}} chez {{2}} a été livrée. Merci de votre commande !', ['128', 'Beirut Bites']],
+            ],
+            self::DELIVERED_RATE => [
+                'en' => ['Your order #{{1}} from {{2}} was delivered. Thank you! How was it? Reply with a number from 1 (bad) to 5 (excellent).', ['128', 'Beirut Bites']],
+                'ar' => ['تم تسليم طلبك رقم {{1}} من {{2}}. شكراً لك! كيف كانت التجربة؟ ردّ برقم من 1 (سيئ) إلى 5 (ممتاز).', ['128', 'بيروت بايتس']],
+                'fr' => ['Votre commande n° {{1}} chez {{2}} a été livrée. Merci ! Comment était-elle ? Répondez par un chiffre de 1 (mauvais) à 5 (excellent).', ['128', 'Beirut Bites']],
+            ],
+            self::QUOTE => [
+                'en' => ['Good news! {{1}} sent you a price for your request #{{2}}: {{3}} for {{4}}. The offer is valid for {{5}} days. Please choose below.', ['Sofa Repair', '128', 'Sofa rebuild', '150.00$', '3'], ['Accept', 'No thanks']],
+                'ar' => ['أخبار سارة! أرسل {{1}} سعراً لطلبك رقم {{2}}: {{3}} بسعر {{4}}. العرض صالح لمدة {{5}} أيام. يرجى الاختيار أدناه.', ['ورشة الأريكة', '128', 'تجديد الأريكة', '150.00$', '3'], ['قبول', 'لا، شكراً']],
+                'fr' => ['Bonne nouvelle ! {{1}} vous a envoyé un prix pour votre demande n° {{2}} : {{3}} pour {{4}}. L\'offre est valable {{5}} jours. Veuillez choisir ci-dessous.', ['Atelier Sofa', '128', 'Réfection du canapé', '150.00$', '3'], ['Accepter', 'Non merci']],
+            ],
+            self::SCHEDULED => [
+                'en' => ['Reminder: your order #{{1}} from {{2}} is scheduled for {{3}}. We are getting it ready now.', ['128', 'Flower Shop', 'Friday 10:00–12:00']],
+                'ar' => ['تذكير: طلبك رقم {{1}} من {{2}} مجدول {{3}}. نقوم بتجهيزه الآن.', ['128', 'محل الزهور', 'الجمعة 10:00–12:00']],
+                'fr' => ['Rappel : votre commande n° {{1}} chez {{2}} est prévue {{3}}. Nous la préparons maintenant.', ['128', 'Fleuriste', 'vendredi 10h00–12h00']],
+            ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],
                 'ar' => ['تذكير: موعد {{1}} في {{2}} يوم {{3}} الساعة {{4}}. إذا أردت تغييره، يرجى مراسلتنا في هذه المحادثة. نراك قريباً!', ['قص شعر', 'صالون جلو', 'الأربعاء 14 تشرين الأول', '15:30']],
                 'fr' => ['Rappel : votre {{1}} chez {{2}} est le {{3}} à {{4}}. Pour le modifier, écrivez-nous dans cette conversation. À bientôt !', ['Coupe', 'Glow Salon', 'mercredi 14 octobre', '15h30']],
             ],
-        ];
+        ]);
+    }
+
+    /**
+     * Gives every text a button list (empty for most), so definitions() reads them the same way.
+     *
+     * @param  array<string, array<string, array<int, mixed>>>  $texts
+     * @return array<string, array<string, array{0: string, 1: list<string>, 2: list<string>}>>
+     */
+    protected static function withButtons(array $texts): array
+    {
+        foreach ($texts as $event => $languages) {
+            foreach ($languages as $language => $text) {
+                $texts[$event][$language] = [$text[0], $text[1], $text[2] ?? []];
+            }
+        }
+
+        return $texts;
     }
 }

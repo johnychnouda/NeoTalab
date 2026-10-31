@@ -8,6 +8,7 @@ use App\Models\PlatformSetting;
 use App\Models\SystemAlert;
 use App\Services\ShopWhatsAppWatch;
 use App\Services\SubscriptionStopService;
+use App\Services\SystemAlertService;
 use App\Services\TrialExpiryService;
 use App\Services\WhatsApp\PlatformTemplateService;
 use App\Support\Roles;
@@ -261,6 +262,45 @@ class PlatformLifecycleTemplatesTest extends TestCase
 
         $declined = collect($this->platformSends())->filter(fn ($r) => $r['to'] === '96178887777' && $r['template']['name'] === 'neotalab_request_declined')->sole();
         $this->assertSame(['Ahmad', 'Join Shop'], array_column($declined['template']['components'][0]['parameters'], 'text'));
+    }
+
+    public function test_an_applicant_who_used_the_page_in_arabic_is_answered_in_arabic(): void
+    {
+        $this->approve('neotalab_request_received', 'neotalab_request_received_ar');
+
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'سناك أبو علي', 'contactName' => 'علي', 'businessType' => 'Restaurant / Café', 'language' => 'ar',
+            'whatsapp' => '+96178887777', 'city' => 'Zahle', 'region' => 'Bekaa', 'street' => 'Main road', 'country' => 'LB', 'acceptedTerms' => true,
+        ])->assertCreated();
+
+        $this->assertSame('ar', OnboardingRequest::query()->latest()->value('language'));
+        $sent = collect($this->platformSends())->filter(fn ($r) => $r['to'] === '96178887777')->sole();
+        $this->assertSame('neotalab_request_received_ar', $sent['template']['name']);
+        $this->assertSame('ar', $sent['template']['language']['code']);
+    }
+
+    public function test_an_unknown_language_on_the_join_form_is_refused(): void
+    {
+        $this->postJson('/api/v1/onboarding/apply', [
+            'shopName' => 'Join Shop', 'contactName' => 'Ahmad', 'businessType' => 'Restaurant / Café', 'language' => 'xx',
+            'whatsapp' => '+96178887777', 'city' => 'Zahle', 'region' => 'Bekaa', 'street' => 'Main road', 'country' => 'LB', 'acceptedTerms' => true,
+        ])->assertUnprocessable();
+    }
+
+    public function test_the_alert_language_chosen_in_settings_picks_the_template_version(): void
+    {
+        $this->approve('system_alert', 'system_alert_fr');
+        $this->platform(['alert_whatsapp' => '+96170161659', 'alert_language' => 'fr']);
+
+        app(SystemAlertService::class)->sendToOwner('Warning: the backup failed', 'subject', '');
+
+        $sent = collect($this->platformSends())->filter(fn ($r) => $r['to'] === '96170161659')->sole();
+        $this->assertSame('system_alert_fr', $sent['template']['name']);
+        $this->assertSame('fr', $sent['template']['language']['code']);
+
+        $this->platform(['alert_language' => 'en']);
+        app(SystemAlertService::class)->sendToOwner('Warning: the backup failed', 'subject', '');
+        $this->assertSame('system_alert', collect($this->platformSends())->filter(fn ($r) => $r['to'] === '96170161659')->last()['template']['name']);
     }
 
     public function test_the_public_form_cannot_be_used_to_message_strangers_over_and_over(): void

@@ -355,9 +355,14 @@ class DriverBotService
             $order->loadMissing('customer');
             $customerLocale = $order->customer?->locale ?? $locale;
             try {
-                $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'text', 'text' => __('whatsapp.status.outside', [
-                    'number' => $order->number, 'driver' => $driver->name, 'phone' => OrderMessage::phone($driver->whatsapp_number ?: $driver->phone),
-                ], $customerLocale)]);
+                $driverPhone = (string) ($driver->whatsapp_number ?: $driver->phone);
+                app(CustomerMessenger::class)->send(
+                    $merchant, (string) $order->customer?->phone,
+                    ['type' => 'text', 'text' => __('whatsapp.status.outside', [
+                        'number' => $order->number, 'driver' => $driver->name, 'phone' => OrderMessage::phone($driverPhone),
+                    ], $customerLocale)],
+                    CustomerTemplates::OUTSIDE, [$driver->name, (string) $order->number, $driverPhone], $customerLocale,
+                );
             } catch (\Throwable $e) {
                 Log::warning('Driver outside message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
             }

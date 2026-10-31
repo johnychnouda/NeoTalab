@@ -37,6 +37,7 @@ class PlatformSettingsResource extends JsonResource
             'overdueReminderMsg' => $extra['overdue_reminder_msg'] ?? null,
             'alertEmail' => $extra['alert_email'] ?? '',
             'alertWhatsapp' => $extra['alert_whatsapp'] ?? '',
+            'alertLanguage' => $extra['alert_language'] ?? 'en',
             'mailReady' => ! in_array(config('mail.default'), ['log', 'array'], true),
             'passwordChangedAt' => $this->passwordChangedAt,
         ];

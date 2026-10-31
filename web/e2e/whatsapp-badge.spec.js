@@ -47,3 +47,19 @@ test("owner WhatsApp tab: when the number is not connected, the connect button i
   expect(box.width).toBeLessThanOrEqual(card.width);
   await page.screenshot({ path: `test-results/wa-not-connected-${info.project.name}.png`, fullPage: true });
 });
+
+test("owner alerts tab: the language of WhatsApp alerts can be chosen and is saved", async ({ page }) => {
+  await page.goto("/owner/settings?tab=alerts");
+  const select = page.locator("#set-alert-lang");
+  await expect(select.locator("option")).toHaveText(["English", "العربية", "Français"]);
+
+  await select.selectOption("fr");
+  const saved = page.waitForRequest((r) => r.method() === "PATCH" && r.url().includes("/admin/platform-settings"));
+  await page.getByRole("button", { name: "Save" }).first().click();
+  expect((await saved).postDataJSON().alert_language).toBe("fr");
+
+  await page.reload();
+  await expect(page.locator("#set-alert-lang")).toHaveValue("fr");
+  await page.locator("#set-alert-lang").selectOption("en");
+  await page.getByRole("button", { name: "Save" }).first().click();
+});

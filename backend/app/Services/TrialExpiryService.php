@@ -62,8 +62,9 @@ class TrialExpiryService
         }
 
         $date = $merchant->trial_ends_at->copy()->setTimezone($merchant->timezone ?: config('app.timezone'))->toDateString();
-        $message = $this->templates->isApproved($merchant, ShopTemplateService::BILLING_REMINDER)
-            ? ShopTemplateService::message(ShopTemplateService::BILLING_REMINDER, [$merchant->name, $date])
+        $approved = $this->templates->resolve($merchant, ShopTemplateService::BILLING_REMINDER);
+        $message = $approved
+            ? ShopTemplateService::message($approved['name'], [$merchant->name, $date], [], $approved['language'])
             : ['type' => 'text', 'text' => __('whatsapp.billing.trial_ended', ['shop' => $merchant->name], $merchant->locale ?? 'en')];
 
         $this->tenant->set($merchant);

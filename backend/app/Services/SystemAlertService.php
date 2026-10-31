@@ -152,11 +152,15 @@ class SystemAlertService
         $phone = trim((string) ($extra['alert_whatsapp'] ?? ''));
         if ($phone !== '') {
             try {
+                // In the language chosen in Settings → Alerts when that version is approved, else English.
+                $base = $template ?? config('alerts.whatsapp_template');
+                $version = app(PlatformTemplateService::class)->resolve($base, $extra['alert_language'] ?? 'en')
+                    ?? ['name' => $base, 'language' => config('alerts.whatsapp_language')];
                 $this->whatsapp->sendPlatform($phone, [
                     'type' => 'template',
                     'template' => [
-                        'name' => $template ?? config('alerts.whatsapp_template'),
-                        'language' => ['code' => config('alerts.whatsapp_language')],
+                        'name' => $version['name'],
+                        'language' => ['code' => $version['language']],
                         'components' => [[
                             'type' => 'body',
                             // Template variables may not contain new lines or long runs of spaces.

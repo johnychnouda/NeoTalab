@@ -501,6 +501,85 @@ class ShopAcceptanceTest extends TestCase
         $sent = $this->lastTemplateTo(self::STAFF);
         $this->assertSame(ShopTemplateService::SCHEDULED_DUE, $sent['template']['name']);
         $this->assertSame('1', $sent['template']['components'][0]['parameters'][0]['text']);
+        $this->assertStringContainsString('is scheduled for', $this->lastTo(self::CUSTOMER)['text'] ?? '', 'the customer is reminded too (inside the window, as text)');
+    }
+
+    public function test_a_scheduled_order_reminder_days_later_reaches_the_customer_by_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::SCHEDULED);
+        $order = $this->order();
+        $order->forceFill(['status' => 'confirmed', 'deliver_at' => now()->addDays(3), 'promised_at' => now()->addDays(3), 'fulfillment' => 'pickup'])->save();
+        $this->travel(3)->days();
+        $this->staffOutsideTheWindow();
+
+        app()->call([new StartScheduledOrder($order->id), 'handle']);
+
+        $this->assertSame('neotalab_c_order_scheduled_en', $this->customerTemplate()[0]);
+    }
+
+    public function test_a_delivery_days_later_thanks_the_customer_and_asks_for_the_rating_by_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::DELIVERED_RATE, CustomerTemplates::DELIVERED);
+        $order = $this->order();
+        $this->travel(3)->days();
+
+        $order->forceFill(['status' => 'delivered'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+
+        $this->assertSame(['neotalab_c_order_delivered_rate_en', ['1', 'Beirut Bites']], $this->customerTemplate());
+        $this->assertNotNull($order->fresh()->rating_requested_at, 'the customer can answer with a number');
+
+        $this->settings(['rating_delay_mins' => 0]);
+        $order->forceFill(['status' => 'delivered', 'rating_requested_at' => null])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame('neotalab_c_order_delivered_en', $this->customerTemplate()[0], 'a shop that does not ask for ratings sends the plain thank-you');
+    }
+
+    public function test_a_rating_question_that_could_not_be_sent_is_asked_again_next_time(): void
+    {
+        $order = $this->order();
+        $this->travel(3)->days();
+
+        $order->forceFill(['status' => 'delivered'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id); // no approved template: nothing could be sent
+
+        $this->assertNull($order->fresh()->rating_requested_at);
+    }
+
+    public function test_the_driver_at_the_door_days_later_reaches_the_customer_by_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::OUTSIDE);
+        Driver::query()->forceCreate([
+            'merchant_id' => $this->merchant->id, 'name' => 'Rami', 'role' => 'driver', 'phone' => '+96176000001', 'whatsapp_number' => '+96176000001',
+            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true, 'shift_started_at' => now(),
+        ]);
+        $this->receive(['type' => 'location', 'location' => ['latitude' => 33.88, 'longitude' => 35.51]], self::CUSTOMER);
+        $order = $this->order('| | cash');
+        $this->tap("stf:accept:{$order->id}");
+        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "drv:picked_up:{$order->id}", 'title' => 'x']]], '+96176000001');
+
+        $this->travel(3)->days();
+        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "drv:outside:{$order->id}", 'title' => 'x']]], '+96176000001');
+
+        $this->assertSame(['neotalab_c_order_outside_en', ['Rami', '1', '+96176000001']], $this->customerTemplate());
+    }
+
+    public function test_arabic_staff_get_the_arabic_template_and_english_is_the_fallback(): void
+    {
+        $this->merchant->update(['locale' => 'ar']);
+        $order = $this->order();
+        $this->staffOutsideTheWindow(ShopTemplateService::CUSTOMER_CANCELLED);
+
+        NotifyStaffOfCancellation::dispatchSync($order->id);
+        $this->assertSame(ShopTemplateService::CUSTOMER_CANCELLED, $this->lastTemplateTo(self::STAFF)['template']['name'], 'only English is approved: English goes out');
+
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates'][ShopTemplateService::CUSTOMER_CANCELLED.'_ar'] = ['status' => 'APPROVED'];
+        $this->settings(['bot' => $bot]);
+        NotifyStaffOfCancellation::dispatchSync($order->id);
+        $sent = $this->lastTemplateTo(self::STAFF);
+        $this->assertSame('neotalab_customer_cancelled_ar', $sent['template']['name']);
+        $this->assertSame('ar', $sent['template']['language']['code']);
     }
 
     public function test_a_thank_you_days_later_is_skipped_without_bothering_the_owner(): void

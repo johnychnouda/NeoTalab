@@ -28,6 +28,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'overdue_reminder_msg' => ['sometimes', 'nullable', 'string', 'max:4000'],
             'alert_email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'alert_whatsapp' => ['sometimes', 'nullable', 'string', 'regex:/^\+?[0-9 ]{8,20}$/'],
+            'alert_language' => ['sometimes', 'nullable', 'string', 'in:en,ar,fr'],
         ];
     }
 
@@ -62,6 +63,7 @@ class UpdatePlatformSettingsRequest extends FormRequest
             'overdue_reminder_msg' => 'overdue_reminder_msg',
             'alert_email' => 'alert_email',
             'alert_whatsapp' => 'alert_whatsapp',
+            'alert_language' => 'alert_language',
         ];
 
         foreach ($settingsMap as $input => $jsonKey) {

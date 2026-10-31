@@ -17,6 +17,7 @@ class OnboardingRequest extends Model
         'email',
         'business_type',
         'country',
+        'language',
         'location',
         'street',
         'city',

@@ -60,8 +60,21 @@ class ShopTemplateService
      */
     public static function definitions(): array
     {
+        $english = self::staffDefinitions();
+        $translated = [];
+        foreach (StaffTemplateTexts::all() as $base => $languages) {
+            foreach ($languages as $language => $def) {
+                $translated["{$base}_{$language}"] = [
+                    'body' => $def['body'],
+                    'example' => $english[$base]['example'],
+                    'language' => $language,
+                ] + (isset($def['buttons']) ? ['buttons' => $def['buttons']] : []);
+            }
+        }
+
         return [
-            ...self::staffDefinitions(),
+            ...$english,
+            ...$translated,
             ...CustomerTemplates::definitions(),
         ];
     }
@@ -130,6 +143,24 @@ class ShopTemplateService
                 'example' => ['Beirut Bites', '128', '12.00 USD', '+96170123456'],
             ],
         ];
+    }
+
+    /**
+     * The approved version of a staff or owner template to use for this shop: in the shop's language, else English.
+     *
+     * @return array{name: string, language: string}|null null when none is approved yet
+     */
+    public function resolve(Merchant $merchant, string $base, ?string $locale = null): ?array
+    {
+        $locale ??= $merchant->locale;
+        $names = in_array($locale, ['ar', 'fr'], true) ? ["{$base}_{$locale}", $base] : [$base];
+        foreach ($names as $name) {
+            if ($this->isApproved($merchant, $name)) {
+                return ['name' => $name, 'language' => self::definitions()[$name]['language'] ?? 'en'];
+            }
+        }
+
+        return null;
     }
 
     public function isApproved(Merchant $merchant, string $name): bool

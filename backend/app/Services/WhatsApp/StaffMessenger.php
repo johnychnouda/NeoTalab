@@ -63,7 +63,7 @@ class StaffMessenger
 
     public function canReach(Merchant $merchant, Driver $member, string $template): bool
     {
-        return $this->inWindow($merchant, $member) || $this->templates->isApproved($merchant, $template);
+        return $this->inWindow($merchant, $member) || $this->templates->resolve($merchant, $template) !== null;
     }
 
     /** True when at least one active staff member can be reached with this template. */
@@ -106,8 +106,8 @@ class StaffMessenger
                     ], $buttons)],
                 ],
             ];
-        } elseif ($template !== null && $this->templates->isApproved($merchant, $template)) {
-            $message = ShopTemplateService::message($template, $templateParams, array_column($buttons, 0));
+        } elseif ($template !== null && ($approved = $this->templates->resolve($merchant, $template))) {
+            $message = ShopTemplateService::message($approved['name'], $templateParams, array_column($buttons, 0), $approved['language']);
         } else {
             Log::info('Staff member outside the 24-hour window and the template is not approved yet', [
                 'merchant_id' => $merchant->id, 'template' => $template,

@@ -202,6 +202,7 @@ Une fois payé, appuyez sur le bouton ci-dessous. Vous avez :minutes minutes.',
         'ready_pickup' => '📦 Votre commande n° :number est prête ! Vous pouvez la récupérer à :address.',
         'collected' => "✅ Merci d'avoir récupéré la commande n° :number chez :shop !",
         'out_for_delivery' => '🛵 Votre commande n° :number est en route !',
+        'scheduled_started' => '🗓 Rappel : votre commande n° :number chez :shop est prévue :when. Nous la préparons maintenant.',
     ],
 
     'rating' => [

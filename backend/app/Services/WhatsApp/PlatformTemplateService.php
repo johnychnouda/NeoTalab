@@ -174,7 +174,9 @@ class PlatformTemplateService
     /** The template a good-news message goes out with: its own once approved, else the alert one. */
     public function noticeTemplate(): string
     {
-        return $this->approved(config('alerts.notice_template')) ? config('alerts.notice_template') : config('alerts.whatsapp_template');
+        $language = (string) ((PlatformSetting::singleton()->settings ?? [])['alert_language'] ?? 'en');
+
+        return $this->resolve(config('alerts.notice_template'), $language) ? config('alerts.notice_template') : config('alerts.whatsapp_template');
     }
 
     /** Right after the platform number connects. */

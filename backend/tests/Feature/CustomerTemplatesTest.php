@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\SystemAlert;
 use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\ShopTemplateService;
+use App\Services\WhatsApp\StaffTemplateTexts;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,7 +18,8 @@ class CustomerTemplatesTest extends TestCase
 
     public function test_every_event_has_a_template_in_each_language(): void
     {
-        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND];
+        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND,
+            CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);
@@ -37,6 +39,9 @@ class CustomerTemplatesTest extends TestCase
             $this->assertSame(range(1, $count), array_map('intval', array_unique($found[1])), "{$name}: variables are numbered 1, 2, 3…");
             $this->assertCount($count, $def['example'], "{$name}: one example per variable");
             $this->assertLessThanOrEqual(3, count($def['buttons'] ?? []), "{$name}: Meta allows 3 quick replies");
+            foreach ($def['buttons'] ?? [] as $title) {
+                $this->assertLessThanOrEqual(25, mb_strlen($title), "{$name}: a button title is at most 25 letters");
+            }
             $this->assertDoesNotMatchRegularExpression('/^\s*\{\{/u', $def['body'], "{$name}: Meta refuses a variable at the start");
             $this->assertDoesNotMatchRegularExpression('/\{\{\d+\}\}\s*[.!?؟]?\s*$/u', $def['body'], "{$name}: Meta refuses a variable at the end");
             $this->assertDoesNotMatchRegularExpression('/https?:|www\./i', $def['body'], "{$name}: no link in the text");
@@ -53,6 +58,19 @@ class CustomerTemplatesTest extends TestCase
         $message = ShopTemplateService::message('neotalab_c_order_ready_fr', ['128', 'Beirut Bites', 'Hamra'], [], 'fr');
         $this->assertSame('fr', $message['template']['language']['code']);
         $this->assertSame('en', ShopTemplateService::message(ShopTemplateService::BILLING_REMINDER, ['x', 'y'])['template']['language']['code']);
+    }
+
+    public function test_every_staff_template_exists_in_arabic_and_french_with_matching_buttons(): void
+    {
+        $defs = ShopTemplateService::definitions();
+        foreach (array_keys(StaffTemplateTexts::all()) as $base) {
+            foreach (['ar', 'fr'] as $language) {
+                $this->assertArrayHasKey("{$base}_{$language}", $defs);
+                $this->assertSame($language, $defs["{$base}_{$language}"]['language']);
+                $this->assertSame(count($defs[$base]['buttons'] ?? []), count($defs["{$base}_{$language}"]['buttons'] ?? []), "{$base}_{$language}: same buttons as the English one");
+            }
+        }
+        $this->assertCount(13, StaffTemplateTexts::all(), 'all thirteen staff and owner templates are translated');
     }
 
     public function test_the_name_falls_back_to_english_for_an_unknown_language(): void

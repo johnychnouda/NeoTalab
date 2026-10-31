@@ -57,15 +57,16 @@ trait SendsMerchantWhatsApp
      *
      * @param  array<string, mixed>  $message
      * @param  list<string>  $params  the template's variables
+     * @param  list<string>  $buttonPayloads
      */
-    protected function sendCustomerAs(Merchant $merchant, string $to, array $message, ?string $event = null, array $params = [], ?string $locale = null): bool
+    protected function sendCustomerAs(Merchant $merchant, string $to, array $message, ?string $event = null, array $params = [], ?string $locale = null, array $buttonPayloads = []): bool
     {
         $tenant = app(CurrentTenant::class);
         $previous = $tenant->get();
         $tenant->set($merchant);
 
         try {
-            return app(CustomerMessenger::class)->send($merchant, $to, $message, $event, $params, $locale);
+            return app(CustomerMessenger::class)->send($merchant, $to, $message, $event, $params, $locale, $buttonPayloads);
         } finally {
             $tenant->set($previous);
         }

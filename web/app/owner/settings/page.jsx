@@ -140,9 +140,9 @@ function OwnerSettingsContent() {
   const [s, setS] = useState({
     price: "30", yearlyPrice: "300", trialDays: "3",
     waPhoneId: "", waToken: "", waVerifyToken: "",
-    alertEmail: "", alertWhatsapp: "",
+    alertEmail: "", alertWhatsapp: "", alertLanguage: "en",
   });
-  const [savedAlerts, setSavedAlerts] = useState({ alertEmail: "", alertWhatsapp: "" });
+  const [savedAlerts, setSavedAlerts] = useState({ alertEmail: "", alertWhatsapp: "", alertLanguage: "en" });
   const [mailReady, setMailReady] = useState(true);
   const [alertTest, setAlertTest] = useState("");
   const [newPass, setNewPass] = useState("");
@@ -182,8 +182,9 @@ function OwnerSettingsContent() {
         waVerifyToken: settings.waVerifyToken ?? "",
         alertEmail: settings.alertEmail ?? "",
         alertWhatsapp: settings.alertWhatsapp ?? "",
+        alertLanguage: settings.alertLanguage ?? "en",
       };
-      setSavedAlerts({ alertEmail: next.alertEmail, alertWhatsapp: next.alertWhatsapp });
+      setSavedAlerts({ alertEmail: next.alertEmail, alertWhatsapp: next.alertWhatsapp, alertLanguage: next.alertLanguage });
       setMailReady(settings.mailReady !== false);
       setS(next);
       setWaTokenConfigured(!!settings.waTokenConfigured);
@@ -314,8 +315,8 @@ function OwnerSettingsContent() {
 
   async function saveAlerts() {
     await runSave("save", async () => {
-      const saved = { alertEmail: s.alertEmail.trim(), alertWhatsapp: s.alertWhatsapp.trim() };
-      await api("PATCH", "/admin/platform-settings", { alert_email: saved.alertEmail || null, alert_whatsapp: saved.alertWhatsapp || null });
+      const saved = { alertEmail: s.alertEmail.trim(), alertWhatsapp: s.alertWhatsapp.trim(), alertLanguage: s.alertLanguage };
+      await api("PATCH", "/admin/platform-settings", { alert_email: saved.alertEmail || null, alert_whatsapp: saved.alertWhatsapp || null, alert_language: saved.alertLanguage });
       setSavedAlerts(saved);
       setAlertTest("");
       toast(t("db.saved"));
@@ -323,7 +324,7 @@ function OwnerSettingsContent() {
   }
 
   async function sendTestAlert() {
-    if (s.alertEmail.trim() !== savedAlerts.alertEmail || s.alertWhatsapp.trim() !== savedAlerts.alertWhatsapp) {
+    if (s.alertEmail.trim() !== savedAlerts.alertEmail || s.alertWhatsapp.trim() !== savedAlerts.alertWhatsapp || s.alertLanguage !== savedAlerts.alertLanguage) {
       toast(t("ow.set.alertSaveFirst"), "error");
       return;
     }
@@ -555,6 +556,18 @@ function OwnerSettingsContent() {
                   <SetField label={t("ow.set.alertWa")} className="span-full" htmlFor="set-alert-wa" hint={t("ow.set.alertWaHint")}>
                     <input id="set-alert-wa" type="tel" dir="ltr" inputMode="tel" value={s.alertWhatsapp}
                       onChange={(e) => set("alertWhatsapp", e.target.value)} placeholder="+961 70 000 000" />
+                  </SetField>
+                  <SetField label={t("ow.set.alertLang")} className="span-full" htmlFor="set-alert-lang" hint={t("ow.set.alertLangHint")}>
+                    <div className="set-select">
+                      <select id="set-alert-lang" value={s.alertLanguage} onChange={(e) => set("alertLanguage", e.target.value)}>
+                        <option value="en">English</option>
+                        <option value="ar">العربية</option>
+                        <option value="fr">Français</option>
+                      </select>
+                      <span className="set-select-chevron" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                      </span>
+                    </div>
                   </SetField>
                 </div>
               </div>

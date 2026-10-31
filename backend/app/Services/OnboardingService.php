@@ -67,6 +67,7 @@ class OnboardingService
                 'businessType' => $request->business_type,
                 'loginEmail' => $request->email,
                 'country' => $request->country,
+                'language' => $request->language,
                 'street' => $request->street,
                 'city' => $request->city,
                 'region' => $request->region,
@@ -121,6 +122,7 @@ class OnboardingService
             'email' => $data['email'] ?? null,
             'business_type' => $data['businessType'] ?? $data['business_type'] ?? null,
             'country' => strtoupper((string) ($data['country'] ?? '')),
+            'language' => $data['language'] ?? 'en',
             'location' => $location,
             'street' => $data['street'] ?? null,
             'city' => $data['city'] ?? $place['city'] ?? null,
@@ -149,7 +151,7 @@ class OnboardingService
             return;
         }
 
-        app(PlatformTemplateService::class)->sendEvent((string) $request->whatsapp, $template, null, [
+        app(PlatformTemplateService::class)->sendEvent((string) $request->whatsapp, $template, $request->language, [
             $request->contact_name ?: $request->shop_name,
             $request->shop_name,
         ]);

@@ -8,6 +8,8 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Quote;
+use App\Services\WhatsApp\CustomerMessenger;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\Money;
@@ -72,13 +74,17 @@ class QuoteService
             'price' => Money::format((float) $quote->price, $merchant->currency), 'days' => Quote::VALID_DAYS,
         ], $locale);
         try {
-            $this->whatsapp->sendToCustomer($merchant, (string) $customer->phone, ['type' => 'interactive', 'interactive' => [
+            // Inside the 24 hours with the buttons; later, the approved template with the same two buttons.
+            app(CustomerMessenger::class)->send($merchant, (string) $customer->phone, ['type' => 'interactive', 'interactive' => [
                 'type' => 'button', 'body' => ['text' => mb_substr($text, 0, 1024)],
                 'action' => ['buttons' => [
                     ['type' => 'reply', 'reply' => ['id' => "qt:yes:{$quote->id}", 'title' => mb_substr(__('whatsapp.quote.btn_accept', [], $locale), 0, 20)]],
                     ['type' => 'reply', 'reply' => ['id' => "qt:no:{$quote->id}", 'title' => mb_substr(__('whatsapp.quote.btn_decline', [], $locale), 0, 20)]],
                 ]],
-            ]]);
+            ]], CustomerTemplates::QUOTE, [
+                $merchant->name, (string) $quote->number, (string) $quote->title,
+                Money::format((float) $quote->price, $merchant->currency), (string) Quote::VALID_DAYS,
+            ], $locale, ["qt:yes:{$quote->id}", "qt:no:{$quote->id}"]);
         } catch (\Throwable $e) {
             Log::warning('Quote not delivered to the customer', ['quote_id' => $quote->id, 'error' => $e->getMessage()]);
         }

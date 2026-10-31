@@ -16,6 +16,27 @@ class PlatformTemplateTexts
     public static function all(): array
     {
         return [
+            // Alerts to the NeoTalab owner (the wrapper only: the alert text itself is generated in English).
+            config('alerts.whatsapp_template') => [
+                'ar' => [
+                    'text' => 'إشعار حول منصة NeoTalab الخاصة بك: {{1}}. يرجى مراجعته في لوحة المالك ضمن البريد الوارد ← النظام.',
+                    'examples' => ['فشل النسخ الاحتياطي الليلي لقاعدة البيانات'],
+                ],
+                'fr' => [
+                    'text' => 'Avis concernant votre plateforme NeoTalab : {{1}}. Merci de le consulter dans votre portail propriétaire, sous Boîte de réception → Système.',
+                    'examples' => ['la sauvegarde nocturne de la base de données a échoué'],
+                ],
+            ],
+            config('alerts.notice_template') => [
+                'ar' => [
+                    'text' => '🎉 أخبار سارة من NeoTalab: {{1}}. اضغط على الرابط لفتحها في لوحة المالك.',
+                    'examples' => ['طلب متجر جديد: سناك أبو علي (مطعم، بيروت). التواصل: علي +96170000000. للمراجعة: https://neotalab.com/owner?req=1'],
+                ],
+                'fr' => [
+                    'text' => "🎉 Bonne nouvelle de NeoTalab : {{1}}. Appuyez sur le lien pour l'ouvrir dans votre portail propriétaire.",
+                    'examples' => ['Nouvelle demande de boutique : Abou Ali Snack (Restaurant, Beyrouth). Contact : Ali +96170000000. À examiner : https://neotalab.com/owner?req=1'],
+                ],
+            ],
             PlatformTemplateService::WELCOME => [
                 'ar' => [
                     'text' => "أهلاً بك في NeoTalab! 🎉 حساب {{1}} جاهز.\n\nعنوان بريدك الإلكتروني: {{2}}\n\nاضغط الزر أدناه لفتح لوحة التحكم. ستصلك تفاصيل الدخول في الرسالة التالية.",
@@ -78,16 +99,32 @@ class PlatformTemplateTexts
                     'examples' => ['Beirut Bites', 'elle a cessé de fonctionner'],
                 ],
             ],
-            // Someone applied to join NeoTalab (the form does not ask for a language, so English only).
+            // Someone applied to join NeoTalab; the join page sends the language it was read in.
             PlatformTemplateService::REQUEST_RECEIVED => [
                 'en' => [
                     'text' => 'Hello {{1}}! We received your request to join NeoTalab with {{2}}. We will review it and reply in this chat. Thank you for your interest!',
+                    'examples' => ['Ali', 'Abou Ali Snack'],
+                ],
+                'ar' => [
+                    'text' => 'مرحباً {{1}}! استلمنا طلبك للانضمام إلى NeoTalab بمتجر {{2}}. سنراجعه ونرد عليك في هذه المحادثة. شكراً لاهتمامك!',
+                    'examples' => ['علي', 'سناك أبو علي'],
+                ],
+                'fr' => [
+                    'text' => 'Bonjour {{1}} ! Nous avons bien reçu votre demande pour rejoindre NeoTalab avec {{2}}. Nous allons l\'examiner et vous répondre dans cette conversation. Merci de votre intérêt !',
                     'examples' => ['Ali', 'Abou Ali Snack'],
                 ],
             ],
             PlatformTemplateService::REQUEST_DECLINED => [
                 'en' => [
                     'text' => 'Hello {{1}}, thank you for your interest in NeoTalab. We could not approve your request for {{2}} at this time. You are welcome to apply again later, or reply to this chat if you have any question.',
+                    'examples' => ['Ali', 'Abou Ali Snack'],
+                ],
+                'ar' => [
+                    'text' => 'مرحباً {{1}}، شكراً لاهتمامك بـ NeoTalab. لم نتمكن من الموافقة على طلبك لمتجر {{2}} في الوقت الحالي. يمكنك التقديم مجدداً لاحقاً، أو الرد على هذه المحادثة إذا كان لديك أي سؤال.',
+                    'examples' => ['علي', 'سناك أبو علي'],
+                ],
+                'fr' => [
+                    'text' => 'Bonjour {{1}}, merci de votre intérêt pour NeoTalab. Nous n\'avons pas pu approuver votre demande pour {{2}} pour le moment. Vous pouvez soumettre une nouvelle demande plus tard, ou répondre à cette conversation pour toute question.',
                     'examples' => ['Ali', 'Abou Ali Snack'],
                 ],
             ],

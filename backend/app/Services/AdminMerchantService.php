@@ -248,6 +248,8 @@ class AdminMerchantService
             $merchant->forceFill([
                 'status' => 'active',
                 'plan' => $subscriptionStatus === 'trial' ? 'trial' : 'basic',
+                // A shop from the join form starts in the language its owner used there.
+                'locale' => in_array($payload['language'] ?? null, ['en', 'ar', 'fr'], true) ? $payload['language'] : $merchant->locale,
                 'trial_ends_at' => $trialEndsAt ? now()->parse($trialEndsAt) : ($subscriptionStatus === 'trial' ? now()->addDays(max(1, (int) (PlatformSetting::singleton()->trial_days ?: 3))) : null),
                 // On top of what provisioning set from the business type (orders or bookings, time unit).
                 'settings' => array_merge($merchant->settings ?? [], $settings),

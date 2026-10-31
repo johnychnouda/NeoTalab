@@ -70,9 +70,14 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
 
             // Accepted / on the way: with the "Where's my order?" button. Days later, when the customer's
             // 24 hours are over, the approved template for the event goes instead (the others are skipped).
-            $this->sendCustomerAs($merchant, $order->customer->phone, in_array($order->status, ['confirmed', 'picked_up'], true)
+            $sent = $this->sendCustomerAs($merchant, $order->customer->phone, in_array($order->status, ['confirmed', 'picked_up'], true)
                 ? ChatMenu::withStatusButton($order, $text, $locale)
-                : ['type' => 'text', 'text' => $text], ...$this->template($key, $order, $merchant, $locale));
+                : ['type' => 'text', 'text' => $text], ...$this->template($key, $order, $merchant, $locale, $askRating));
+
+            // The rating question was not delivered: ask again at the next chance, not never.
+            if ($askRating && ! $sent) {
+                $order->forceFill(['rating_requested_at' => null])->save();
+            }
         } catch (\Throwable $e) {
             Log::warning('Order status notification failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
 
@@ -85,7 +90,7 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
      *
      * @return array{0: ?string, 1: list<string>, 2: string}
      */
-    protected function template(string $key, Order $order, Merchant $merchant, string $locale): array
+    protected function template(string $key, Order $order, Merchant $merchant, string $locale, bool $askRating = false): array
     {
         $shop = $merchant->name;
         $number = (string) $order->number;
@@ -94,6 +99,8 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
             'whatsapp.status.confirmed' => [CustomerTemplates::ACCEPTED, [$shop, $number, $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : ''], $locale],
             'whatsapp.status.ready_pickup' => [CustomerTemplates::READY, [$number, $shop, ShopSettings::for($merchant)->pickupAddress() ?: $shop], $locale],
             'whatsapp.status.out_for_delivery', 'whatsapp.status.picked_up' => [CustomerTemplates::ON_THE_WAY, [$number, $shop], $locale],
+            // Thank-you; with the rating question when the shop asks for one (the customer's number then opens the chat again).
+            'whatsapp.status.delivered', 'whatsapp.status.collected' => [$askRating ? CustomerTemplates::DELIVERED_RATE : CustomerTemplates::DELIVERED, [$number, $shop], $locale],
             // A cancelled order the customer already paid for (Whish) says the money comes back.
             'whatsapp.status.rejected', 'whatsapp.status.cancelled', 'whatsapp.status.not_accepted' => [
                 $order->payment_status === 'refund_due' ? CustomerTemplates::REFUND : CustomerTemplates::CANCELLED, [$number, $shop], $locale,

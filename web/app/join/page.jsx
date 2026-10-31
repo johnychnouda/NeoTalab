@@ -113,6 +113,8 @@ export default function JoinPage() {
     try {
       await submitOnboardingApplication({
         shopName: vals.shopName.trim(),
+        // The language the applicant is reading the page in: the WhatsApp answer comes in it too.
+        language: lang,
         businessType: vals.businessType === JOIN_BUSINESS_TYPE_OTHER ? vals.businessTypeOther.trim() : vals.businessType,
         country: vals.country,
         location: vals.location.trim(),

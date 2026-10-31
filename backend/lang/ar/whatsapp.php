@@ -202,6 +202,7 @@ return [
         'ready_pickup' => '📦 طلبك رقم :number جاهز! يمكنك استلامه الآن من :address.',
         'collected' => '✅ شكراً لاستلامك الطلب رقم :number من :shop!',
         'out_for_delivery' => '🛵 طلبك رقم :number في الطريق إليك!',
+        'scheduled_started' => '🗓 تذكير: طلبك رقم :number من :shop مجدول :when. نقوم بتجهيزه الآن.',
     ],
 
     'rating' => [

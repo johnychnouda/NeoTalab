@@ -97,6 +97,25 @@ class MerchantWelcomeTest extends TestCase
         $this->assertSame(['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => '123456']]], $code['template']['components'][1]);
     }
 
+    public function test_a_french_shop_gets_the_french_welcome_and_code(): void
+    {
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
+        $platform = PlatformSetting::singleton();
+        $platform->settings = array_merge($platform->settings ?? [], [
+            'wa_phone_id' => '111222333', 'wa_access_token' => 'EAAX_platform',
+            'wa_templates' => ['neotalab_welcome_v4' => 'APPROVED', 'neotalab_code' => 'APPROVED', 'neotalab_welcome_v4_fr' => 'APPROVED', 'neotalab_code_fr' => 'APPROVED'],
+        ]);
+        $platform->save();
+        $token = $this->tokenFor($this->platformAdmin());
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'slug' => 'foren', 'locale' => 'fr', 'whatsapp_number' => '+96171112233', 'phone' => '+96171112233']);
+
+        $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/welcome", ['otp' => '123456'])->assertOk()->assertJsonPath('sent', true);
+
+        $sent = Http::recorded()->map(fn ($p) => $p[0])->filter(fn ($r) => str_contains($r->url(), '111222333/messages'))->values();
+        $this->assertSame(['neotalab_welcome_v4_fr', 'fr'], [$sent[0]['template']['name'], $sent[0]['template']['language']['code']]);
+        $this->assertSame(['neotalab_code_fr', 'fr'], [$sent[1]['template']['name'], $sent[1]['template']['language']['code']]);
+    }
+
     public function test_regaining_access_sends_the_welcome_template_and_a_fresh_code(): void
     {
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);

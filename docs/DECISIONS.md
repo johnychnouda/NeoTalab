@@ -121,25 +121,29 @@ an alert. Meta's failure reports for any message (shops and NeoTalab's own numbe
 The templates are named `neotalab_c_{event}_{en|ar|fr}`, are factual so Meta files them under Utility, and a shop pays
 Meta for each one it sends outside the 24 hours.
 
-## Every message that can arrive after 24 hours has a template (31 October 2026)
+## Every message that can arrive after 24 hours has a template, in three languages (31 October 2026)
 
-NeoTalab now has a template for each message that can reach someone who has not written to the sending number in
-the last 24 hours. Nothing goes as plain text there; with no approved template the sender is told in Inbox → System
-(customers, staff) or the message is skipped (a late thank-you).
+NeoTalab has a template for each message that can reach someone who has not written to the sending number in the last
+24 hours, in English, Arabic and French. The language is the receiver's: the shop's language for staff and owners, the
+customer's for customers, the language of the join page for applicants, and a choice in Settings → Alerts for the
+NeoTalab owner. When the version in their language is not approved, English goes out. Nothing goes as plain text there;
+with no approved template the sender is told in Inbox → System (customers, staff) or the message is skipped (a late
+thank-you, a late scheduled-order reminder).
 
-- **From NeoTalab's number (22):** system_alert, neotalab_update; the welcome, login code, paid notice and daily report
-  in English, Arabic and French; `neotalab_shop_paused` (trial over or payment overdue, EN/AR/FR);
-  `neotalab_whatsapp_down` (a shop's WhatsApp stopped working or expires within 7 days, EN/AR/FR; checked daily at
-  10:20 Beirut by `shops:check-whatsapp`, repeated every 3 days); `neotalab_request_received` and
-  `neotalab_request_declined` for people who apply (English: the form has no language; one message per kind per
-  number per day and 30 an hour overall, because the form is public).
-- **From a shop's number to its staff (13):** new order, staff alert, new booking, order due, payment check, refund
-  needed, billing reminder, and (new) customer cancelled, scheduled order due, booking cancelled, not delivered,
-  Whish unpaid, low rating.
-- **From a shop's number to customers (21):** accepted, ready, on its way, delayed, cancelled, refund, booking
-  reminder, each in EN/AR/FR.
-- Not added: scheduled-order reminder to the customer (no such message exists yet), Arabic/French for staff
-  templates, anything promotional (Marketing costs more and needs consent).
+- **From NeoTalab's number (31 templates, EN/AR/FR):** system_alert and neotalab_update (the wording around an alert;
+  the alert text itself stays English), welcome, login code, paid notice, daily report, `neotalab_shop_paused` (trial
+  over or payment overdue), `neotalab_whatsapp_down` (a shop's WhatsApp stopped working or expires within 7 days;
+  `shops:check-whatsapp` runs daily at 10:20 Beirut and repeats every 3 days), `neotalab_request_received` and
+  `neotalab_request_declined` (one message per kind per number per day, 30 an hour overall, because the form is public).
+- **From a shop's number to its staff and owner (13, EN/AR/FR = 39):** new order, staff alert, new booking, order due,
+  payment check, refund needed, billing reminder, customer cancelled, scheduled order due, booking cancelled, not
+  delivered, Whish unpaid, low rating. Button titles are translated; the button ids come from the code.
+- **From a shop's number to customers (12 events, EN/AR/FR = 36):** accepted, ready, on its way, delayed, cancelled,
+  refund, booking reminder, driver outside, delivered, delivered with the rating question, quote ready (with its two
+  buttons), scheduled-order reminder.
+- A new shop starts in the language its owner used on the join page.
+- Not added, on purpose: anything promotional (Marketing costs more and needs consent); drivers (they receive deliveries
+  inside the window their own "start" opens).
 
 ## Before going live with real shops
 

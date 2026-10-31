@@ -111,6 +111,24 @@ class QuoteTest extends TestCase
         $this->assertStringContainsString('no longer open', $this->body($this->lastTo(self::CUSTOMER)), 'the second tap changes nothing');
     }
 
+    public function test_a_price_sent_days_later_reaches_the_customer_as_the_template_with_its_two_buttons(): void
+    {
+        $this->say('quote please: screen replacement for my iPhone 12');
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_c_quote_ready_en'] = ['status' => 'APPROVED'];
+        $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, ['bot' => $bot])]);
+
+        Carbon::setTestNow(now()->addDays(2)); // the customer last wrote two days ago
+        $this->say('quote 1 45 Screen replacement', self::STAFF);
+
+        $sent = Http::recorded()->map(fn ($p) => $p[0])
+            ->last(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96170123456' && $r['type'] === 'template');
+        $this->assertSame('neotalab_c_quote_ready_en', $sent['template']['name']);
+        $this->assertSame(['Quick Fix', '1', 'Screen replacement', '45.00$', '7'], array_column($sent['template']['components'][0]['parameters'], 'text'));
+        $this->assertSame("qt:yes:{$this->quote()->id}", $sent['template']['components'][1]['parameters'][0]['payload']);
+        $this->assertSame("qt:no:{$this->quote()->id}", $sent['template']['components'][2]['parameters'][0]['payload']);
+    }
+
     public function test_the_price_comes_from_the_shop_never_from_the_customer_or_the_ai(): void
     {
         $this->say('quote: fix my zipper please, the blue jacket');

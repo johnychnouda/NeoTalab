@@ -26,9 +26,10 @@ class CustomerMessenger
      * @param  array<string, mixed>  $message  the normal message (text / interactive), used inside the window
      * @param  string|null  $event  a CustomerTemplates event; null for messages that are not worth a template (they are skipped outside the window)
      * @param  list<string>  $params  the template's variables, in order
+     * @param  list<string>  $buttonPayloads  one per quick-reply button of the template, in order (comes back as the tap's id)
      * @return bool whether the customer was sent something
      */
-    public function send(Merchant $merchant, string $phone, array $message, ?string $event = null, array $params = [], ?string $locale = null): bool
+    public function send(Merchant $merchant, string $phone, array $message, ?string $event = null, array $params = [], ?string $locale = null, array $buttonPayloads = []): bool
     {
         if (trim($phone) === '') {
             return false;
@@ -44,16 +45,18 @@ class CustomerMessenger
             foreach (CustomerTemplates::names($event, $locale) as $name) {
                 if ($this->templates->isApproved($merchant, $name)) {
                     $language = CustomerTemplates::definitions()[$name]['language'];
-                    $this->whatsapp->sendToCustomer($merchant, $phone, ShopTemplateService::message($name, $params, [], $language));
+                    $this->whatsapp->sendToCustomer($merchant, $phone, ShopTemplateService::message($name, $params, $buttonPayloads, $language));
 
                     return true;
                 }
             }
 
-            $this->alerts->record('warning', "{$merchant->name}: a customer ({$phone}) was not told about \"{$event}\" — they have not written in 24 hours and the shop has no approved template for it. Please message them yourselves.", [
-                'merchant_id' => $merchant->id,
-                'event' => $event,
-            ]);
+            if (CustomerTemplates::critical($event)) {
+                $this->alerts->record('warning', "{$merchant->name}: a customer ({$phone}) was not told about \"{$event}\" — they have not written in 24 hours and the shop has no approved template for it. Please message them yourselves.", [
+                    'merchant_id' => $merchant->id,
+                    'event' => $event,
+                ]);
+            }
         }
 
         Log::info('Customer message skipped: outside the 24-hour window', ['merchant_id' => $merchant->id, 'event' => $event]);

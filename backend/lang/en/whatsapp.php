@@ -205,6 +205,7 @@ When you have paid, tap the button below. You have :minutes minutes.',
         'ready_pickup' => '📦 Your order #:number is ready! You can pick it up now at :address.',
         'collected' => '✅ Thank you for picking up order #:number from :shop!',
         'out_for_delivery' => '🛵 Your order #:number is on its way!',
+        'scheduled_started' => '🗓 Reminder: your order #:number from :shop is scheduled for :when. We are getting it ready now.',
     ],
 
     'rating' => [

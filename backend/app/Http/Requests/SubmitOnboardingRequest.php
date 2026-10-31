@@ -51,6 +51,7 @@ class SubmitOnboardingRequest extends FormRequest
                 }
             }],
             'email' => ['nullable', 'email', 'max:190'],
+            'language' => ['nullable', 'string', Rule::in(['en', 'ar', 'fr'])],
             'location' => ['required_without:street', 'nullable', 'string', 'max:500'],
             'city' => ['required_without:location', 'nullable', 'string', 'max:80'],
             'street' => ['required_without:location', 'nullable', 'string', 'max:190'],
