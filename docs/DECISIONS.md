@@ -130,7 +130,7 @@ NeoTalab owner. When the version in their language is not approved, English goes
 with no approved template the sender is told in Inbox → System (customers, staff) or the message is skipped (a late
 thank-you, a late scheduled-order reminder).
 
-- **From NeoTalab's number (31 templates, EN/AR/FR):** system_alert and neotalab_update (the wording around an alert;
+- **From NeoTalab's number (30 templates, EN/AR/FR):** system_alert and neotalab_update (the wording around an alert;
   the alert text itself stays English), welcome, login code, paid notice, daily report, `neotalab_shop_paused` (trial
   over or payment overdue), `neotalab_whatsapp_down` (a shop's WhatsApp stopped working or expires within 7 days;
   `shops:check-whatsapp` runs daily at 10:20 Beirut and repeats every 3 days), `neotalab_request_received` and
