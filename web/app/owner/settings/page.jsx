@@ -487,13 +487,13 @@ function OwnerSettingsContent() {
                 <div className="set-form-block">
                   <div className="set-form-block-title">{t("ow.set.waQrTitle")}</div>
                   <p className="set-hint">
-                    {waQr.connected ? t("ow.set.waQrConnected", { phone: waQr.phone || s.waPhoneId }) : t("ow.set.waQrHint")}
+                    {waQr.connected || waLive?.state === "connected" ? t("ow.set.waQrConnected", { phone: waQr.phone || waLive?.phone || s.waPhoneId }) : t("ow.set.waQrHint")}
                   </p>
                   <WhatsAppEmbeddedSignup
                     api={api}
                     toast={toast}
                     endpoint="/admin/whatsapp/platform/embedded-signup"
-                    connected={waQr.connected}
+                    connected={waQr.connected || waLive?.state === "connected"}
                     label={t("ow.set.waQrConnect")}
                     buttonId="wa-embedded-signup-platform"
                     onConnected={() => { logActivity("bot", t("ow.set.waQrDone")); load(); }}

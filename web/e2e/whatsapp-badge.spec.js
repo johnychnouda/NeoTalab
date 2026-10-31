@@ -14,3 +14,14 @@ test("owner WhatsApp tab: the badge asks Meta and shows an answer, never a bare 
   await expect(page.getByRole("button", { name: "Check again" })).toHaveCount(1);
   expect(problems.filter((p) => !/maps|google|gstatic|429/i.test(p))).toEqual([]);
 });
+
+test("owner WhatsApp tab: once Meta says the number is connected, the page no longer asks to connect", async ({ page }) => {
+  await page.route("**/admin/platform-settings/whatsapp-status", (route) =>
+    route.fulfill({ json: { state: "connected", phone: "+961 70 207 078", name_status: "APPROVED" } }));
+  await page.goto("/owner/settings?tab=whatsapp");
+  await expect(page.locator(".set-badge")).toContainText("Connected");
+  await expect(page.getByRole("button", { name: /Connect NeoTalab's number/ })).toHaveCount(0);
+  // The line under the QR title agrees with the badge, so the page never says "connect" and "connected" at once.
+  await expect(page.getByText("Connected: +961 70 207 078")).toBeVisible();
+  await expect(page.getByText(/Use a number that is on the WhatsApp Business app/)).toHaveCount(0);
+});
