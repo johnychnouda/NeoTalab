@@ -333,7 +333,7 @@ class OrderConfirmation
         $messenger = app(StaffMessenger::class);
         $text = __('whatsapp.staff.whish_unpaid', ['number' => $order->number], $merchant->locale ?? 'en');
         foreach ($messenger->staff($merchant) as $member) {
-            $messenger->send($merchant, $member, $text, []);
+            $messenger->send($merchant, $member, $text, [], ShopTemplateService::WHISH_UNPAID, [(string) $order->number, $merchant->name]);
         }
     }
 

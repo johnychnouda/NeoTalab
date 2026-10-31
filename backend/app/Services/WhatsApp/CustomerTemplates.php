@@ -23,6 +23,8 @@ class CustomerTemplates
 
     public const BOOKING = 'booking_reminder';
 
+    public const REFUND = 'order_refund';
+
     public const LANGUAGES = ['en', 'ar', 'fr'];
 
     /** The template for this event in the customer's language (English when we have none for it). */
@@ -84,6 +86,11 @@ class CustomerTemplates
                 'en' => ['Sorry, your order #{{1}} from {{2}} could not be completed and was cancelled. If you have any question, please write to us in this chat.', ['128', 'Beirut Bites']],
                 'ar' => ['نعتذر، تعذّر إتمام طلبك رقم {{1}} من {{2}} وتم إلغاؤه. إذا كان لديك أي سؤال، يرجى مراسلتنا في هذه المحادثة.', ['128', 'بيروت بايتس']],
                 'fr' => ["Désolé, votre commande n° {{1}} chez {{2}} n'a pas pu être réalisée et a été annulée. Pour toute question, écrivez-nous dans cette conversation.", ['128', 'Beirut Bites']],
+            ],
+            self::REFUND => [
+                'en' => ['Your payment for order #{{1}} from {{2}} will be refunded by the shop. If you have any question, please write to us in this chat.', ['128', 'Beirut Bites']],
+                'ar' => ['سيتم ردّ المبلغ الذي دفعته للطلب رقم {{1}} من {{2}} من قِبل المتجر. إذا كان لديك أي سؤال، يرجى مراسلتنا في هذه المحادثة.', ['128', 'بيروت بايتس']],
+                'fr' => ['Votre paiement pour la commande n° {{1}} chez {{2}} sera remboursé par la boutique. Pour toute question, écrivez-nous dans cette conversation.', ['128', 'Beirut Bites']],
             ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],

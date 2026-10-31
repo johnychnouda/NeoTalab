@@ -912,13 +912,14 @@ class WhatsAppOperationsTest extends TestCase
         $submitted = Http::recorded()->map(fn ($p) => $p[0])
             ->filter(fn (Request $r) => $r->method() === 'POST' && str_ends_with($r->url(), '/waba-1/message_templates'))
             ->map(fn (Request $r) => $r['name'].':'.$r['category'])->values()->all();
-        $staff = [
-            ShopTemplateService::BILLING_REMINDER, ShopTemplateService::NEW_ORDER, ShopTemplateService::STAFF_ALERT,
-            ShopTemplateService::NEW_BOOKING, ShopTemplateService::ORDER_DUE, ShopTemplateService::PAYMENT_CHECK, ShopTemplateService::REFUND_NEEDED,
-        ];
         $customer = array_keys(CustomerTemplates::definitions());
-        $this->assertCount(7 + 18, $submitted, 'seven for the staff, six events in three languages for customers');
+        $staff = array_values(array_diff(array_keys(ShopTemplateService::definitions()), $customer));
+        $this->assertCount(13 + 21, $submitted, 'thirteen for the staff and owner, seven events in three languages for customers');
         $this->assertSame(array_map(fn ($n) => $n.':UTILITY', [...$staff, ...$customer]), $submitted);
+        foreach ([ShopTemplateService::CUSTOMER_CANCELLED, ShopTemplateService::SCHEDULED_DUE, ShopTemplateService::BOOKING_CANCELLED,
+            ShopTemplateService::NOT_DELIVERED, ShopTemplateService::WHISH_UNPAID, ShopTemplateService::LOW_RATING] as $name) {
+            $this->assertContains($name, $staff);
+        }
         $arabic = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === 'neotalab_c_order_ready_ar');
         $this->assertSame('ar', $arabic['language'], 'a customer template is submitted in its own language');
         $newOrder = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => $r->method() === 'POST' && ($r['name'] ?? null) === ShopTemplateService::NEW_ORDER);

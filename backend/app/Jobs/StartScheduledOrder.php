@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Services\DriverDispatcher;
 use App\Services\OrderConfirmation;
+use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
 use App\Support\DeliverySchedule;
@@ -36,8 +37,9 @@ class StartScheduledOrder implements ShouldQueue
         try {
             $locale = $merchant->locale ?? 'en';
             $body = __('whatsapp.staff.scheduled_due', ['number' => $order->number, 'when' => DeliverySchedule::label($merchant, $order->deliver_at, $locale)], $locale);
+            $when = DeliverySchedule::label($merchant, $order->deliver_at, $locale);
             foreach ($messenger->staff($merchant) as $member) {
-                $messenger->send($merchant, $member, $body, []);
+                $messenger->send($merchant, $member, $body, [], ShopTemplateService::SCHEDULED_DUE, [(string) $order->number, $merchant->name, $when]);
             }
 
             if ($order->fulfillment === 'delivery' && ! $order->driver_id) {

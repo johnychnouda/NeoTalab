@@ -94,7 +94,10 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
             'whatsapp.status.confirmed' => [CustomerTemplates::ACCEPTED, [$shop, $number, $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : ''], $locale],
             'whatsapp.status.ready_pickup' => [CustomerTemplates::READY, [$number, $shop, ShopSettings::for($merchant)->pickupAddress() ?: $shop], $locale],
             'whatsapp.status.out_for_delivery', 'whatsapp.status.picked_up' => [CustomerTemplates::ON_THE_WAY, [$number, $shop], $locale],
-            'whatsapp.status.rejected', 'whatsapp.status.cancelled', 'whatsapp.status.not_accepted' => [CustomerTemplates::CANCELLED, [$number, $shop], $locale],
+            // A cancelled order the customer already paid for (Whish) says the money comes back.
+            'whatsapp.status.rejected', 'whatsapp.status.cancelled', 'whatsapp.status.not_accepted' => [
+                $order->payment_status === 'refund_due' ? CustomerTemplates::REFUND : CustomerTemplates::CANCELLED, [$number, $shop], $locale,
+            ],
             default => [null, [], $locale],
         };
     }

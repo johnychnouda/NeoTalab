@@ -13,6 +13,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
 use App\Support\OptionStock;
@@ -294,7 +295,9 @@ class OrderService
             $messenger = app(StaffMessenger::class);
             $body = __('whatsapp.staff.not_delivered', ['number' => $order->number, 'reason' => $order->cancel_reason], $merchant->locale ?? 'en');
             foreach ($messenger->staff($merchant) as $member) {
-                $messenger->send($merchant, $member, $body, []);
+                $messenger->send($merchant, $member, $body, [], ShopTemplateService::NOT_DELIVERED, [
+                    (string) $order->number, $merchant->name, StaffMessenger::oneLine((string) $order->cancel_reason),
+                ]);
             }
         }
 

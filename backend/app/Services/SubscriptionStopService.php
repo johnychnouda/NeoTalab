@@ -32,6 +32,7 @@ class SubscriptionStopService
             $merchant->forceFill(['status' => 'suspended', 'settings' => $settings])->save();
 
             activity('merchant')->performedOn($merchant)->log("{$merchant->name}: payment overdue — stopped until paid");
+            app(BillingNoticeService::class)->paused($merchant, 'overdue');
             $stopped++;
         }
 

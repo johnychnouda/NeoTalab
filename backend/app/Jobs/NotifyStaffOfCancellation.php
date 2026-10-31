@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
+use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Support\OrderMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,7 +32,9 @@ class NotifyStaffOfCancellation implements ShouldQueue
         $body .= "\n".OrderMessage::phone($order->customer?->phone);
 
         foreach ($messenger->staff($merchant) as $member) {
-            $messenger->send($merchant, $member, $body, []);
+            $messenger->send($merchant, $member, $body, [], ShopTemplateService::CUSTOMER_CANCELLED, [
+                (string) $order->number, $merchant->name, (string) $order->customer?->phone,
+            ]);
         }
     }
 }

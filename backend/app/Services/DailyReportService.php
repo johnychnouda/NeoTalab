@@ -48,7 +48,7 @@ class DailyReportService
                 continue;
             }
 
-            if (! $this->platformTemplates->approved(PlatformTemplateService::DAILY_REPORT)) {
+            if (! $this->platformTemplates->resolve(PlatformTemplateService::DAILY_REPORT, $merchant->locale)) {
                 Log::warning('Daily report not sent: the neotalab_daily_report template is not approved by Meta yet', [
                     'merchant_id' => $merchant->id, 'shop' => $merchant->name,
                 ]);
@@ -118,11 +118,12 @@ class DailyReportService
         $figures = $this->figures($merchant, $localDay);
         $to = ShopSettings::for($merchant)->reportWhatsapp();
 
+        $template = $this->platformTemplates->resolve(PlatformTemplateService::DAILY_REPORT, $merchant->locale);
         $this->whatsapp->sendPlatform($to, [
             'type' => 'template',
             'template' => [
-                'name' => PlatformTemplateService::DAILY_REPORT,
-                'language' => ['code' => config('alerts.whatsapp_language')],
+                'name' => $template['name'],
+                'language' => ['code' => $template['language']],
                 'components' => [['type' => 'body', 'parameters' => array_map(
                     fn (string $text) => ['type' => 'text', 'text' => $text],
                     array_values($figures),

@@ -37,7 +37,10 @@ class TrialExpiryService
             ->filter(fn (Merchant $m) => (($m->settings ?? [])['subscription_status'] ?? null) === 'trial');
 
         foreach ($due as $merchant) {
-            $this->tellOwner($merchant);
+            // From NeoTalab's number, in the owner's language; the shop's own number is the fallback until that template is approved.
+            if (! app(BillingNoticeService::class)->paused($merchant, 'trial')) {
+                $this->tellOwner($merchant);
+            }
 
             $settings = $merchant->settings ?? [];
             $settings['subscription_status'] = 'pending';

@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\NotifyCustomerOfOrderStatus;
+use App\Jobs\NotifyStaffOfCancellation;
 use App\Jobs\NotifyStaffOfOrder;
+use App\Jobs\StartScheduledOrder;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
 use App\Models\Driver;
@@ -437,6 +439,68 @@ class ShopAcceptanceTest extends TestCase
         $order->forceFill(['status' => 'cancelled'])->save();
         NotifyCustomerOfOrderStatus::dispatchSync($order->id);
         $this->assertSame(['neotalab_c_order_cancelled_en', ['1', 'Beirut Bites']], $this->customerTemplate());
+    }
+
+    public function test_a_paid_order_cancelled_days_later_tells_the_customer_the_money_comes_back(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::REFUND, CustomerTemplates::CANCELLED);
+        $order = $this->order();
+        $this->travel(3)->days();
+
+        $order->forceFill(['status' => 'cancelled', 'payment_status' => 'refund_due'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame(['neotalab_c_order_refund_en', ['1', 'Beirut Bites']], $this->customerTemplate());
+
+        $order->forceFill(['payment_status' => 'unpaid'])->save();
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertSame('neotalab_c_order_cancelled_en', $this->customerTemplate()[0]);
+    }
+
+    /** Staff who last wrote to the shop two days ago: only approved templates reach them. */
+    private function staffOutsideTheWindow(string ...$templates): void
+    {
+        $this->staffWroteAt(now()->subDays(2));
+        $bot = $this->merchant->fresh()->settings['bot'];
+        foreach ($templates as $name) {
+            $bot['templates'][$name] = ['status' => 'APPROVED'];
+        }
+        $this->settings(['bot' => $bot]);
+    }
+
+    public function test_staff_out_of_the_window_are_told_the_customer_cancelled(): void
+    {
+        $order = $this->order();
+        $this->staffOutsideTheWindow(ShopTemplateService::CUSTOMER_CANCELLED);
+
+        NotifyStaffOfCancellation::dispatchSync($order->id);
+
+        $sent = $this->lastTemplateTo(self::STAFF);
+        $this->assertSame(ShopTemplateService::CUSTOMER_CANCELLED, $sent['template']['name']);
+        $this->assertSame(['1', 'Beirut Bites', '+96170123456'], array_column($sent['template']['components'][0]['parameters'], 'text'));
+    }
+
+    public function test_staff_out_of_the_window_without_the_template_are_not_sent_plain_text(): void
+    {
+        $order = $this->order();
+        $this->staffOutsideTheWindow();
+
+        NotifyStaffOfCancellation::dispatchSync($order->id);
+
+        $this->assertNull($this->lastTemplateTo(self::STAFF));
+        $this->assertStringNotContainsString('cancelled by the customer', $this->lastTo(self::STAFF)['text'] ?? '');
+    }
+
+    public function test_a_scheduled_order_reaches_staff_out_of_the_window_by_template(): void
+    {
+        $order = $this->order();
+        $order->forceFill(['status' => 'confirmed', 'deliver_at' => now()->addHour(), 'promised_at' => now()->addHour(), 'fulfillment' => 'pickup'])->save();
+        $this->staffOutsideTheWindow(ShopTemplateService::SCHEDULED_DUE);
+
+        app()->call([new StartScheduledOrder($order->id), 'handle']);
+
+        $sent = $this->lastTemplateTo(self::STAFF);
+        $this->assertSame(ShopTemplateService::SCHEDULED_DUE, $sent['template']['name']);
+        $this->assertSame('1', $sent['template']['components'][0]['parameters'][0]['text']);
     }
 
     public function test_a_thank_you_days_later_is_skipped_without_bothering_the_owner(): void

@@ -29,8 +29,37 @@ class PlatformTemplateService
     /** The nightly report to each shop's owner, sent from NeoTalab's own number. */
     public const DAILY_REPORT = 'neotalab_daily_report';
 
-    /** @return array<string, array{text: string, examples: list<string>}> */
+    /** A shop was stopped (trial over or payment overdue). */
+    public const SHOP_PAUSED = 'neotalab_shop_paused';
+
+    /** A shop's own WhatsApp connection stopped working or is about to expire. */
+    public const WHATSAPP_DOWN = 'neotalab_whatsapp_down';
+
+    /** Someone applied to join NeoTalab / was declined. */
+    public const REQUEST_RECEIVED = 'neotalab_request_received';
+
+    public const REQUEST_DECLINED = 'neotalab_request_declined';
+
+    /** Languages the shop-owner templates exist in besides English (a template of its own: name_ar, name_fr). */
+    public const LANGUAGES = ['ar', 'fr'];
+
+    /** The name of a template in one language; English keeps the plain name. */
+    public static function nameFor(string $base, string $language): string
+    {
+        return $language === 'en' ? $base : "{$base}_{$language}";
+    }
+
+    /** @return array<string, array<string, mixed>> */
     public static function definitions(): array
+    {
+        return [
+            ...self::english(),
+            ...self::otherLanguages(),
+        ];
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    protected static function english(): array
     {
         return [
             config('alerts.whatsapp_template') => [
@@ -58,6 +87,83 @@ class PlatformTemplateService
                 'examples' => ['Beirut Bites', '2026-10-06', '42', '512.00 USD', '4.6 / 5', '2', 'Shawarma ×30, Fries ×18'],
             ],
         ];
+    }
+
+    /**
+     * The newer templates in every language they exist in, plus Arabic and French for the older ones.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected static function otherLanguages(): array
+    {
+        $all = [];
+        foreach (PlatformTemplateTexts::all() as $base => $languages) {
+            foreach ($languages as $language => $def) {
+                $all[self::nameFor($base, $language)] = $def + ['language' => $language];
+            }
+        }
+        // The old English definitions carry the button; the localized welcome needs it too.
+        foreach (self::LANGUAGES as $language) {
+            $all[self::nameFor(self::WELCOME, $language)]['login_button'] = true;
+            $all[self::nameFor(self::CODE, $language)] = ['authentication' => true, 'language' => $language];
+        }
+
+        return $all;
+    }
+
+    /** The language code Meta knows a template by. */
+    public static function languageOf(string $name): string
+    {
+        return self::definitions()[$name]['language'] ?? (string) config('alerts.whatsapp_language');
+    }
+
+    /**
+     * The approved template to use for this one in the owner's language, else in English.
+     *
+     * @return array{name: string, language: string}|null null when none is approved yet
+     */
+    public function resolve(string $base, ?string $locale): ?array
+    {
+        $language = in_array($locale, self::LANGUAGES, true) ? $locale : 'en';
+        foreach (array_unique([self::nameFor($base, $language), $base]) as $name) {
+            if ($this->approved($name)) {
+                return ['name' => $name, 'language' => self::languageOf($name)];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Sends a body-only template from NeoTalab's number, in the person's language when it is approved.
+     * Nothing goes as plain text: outside the 24-hour window Meta would accept it and drop it.
+     *
+     * @param  list<string>  $params
+     * @return bool whether it was handed to Meta
+     */
+    public function sendEvent(string $to, string $base, ?string $locale, array $params): bool
+    {
+        $template = $this->resolve($base, $locale);
+        if (! $template || trim($to) === '') {
+            return false;
+        }
+
+        try {
+            $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
+                'name' => $template['name'],
+                'language' => ['code' => $template['language']],
+                'components' => [['type' => 'body', 'parameters' => array_map(
+                    fn (string $v) => ['type' => 'text', 'text' => $v === '' ? '—' : $v],
+                    $params,
+                )]],
+            ]]);
+        } catch (\Throwable $e) {
+            Log::warning('Platform message not sent', ['template' => $template['name'], 'error' => $e->getMessage()]);
+
+            return false;
+        }
+
+        return true;
     }
 
     public function approved(string $name): bool
@@ -113,7 +219,7 @@ class PlatformTemplateService
         $payload = isset($def['authentication'])
             ? [
                 'name' => $name,
-                'language' => config('alerts.whatsapp_language'),
+                'language' => $def['language'] ?? config('alerts.whatsapp_language'),
                 'category' => 'AUTHENTICATION',
                 'components' => [
                     ['type' => 'BODY', 'add_security_recommendation' => true],
@@ -123,7 +229,7 @@ class PlatformTemplateService
             // Meta may file it under another category; that is allowed so it still gets approved.
             : [
                 'name' => $name,
-                'language' => config('alerts.whatsapp_language'),
+                'language' => $def['language'] ?? config('alerts.whatsapp_language'),
                 'category' => 'UTILITY',
                 'allow_category_change' => true,
                 'components' => array_values(array_filter([
@@ -135,7 +241,7 @@ class PlatformTemplateService
                     // The login page is a button whose address ends in the shop's slug, never a link typed into the text.
                     isset($def['login_button']) ? ['type' => 'BUTTONS', 'buttons' => [[
                         'type' => 'URL',
-                        'text' => 'Open my dashboard',
+                        'text' => $def['button_text'] ?? 'Open my dashboard',
                         'url' => rtrim((string) config('app.frontend_url'), '/').'/backoffice/{{1}}',
                         'example' => [rtrim((string) config('app.frontend_url'), '/').'/backoffice/abou-ali-snack'],
                     ]]] : null,

@@ -35,6 +35,24 @@ class ShopTemplateService
     /** A customer says they paid by Whish: the shop checks its Whish account; buttons Received / Not received. */
     public const PAYMENT_CHECK = 'neotalab_payment_check';
 
+    /** Staff: the customer cancelled an order they may already be preparing. */
+    public const CUSTOMER_CANCELLED = 'neotalab_customer_cancelled';
+
+    /** Staff: an order for a chosen time is due now. */
+    public const SCHEDULED_DUE = 'neotalab_scheduled_due';
+
+    /** Staff: the customer cancelled a booking. */
+    public const BOOKING_CANCELLED = 'neotalab_booking_cancelled';
+
+    /** Staff: a delivery failed. */
+    public const NOT_DELIVERED = 'neotalab_not_delivered';
+
+    /** Staff: an accepted order was cancelled because the customer never paid with Whish. */
+    public const WHISH_UNPAID = 'neotalab_whish_unpaid';
+
+    /** Staff: a customer rated an order 1 to 3. */
+    public const LOW_RATING = 'neotalab_low_rating';
+
     public function __construct(protected WhatsAppService $whatsapp) {}
 
     /**
@@ -82,6 +100,30 @@ class ShopTemplateService
                 'body' => 'Payment to check for order #{{1}}: {{2}} from {{3}}. Look for the note {{1}} in your Whish account. Did the money arrive? Tap Received or Not received.',
                 'example' => ['128', '12.00$', '+96170123456'],
                 'buttons' => ['Received', 'Not received'],
+            ],
+            self::CUSTOMER_CANCELLED => [
+                'body' => 'Order #{{1}} at {{2}} was cancelled by the customer ({{3}}). Please do not prepare it.',
+                'example' => ['57', 'Beirut Bites', '+96170123456'],
+            ],
+            self::SCHEDULED_DUE => [
+                'body' => 'Order #{{1}} at {{2}} is due {{3}}. Please start preparing it now.',
+                'example' => ['57', 'Flower Shop', 'Friday 10:00–12:00'],
+            ],
+            self::BOOKING_CANCELLED => [
+                'body' => 'A booking at {{1}} was cancelled by the customer: {{2}} on {{3}} at {{4}}. Customer: {{5}}. That time is free again.',
+                'example' => ['Glow Salon', 'Haircut', 'Wed 14 Oct', '15:30', '+96170123456'],
+            ],
+            self::NOT_DELIVERED => [
+                'body' => 'Order #{{1}} at {{2}} could not be delivered. Reason: {{3}}. The customer has been told.',
+                'example' => ['57', 'Gadget Hub', 'nobody answered the door'],
+            ],
+            self::WHISH_UNPAID => [
+                'body' => 'Order #{{1}} at {{2}} was cancelled because the customer did not pay with Whish. Please do not prepare it.',
+                'example' => ['57', 'Beirut Bites'],
+            ],
+            self::LOW_RATING => [
+                'body' => 'Order #{{1}} at {{2}} was rated {{3}} out of 5 by {{4}}. Please call the customer to find out what went wrong.',
+                'example' => ['57', 'Beirut Bites', '2', '+96170123456'],
             ],
             self::REFUND_NEEDED => [
                 'body' => 'Refund needed at {{1}}: order #{{2}} was paid with Whish ({{3}}) but it was cancelled. Customer: {{4}}. Please send the money back from your Whish account.',

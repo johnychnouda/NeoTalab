@@ -121,6 +121,26 @@ an alert. Meta's failure reports for any message (shops and NeoTalab's own numbe
 The templates are named `neotalab_c_{event}_{en|ar|fr}`, are factual so Meta files them under Utility, and a shop pays
 Meta for each one it sends outside the 24 hours.
 
+## Every message that can arrive after 24 hours has a template (31 October 2026)
+
+NeoTalab now has a template for each message that can reach someone who has not written to the sending number in
+the last 24 hours. Nothing goes as plain text there; with no approved template the sender is told in Inbox → System
+(customers, staff) or the message is skipped (a late thank-you).
+
+- **From NeoTalab's number (22):** system_alert, neotalab_update; the welcome, login code, paid notice and daily report
+  in English, Arabic and French; `neotalab_shop_paused` (trial over or payment overdue, EN/AR/FR);
+  `neotalab_whatsapp_down` (a shop's WhatsApp stopped working or expires within 7 days, EN/AR/FR; checked daily at
+  10:20 Beirut by `shops:check-whatsapp`, repeated every 3 days); `neotalab_request_received` and
+  `neotalab_request_declined` for people who apply (English: the form has no language; one message per kind per
+  number per day and 30 an hour overall, because the form is public).
+- **From a shop's number to its staff (13):** new order, staff alert, new booking, order due, payment check, refund
+  needed, billing reminder, and (new) customer cancelled, scheduled order due, booking cancelled, not delivered,
+  Whish unpaid, low rating.
+- **From a shop's number to customers (21):** accepted, ready, on its way, delayed, cancelled, refund, booking
+  reminder, each in EN/AR/FR.
+- Not added: scheduled-order reminder to the customer (no such message exists yet), Arabic/French for staff
+  templates, anything promotional (Marketing costs more and needs consent).
+
 ## Before going live with real shops
 
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:

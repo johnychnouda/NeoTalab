@@ -17,7 +17,7 @@ class CustomerTemplatesTest extends TestCase
 
     public function test_every_event_has_a_template_in_each_language(): void
     {
-        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING];
+        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);
@@ -28,14 +28,15 @@ class CustomerTemplatesTest extends TestCase
         }
     }
 
-    public function test_every_template_follows_metas_rules_so_it_can_be_approved(): void
+    public function test_every_shop_template_follows_metas_rules_so_it_can_be_approved(): void
     {
-        foreach (CustomerTemplates::definitions() as $name => $def) {
+        foreach (ShopTemplateService::definitions() as $name => $def) {
             preg_match_all('/\{\{(\d+)\}\}/', $def['body'], $found);
             $count = count(array_unique($found[1]));
 
             $this->assertSame(range(1, $count), array_map('intval', array_unique($found[1])), "{$name}: variables are numbered 1, 2, 3…");
             $this->assertCount($count, $def['example'], "{$name}: one example per variable");
+            $this->assertLessThanOrEqual(3, count($def['buttons'] ?? []), "{$name}: Meta allows 3 quick replies");
             $this->assertDoesNotMatchRegularExpression('/^\s*\{\{/u', $def['body'], "{$name}: Meta refuses a variable at the start");
             $this->assertDoesNotMatchRegularExpression('/\{\{\d+\}\}\s*[.!?؟]?\s*$/u', $def['body'], "{$name}: Meta refuses a variable at the end");
             $this->assertDoesNotMatchRegularExpression('/https?:|www\./i', $def['body'], "{$name}: no link in the text");

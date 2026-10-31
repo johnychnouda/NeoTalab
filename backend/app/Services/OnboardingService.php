@@ -6,6 +6,7 @@ use App\Models\Merchant;
 use App\Models\OnboardingRequest;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Services\WhatsApp\PlatformTemplateService;
 use App\Support\MapLocation;
 use App\Support\PlaceFromPin;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,8 @@ class OnboardingService
             'reviewed_by' => $reviewer->id,
             'reviewed_at' => now(),
         ])->save();
+
+        $this->tellApplicant($request, PlatformTemplateService::REQUEST_DECLINED);
     }
 
     /**
@@ -127,8 +130,29 @@ class OnboardingService
         ]);
 
         $this->notifyOwner($request);
+        $this->tellApplicant($request, PlatformTemplateService::REQUEST_RECEIVED);
 
         return $request;
+    }
+
+    /**
+     * Answers the person who applied, on WhatsApp from NeoTalab's number (an approved template: they never
+     * wrote to it). The form is public, so a number gets at most one such message of each kind a day and the whole
+     * form at most 30 an hour, so nobody can use it to message strangers or run up the WhatsApp bill.
+     */
+    protected function tellApplicant(OnboardingRequest $request, string $template): void
+    {
+        $digits = preg_replace('/\D+/', '', (string) $request->whatsapp);
+        if ($digits === ''
+            || ! RateLimiter::attempt("join-ack:{$template}:{$digits}", 1, fn () => true, 86400)
+            || ! RateLimiter::attempt('join-ack-all', 30, fn () => true, 3600)) {
+            return;
+        }
+
+        app(PlatformTemplateService::class)->sendEvent((string) $request->whatsapp, $template, null, [
+            $request->contact_name ?: $request->shop_name,
+            $request->shop_name,
+        ]);
     }
 
     /** Emails / WhatsApps the owner (Settings → Alerts recipients) that a shop wants to join. */

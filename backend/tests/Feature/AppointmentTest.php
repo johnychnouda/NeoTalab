@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyStaffOfAppointmentCancelled;
 use App\Jobs\SendAppointmentReminder;
 use App\Models\Appointment;
 use App\Models\CartItem;
@@ -256,6 +257,25 @@ class AppointmentTest extends TestCase
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && str_contains($r['text']['body'] ?? '', 'Reminder'));
         $this->assertCount(0, $reminders, 'plain text outside the window would be dropped by Meta');
         $this->assertNotNull(SystemAlert::query()->where('message', 'like', '%was not told about "booking_reminder"%')->first());
+    }
+
+    public function test_staff_out_of_the_window_get_the_cancelled_booking_by_template(): void
+    {
+        $this->say('book haircut 2026-10-09 11:00');
+        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Owner', 'role' => 'staff', 'phone' => '+96171555000', 'whatsapp_number' => '+96171555000', 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
+        $this->staffWroteToShop($this->merchant, '+96171555000', now()->subDays(2));
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates'][ShopTemplateService::BOOKING_CANCELLED] = ['status' => 'APPROVED'];
+        $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, ['bot' => $bot])]);
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $appointment->forceFill(['status' => 'cancelled'])->save();
+
+        app()->call([new NotifyStaffOfAppointmentCancelled($appointment->id), 'handle']);
+
+        $sent = Http::recorded()->map(fn ($p) => $p[0])
+            ->last(fn ($r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96171555000' && $r['type'] === 'template');
+        $this->assertSame(ShopTemplateService::BOOKING_CANCELLED, $sent['template']['name']);
+        $this->assertSame(['Hair Studio', 'Haircut', 'Fri 9 Oct', '11:00', '+96170123456'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 
     public function test_services_cannot_be_put_in_the_cart(): void

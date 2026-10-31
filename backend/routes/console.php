@@ -18,6 +18,7 @@ Schedule::command('billing:remind')->hourly()->withoutOverlapping();
 Schedule::command('trials:expire')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('billing:stop-unpaid')->hourly()->withoutOverlapping();
 Schedule::command('templates:sync')->hourly()->withoutOverlapping();
+Schedule::command('shops:check-whatsapp')->dailyAt('10:20')->timezone('Asia/Beirut')->withoutOverlapping();
 Schedule::command('orders:due')->hourly()->withoutOverlapping();
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
 

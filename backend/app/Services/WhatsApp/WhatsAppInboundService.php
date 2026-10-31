@@ -664,7 +664,9 @@ class WhatsAppInboundService
 
         $told = false;
         foreach ($this->staff->staff($merchant) as $member) {
-            $told = $this->staff->send($merchant, $member, $body, []) || $told;
+            $told = $this->staff->send($merchant, $member, $body, [], ShopTemplateService::LOW_RATING, [
+                (string) $order->number, $merchant->name, (string) $order->rating, $customerPhone,
+            ]) || $told;
         }
 
         $report = ShopSettings::for($merchant)->reportWhatsapp();

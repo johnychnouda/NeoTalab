@@ -100,7 +100,9 @@ class MerchantWelcomeService
         // so the owner would be told it was sent when it never arrived. Until both templates are approved
         // the caller opens the chat instead, and the owner sends the message from their own WhatsApp.
         $templates = app(PlatformTemplateService::class);
-        if ($otp && (! $templates->approved($template) || ! $templates->approved(PlatformTemplateService::CODE))) {
+        $welcome = $templates->resolve($template, $merchant->locale);
+        $code = $templates->resolve(PlatformTemplateService::CODE, $merchant->locale);
+        if ($otp && (! $welcome || ! $code)) {
             throw ValidationException::withMessages([
                 'whatsapp' => ['The login templates are not approved by Meta yet.'],
             ]);
@@ -110,8 +112,8 @@ class MerchantWelcomeService
             if ($otp) {
                 // The details first (no code in them), then the code in Meta's Authentication format.
                 $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
-                    'name' => $template,
-                    'language' => ['code' => config('alerts.whatsapp_language')],
+                    'name' => $welcome['name'],
+                    'language' => ['code' => $welcome['language']],
                     'components' => [
                         ['type' => 'body', 'parameters' => array_map(
                             fn (string $v) => ['type' => 'text', 'text' => $v],
@@ -122,8 +124,8 @@ class MerchantWelcomeService
                     ],
                 ]]);
                 $this->whatsapp->sendPlatform($to, ['type' => 'template', 'template' => [
-                    'name' => PlatformTemplateService::CODE,
-                    'language' => ['code' => config('alerts.whatsapp_language')],
+                    'name' => $code['name'],
+                    'language' => ['code' => $code['language']],
                     'components' => [
                         ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $otp]]],
                         ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $otp]]],
