@@ -146,8 +146,12 @@ class CheckoutService
             'deliver_at' => $deliverAt?->copy()->utc(),
         ] + $this->gift($shop, $details);
 
+        // Retried on a deadlock: two checkouts that take stock of the same items in a different order can still collide.
         return DB::transaction(function () use ($merchant, $conversation, $cart, $zone, $address, $payment, $subtotal, $deliveryFee, $notes, $extra) {
-            $number = (int) Order::query()->lockForUpdate()->max('number') + 1;
+            // One checkout at a time per shop takes the next number. Locking the shop's row (not "max(number) for update", which
+            // locks a gap in the index) lets 100 customers confirm together without MySQL deadlocking them against each other.
+            Merchant::query()->whereKey($merchant->id)->lockForUpdate()->value('id');
+            $number = (int) Order::query()->max('number') + 1;
 
             $order = Order::create([
                 'merchant_id' => $merchant->id,
@@ -223,7 +227,7 @@ class CheckoutService
             );
 
             return $order->load('items');
-        });
+        }, 3);
     }
 
     /**

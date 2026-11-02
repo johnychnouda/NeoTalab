@@ -5,10 +5,12 @@ import hashlib, hmac, json, os, subprocess, sys, time, uuid, urllib.request, url
 LAB = os.environ.get("QA_LAB") or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".lab")
 QA = os.path.dirname(os.path.abspath(__file__))
 API = os.environ.get("QA_API", "http://127.0.0.1:8011/api/v1")
-ENV = dict(l.strip().split("=", 1) for l in open(f"{LAB}/lab.env") if "=" in l and not l.startswith("#"))
+ENV = dict(l.strip().split("=", 1) for l in open(os.environ.get("QA_ENVFILE") or f"{LAB}/lab.env") if "=" in l and not l.startswith("#"))
 assert API.startswith("http://127.0.0.1:") and ((ENV["DB_CONNECTION"] == "sqlite" and ENV["DB_DATABASE"].startswith(LAB)) or (ENV["DB_CONNECTION"] == "mysql" and ENV["DB_DATABASE"].startswith("neotalab_qa") and ENV.get("DB_HOST") == "127.0.0.1")), "refusing: not the lab"
-STATE = f"{LAB}/state.json"  # holds lab logins: lives in the git-ignored lab folder
-RESULTS = f"{LAB}/results.jsonl"
+STATE = os.environ.get("QA_STATE") or f"{LAB}/state.json"  # holds lab logins: lives in the git-ignored lab folder
+RESULTS = os.environ.get("QA_RESULTS") or f"{LAB}/results.jsonl"
+GRAPHLOG = os.environ.get("QA_GRAPHLOG") or f"{LAB}/graph.jsonl"
+LABSH = os.environ.get("QA_LABSH") or f"{LAB}/lab.sh"
 
 
 def state():
@@ -64,7 +66,7 @@ def login(email, password, retries=6):
 
 def tinker(php):
     """Run PHP in the lab app (for setup and read-only DB checks)."""
-    out = subprocess.run([f"{LAB}/lab.sh", "php", "artisan", "tinker", "--execute", php],
+    out = subprocess.run([LABSH, "php", "artisan", "tinker", "--execute", php],
                          capture_output=True, text=True, timeout=120)
     return out.stdout.strip() + (("\nERR " + out.stderr.strip()[-800:]) if out.returncode else "")
 
@@ -123,7 +125,7 @@ def wa_echo(phone_id, to, text):
 
 def outbox(to=None, since=0):
     out = []
-    for line in open(f"{LAB}/graph.jsonl"):
+    for line in open(GRAPHLOG):
         r = json.loads(line)
         if r["t"] < since or r["method"] != "POST" or not isinstance(r["body"], dict):
             continue
