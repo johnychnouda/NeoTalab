@@ -139,13 +139,28 @@ thank-you, a late scheduled-order reminder).
 - **From a shop's number to its staff and owner (15, EN/AR/FR = 45):** new order, staff alert, new booking, order due,
   payment check, refund needed, billing reminder, customer cancelled, scheduled order due, booking cancelled, not
   delivered, Whish unpaid, low rating, quote request, quote declined. Button titles are translated; the button ids come from the code.
-- **From a shop's number to customers (16 events, EN/AR/FR = 48):** accepted, ready, on its way, delayed, cancelled,
+- **From a shop's number to customers (18 events, EN/AR/FR = 54):** accepted, ready, on its way, delayed, cancelled,
   refund, booking reminder, driver outside, delivered, delivered with the rating question, quote ready (with its two
   buttons), scheduled-order reminder, and the Whish messages: how to pay (with "I paid"), payment confirmed, payment
-  not found, payment window closed (with "I paid").
+  not found, payment window closed (with "I paid"), booking cancelled by the shop, booking moved by the shop.
 - A new shop starts in the language its owner used on the join page.
 - Not added, on purpose: anything promotional (Marketing costs more and needs consent); drivers (they receive deliveries
   inside the window their own "start" opens).
+
+## Bookings: the shop cancels or moves one, from WhatsApp (2 November 2026)
+
+The new-booking ticket has three buttons: Done, No-show and Change. Change offers Move it, Cancel it and Keep it. Move it
+sends a list of the next free times (this booking's day first, then the next 7 days, at most 10; the booking's own time is
+not offered); the pick moves it (the old time is freed inside the same transaction, so a move to a nearby time is not
+blocked by the booking itself) and the booking gets a new reminder; a reminder queued for the old time is dropped when it
+fires (`SendAppointmentReminder::$dueAt`). Cancel it records `cancelled_by = shop`. The customer is told in their language
+(the message inside the 24 hours, the approved template after). The team can also type "today" or "tomorrow" (or the
+Arabic and French words) to get the day's bookings.
+
+A shop with no staff is run by its owner: the booking ticket goes to the number the owner gave at sign-up
+(`StaffMessenger::managers`), and that number may use the booking buttons and "today"/"tomorrow" only; anything else it
+sends is an ordinary customer's message. A shop that has staff does not treat its owner number as staff. A customer's
+tap on a team button changes nothing.
 
 ## Before going live with real shops
 
