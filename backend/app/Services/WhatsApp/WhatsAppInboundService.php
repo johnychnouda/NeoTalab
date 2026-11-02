@@ -812,9 +812,12 @@ class WhatsAppInboundService
      */
     protected function wantsQuote(Merchant $merchant, string $text): bool
     {
+        // "quote", "devis", "عرض سعر" mean a price request wherever they stand ("Bonjour, je voudrais un devis pour…");
+        // "price" and "how much" only when the message starts with them, because they are everyday words.
         return BusinessKind::quotes($merchant)
-            && (bool) preg_match('/^\s*(quote|price|how much to (fix|repair|make)|devis|سعر|تسعيرة|تقدير)\b/iu', $text)
-            && mb_strlen(trim($text)) >= 12;
+            && mb_strlen(trim($text)) >= 12
+            && (bool) (preg_match('/\b(quote|quotation|estimate|devis|estimation|تسعيرة|عرض سعر|تقدير)\b/iu', $text)
+                || preg_match('/^\s*(price|how much to (fix|repair|make)|combien pour|سعر)\b/iu', $text));
     }
 
     protected function reply(Merchant $merchant, string $toPhone, string $text): void

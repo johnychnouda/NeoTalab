@@ -145,6 +145,23 @@ class QuoteTest extends TestCase
         $this->assertSame(['1', 'Quick Fix', '+96170123456', 'quote please: screen replacement for my iPhone 12', '1'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 
+    public function test_a_request_for_a_quote_is_recognised_wherever_the_word_stands(): void
+    {
+        foreach (['Bonjour, je voudrais un devis pour une vidange de ma Corolla', 'Hello, could I get a quote for new brake pads please', 'مرحبا بدي عرض سعر لتصليح الشاشة'] as $i => $message) {
+            $this->say($message, '+9617000000'.$i);
+        }
+
+        $this->assertSame(3, Quote::query()->withoutGlobalScopes()->count());
+    }
+
+    public function test_an_ordinary_question_is_not_taken_for_a_quote_request(): void
+    {
+        $this->say('Hello, do you sell screen protectors for the iPhone 12?');
+        $this->say('what is the price of the charger you have', '+96170000009');
+
+        $this->assertSame(0, Quote::query()->withoutGlobalScopes()->count(), '"price" in the middle of a sentence is an everyday question');
+    }
+
     public function test_the_price_comes_from_the_shop_never_from_the_customer_or_the_ai(): void
     {
         $this->say('quote: fix my zipper please, the blue jacket');
