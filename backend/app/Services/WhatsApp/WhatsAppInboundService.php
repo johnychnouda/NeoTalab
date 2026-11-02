@@ -256,6 +256,13 @@ class WhatsAppInboundService
             return;
         }
 
+        // A shop with no staff is run by its owner: their number manages bookings here (and only bookings).
+        if ($owner = $this->drivers->ownerForBookings($merchant, $fromPhone, $msg)) {
+            $this->drivers->handle($merchant, $owner, $msg);
+
+            return;
+        }
+
         $customer = Customer::query()->where('phone', $fromPhone)->first();
         if ($customer?->is_blocked) {
             return;

@@ -32,7 +32,7 @@ class NotifyStaffOfAppointmentCancelled implements ShouldQueue
         $body = __('whatsapp.appointment.staff_cancelled', $this->appointmentParams($appointment, $merchant), $merchant->locale ?? 'en');
 
         $params = $this->appointmentParams($appointment, $merchant);
-        foreach ($messenger->staff($merchant) as $member) {
+        foreach ($messenger->managers($merchant) as $member) {
             $messenger->send($merchant, $member, $body, [], ShopTemplateService::BOOKING_CANCELLED, [
                 $merchant->name, (string) $params['service'], (string) $params['date'], (string) $params['time'], (string) $appointment->customer?->phone,
             ]);

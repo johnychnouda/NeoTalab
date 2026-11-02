@@ -25,6 +25,11 @@ class CustomerTemplates
 
     public const REFUND = 'order_refund';
 
+    /** The shop cancelled / moved a booking. */
+    public const BOOKING_CANCELLED_SHOP = 'booking_cancelled_shop';
+
+    public const BOOKING_MOVED = 'booking_moved';
+
     public const OUTSIDE = 'order_outside';
 
     public const DELIVERED = 'order_delivered';
@@ -165,6 +170,16 @@ class CustomerTemplates
                 'en' => ['We did not receive the Whish payment for order #{{1}} from {{2}} in time, so the order was cancelled. If you already paid, tap the button below and the shop will check.', ['128', 'Beirut Bites'], ['I paid']],
                 'ar' => ['لم نستلم دفعة Whish للطلب رقم {{1}} من {{2}} في الوقت المحدد، لذلك تم إلغاء الطلب. إذا كنت قد دفعت بالفعل، اضغط الزر أدناه وسيتحقق المتجر.', ['128', 'بيروت بايتس'], ['دفعت']],
                 'fr' => ["Nous n'avons pas reçu le paiement Whish pour la commande n° {{1}} chez {{2}} à temps, la commande a donc été annulée. Si vous avez déjà payé, appuyez sur le bouton ci-dessous et la boutique vérifiera.", ['128', 'Beirut Bites'], ["J'ai payé"]],
+            ],
+            self::BOOKING_CANCELLED_SHOP => [
+                'en' => ['Sorry, {{1}} cancelled your {{2}} on {{3}} at {{4}}. You can book again anytime.', ['Glow Salon', 'Haircut', 'Wed 14 Oct', '15:30']],
+                'ar' => ['نعتذر، ألغى {{1}} موعد {{2}} يوم {{3}} الساعة {{4}}. يمكنك الحجز مجدداً في أي وقت.', ['صالون جلو', 'قص شعر', 'الأربعاء 14 تشرين الأول', '15:30']],
+                'fr' => ['Désolé, {{1}} a annulé votre {{2}} du {{3}} à {{4}}. Vous pouvez réserver à nouveau à tout moment.', ['Glow Salon', 'Coupe', 'mercredi 14 octobre', '15h30']],
+            ],
+            self::BOOKING_MOVED => [
+                'en' => ['Good news! {{1}} moved your {{2}} to {{3}} at {{4}}. If that does not suit you, please write to us in this chat.', ['Glow Salon', 'Haircut', 'Thu 15 Oct', '16:00']],
+                'ar' => ['أخبار سارة! نقل {{1}} موعد {{2}} إلى {{3}} الساعة {{4}}. إذا كان لا يناسبك، يرجى مراسلتنا في هذه المحادثة.', ['صالون جلو', 'قص شعر', 'الخميس 15 تشرين الأول', '16:00']],
+                'fr' => ['Bonne nouvelle ! {{1}} a déplacé votre {{2}} au {{3}} à {{4}}. Si cela ne vous convient pas, écrivez-nous dans cette conversation.', ['Glow Salon', 'Coupe', 'jeudi 15 octobre', '16h00']],
             ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],

@@ -9,13 +9,16 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Quote;
+use App\Services\AppointmentService;
 use App\Services\DriverDispatcher;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
 use App\Services\OrderTiming;
 use App\Services\QuoteService;
+use App\Support\MerchantProfileSync;
 use App\Support\Money;
 use App\Support\OrderMessage;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -56,6 +59,9 @@ class DriverBotService
         $to = $driver->whatsapp_number ?: $driver->phone;
 
         if ($driver->role === 'staff') {
+            if ($this->manageBookings($merchant, $to, $msg, $locale)) {
+                return;
+            }
             $this->reply($merchant, $to, $this->handleStaff($merchant, $msg, $locale));
 
             return;
@@ -88,6 +94,211 @@ class DriverBotService
         };
 
         $this->reply($merchant, $to, $reply);
+    }
+
+    /**
+     * A shop with no staff is run by its owner: their number (the one they gave at sign-up) may use the booking
+     * buttons and "today" / "tomorrow", and nothing else (any other message from it is an ordinary customer's).
+     *
+     * @param  array<string, mixed>  $msg
+     */
+    public function ownerForBookings(Merchant $merchant, string $fromPhone, array $msg): ?Driver
+    {
+        $owner = MerchantProfileSync::whatsapp($merchant);
+        if (! $owner || preg_replace('/\D+/', '', $owner) !== preg_replace('/\D+/', '', $fromPhone)
+            || ! $this->isBookingMessage($msg) || app(StaffMessenger::class)->staff($merchant)->isNotEmpty()) {
+            return null;
+        }
+
+        return StaffMessenger::ownerAsStaff($merchant, $owner);
+    }
+
+    /** @param  array<string, mixed>  $msg */
+    protected function isBookingMessage(array $msg): bool
+    {
+        $id = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['interactive']['list_reply']['id'] ?? $msg['button']['payload'] ?? '');
+
+        return str_starts_with($id, 'stf:appt_') || $this->bookingDay((string) ($msg['text']['body'] ?? '')) !== null;
+    }
+
+    /** "today" / "tomorrow" (or "bookings") in the shop's three languages: which day's bookings are asked for. */
+    protected function bookingDay(string $text): ?string
+    {
+        $text = mb_strtolower(trim($text), 'UTF-8');
+        if (in_array($text, ['today', 'bookings', 'schedule', 'اليوم', 'حجوزات', 'حجوزات اليوم', "aujourd'hui", 'aujourd’hui', 'réservations', 'reservations'], true)) {
+            return 'today';
+        }
+
+        return in_array($text, ['tomorrow', 'غدا', 'غداً', 'حجوزات الغد', 'demain'], true) ? 'tomorrow' : null;
+    }
+
+    /**
+     * Bookings from WhatsApp for the team (and a lone owner): the day's list, and Change → Move it / Cancel it /
+     * Keep it on the ticket the new booking sent. The customer is told of a cancellation or a move.
+     *
+     * @param  array<string, mixed>  $msg
+     * @return bool whether the message was a booking one (and has been answered)
+     */
+    protected function manageBookings(Merchant $merchant, string $to, array $msg, string $locale): bool
+    {
+        $id = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['interactive']['list_reply']['id'] ?? $msg['button']['payload'] ?? '');
+
+        if ($day = $this->bookingDay((string) ($msg['text']['body'] ?? ''))) {
+            $this->reply($merchant, $to, $this->daySchedule($merchant, $day === 'tomorrow', $locale));
+
+            return true;
+        }
+        if (! preg_match('/^stf:appt_(change|move|cancel|keep|to):([^:]+)(?::(\d{12}))?$/', $id, $m)) {
+            return false;
+        }
+
+        $appointment = Appointment::query()->with(['customer', 'provider'])->whereKey($m[2])->first();
+        if (! $appointment) {
+            $this->reply($merchant, $to, __('whatsapp.driver.not_yours', [], $locale));
+
+            return true;
+        }
+        if ($appointment->status !== 'booked') {
+            $this->reply($merchant, $to, __('whatsapp.appointment.staff_closed', ['service' => $appointment->service_name], $locale));
+
+            return true;
+        }
+
+        $tz = app(AppointmentService::class)->tz($merchant);
+        $when = fn (string $lang) => [
+            'date' => $appointment->starts_at->copy()->setTimezone($tz)->locale($lang)->isoFormat('ddd D MMM'),
+            'time' => $appointment->starts_at->copy()->setTimezone($tz)->format('H:i'),
+        ];
+        $params = ['service' => $appointment->service_name, 'phone' => OrderMessage::phone($appointment->customer?->phone)] + $when($locale);
+
+        switch ($m[1]) {
+            case 'change':
+                $this->send($merchant, $to, ['type' => 'interactive', 'interactive' => [
+                    'type' => 'button', 'body' => ['text' => mb_substr(__('whatsapp.appointment.change_prompt', $params, $locale), 0, 1024)],
+                    'action' => ['buttons' => [
+                        ['type' => 'reply', 'reply' => ['id' => "stf:appt_move:{$appointment->id}", 'title' => mb_substr(__('whatsapp.appointment.btn_move', [], $locale), 0, 20)]],
+                        ['type' => 'reply', 'reply' => ['id' => "stf:appt_cancel:{$appointment->id}", 'title' => mb_substr(__('whatsapp.appointment.btn_cancel_it', [], $locale), 0, 20)]],
+                        ['type' => 'reply', 'reply' => ['id' => "stf:appt_keep:{$appointment->id}", 'title' => mb_substr(__('whatsapp.appointment.btn_keep', [], $locale), 0, 20)]],
+                    ]],
+                ]]);
+                break;
+            case 'keep':
+                $this->reply($merchant, $to, __('whatsapp.appointment.kept', $params, $locale));
+                break;
+            case 'cancel':
+                if (! app(AppointmentService::class)->cancelByShop($appointment)) {
+                    $this->reply($merchant, $to, __('whatsapp.appointment.staff_closed', ['service' => $appointment->service_name], $locale));
+                    break;
+                }
+                $this->tellCustomer($merchant, $appointment, CustomerTemplates::BOOKING_CANCELLED_SHOP, 'shop_cancelled', $when);
+                $this->reply($merchant, $to, __('whatsapp.appointment.staff_cancelled_ok', $params, $locale));
+                break;
+            case 'move':
+                $this->offerNewTimes($merchant, $to, $appointment, $params, $locale, false);
+                break;
+            case 'to':
+                $start = isset($m[3]) ? Carbon::createFromFormat('YmdHi', $m[3], $tz) : null;
+                if (! $start || ! app(AppointmentService::class)->move($merchant, $appointment, $start)) {
+                    $this->offerNewTimes($merchant, $to, $appointment, $params, $locale, true);
+                    break;
+                }
+                $appointment->refresh();
+                $this->tellCustomer($merchant, $appointment, CustomerTemplates::BOOKING_MOVED, 'shop_moved', $when);
+                $this->reply($merchant, $to, __('whatsapp.appointment.staff_moved_ok', ['phone' => $params['phone']] + $when($locale), $locale));
+                break;
+        }
+
+        return true;
+    }
+
+    /**
+     * The customer is told, in their language: the normal message inside WhatsApp's 24 hours, the template after.
+     *
+     * @param  \Closure(string): array{date: string, time: string}  $when
+     */
+    protected function tellCustomer(Merchant $merchant, Appointment $appointment, string $event, string $key, \Closure $when): void
+    {
+        $locale = $appointment->customer?->locale ?? $merchant->locale ?? 'en';
+        $at = $when($locale);
+        $params = ['shop' => $merchant->name, 'service' => $appointment->service_name] + $at;
+
+        try {
+            app(CustomerMessenger::class)->send(
+                $merchant, (string) $appointment->customer?->phone,
+                ['type' => 'text', 'text' => __("whatsapp.appointment.{$key}", $params, $locale)],
+                $event, [$merchant->name, $appointment->service_name, $at['date'], $at['time']], $locale,
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Booking change not told to the customer', ['appointment_id' => $appointment->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * A list of the next free times (this booking's day first, then the following days) to move the booking to.
+     *
+     * @param  array<string, string>  $params
+     */
+    protected function offerNewTimes(Merchant $merchant, string $to, Appointment $appointment, array $params, string $locale, bool $taken): void
+    {
+        $service = Product::query()->find($appointment->product_id);
+        $appointments = app(AppointmentService::class);
+        $tz = $appointments->tz($merchant);
+        $current = $appointment->starts_at->copy()->setTimezone($tz);
+        $rows = [];
+
+        for ($d = 0; $d < 7 && count($rows) < 10 && $service; $d++) {
+            $day = $current->copy()->startOfDay()->addDays($d);
+            foreach ($appointments->availableSlots($merchant, $service, $day, $appointment->provider) as $slot) {
+                $start = $day->copy()->setTimeFromTimeString($slot);
+                if ($start->eq($current)) {
+                    continue;
+                }
+                $rows[] = ['id' => 'stf:appt_to:'.$appointment->id.':'.$start->format('YmdHi'), 'title' => $start->copy()->locale($locale)->isoFormat('ddd D MMM').' '.$slot];
+                if (count($rows) >= 10) {
+                    break;
+                }
+            }
+        }
+
+        if ($rows === []) {
+            $this->reply($merchant, $to, __('whatsapp.appointment.move_none', ['service' => $appointment->service_name], $locale));
+
+            return;
+        }
+
+        $text = ($taken ? __('whatsapp.appointment.move_taken', [], $locale) : __('whatsapp.appointment.move_prompt', $params, $locale));
+        $button = mb_substr(__('whatsapp.appointment.move_button', [], $locale), 0, 20);
+        $this->send($merchant, $to, ['type' => 'interactive', 'interactive' => [
+            'type' => 'list', 'body' => ['text' => mb_substr($text, 0, 1024)],
+            'action' => ['button' => $button, 'sections' => [['title' => mb_substr($button, 0, 24), 'rows' => $rows]]],
+        ]]);
+    }
+
+    /** One day's bookings, in time order, for the team (and a lone owner). */
+    protected function daySchedule(Merchant $merchant, bool $tomorrow, string $locale): string
+    {
+        $tz = app(AppointmentService::class)->tz($merchant);
+        $day = now()->setTimezone($tz)->startOfDay()->addDays($tomorrow ? 1 : 0);
+        $rows = Appointment::query()->with('customer')->where('status', 'booked')
+            ->whereBetween('starts_at', [$day->copy()->utc(), $day->copy()->endOfDay()->utc()])->orderBy('starts_at')->get();
+
+        $date = $day->copy()->locale($locale)->isoFormat('ddd D MMM');
+        if ($rows->isEmpty()) {
+            return __('whatsapp.appointment.day_none', ['when' => __($tomorrow ? 'whatsapp.appointment.when_tomorrow' : 'whatsapp.appointment.when_today', [], $locale)], $locale);
+        }
+
+        return __($tomorrow ? 'whatsapp.appointment.day_tomorrow' : 'whatsapp.appointment.day_today', ['date' => $date], $locale)."\n"
+            .$rows->map(fn (Appointment $a) => $a->starts_at->copy()->setTimezone($tz)->format('H:i').' · '.$a->service_name.' · '.OrderMessage::phone($a->customer?->phone))->implode("\n");
+    }
+
+    /** @param  array<string, mixed>  $message */
+    protected function send(Merchant $merchant, string $to, array $message): void
+    {
+        try {
+            $this->whatsapp->sendToCustomer($merchant, $to, $message);
+        } catch (\Throwable $e) {
+            Log::warning('Booking message failed', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
+        }
     }
 
     /**

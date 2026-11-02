@@ -914,7 +914,7 @@ class WhatsAppOperationsTest extends TestCase
             ->map(fn (Request $r) => $r['name'].':'.$r['category'])->values()->all();
         $customer = array_keys(CustomerTemplates::definitions());
         $staff = array_values(array_diff(array_keys(ShopTemplateService::definitions()), $customer));
-        $this->assertCount(15 * 3 + 48, $submitted, 'fifteen for the staff and owner in three languages, sixteen customer events in three languages');
+        $this->assertCount(15 * 3 + 54, $submitted, 'fifteen for the staff and owner in three languages, eighteen customer events in three languages');
         $this->assertSame(array_map(fn ($n) => $n.':UTILITY', [...$staff, ...$customer]), $submitted);
         foreach ([ShopTemplateService::CUSTOMER_CANCELLED, ShopTemplateService::SCHEDULED_DUE, ShopTemplateService::BOOKING_CANCELLED,
             ShopTemplateService::NOT_DELIVERED, ShopTemplateService::WHISH_UNPAID, ShopTemplateService::LOW_RATING] as $name) {

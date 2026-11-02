@@ -179,14 +179,75 @@ class AppointmentService
         if ($appointment) {
             NotifyStaffOfAppointment::dispatch($appointment->id)->afterCommit();
 
-            $remind = ShopSettings::for($merchant)->reminderMins();
-            $at = $appointment->starts_at->copy()->subMinutes($remind);
-            if ($remind > 0 && $at->isFuture()) {
-                SendAppointmentReminder::dispatch($appointment->id)->delay($at);
-            }
+            $this->scheduleReminder($merchant, $appointment);
         }
 
         return $appointment;
+    }
+
+    /**
+     * Moves a booking to another start time (same service, same person when there is a team). The old time is
+     * freed first, inside the transaction, so a move to a nearby time is not blocked by the booking itself.
+     *
+     * @return bool false when the new time is not free (nothing changes)
+     */
+    public function move(Merchant $merchant, Appointment $appointment, Carbon $localStart): bool
+    {
+        $service = Product::query()->find($appointment->product_id);
+        if ($appointment->status !== 'booked' || ! $service) {
+            return false;
+        }
+        $localStart = $localStart->copy()->setTimezone($this->tz($merchant));
+
+        $moved = DB::transaction(function () use ($merchant, $appointment, $service, $localStart) {
+            $fresh = Appointment::query()->whereKey($appointment->id)->lockForUpdate()->first();
+            if (! $fresh || $fresh->status !== 'booked') {
+                return false;
+            }
+            $fresh->forceFill(['status' => 'moving'])->save(); // out of the way while its new time is checked
+
+            $free = in_array($localStart->format('H:i'), $this->availableSlots($merchant, $service, $localStart, $fresh->provider), true);
+            if (! $free) {
+                $fresh->forceFill(['status' => 'booked'])->save();
+
+                return false;
+            }
+
+            $fresh->forceFill([
+                'status' => 'booked',
+                'starts_at' => $localStart->copy()->utc(),
+                'ends_at' => $localStart->copy()->addMinutes((int) $service->duration_mins)->utc(),
+                'reminded_at' => null,
+            ])->save();
+
+            return true;
+        });
+
+        if ($moved) {
+            $appointment->refresh();
+            $this->scheduleReminder($merchant, $appointment);
+        }
+
+        return $moved;
+    }
+
+    /** The shop cancels a booking (the customer is told by the caller). False when it was no longer booked. */
+    public function cancelByShop(Appointment $appointment): bool
+    {
+        $changed = Appointment::query()->whereKey($appointment->id)->where('status', 'booked')->update(['status' => 'cancelled', 'cancelled_by' => 'shop']);
+        $appointment->refresh();
+
+        return $changed === 1;
+    }
+
+    /** The reminder goes out this long before the booking starts (a moved booking gets a new one). */
+    public function scheduleReminder(Merchant $merchant, Appointment $appointment): void
+    {
+        $remind = ShopSettings::for($merchant)->reminderMins();
+        $at = $appointment->starts_at->copy()->subMinutes($remind);
+        if ($remind > 0 && $at->isFuture()) {
+            SendAppointmentReminder::dispatch($appointment->id, $at->toIso8601String())->delay($at);
+        }
     }
 
     public function upcomingFor(Customer $customer): ?Appointment

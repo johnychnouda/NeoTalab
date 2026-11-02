@@ -29,8 +29,8 @@ class StaffTemplateTexts
                 'fr' => ['body' => "Un client a besoin d'une personne chez {{1}} : {{2}}. L'assistant est en pause dans cette conversation, merci de lui répondre depuis l'application WhatsApp Business. Appuyez sur Retour au bot quand vous avez terminé.", 'buttons' => ['Retour au bot']],
             ],
             ShopTemplateService::NEW_BOOKING => [
-                'ar' => ['body' => 'حجز جديد في {{1}}: {{2}} يوم {{3}} الساعة {{4}}، السعر {{5}}. الزبون: {{6}}. بعد الزيارة، اضغط تم أو لم يحضر.', 'buttons' => ['تم', 'لم يحضر']],
-                'fr' => ['body' => 'Nouvelle réservation chez {{1}} : {{2}} le {{3}} à {{4}}, prix {{5}}. Client : {{6}}. Après la visite, appuyez sur Terminé ou Absent.', 'buttons' => ['Terminé', 'Absent']],
+                'ar' => ['body' => 'حجز جديد في {{1}}: {{2}} يوم {{3}} الساعة {{4}}، السعر {{5}}. الزبون: {{6}}. بعد الزيارة، اضغط تم أو لم يحضر. لإلغاء الحجز أو نقله، اضغط تعديل.', 'buttons' => ['تم', 'لم يحضر', 'تعديل']],
+                'fr' => ['body' => 'Nouvelle réservation chez {{1}} : {{2}} le {{3}} à {{4}}, prix {{5}}. Client : {{6}}. Après la visite, appuyez sur Terminé ou Absent. Pour annuler ou déplacer la réservation, appuyez sur Modifier.', 'buttons' => ['Terminé', 'Absent', 'Modifier']],
             ],
             ShopTemplateService::ORDER_DUE => [
                 'ar' => ['body' => 'الطلب رقم {{1}} في {{2}} موعده اليوم: {{3}}. اضغط جاهز / في الطريق عند خروجه، أو تأجيل يوم لنقله إلى يوم العمل التالي.', 'buttons' => ['جاهز / في الطريق', 'تأجيل يوم']],

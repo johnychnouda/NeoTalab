@@ -106,9 +106,9 @@ class ShopTemplateService
                 'buttons' => ['Back to bot'],
             ],
             self::NEW_BOOKING => [
-                'body' => 'New booking at {{1}}: {{2}} on {{3}} at {{4}}, price {{5}}. Customer: {{6}}. After the visit, tap Done or No-show.',
+                'body' => 'New booking at {{1}}: {{2}} on {{3}} at {{4}}, price {{5}}. Customer: {{6}}. After the visit, tap Done or No-show. To cancel or move the booking, tap Change.',
                 'example' => ['Glow Salon', 'Haircut', 'Wed 14 Oct', '15:30', '20.00 USD', '+96170123456'],
-                'buttons' => ['Done', 'No-show'],
+                'buttons' => ['Done', 'No-show', 'Change'],
             ],
             self::ORDER_DUE => [
                 'body' => 'Order #{{1}} at {{2}} is due today: {{3}}. Tap Ready / on its way when it leaves, or Delay 1 day to move it to the next working day.',

@@ -5,8 +5,10 @@ namespace App\Jobs;
 use App\Jobs\Concerns\LoadsAppointment;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Services\WhatsApp\CustomerTemplates;
+use App\Support\ShopSettings;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -18,12 +20,17 @@ class SendAppointmentReminder implements ShouldQueue
 
     public int $tries = 2;
 
-    public function __construct(public string $appointmentId) {}
+    public function __construct(public string $appointmentId, public ?string $dueAt = null) {}
 
     public function handle(): void
     {
         [$appointment, $merchant] = $this->loadAppointment($this->appointmentId) ?? [null, null];
         if (! $appointment || $appointment->status !== 'booked' || $appointment->reminded_at || $appointment->starts_at->isPast()) {
+            return;
+        }
+
+        // A reminder queued for an earlier time of a booking that has since moved is dropped: the new time has its own.
+        if ($this->dueAt !== null && abs($appointment->starts_at->copy()->subMinutes(ShopSettings::for($merchant)->reminderMins())->diffInSeconds(Carbon::parse($this->dueAt), false)) > 90) {
             return;
         }
 

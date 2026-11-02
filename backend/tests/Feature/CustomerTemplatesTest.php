@@ -20,7 +20,8 @@ class CustomerTemplatesTest extends TestCase
     {
         $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND,
             CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED,
-            CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED];
+            CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED,
+            CustomerTemplates::BOOKING_CANCELLED_SHOP, CustomerTemplates::BOOKING_MOVED];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);

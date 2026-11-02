@@ -6,6 +6,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\WhatsAppMessage;
 use App\Support\CurrentTenant;
+use App\Support\MerchantProfileSync;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -70,6 +71,32 @@ class StaffMessenger
     public function anyReachable(Merchant $merchant, string $template): bool
     {
         return $this->staff($merchant)->contains(fn (Driver $m) => $this->canReach($merchant, $m, $template));
+    }
+
+    /**
+     * Who is told about a booking: the staff, or the shop's owner (the number they gave at sign-up) when the
+     * shop has no staff, so a shop run by one person still hears about its bookings and can change them.
+     *
+     * @return Collection<int, Driver>
+     */
+    public function managers(Merchant $merchant): Collection
+    {
+        $staff = $this->staff($merchant);
+        if ($staff->isNotEmpty()) {
+            return $staff;
+        }
+
+        $owner = MerchantProfileSync::whatsapp($merchant);
+
+        return $owner ? collect([self::ownerAsStaff($merchant, $owner)]) : collect();
+    }
+
+    /** A stand-in team member for the owner's number (never saved). */
+    public static function ownerAsStaff(Merchant $merchant, string $number): Driver
+    {
+        return (new Driver)->forceFill([
+            'merchant_id' => $merchant->id, 'name' => 'Owner', 'role' => 'staff', 'phone' => $number, 'whatsapp_number' => $number, 'is_active' => true,
+        ]);
     }
 
     /** @return Collection<int, Driver> */

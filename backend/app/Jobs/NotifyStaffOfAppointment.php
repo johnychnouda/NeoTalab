@@ -33,9 +33,10 @@ class NotifyStaffOfAppointment implements ShouldQueue
         $buttons = [
             ["stf:appt_completed:{$appointment->id}", __('whatsapp.appointment.button_done', [], $locale)],
             ["stf:appt_no_show:{$appointment->id}", __('whatsapp.appointment.button_no_show', [], $locale)],
+            ["stf:appt_change:{$appointment->id}", __('whatsapp.appointment.button_change', [], $locale)],
         ];
 
-        foreach ($messenger->staff($merchant) as $member) {
+        foreach ($messenger->managers($merchant) as $member) {
             $messenger->send($merchant, $member, $body, $buttons, ShopTemplateService::NEW_BOOKING, [
                 $params['shop'], $params['service'], $params['date'], $params['time'], $params['price'], $params['phone'],
             ]);

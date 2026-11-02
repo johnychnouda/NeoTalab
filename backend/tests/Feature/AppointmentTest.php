@@ -360,4 +360,250 @@ class AppointmentTest extends TestCase
             ->assertJsonPath('appointments.0.starts_at', '2026-10-06 10:00')
             ->assertJsonPath('appointments.0.customer_phone', self::CUSTOMER);
     }
+
+    // ── the shop cancels or moves a booking, from WhatsApp ───────────────────
+
+    private const STAFF = '+96171555000';
+
+    private function team(): void
+    {
+        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Desk', 'role' => 'staff', 'phone' => self::STAFF, 'whatsapp_number' => self::STAFF, 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
+        $this->staffWroteToShop($this->merchant, self::STAFF);
+    }
+
+    /** A tap on a button or a list row, from the team. */
+    private function press(string $id, string $from = self::STAFF, string $kind = 'button_reply'): void
+    {
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+            'metadata' => ['phone_number_id' => '555'],
+            'messages' => [['id' => 'wamid.P'.(++$this->seq), 'from' => ltrim($from, '+'), 'type' => 'interactive',
+                'interactive' => ['type' => $kind, $kind => ['id' => $id, 'title' => 'x']]]],
+        ]]]]]]);
+    }
+
+    /** @return array<string, mixed> the last message sent to the phone */
+    private function lastMessageTo(string $phone): array
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+
+        return Http::recorded()->map(fn ($p) => $p[0])
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === $digits)->last()?->data() ?? [];
+    }
+
+    private function bookedHaircut(string $slot = '2026-10-08 11:00'): Appointment
+    {
+        $this->say('book haircut '.$slot);
+
+        return Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->latest()->firstOrFail();
+    }
+
+    public function test_the_booking_ticket_has_a_change_button_and_change_offers_move_cancel_keep(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $ticket = $this->lastMessageTo(self::STAFF);
+        $this->assertSame(["stf:appt_completed:{$appointment->id}", "stf:appt_no_show:{$appointment->id}", "stf:appt_change:{$appointment->id}"],
+            array_column(array_column($ticket['interactive']['action']['buttons'], 'reply'), 'id'));
+
+        $this->press("stf:appt_change:{$appointment->id}");
+        $prompt = $this->lastMessageTo(self::STAFF);
+        $this->assertStringContainsString('Haircut on Thu 8 Oct at 11:00', $prompt['interactive']['body']['text']);
+        $this->assertSame(["stf:appt_move:{$appointment->id}", "stf:appt_cancel:{$appointment->id}", "stf:appt_keep:{$appointment->id}"],
+            array_column(array_column($prompt['interactive']['action']['buttons'], 'reply'), 'id'));
+    }
+
+    public function test_the_shop_cancels_a_booking_and_the_customer_is_told(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_cancel:{$appointment->id}");
+
+        $this->assertSame('cancelled', $appointment->fresh()->status);
+        $this->assertSame('shop', $appointment->fresh()->cancelled_by);
+        $this->assertStringContainsString('Sorry, Hair Studio cancelled your Haircut on Thu 8 Oct at 11:00', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Booking cancelled', $this->lastTo(self::STAFF));
+        $this->assertSame(0, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+
+        // The same time can be booked again, and a second tap changes nothing.
+        $this->press("stf:appt_cancel:{$appointment->id}");
+        $this->assertStringContainsString('already cancelled or closed', $this->lastTo(self::STAFF));
+    }
+
+    public function test_keeping_a_booking_changes_nothing(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_keep:{$appointment->id}");
+
+        $this->assertSame('booked', $appointment->fresh()->status);
+        $this->assertStringContainsString('Booking kept', $this->lastTo(self::STAFF));
+    }
+
+    public function test_move_it_offers_free_times_and_picking_one_moves_the_booking_and_tells_the_customer(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_move:{$appointment->id}");
+        $list = $this->lastMessageTo(self::STAFF);
+        $rows = $list['interactive']['action']['sections'][0]['rows'];
+        $this->assertLessThanOrEqual(10, count($rows));
+        $this->assertSame('list', $list['interactive']['type']);
+        $this->assertNotContains("stf:appt_to:{$appointment->id}:202610081100", array_column($rows, 'id'), 'the booking is not offered its own time');
+
+        $this->press("stf:appt_to:{$appointment->id}:202610091530", self::STAFF, 'list_reply');
+
+        $moved = $appointment->fresh();
+        $this->assertSame('2026-10-09 15:30', $moved->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
+        $this->assertSame('booked', $moved->status);
+        $this->assertNull($moved->reminded_at);
+        $this->assertStringContainsString('Hair Studio moved your Haircut to Fri 9 Oct at 15:30', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Moved to Fri 9 Oct at 15:30', $this->lastTo(self::STAFF));
+        Bus::assertDispatched(SendAppointmentReminder::class, fn ($job) => $job->appointmentId === $appointment->id && str_contains((string) $job->dueAt, '2026-10-09T10:30'));
+    }
+
+    public function test_moving_to_a_time_that_was_just_taken_changes_nothing_and_offers_new_times(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+        $this->say('book haircut 2026-10-09 15:30', '+96170999111'); // someone else takes it
+
+        $this->press("stf:appt_to:{$appointment->id}:202610091530", self::STAFF, 'list_reply');
+
+        $this->assertSame('2026-10-08 11:00', $appointment->fresh()->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
+        $this->assertStringContainsString('just taken', $this->lastMessageTo(self::STAFF)['interactive']['body']['text']);
+    }
+
+    public function test_a_booking_can_be_moved_to_an_overlapping_time_of_its_own(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut('2026-10-08 11:00'); // a 30 minute service: 11:00-11:30
+
+        $this->press("stf:appt_to:{$appointment->id}:202610081130", self::STAFF, 'list_reply');
+
+        $this->assertSame('2026-10-08 11:30', $appointment->fresh()->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
+    }
+
+    public function test_a_reminder_queued_for_the_old_time_is_dropped_after_a_move(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+        $oldDue = $appointment->starts_at->copy()->subMinutes(120)->toIso8601String();
+        $this->press("stf:appt_to:{$appointment->id}:202610091530", self::STAFF, 'list_reply');
+        Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
+
+        (new SendAppointmentReminder($appointment->id, $oldDue))->handle();
+
+        $this->assertNull($appointment->fresh()->reminded_at, 'the old reminder did nothing');
+    }
+
+    public function test_the_customer_hears_about_a_cancellation_by_template_after_two_days(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_c_booking_cancelled_shop_en'] = ['status' => 'APPROVED'];
+        $this->settings(['bot' => $bot]);
+
+        Carbon::setTestNow(now()->addDays(2));
+        $this->staffWroteToShop($this->merchant, self::STAFF);
+        $this->press("stf:appt_cancel:{$appointment->id}");
+
+        $sent = collect(Http::recorded()->map(fn ($p) => $p[0])->all())
+            ->last(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96170123456' && $r['type'] === 'template');
+        $this->assertSame('neotalab_c_booking_cancelled_shop_en', $sent['template']['name']);
+        $this->assertSame(['Hair Studio', 'Haircut', 'Thu 8 Oct', '11:00'], array_column($sent['template']['components'][0]['parameters'], 'text'));
+    }
+
+    public function test_the_team_asks_for_the_days_bookings(): void
+    {
+        $this->team();
+        $this->say('book haircut 2026-10-06 15:00'); // "today" in this test is Tuesday 6 October 08:00
+        $this->say('book haircut 2026-10-07 11:00', '+96170999111');
+
+        $this->say('today', self::STAFF);
+        $this->assertStringContainsString('Bookings today', $this->lastTo(self::STAFF));
+        $this->assertStringContainsString('15:00 · Haircut', $this->lastTo(self::STAFF));
+        $this->assertStringNotContainsString('11:00', $this->lastTo(self::STAFF));
+
+        $this->say('tomorrow', self::STAFF);
+        $this->assertStringContainsString('11:00 · Haircut', $this->lastTo(self::STAFF));
+
+        Appointment::query()->withoutGlobalScopes()->update(['status' => 'cancelled']);
+        $this->say('today', self::STAFF);
+        $this->assertStringContainsString('No bookings today', $this->lastTo(self::STAFF));
+    }
+
+    public function test_a_customer_cannot_use_the_team_buttons(): void
+    {
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_cancel:{$appointment->id}", self::CUSTOMER);
+
+        $this->assertSame('booked', $appointment->fresh()->status);
+    }
+
+    // ── a shop with no staff: the owner does it themselves ───────────────────
+
+    private function ownerNumber(): string
+    {
+        return $this->merchant->fresh()->settings['ops_whatsapp'] ?? '+96171000999';
+    }
+
+    private function aloneShop(): void
+    {
+        $this->merchant->update(['whatsapp_number' => '+96171000999', 'phone' => '+96171000999', 'settings' => array_merge($this->merchant->fresh()->settings, ['ops_whatsapp' => '+96171000999'])]);
+        $this->staffWroteToShop($this->merchant, '+96171000999');
+    }
+
+    public function test_a_shop_without_staff_sends_the_booking_ticket_to_its_owner(): void
+    {
+        $this->aloneShop();
+
+        $this->bookedHaircut();
+
+        $ticket = $this->lastMessageTo('+96171000999');
+        $this->assertStringContainsString('New booking', $ticket['interactive']['body']['text']);
+        $this->assertCount(3, $ticket['interactive']['action']['buttons']);
+    }
+
+    public function test_the_owner_of_a_shop_without_staff_cancels_and_moves_from_their_own_phone(): void
+    {
+        $this->aloneShop();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_to:{$appointment->id}:202610091530", '+96171000999', 'list_reply');
+        $this->assertSame('2026-10-09 15:30', $appointment->fresh()->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
+        $this->assertStringContainsString('moved your Haircut', $this->lastTo(self::CUSTOMER));
+
+        $this->press("stf:appt_cancel:{$appointment->id}", '+96171000999');
+        $this->assertSame('cancelled', $appointment->fresh()->status);
+
+        $this->say('today', '+96171000999');
+        $this->assertStringContainsString('No bookings today', $this->lastTo('+96171000999'));
+    }
+
+    public function test_the_owner_number_is_still_an_ordinary_customer_for_everything_else(): void
+    {
+        $this->aloneShop();
+
+        $this->say('slots haircut 2026-10-06', '+96171000999');
+
+        $this->assertStringContainsString('Free times for Haircut', $this->lastTo('+96171000999'), 'not taken for staff: only booking buttons and "today" are');
+    }
+
+    public function test_a_shop_with_staff_does_not_turn_its_owner_number_into_staff(): void
+    {
+        $this->aloneShop();
+        $this->team();
+        $appointment = $this->bookedHaircut();
+
+        $this->press("stf:appt_cancel:{$appointment->id}", '+96171000999');
+
+        $this->assertSame('booked', $appointment->fresh()->status);
+    }
 }
