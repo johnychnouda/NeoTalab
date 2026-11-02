@@ -278,6 +278,37 @@ class AppointmentTest extends TestCase
         $this->assertSame(['Hair Studio', 'Haircut', 'Fri 9 Oct', '11:00', '+96170123456'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 
+    public function test_a_free_service_can_be_booked_and_the_confirmation_says_free(): void
+    {
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Table', 'price' => 0, 'duration_mins' => 60]);
+
+        $this->say('book table 2026-10-08 12:00');
+
+        $reply = $this->lastTo(self::CUSTOMER);
+        $this->assertStringContainsString('Booked: Table on', $reply);
+        $this->assertStringContainsString('(free)', $reply);
+        $this->assertSame(1, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+    }
+
+    public function test_cancelling_an_order_that_does_not_exist_cancels_the_only_booking_instead(): void
+    {
+        $this->say('book haircut 2026-10-08 11:00');
+        $this->assertSame(1, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+
+        // The assistant sometimes takes "cancel my appointment" for an order; a booking shop's customer has no order.
+        $this->say('cancel order');
+
+        $this->assertStringContainsString('has been cancelled', $this->lastTo(self::CUSTOMER));
+        $this->assertSame(0, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+    }
+
+    public function test_cancelling_with_neither_an_order_nor_a_booking_still_says_there_is_nothing(): void
+    {
+        $this->say('cancel order');
+
+        $this->assertStringContainsString('no open order', $this->lastTo(self::CUSTOMER));
+    }
+
     public function test_services_cannot_be_put_in_the_cart(): void
     {
         $this->say('add 1 haircut');

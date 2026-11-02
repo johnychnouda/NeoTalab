@@ -102,6 +102,20 @@ class CatalogTest extends TestCase
             ->assertOk()->assertJsonPath('data.is_orderable', false);
     }
 
+    public function test_a_bookable_service_may_be_free_but_a_product_may_not(): void
+    {
+        [$merchant, $owner] = $this->merchantWithUser();
+        $token = $this->tokenFor($owner);
+
+        $id = $this->withToken($token)->postJson('/api/v1/products', ['name' => 'Table for four', 'price' => 0, 'duration_mins' => 90])
+            ->assertCreated()->json('data.id');
+        $this->withToken($token)->postJson('/api/v1/products', ['name' => 'Free sample', 'price' => 0])->assertStatus(422)->assertJsonValidationErrorFor('price');
+
+        $this->withToken($token)->patchJson("/api/v1/products/{$id}", ['price' => 0])->assertOk();
+        $other = Product::factory()->forMerchant($merchant)->create(['price' => 4.5]);
+        $this->withToken($token)->patchJson("/api/v1/products/{$other->id}", ['price' => 0])->assertStatus(422)->assertJsonValidationErrorFor('price');
+    }
+
     public function test_validation_rules(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();

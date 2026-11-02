@@ -48,3 +48,6 @@ pending); these were tested with stand-ins only.
 3. Deposits (salons, made-to-order, repairs): medium; needs Whish partial payments.
 4. Substitution rule for groceries: small-medium.
 5. Wholesale tiers, multi-branch, digital: large; only with paying demand.
+
+## Bookings on other shop types (2 November 2026, lab `s27`, real AI, EN/AR/FR)
+Car wash, photographer, tutor, garage, phone repair (orders + bookings), pet grooming (orders + bookings), restaurant tables (orders + bookings) and spa each got one bookable service. Free times, booking, booking up to the shop's capacity, refusing one more, cancelling and (for shops that do both) ordinary orders all worked, except: (1) cancelling was sometimes taken for an order (D39), (2) a free service could not be saved (D40), (3) a customer who writes the service, date and time in one message often gets the free times first and must pick the time, one extra step, and in 2 of 8 shops the second message was not understood either (the real AI is not deterministic here). Not tested: reminders in the lab, staff notices (the lab shops have no staff), deposits, job stages, staff cancelling or moving bookings (not built).

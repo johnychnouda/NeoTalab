@@ -341,6 +341,11 @@ class ConversationService
             ->first();
 
         if (! $order) {
+            // A booking shop's customer who says "cancel" (the assistant took it for an order) means the booking.
+            if ($this->appointments->allUpcomingFor($conversation->customer)->isNotEmpty()) {
+                return $this->cancelAppointment($conversation);
+            }
+
             return __('whatsapp.checkout.cancel_none', [], $locale);
         }
 
@@ -515,7 +520,8 @@ class ConversationService
 
         return __('whatsapp.appointment.booked', [
             'service' => $this->serviceLabel($appointment->service_name, $appointment->provider, $locale), 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i'),
-            'price' => Money::format((float) $appointment->price, $merchant->currency), 'shop' => $merchant->name,
+            'price' => (float) $appointment->price > 0 ? Money::format((float) $appointment->price, $merchant->currency) : __('whatsapp.appointment.free', [], $locale),
+            'shop' => $merchant->name,
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
         ], $locale);
     }

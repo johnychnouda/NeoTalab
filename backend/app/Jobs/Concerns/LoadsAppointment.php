@@ -39,7 +39,9 @@ trait LoadsAppointment
                 : $appointment->service_name,
             'date' => $local->locale($locale ?? $merchant->locale ?? 'en')->isoFormat('ddd D MMM'),
             'time' => $local->format('H:i'),
-            'price' => Money::format((float) $appointment->price, $merchant->currency),
+            'price' => (float) $appointment->price > 0
+                ? Money::format((float) $appointment->price, $merchant->currency)
+                : __('whatsapp.appointment.free', [], $locale ?? $merchant->locale ?? 'en'),
             'phone' => OrderMessage::phone($appointment->customer?->phone),
         ];
     }
