@@ -2592,8 +2592,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset-field { margin-bottom: 16px; min-width: 0; }
 .sset-field:last-child { margin-bottom: 0; }
 .sset-field label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
-.sset-field input, .sset-field select { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
-.sset-field input:focus, .sset-field select:focus { border-color: var(--green); }
+.sset-field input, .sset-field select, .sset-field textarea { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
+.sset-field input:focus, .sset-field select:focus, .sset-field textarea:focus { border-color: var(--green); }
+.sset-field textarea { font-family: inherit; line-height: 1.5; resize: vertical; min-height: 110px; }
 .sset-field input[aria-invalid="true"] { border-color: var(--red); }
 .sset-field input::placeholder { color: #93a59b80; }
 .sset-field.narrow input, .sset-field.narrow select { max-width: 160px; }
