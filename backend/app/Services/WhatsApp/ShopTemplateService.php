@@ -53,6 +53,9 @@ class ShopTemplateService
     /** Staff: a customer rated an order 1 to 3. */
     public const LOW_RATING = 'neotalab_low_rating';
 
+    /** Staff: an accepted job, with buttons to move it to the next stage. */
+    public const JOB_CARD = 'neotalab_job_card';
+
     /** Staff: a customer asked for a price. */
     public const QUOTE_REQUEST = 'neotalab_quote_request';
 
@@ -143,6 +146,11 @@ class ShopTemplateService
             self::LOW_RATING => [
                 'body' => 'Order #{{1}} at {{2}} was rated {{3}} out of 5 by {{4}}. Please call the customer to find out what went wrong.',
                 'example' => ['57', 'Beirut Bites', '2', '+96170123456'],
+            ],
+            self::JOB_CARD => [
+                'body' => 'Job #{{1}} at {{2}}: {{3}}. Stage: {{4}}. Use the buttons to move it to the next stage, see all stages, or mark it ready.',
+                'example' => ['57', 'Beirut Garage', '1× Brake pads · Total 80.00 USD (cash) · +96170123456', 'Car received'],
+                'buttons' => ['Next stage', 'All stages', 'Ready / on its way'],
             ],
             self::QUOTE_REQUEST => [
                 'body' => 'New price request #{{1}} at {{2}} from {{3}}: {{4}}. To answer, send: quote {{5}}, then the price and what the job is.',

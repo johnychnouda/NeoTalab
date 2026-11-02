@@ -143,6 +143,11 @@ class ChatMenu
             default => __('whatsapp.track.preparing', ['number' => $order->number, 'when' => $when], $locale),
         };
 
+        if ($order->job_stage !== null && ! in_array($order->status, ['delivered', 'cancelled', 'rejected'], true)
+            && ($stage = app(JobStageService::class)->current($merchant, $order))) {
+            $text .= "\n".__('whatsapp.track.stage', ['stage' => $stage], $locale);
+        }
+
         return in_array($order->status, ['delivered', 'cancelled', 'rejected'], true)
             ? $this->text($text)
             : self::withStatusButton($order, $text, $locale);

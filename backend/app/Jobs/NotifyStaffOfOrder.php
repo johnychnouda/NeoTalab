@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
+use App\Services\JobStageService;
 use App\Services\OrderConfirmation;
 use App\Services\OrderTiming;
 use App\Services\WhatsApp\ShopTemplateService;
@@ -79,10 +80,19 @@ class NotifyStaffOfOrder implements ShouldQueue
             $body = implode("\n", $lines);
         }
 
-        $buttons = array_map(fn ($b) => ["{$b[0]}:{$order->id}", $b[1]], $buttons);
+        $recipients = $messenger->staff($merchant);
+        if ($waiting || $this->reminder || ! app(JobStageService::class)->enabled($merchant)) {
+            $buttons = array_map(fn ($b) => ["{$b[0]}:{$order->id}", $b[1]], $buttons);
+        } else {
+            // A shop that works in stages gets a job card instead: where the job is, and buttons to move it on.
+            // With no staff the owner gets it (a lone owner works the job from their own phone).
+            $card = app(JobStageService::class)->card($merchant, $order, $locale);
+            [$body, $buttons, $template, $templateParams] = [$card['text'], $card['buttons'], ShopTemplateService::JOB_CARD, $card['template_params']];
+            $recipients = $messenger->managers($merchant);
+        }
 
         $reached = false;
-        foreach ($messenger->staff($merchant) as $member) {
+        foreach ($recipients as $member) {
             $reached = $messenger->send($merchant, $member, $body, $buttons, $template, $templateParams) || $reached;
         }
 

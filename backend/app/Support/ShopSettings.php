@@ -35,6 +35,8 @@ final class ShopSettings
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
         'scheduled_orders' => [false, 'bool'], // customers pick a delivery/pickup day and time (florists, cakes)
         'gift_orders' => [false, 'bool'],      // customers can send it to someone else, with a card message
+        'job_stages' => [[], 'array'],         // repairs and custom work: the steps of a job, shown to the customer (max 8)
+        'deposit_percent' => [0, 'int'],       // bookings: this share of the price is paid by Whish to hold the time; 0 = off
         'quotes' => [false, 'bool'],           // repair / custom work: the customer asks for a price, the shop sends it
     ];
 
@@ -59,6 +61,24 @@ final class ShopSettings
         $number = trim((string) ($this->settings['whish']['number'] ?? ''));
 
         return $number === '' ? null : $number;
+    }
+
+    /** The steps of a job ("Car received", "Work in progress", "Ready for pickup"), in order; empty = the shop does not use them. */
+    public function jobStages(): array
+    {
+        $stages = $this->get('job_stages');
+
+        return is_array($stages)
+            ? array_slice(array_values(array_filter(array_map(fn ($s) => mb_substr(trim(preg_replace('/\s+/u', ' ', (string) $s)), 0, 40), $stages), fn ($s) => $s !== '')), 0, 8)
+            : [];
+    }
+
+    /** The share (5–100) of a booking's price paid up front, or 0 when deposits are off. */
+    public function depositPercent(): int
+    {
+        $percent = (int) $this->get('deposit_percent');
+
+        return $percent >= 5 && $percent <= 100 ? $percent : 0;
     }
 
     public function scheduledOrders(): bool
@@ -213,6 +233,9 @@ final class ShopSettings
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
             'scheduled_orders' => ['sometimes', 'boolean'],
             'gift_orders' => ['sometimes', 'boolean'],
+            'job_stages' => ['sometimes', 'nullable', 'array', 'max:8'],
+            'job_stages.*' => ['nullable', 'string', 'max:40'],
+            'deposit_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'quotes' => ['sometimes', 'boolean'],
         ];
     }

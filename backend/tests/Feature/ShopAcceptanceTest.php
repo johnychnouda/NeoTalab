@@ -681,4 +681,149 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString("can't open photos", $this->lastTo(self::CUSTOMER)['text']);
         $this->assertNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->value('bot_paused_until'));
     }
+
+    // ── job stages ──────────────────────────────────────────────────────────
+
+    private function stagedShop(): void
+    {
+        $this->settings(['job_stages' => ['Car received', 'Work in progress', 'Ready for pickup']]);
+    }
+
+    /** An order the shop accepted (the staff tapped Accept). */
+    private function acceptedOrder(): Order
+    {
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}");
+
+        return $order->fresh();
+    }
+
+    /** @return array<string, mixed> the last raw message sent to the phone */
+    private function lastRaw(string $phone): array
+    {
+        return Http::recorded()->map(fn ($p) => $p[0])
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === ltrim($phone, '+'))->last()?->data() ?? [];
+    }
+
+    public function test_a_shop_with_job_stages_gets_a_job_card_when_it_accepts(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+
+        $card = $this->lastRaw(self::STAFF);
+        $this->assertStringContainsString('Job #1', $card['interactive']['body']['text']);
+        $this->assertStringContainsString('Stage: not started', $card['interactive']['body']['text']);
+        $this->assertSame(["stf:job_next:{$order->id}", "stf:job_pick:{$order->id}", "stf:picked_up:{$order->id}"],
+            array_column(array_column($card['interactive']['action']['buttons'], 'reply'), 'id'));
+    }
+
+    public function test_next_stage_moves_the_job_on_tells_the_customer_and_shows_in_tracking(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+
+        $this->tap("stf:job_next:{$order->id}");
+        $this->assertSame(0, $order->fresh()->job_stage);
+        $this->assertStringContainsString('Update on your order #1 at Beirut Bites: Car received', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertStringContainsString('Stage: Car received', $this->lastRaw(self::STAFF)['interactive']['body']['text']);
+
+        $this->tap("stf:job_next:{$order->id}");
+        $this->assertSame(1, $order->fresh()->job_stage);
+
+        $this->customerTaps("trk:{$order->id}");
+        $this->assertStringContainsString('Job stage: Work in progress', $this->lastTo(self::CUSTOMER)['text']);
+    }
+
+    public function test_at_the_last_stage_next_stage_answers_that_there_is_none(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+        $order->forceFill(['job_stage' => 2])->save();
+
+        $this->tap("stf:job_next:{$order->id}");
+
+        $this->assertSame(2, $order->fresh()->job_stage);
+        $this->assertStringContainsString('already at its last stage', $this->lastTo(self::STAFF)['text']);
+    }
+
+    public function test_all_stages_lists_them_and_a_pick_moves_the_job_there(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+
+        $this->tap("stf:job_pick:{$order->id}");
+        $list = $this->lastRaw(self::STAFF);
+        $this->assertSame('list', $list['interactive']['type']);
+        $this->assertSame(["stf:job_set:{$order->id}:0", "stf:job_set:{$order->id}:1", "stf:job_set:{$order->id}:2"],
+            array_column($list['interactive']['action']['sections'][0]['rows'], 'id'));
+
+        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'list_reply', 'list_reply' => ['id' => "stf:job_set:{$order->id}:2", 'title' => 'x']]], self::STAFF);
+        $this->assertSame(2, $order->fresh()->job_stage);
+        $this->assertStringContainsString('Ready for pickup', $this->lastTo(self::CUSTOMER)['text']);
+    }
+
+    public function test_a_closed_order_cannot_be_moved_on(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+        $order->forceFill(['status' => 'delivered'])->save();
+
+        $this->tap("stf:job_next:{$order->id}");
+
+        $this->assertNull($order->fresh()->job_stage);
+        $this->assertStringContainsString('is closed', $this->lastTo(self::STAFF)['text']);
+    }
+
+    public function test_a_shop_without_stages_is_not_changed(): void
+    {
+        $order = $this->acceptedOrder();
+
+        $this->assertStringNotContainsString('Job #', $this->lastRaw(self::STAFF)['interactive']['body']['text'] ?? '');
+        $this->tap("stf:job_next:{$order->id}");
+        $this->assertNull($order->fresh()->job_stage);
+    }
+
+    public function test_the_stage_update_reaches_the_customer_by_template_after_two_days(): void
+    {
+        $this->stagedShop();
+        $this->approveCustomerTemplates(CustomerTemplates::JOB_STAGE);
+        $order = $this->acceptedOrder();
+        $this->travel(2)->days();
+        $this->staffWroteAt(now()->subMinute());
+
+        $this->tap("stf:job_next:{$order->id}");
+
+        $this->assertSame(['neotalab_c_job_stage_en', ['1', 'Beirut Bites', 'Car received']], $this->customerTemplate());
+    }
+
+    public function test_the_job_card_reaches_staff_out_of_the_window_as_the_template_with_three_buttons(): void
+    {
+        $this->stagedShop();
+        $order = $this->acceptedOrder();
+        WhatsAppMessage::query()->withoutGlobalScopes()->where('from_number', self::STAFF)->delete(); // the Accept tap was a recent message
+        $this->staffOutsideTheWindow(ShopTemplateService::JOB_CARD);
+
+        NotifyStaffOfOrder::dispatchSync($order->id);
+
+        $sent = $this->lastTemplateTo(self::STAFF);
+        $this->assertSame(ShopTemplateService::JOB_CARD, $sent['template']['name']);
+        $this->assertSame(['1', 'Beirut Bites'], array_slice(array_column($sent['template']['components'][0]['parameters'], 'text'), 0, 2));
+        $this->assertCount(3, array_filter($sent['template']['components'], fn ($c) => $c['type'] === 'button'));
+    }
+
+    public function test_a_shop_without_staff_gives_the_job_card_to_its_owner_who_moves_the_job_on(): void
+    {
+        $this->stagedShop();
+        Driver::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->delete();
+        $this->merchant->update(['whatsapp_number' => '+96171000999', 'phone' => '+96171000999', 'settings' => array_merge($this->merchant->fresh()->settings, ['ops_whatsapp' => '+96171000999'])]);
+        $this->staffWroteToShop($this->merchant, '+96171000999');
+
+        $order = $this->order(); // no staff: the bot accepts it itself, and the owner gets the job card
+        $card = $this->lastRaw('+96171000999');
+        $this->assertStringContainsString('Job #1', $card['interactive']['body']['text'] ?? '');
+
+        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "stf:job_next:{$order->id}", 'title' => 'x']]], '+96171000999');
+        $this->assertSame(0, $order->fresh()->job_stage);
+        $this->assertStringContainsString('Car received', $this->lastTo(self::CUSTOMER)['text']);
+    }
 }

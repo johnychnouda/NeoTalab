@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Quote;
 use App\Services\AppointmentService;
 use App\Services\DriverDispatcher;
+use App\Services\JobStageService;
 use App\Services\OrderConfirmation;
 use App\Services\OrderService;
 use App\Services\OrderTiming;
@@ -59,7 +60,7 @@ class DriverBotService
         $to = $driver->whatsapp_number ?: $driver->phone;
 
         if ($driver->role === 'staff') {
-            if ($this->manageBookings($merchant, $to, $msg, $locale)) {
+            if ($this->manageBookings($merchant, $to, $msg, $locale) || $this->manageJobs($merchant, $to, $msg, $locale)) {
                 return;
             }
             $this->reply($merchant, $to, $this->handleStaff($merchant, $msg, $locale));
@@ -118,7 +119,9 @@ class DriverBotService
     {
         $id = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['interactive']['list_reply']['id'] ?? $msg['button']['payload'] ?? '');
 
-        return str_starts_with($id, 'stf:appt_') || $this->bookingDay((string) ($msg['text']['body'] ?? '')) !== null;
+        // A lone owner may also move a job on and mark an order ready: those buttons are only ever sent to them.
+        return preg_match('/^stf:(appt_|job_|ready:|picked_up:|delivered:)/', $id) === 1
+            || $this->bookingDay((string) ($msg['text']['body'] ?? '')) !== null;
     }
 
     /** "today" / "tomorrow" (or "bookings") in the shop's three languages: which day's bookings are asked for. */
@@ -207,6 +210,66 @@ class DriverBotService
                 $this->reply($merchant, $to, __('whatsapp.appointment.staff_moved_ok', ['phone' => $params['phone']] + $when($locale), $locale));
                 break;
         }
+
+        return true;
+    }
+
+    /**
+     * Job stages from WhatsApp: Next stage, the list of all stages, and a pick from it. The customer is told at each step.
+     *
+     * @param  array<string, mixed>  $msg
+     * @return bool whether the message was a job one (and has been answered)
+     */
+    protected function manageJobs(Merchant $merchant, string $to, array $msg, string $locale): bool
+    {
+        $id = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['interactive']['list_reply']['id'] ?? $msg['button']['payload'] ?? '');
+        if (! preg_match('/^stf:job_(next|pick|set):([^:]+)(?::(\d+))?$/', $id, $m)) {
+            return false;
+        }
+
+        $jobs = app(JobStageService::class);
+        $order = Order::query()->with('customer')->whereKey($m[2])->first();
+        if (! $order || ! $jobs->enabled($merchant)) {
+            $this->reply($merchant, $to, __('whatsapp.driver.not_yours', [], $locale));
+
+            return true;
+        }
+        if (in_array($order->status, ['placed', 'pending_payment', 'delivered', 'cancelled', 'rejected'], true)) {
+            $this->reply($merchant, $to, __('whatsapp.staff.job_closed', ['number' => $order->number], $locale));
+
+            return true;
+        }
+
+        if ($m[1] === 'pick') {
+            $stages = $jobs->stages($merchant);
+            $rows = [];
+            foreach ($stages as $i => $name) {
+                $rows[] = ['id' => "stf:job_set:{$order->id}:{$i}", 'title' => mb_substr(($order->job_stage === $i ? '✓ ' : '').$name, 0, 24)];
+            }
+            $button = mb_substr(__('whatsapp.staff.job_pick_button', [], $locale), 0, 20);
+            $this->send($merchant, $to, ['type' => 'interactive', 'interactive' => [
+                'type' => 'list',
+                'body' => ['text' => mb_substr(__('whatsapp.staff.job_pick_prompt', ['number' => $order->number, 'stage' => $jobs->current($merchant, $order) ?? __('whatsapp.staff.job_not_started', [], $locale)], $locale), 0, 1024)],
+                'action' => ['button' => $button, 'sections' => [['title' => mb_substr($button, 0, 24), 'rows' => $rows]]],
+            ]]);
+
+            return true;
+        }
+
+        $target = $m[1] === 'set' ? (int) ($m[3] ?? -1) : null;
+        if (! $jobs->move($merchant, $order, $target)) {
+            $this->reply($merchant, $to, __('whatsapp.staff.job_last', ['number' => $order->number], $locale));
+
+            return true;
+        }
+
+        $order->refresh();
+        $this->reply($merchant, $to, __('whatsapp.staff.job_moved', ['number' => $order->number, 'stage' => $jobs->current($merchant, $order)], $locale));
+        $card = $jobs->card($merchant, $order, $locale);
+        $this->send($merchant, $to, ['type' => 'interactive', 'interactive' => [
+            'type' => 'button', 'body' => ['text' => mb_substr($card['text'], 0, 1024)],
+            'action' => ['buttons' => array_map(fn ($b) => ['type' => 'reply', 'reply' => ['id' => $b[0], 'title' => mb_substr($b[1], 0, 20)]], $card['buttons'])],
+        ]]);
 
         return true;
     }

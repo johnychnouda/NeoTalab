@@ -34,6 +34,7 @@ class Order extends Model
         'rating',
         'rated_at',
         'status',
+        'job_stage',
         'fulfillment',
         'subtotal',
         'delivery_fee',

@@ -30,6 +30,9 @@ class CustomerTemplates
 
     public const BOOKING_MOVED = 'booking_moved';
 
+    /** A repair or custom job moved to its next step. */
+    public const JOB_STAGE = 'job_stage';
+
     public const OUTSIDE = 'order_outside';
 
     public const DELIVERED = 'order_delivered';
@@ -180,6 +183,11 @@ class CustomerTemplates
                 'en' => ['Good news! {{1}} moved your {{2}} to {{3}} at {{4}}. If that does not suit you, please write to us in this chat.', ['Glow Salon', 'Haircut', 'Thu 15 Oct', '16:00']],
                 'ar' => ['أخبار سارة! نقل {{1}} موعد {{2}} إلى {{3}} الساعة {{4}}. إذا كان لا يناسبك، يرجى مراسلتنا في هذه المحادثة.', ['صالون جلو', 'قص شعر', 'الخميس 15 تشرين الأول', '16:00']],
                 'fr' => ['Bonne nouvelle ! {{1}} a déplacé votre {{2}} au {{3}} à {{4}}. Si cela ne vous convient pas, écrivez-nous dans cette conversation.', ['Glow Salon', 'Coupe', 'jeudi 15 octobre', '16h00']],
+            ],
+            self::JOB_STAGE => [
+                'en' => ['Update on your order #{{1}} from {{2}}: {{3}}. We will keep you posted in this chat.', ['128', 'Beirut Garage', 'Work in progress']],
+                'ar' => ['تحديث بخصوص طلبك رقم {{1}} من {{2}}: {{3}}. سنبقيك على اطلاع في هذه المحادثة.', ['128', 'كراج بيروت', 'العمل جارٍ']],
+                'fr' => ['Mise à jour de votre commande n° {{1}} chez {{2}} : {{3}}. Nous vous tiendrons informé dans cette conversation.', ['128', 'Garage Beyrouth', 'Travail en cours']],
             ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],
