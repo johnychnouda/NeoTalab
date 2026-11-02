@@ -22,6 +22,7 @@ use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
 use App\Services\AI\ReplyFigures;
 use App\Support\CheckoutException;
+use App\Support\ClockTime;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
@@ -187,7 +188,7 @@ class ConversationService
             RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
             RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
             RecommendedAction::Handoff => [$this->handoff($conversation), null],
-            RecommendedAction::CheckAvailability => [$this->availability($conversation, $output->appointment ?? []), null],
+            RecommendedAction::CheckAvailability => [$this->availabilityOrBooking($conversation, $output->appointment ?? [], $message), null],
             RecommendedAction::BookAppointment => [$this->bookAppointment($conversation, $output->appointment ?? []), null],
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [$this->withoutMadeUpPrice(Money::fromAiText($output->assistantMessage), $message, $input, $cart, $language, $conversation), null],
@@ -450,6 +451,24 @@ class ConversationService
         NotifyStaffOfHandoff::dispatch($conversation->customer_id)->afterCommit();
 
         return __('whatsapp.checkout.handoff', ['shop' => $merchant->name], $conversation->customer->locale ?? 'en');
+    }
+
+    /**
+     * The assistant answers "book X tomorrow at 10:00" with a list of free times about half the time. A customer who
+     * names the service, the day and one time, without asking a question, is booked at once (the server still checks
+     * that the slot is free and says so when it is not); a question ("is 10:00 free?") still gets the list.
+     *
+     * @param  array<string, mixed>  $req  service_id, date
+     */
+    private function availabilityOrBooking(Conversation $conversation, array $req, string $message): string
+    {
+        $time = empty($req['time']) ? ClockTime::fromText($message) : null;
+        if ($time !== null && ! empty($req['service_id']) && ! str_contains($message, '?') && ! str_contains($message, '؟')) {
+            // The time read from the message goes first: the assistant's own request carries time: null.
+            return $this->bookAppointment($conversation, ['time' => $time] + $req);
+        }
+
+        return $this->availability($conversation, $req);
     }
 
     /**

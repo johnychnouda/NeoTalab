@@ -278,6 +278,40 @@ class AppointmentTest extends TestCase
         $this->assertSame(['Hair Studio', 'Haircut', 'Fri 9 Oct', '11:00', '+96170123456'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 
+    public function test_a_customer_who_names_service_day_and_time_is_booked_at_once_even_when_the_assistant_answers_with_the_list(): void
+    {
+        $this->say('ask haircut 2026-10-08 at 11:00 please');
+
+        $this->assertStringContainsString('Booked: Haircut on', $this->lastTo(self::CUSTOMER));
+        $this->assertSame(['2026-10-08 11:00'], Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->get()
+            ->map(fn ($a) => $a->starts_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'))->all());
+    }
+
+    public function test_a_question_about_a_time_still_gets_the_list_not_a_booking(): void
+    {
+        $this->say('ask haircut 2026-10-08 is 11:00 free?');
+
+        $this->assertStringContainsString('Free times for Haircut', $this->lastTo(self::CUSTOMER));
+        $this->assertSame(0, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+    }
+
+    public function test_a_day_without_a_time_gets_the_list(): void
+    {
+        $this->say('ask haircut 2026-10-08');
+
+        $this->assertStringContainsString('Free times for Haircut', $this->lastTo(self::CUSTOMER));
+        $this->assertSame(0, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+    }
+
+    public function test_a_time_that_is_taken_is_not_double_booked_by_the_shortcut(): void
+    {
+        $this->say('book haircut 2026-10-08 11:00');
+        $this->say('ask haircut 2026-10-08 at 11:00 please', '+96170999111');
+
+        $this->assertStringContainsString('just taken', $this->lastTo('+96170999111'));
+        $this->assertSame(1, Appointment::query()->withoutGlobalScopes()->where('status', 'booked')->count());
+    }
+
     public function test_a_free_service_can_be_booked_and_the_confirmation_says_free(): void
     {
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Table', 'price' => 0, 'duration_mins' => 60]);

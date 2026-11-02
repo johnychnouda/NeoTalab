@@ -47,6 +47,19 @@ class FakeChatProvider implements ChatProvider
             );
         }
 
+        // "ask haircut 2026-10-06 at 10:30 please": the real model's habit of answering a booking with the list of free times
+        // (check_availability, no time) even when the customer named one.
+        if (preg_match('/^ask (.+?) (\d{4}-\d{2}-\d{2})\b/u', $text, $m)) {
+            $service = collect($input->shop['services'] ?? [])->first(fn ($s) => mb_strtolower($s['name']) === trim($m[1]));
+
+            return new StructuredTurnOutput(
+                intent: ConversationIntent::Order, confidence: 0.9, entities: [], cartActions: [],
+                conversationState: ['phase' => $input->conversationPhase], missingFields: [],
+                recommendedAction: RecommendedAction::CheckAvailability, assistantMessage: '',
+                appointment: ['service_id' => $service['id'] ?? null, 'date' => $m[2], 'time' => null, 'provider_id' => null],
+            );
+        }
+
         if (preg_match('/^(checkout|done|that\'s all)$/u', $text)) {
             return $this->action($input, RecommendedAction::Checkout, ConversationIntent::Order);
         }
