@@ -106,7 +106,9 @@ class PlatformLifecycleTemplatesTest extends TestCase
             }
         }
         $this->assertSame('Open my dashboard', $defs[PlatformTemplateService::WELCOME]['button_text'] ?? 'Open my dashboard');
-        $this->assertTrue($defs['neotalab_welcome_v4_ar']['login_button']);
+        $this->assertTrue($defs['neotalab_welcome_v5_ar']['login_button']);
+        $this->assertArrayNotHasKey('neotalab_welcome_v4_ar', $defs, 'the rejected name is not sent again');
+        $this->assertStringNotContainsString('الدخول', $defs['neotalab_welcome_v5_ar']['text'], 'no "login" wording: Meta refused it');
         $this->assertArrayHasKey('button_text', $defs['neotalab_welcome_v4_fr']);
         $this->assertSame('en', PlatformTemplateService::languageOf(PlatformTemplateService::PAID));
     }

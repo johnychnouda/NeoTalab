@@ -43,10 +43,18 @@ class PlatformTemplateService
     /** Languages the shop-owner templates exist in besides English (a template of its own: name_ar, name_fr). */
     public const LANGUAGES = ['ar', 'fr'];
 
+    /**
+     * A template Meta rejected cannot be sent again under its name, so its replacement gets a new one.
+     * The Arabic welcome said "login details" (Meta refused every login wording): now "access details".
+     */
+    public const RENAMED = ['neotalab_welcome_v4_ar' => 'neotalab_welcome_v5_ar'];
+
     /** The name of a template in one language; English keeps the plain name. */
     public static function nameFor(string $base, string $language): string
     {
-        return $language === 'en' ? $base : "{$base}_{$language}";
+        $name = $language === 'en' ? $base : "{$base}_{$language}";
+
+        return self::RENAMED[$name] ?? $name;
     }
 
     /** @return array<string, array<string, mixed>> */
