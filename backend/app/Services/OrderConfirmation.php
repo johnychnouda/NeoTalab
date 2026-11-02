@@ -167,7 +167,10 @@ class OrderConfirmation
             'minutes' => $this->window($merchant),
         ], $locale);
 
-        $this->sendWithPaidButton($merchant, $order, $body, $locale);
+        $this->sendWithPaidButton($merchant, $order, $body, $locale, CustomerTemplates::PAY_INSTRUCTIONS, [
+            $merchant->name, (string) $order->number, StaffMessenger::oneLine(OrderMessage::paymentLine($order, $merchant)),
+            (string) ShopSettings::for($merchant)->whishNumber(), (string) $order->number, (string) $this->window($merchant),
+        ]);
 
         // The customer has this long to tap "I paid"; after that the order is cancelled.
         CheckWhishTransfer::dispatch($order->id)->delay(now()->addMinutes($this->window($merchant)));
@@ -217,7 +220,7 @@ class OrderConfirmation
 
         $messenger = app(StaffMessenger::class);
         foreach ($messenger->staff($merchant) as $member) {
-            $messenger->send($merchant, $member, $text, $buttons, ShopTemplateService::PAYMENT_CHECK, array_values($params));
+            $messenger->send($merchant, $member, $text, $buttons, ShopTemplateService::PAYMENT_CHECK, [(string) $order->number, StaffMessenger::oneLine($amount), (string) $order->customer?->phone, (string) $order->number]);
         }
     }
 
@@ -286,24 +289,28 @@ class OrderConfirmation
         $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
         $this->sendWithPaidButton($merchant, $order, __('whatsapp.checkout.whish_expired', [
             'number' => $order->number, 'eta' => $order->eta_mins, 'shop' => $merchant->name, 'when' => '',
-        ], $locale), $locale);
+        ], $locale), $locale, CustomerTemplates::PAY_EXPIRED, [(string) $order->number, $merchant->name]);
         if ($order->accepted_at) {
             $this->tellStaffUnpaid($merchant, $order);
         }
     }
 
-    /** A text to the customer with the "I paid" button under it. */
-    private function sendWithPaidButton(Merchant $merchant, Order $order, string $body, string $locale): void
+    /**
+     * A text to the customer with the "I paid" button under it; after their 24 hours, the approved template with the same button.
+     *
+     * @param  list<string>  $templateParams
+     */
+    private function sendWithPaidButton(Merchant $merchant, Order $order, string $body, string $locale, ?string $event = null, array $templateParams = []): void
     {
         try {
-            $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, ['type' => 'interactive', 'interactive' => [
+            app(CustomerMessenger::class)->send($merchant, (string) $order->customer?->phone, ['type' => 'interactive', 'interactive' => [
                 'type' => 'button',
                 'body' => ['text' => mb_substr($body, 0, 1024)],
                 'action' => ['buttons' => [['type' => 'reply', 'reply' => [
                     'id' => "wh:paid:{$order->id}",
                     'title' => mb_substr(__('whatsapp.checkout.btn_whish_paid', [], $locale), 0, 20),
                 ]]]],
-            ]]);
+            ]], $event, $templateParams, $locale, ["wh:paid:{$order->id}"]);
         } catch (\Throwable $e) {
             Log::warning('Whish message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }
@@ -342,16 +349,24 @@ class OrderConfirmation
         $order->loadMissing('customer');
         $locale = $order->customer?->locale ?? $merchant->locale ?? 'en';
 
+        $when = $key === 'whish_paid' ? $this->timing->phrase($merchant, $order, $locale) : '';
+        // The shop may check the payment a day later: the answer then goes as the approved template.
+        [$event, $params] = match ($key) {
+            'whish_paid' => [CustomerTemplates::PAY_CONFIRMED, [(string) $order->number, $merchant->name, $when]],
+            'whish_not_received' => [CustomerTemplates::PAY_NOT_RECEIVED, [(string) $order->number, $merchant->name]],
+            default => [null, []],
+        };
+
         try {
-            $this->whatsapp->sendToCustomer($merchant, (string) $order->customer?->phone, [
+            app(CustomerMessenger::class)->send($merchant, (string) $order->customer?->phone, [
                 'type' => 'text',
                 'text' => __("whatsapp.checkout.{$key}", [
                     'number' => $order->number,
                     'eta' => $order->eta_mins,
                     'shop' => $merchant->name,
-                    'when' => $key === 'whish_paid' ? $this->timing->phrase($merchant, $order, $locale) : '',
+                    'when' => $when,
                 ], $locale),
-            ]);
+            ], $event, $params, $locale);
         } catch (\Throwable $e) {
             Log::warning('Whish payment message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }

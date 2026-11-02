@@ -84,6 +84,20 @@ class PlatformTemplateTexts
                     'examples' => ['Beirut Bites', 'votre essai gratuit est terminé'],
                 ],
             ],
+            PlatformTemplateService::SHOP_ACTIVE => [
+                'en' => [
+                    'text' => 'Good news! Your NeoTalab shop {{1}} is active again. Your customers can order on WhatsApp now.',
+                    'examples' => ['Beirut Bites'],
+                ],
+                'ar' => [
+                    'text' => 'أخبار سارة! متجرك {{1}} على NeoTalab يعمل من جديد. يستطيع زبائنك الطلب عبر واتساب الآن.',
+                    'examples' => ['بيروت بايتس'],
+                ],
+                'fr' => [
+                    'text' => 'Bonne nouvelle ! Votre boutique NeoTalab {{1}} est de nouveau active. Vos clients peuvent commander sur WhatsApp dès maintenant.',
+                    'examples' => ['Beirut Bites'],
+                ],
+            ],
             // The shop's own WhatsApp connection stopped working or is about to expire. {{2}} says which.
             PlatformTemplateService::WHATSAPP_DOWN => [
                 'en' => [
@@ -137,6 +151,7 @@ class PlatformTemplateTexts
         return [
             'trial' => ['en' => 'your free trial has ended', 'ar' => 'انتهت تجربتك المجانية', 'fr' => 'votre essai gratuit est terminé'],
             'overdue' => ['en' => 'your payment is overdue', 'ar' => 'تأخر دفع اشتراكك', 'fr' => 'votre paiement est en retard'],
+            'manual' => ['en' => 'your account was paused by NeoTalab', 'ar' => 'تم إيقاف حسابك من قبل NeoTalab', 'fr' => 'votre compte a été suspendu par NeoTalab'],
         ][$why][$locale] ?? 'your payment is due';
     }
 

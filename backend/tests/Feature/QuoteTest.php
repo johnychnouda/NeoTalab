@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Quote;
+use App\Models\WhatsAppMessage;
 use App\Services\QuoteService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
@@ -127,6 +128,21 @@ class QuoteTest extends TestCase
         $this->assertSame(['Quick Fix', '1', 'Screen replacement', '45.00$', '7'], array_column($sent['template']['components'][0]['parameters'], 'text'));
         $this->assertSame("qt:yes:{$this->quote()->id}", $sent['template']['components'][1]['parameters'][0]['payload']);
         $this->assertSame("qt:no:{$this->quote()->id}", $sent['template']['components'][2]['parameters'][0]['payload']);
+    }
+
+    public function test_a_price_request_reaches_staff_who_have_not_written_for_two_days_by_template(): void
+    {
+        WhatsAppMessage::query()->withoutGlobalScopes()->where('from_number', '+'.ltrim(self::STAFF, '+'))->update(['created_at' => now()->subDays(2)]);
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_quote_request'] = ['status' => 'APPROVED'];
+        $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, ['bot' => $bot])]);
+
+        $this->say('quote please: screen replacement for my iPhone 12');
+
+        $sent = Http::recorded()->map(fn ($p) => $p[0])
+            ->last(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === ltrim(self::STAFF, '+') && $r['type'] === 'template');
+        $this->assertSame('neotalab_quote_request', $sent['template']['name']);
+        $this->assertSame(['1', 'Quick Fix', '+96170123456', 'quote please: screen replacement for my iPhone 12', '1'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 
     public function test_the_price_comes_from_the_shop_never_from_the_customer_or_the_ai(): void

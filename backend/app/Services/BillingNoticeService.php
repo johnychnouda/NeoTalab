@@ -28,7 +28,7 @@ class BillingNoticeService
     /**
      * The shop was stopped, so its customers can no longer order.
      *
-     * @param  'trial'|'overdue'  $why
+     * @param  'trial'|'overdue'|'manual'  $why
      */
     public function paused(Merchant $merchant, string $why): bool
     {
@@ -36,6 +36,12 @@ class BillingNoticeService
             $merchant->name,
             PlatformTemplateTexts::pausedReason($why, $this->language($merchant)),
         ]);
+    }
+
+    /** The owner switched the shop back on: its customers can order again. */
+    public function active(Merchant $merchant): bool
+    {
+        return $this->send($merchant, PlatformTemplateService::SHOP_ACTIVE, [$merchant->name]);
     }
 
     /**

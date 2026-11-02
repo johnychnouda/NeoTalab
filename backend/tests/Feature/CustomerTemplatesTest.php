@@ -19,7 +19,8 @@ class CustomerTemplatesTest extends TestCase
     public function test_every_event_has_a_template_in_each_language(): void
     {
         $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND,
-            CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED];
+            CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED,
+            CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);
@@ -35,8 +36,9 @@ class CustomerTemplatesTest extends TestCase
         foreach (ShopTemplateService::definitions() as $name => $def) {
             preg_match_all('/\{\{(\d+)\}\}/', $def['body'], $found);
             $count = count(array_unique($found[1]));
+            $this->assertCount($count, $found[1], "{$name}: no variable is used twice (Meta wants each once)");
 
-            $this->assertSame(range(1, $count), array_map('intval', array_unique($found[1])), "{$name}: variables are numbered 1, 2, 3…");
+            $this->assertSame(range(1, $count), array_values(array_map('intval', array_unique($found[1]))), "{$name}: variables are numbered 1, 2, 3…");
             $this->assertCount($count, $def['example'], "{$name}: one example per variable");
             $this->assertLessThanOrEqual(3, count($def['buttons'] ?? []), "{$name}: Meta allows 3 quick replies");
             foreach ($def['buttons'] ?? [] as $title) {
@@ -70,7 +72,7 @@ class CustomerTemplatesTest extends TestCase
                 $this->assertSame(count($defs[$base]['buttons'] ?? []), count($defs["{$base}_{$language}"]['buttons'] ?? []), "{$base}_{$language}: same buttons as the English one");
             }
         }
-        $this->assertCount(13, StaffTemplateTexts::all(), 'all thirteen staff and owner templates are translated');
+        $this->assertCount(15, StaffTemplateTexts::all(), 'all fifteen staff and owner templates are translated');
     }
 
     public function test_the_name_falls_back_to_english_for_an_unknown_language(): void

@@ -85,7 +85,8 @@ class PlatformLifecycleTemplatesTest extends TestCase
                 continue; // Meta writes these
             }
             preg_match_all('/\{\{(\d+)\}\}/', $def['text'], $found);
-            $numbers = array_map('intval', array_unique($found[1]));
+            $this->assertCount(count(array_unique($found[1])), $found[1], "{$name}: no variable is used twice");
+            $numbers = array_values(array_map('intval', array_unique($found[1])));
             $this->assertSame(range(1, count($numbers)), $numbers, "{$name}: variables are numbered 1, 2, 3…");
             $this->assertCount(count($numbers), $def['examples'], "{$name}: one example per variable");
             $this->assertDoesNotMatchRegularExpression('/^\s*\{\{/u', $def['text'], "{$name}: no variable at the start");
@@ -166,6 +167,26 @@ class PlatformLifecycleTemplatesTest extends TestCase
 
         $this->assertSame([], $this->platformSends(), 'never plain text to someone who has not written to the number');
         $this->assertSame('suspended', $merchant->fresh()->status);
+    }
+
+    public function test_a_shop_the_owner_stops_or_restarts_by_hand_is_told_on_whatsapp(): void
+    {
+        $this->approve('neotalab_shop_paused', 'neotalab_shop_active');
+        $merchant = $this->owner('en', ['status' => 'active', 'settings' => ['subscription_status' => 'paid']]);
+        $token = $this->tokenFor($this->platformAdmin());
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['status' => 'suspended'])->assertOk();
+        $paused = $this->platformSends();
+        $this->assertCount(1, $paused);
+        $this->assertSame(['Beirut Bites', 'your account was paused by NeoTalab'], array_column($paused[0]['template']['components'][0]['parameters'], 'text'));
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['status' => 'active'])->assertOk();
+        $sent = $this->platformSends();
+        $this->assertCount(2, $sent);
+        $this->assertSame('neotalab_shop_active', $sent[1]['template']['name']);
+
+        $this->withToken($token)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['name' => 'Beirut Bites 2'])->assertOk();
+        $this->assertCount(2, $this->platformSends(), 'editing something else tells nobody');
     }
 
     // ── the shop's own WhatsApp stopped working ─────────────────────────────

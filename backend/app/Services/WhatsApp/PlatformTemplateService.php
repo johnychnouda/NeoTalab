@@ -32,6 +32,9 @@ class PlatformTemplateService
     /** A shop was stopped (trial over or payment overdue). */
     public const SHOP_PAUSED = 'neotalab_shop_paused';
 
+    /** A shop is running again (the owner switched it back on). */
+    public const SHOP_ACTIVE = 'neotalab_shop_active';
+
     /** A shop's own WhatsApp connection stopped working or is about to expire. */
     public const WHATSAPP_DOWN = 'neotalab_whatsapp_down';
 

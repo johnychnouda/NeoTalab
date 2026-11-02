@@ -130,17 +130,19 @@ NeoTalab owner. When the version in their language is not approved, English goes
 with no approved template the sender is told in Inbox → System (customers, staff) or the message is skipped (a late
 thank-you, a late scheduled-order reminder).
 
-- **From NeoTalab's number (30 templates, EN/AR/FR):** system_alert and neotalab_update (the wording around an alert;
+- **From NeoTalab's number (33 templates, EN/AR/FR):** system_alert and neotalab_update (the wording around an alert;
   the alert text itself stays English), welcome, login code, paid notice, daily report, `neotalab_shop_paused` (trial
   over or payment overdue), `neotalab_whatsapp_down` (a shop's WhatsApp stopped working or expires within 7 days;
-  `shops:check-whatsapp` runs daily at 10:20 Beirut and repeats every 3 days), `neotalab_request_received` and
+  `shops:check-whatsapp` runs daily at 10:20 Beirut and repeats every 3 days), `neotalab_shop_active` (the owner switched a
+  shop back on; stopping one by hand sends `neotalab_shop_paused` too), `neotalab_request_received` and
   `neotalab_request_declined` (one message per kind per number per day, 30 an hour overall, because the form is public).
-- **From a shop's number to its staff and owner (13, EN/AR/FR = 39):** new order, staff alert, new booking, order due,
+- **From a shop's number to its staff and owner (15, EN/AR/FR = 45):** new order, staff alert, new booking, order due,
   payment check, refund needed, billing reminder, customer cancelled, scheduled order due, booking cancelled, not
-  delivered, Whish unpaid, low rating. Button titles are translated; the button ids come from the code.
-- **From a shop's number to customers (12 events, EN/AR/FR = 36):** accepted, ready, on its way, delayed, cancelled,
+  delivered, Whish unpaid, low rating, quote request, quote declined. Button titles are translated; the button ids come from the code.
+- **From a shop's number to customers (16 events, EN/AR/FR = 48):** accepted, ready, on its way, delayed, cancelled,
   refund, booking reminder, driver outside, delivered, delivered with the rating question, quote ready (with its two
-  buttons), scheduled-order reminder.
+  buttons), scheduled-order reminder, and the Whish messages: how to pay (with "I paid"), payment confirmed, payment
+  not found, payment window closed (with "I paid").
 - A new shop starts in the language its owner used on the join page.
 - Not added, on purpose: anything promotional (Marketing costs more and needs consent); drivers (they receive deliveries
   inside the window their own "start" opens).

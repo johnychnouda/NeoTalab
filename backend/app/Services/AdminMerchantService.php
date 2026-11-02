@@ -40,6 +40,7 @@ class AdminMerchantService
     public function update(Merchant $merchant, array $payload): Merchant
     {
         $settings = $merchant->settings ?? [];
+        $statusBefore = $merchant->status;
         $feesBefore = [(float) ($settings['monthly_fee'] ?? 0), (float) ($settings['yearly_fee'] ?? 0)];
 
         // A shop becomes paid only by recording a Whish payment (SubscriptionPaymentService), never by
@@ -170,6 +171,16 @@ class AdminMerchantService
 
         $merchant->settings = $settings;
         $merchant->save();
+
+        // The owner stopped or restarted the shop by hand: its owner is told on WhatsApp (a payment has its own message).
+        if ($statusBefore !== $merchant->status) {
+            $notices = app(BillingNoticeService::class);
+            if ($merchant->status === 'suspended') {
+                $notices->paused($merchant, 'manual');
+            } elseif ($merchant->status === 'active' && $statusBefore === 'suspended') {
+                $notices->active($merchant);
+            }
+        }
 
         return $merchant->fresh();
     }

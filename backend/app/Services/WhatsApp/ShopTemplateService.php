@@ -53,6 +53,12 @@ class ShopTemplateService
     /** Staff: a customer rated an order 1 to 3. */
     public const LOW_RATING = 'neotalab_low_rating';
 
+    /** Staff: a customer asked for a price. */
+    public const QUOTE_REQUEST = 'neotalab_quote_request';
+
+    /** Staff: a customer declined a price. */
+    public const QUOTE_DECLINED = 'neotalab_quote_declined';
+
     public function __construct(protected WhatsAppService $whatsapp) {}
 
     /**
@@ -110,8 +116,8 @@ class ShopTemplateService
                 'buttons' => ['Ready / on its way', 'Delay 1 day'],
             ],
             self::PAYMENT_CHECK => [
-                'body' => 'Payment to check for order #{{1}}: {{2}} from {{3}}. Look for the note {{1}} in your Whish account. Did the money arrive? Tap Received or Not received.',
-                'example' => ['128', '12.00$', '+96170123456'],
+                'body' => 'Payment to check for order #{{1}}: {{2}} from {{3}}. Look for the note {{4}} in your Whish account. Did the money arrive? Tap Received or Not received.',
+                'example' => ['128', '12.00$', '+96170123456', '128'],
                 'buttons' => ['Received', 'Not received'],
             ],
             self::CUSTOMER_CANCELLED => [
@@ -137,6 +143,14 @@ class ShopTemplateService
             self::LOW_RATING => [
                 'body' => 'Order #{{1}} at {{2}} was rated {{3}} out of 5 by {{4}}. Please call the customer to find out what went wrong.',
                 'example' => ['57', 'Beirut Bites', '2', '+96170123456'],
+            ],
+            self::QUOTE_REQUEST => [
+                'body' => 'New price request #{{1}} at {{2}} from {{3}}: {{4}}. To answer, send: quote {{5}}, then the price and what the job is.',
+                'example' => ['12', 'Quick Fix', '+96170123456', 'Screen replacement for my iPhone 12', '12'],
+            ],
+            self::QUOTE_DECLINED => [
+                'body' => 'Quote #{{1}} at {{2}} was declined by the customer ({{3}}). No further action is needed.',
+                'example' => ['12', 'Quick Fix', '+96170123456'],
             ],
             self::REFUND_NEEDED => [
                 'body' => 'Refund needed at {{1}}: order #{{2}} was paid with Whish ({{3}}) but it was cancelled. Customer: {{4}}. Please send the money back from your Whish account.',

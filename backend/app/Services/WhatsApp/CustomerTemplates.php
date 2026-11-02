@@ -37,6 +37,16 @@ class CustomerTemplates
 
     public const SCHEDULED = 'order_scheduled';
 
+    /** The shop accepted: how to pay by Whish, with an "I paid" button. */
+    public const PAY_INSTRUCTIONS = 'pay_instructions';
+
+    public const PAY_CONFIRMED = 'pay_confirmed';
+
+    public const PAY_NOT_RECEIVED = 'pay_not_received';
+
+    /** The payment window closed: the order is cancelled, with an "I paid" button for a late payer. */
+    public const PAY_EXPIRED = 'pay_expired';
+
     public const LANGUAGES = ['en', 'ar', 'fr'];
 
     /** Whether failing to reach the customer is worth an owner alert (a late thank-you is not). */
@@ -135,6 +145,26 @@ class CustomerTemplates
                 'en' => ['Reminder: your order #{{1}} from {{2}} is scheduled for {{3}}. We are getting it ready now.', ['128', 'Flower Shop', 'Friday 10:00–12:00']],
                 'ar' => ['تذكير: طلبك رقم {{1}} من {{2}} مجدول {{3}}. نقوم بتجهيزه الآن.', ['128', 'محل الزهور', 'الجمعة 10:00–12:00']],
                 'fr' => ['Rappel : votre commande n° {{1}} chez {{2}} est prévue {{3}}. Nous la préparons maintenant.', ['128', 'Fleuriste', 'vendredi 10h00–12h00']],
+            ],
+            self::PAY_INSTRUCTIONS => [
+                'en' => ['Good news! {{1}} accepted your order #{{2}}. Please pay {{3}} to the Whish number {{4}} and write {{5}} in the Whish note. When you have paid, tap the button below. You have {{6}} minutes.', ['Beirut Bites', '128', '12.00$', '70123456', '128', '15'], ['I paid']],
+                'ar' => ['أخبار سارة! قَبِل {{1}} طلبك رقم {{2}}. يرجى دفع {{3}} إلى رقم Whish {{4}} وكتابة {{5}} في ملاحظة Whish. بعد الدفع، اضغط الزر أدناه. لديك {{6}} دقيقة.', ['بيروت بايتس', '128', '12.00$', '70123456', '128', '15'], ['دفعت']],
+                'fr' => ['Bonne nouvelle ! {{1}} a accepté votre commande n° {{2}}. Merci de payer {{3}} au numéro Whish {{4}} en écrivant {{5}} dans la note Whish. Une fois le paiement fait, appuyez sur le bouton ci-dessous. Vous avez {{6}} minutes.', ['Beirut Bites', '128', '12.00$', '70123456', '128', '15'], ["J'ai payé"]],
+            ],
+            self::PAY_CONFIRMED => [
+                'en' => ['Payment received! Your order #{{1}} from {{2}} is confirmed: {{3}}. Thank you!', ['128', 'Beirut Bites', 'arriving around 11:25 AM']],
+                'ar' => ['تم استلام الدفعة! تم تأكيد طلبك رقم {{1}} من {{2}}: {{3}}. شكراً لك!', ['128', 'بيروت بايتس', 'حوالي الساعة 11:25 صباحاً']],
+                'fr' => ['Paiement reçu ! Votre commande n° {{1}} chez {{2}} est confirmée : {{3}}. Merci !', ['128', 'Beirut Bites', 'vers 11h25']],
+            ],
+            self::PAY_NOT_RECEIVED => [
+                'en' => ['The shop could not find your Whish payment for order #{{1}} from {{2}}, so the order was cancelled. You can order again anytime.', ['128', 'Beirut Bites']],
+                'ar' => ['لم يجد المتجر دفعتك عبر Whish للطلب رقم {{1}} من {{2}}، لذلك تم إلغاء الطلب. يمكنك الطلب من جديد في أي وقت.', ['128', 'بيروت بايتس']],
+                'fr' => ["La boutique n'a pas trouvé votre paiement Whish pour la commande n° {{1}} chez {{2}}, la commande a donc été annulée. Vous pouvez commander à nouveau à tout moment.", ['128', 'Beirut Bites']],
+            ],
+            self::PAY_EXPIRED => [
+                'en' => ['We did not receive the Whish payment for order #{{1}} from {{2}} in time, so the order was cancelled. If you already paid, tap the button below and the shop will check.', ['128', 'Beirut Bites'], ['I paid']],
+                'ar' => ['لم نستلم دفعة Whish للطلب رقم {{1}} من {{2}} في الوقت المحدد، لذلك تم إلغاء الطلب. إذا كنت قد دفعت بالفعل، اضغط الزر أدناه وسيتحقق المتجر.', ['128', 'بيروت بايتس'], ['دفعت']],
+                'fr' => ["Nous n'avons pas reçu le paiement Whish pour la commande n° {{1}} chez {{2}} à temps, la commande a donc été annulée. Si vous avez déjà payé, appuyez sur le bouton ci-dessous et la boutique vérifiera.", ['128', 'Beirut Bites'], ["J'ai payé"]],
             ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],

@@ -37,8 +37,8 @@ class StaffTemplateTexts
                 'fr' => ['body' => "La commande n° {{1}} chez {{2}} est prévue aujourd'hui : {{3}}. Appuyez sur Prête / en route quand elle part, ou sur Reporter d'1 jour pour la décaler au prochain jour ouvré.", 'buttons' => ['Prête / en route', "Reporter d'1 jour"]],
             ],
             ShopTemplateService::PAYMENT_CHECK => [
-                'ar' => ['body' => 'دفعة للتحقق منها للطلب رقم {{1}}: {{2}} من {{3}}. ابحث عن الملاحظة {{1}} في حساب Whish الخاص بك. هل وصل المبلغ؟ اضغط وصل أو لم يصل.', 'buttons' => ['وصل', 'لم يصل']],
-                'fr' => ['body' => "Paiement à vérifier pour la commande n° {{1}} : {{2}} de {{3}}. Cherchez la note {{1}} dans votre compte Whish. L'argent est-il arrivé ? Appuyez sur Reçu ou Non reçu.", 'buttons' => ['Reçu', 'Non reçu']],
+                'ar' => ['body' => 'دفعة للتحقق منها للطلب رقم {{1}}: {{2}} من {{3}}. ابحث عن الملاحظة {{4}} في حساب Whish الخاص بك. هل وصل المبلغ؟ اضغط وصل أو لم يصل.', 'buttons' => ['وصل', 'لم يصل']],
+                'fr' => ['body' => "Paiement à vérifier pour la commande n° {{1}} : {{2}} de {{3}}. Cherchez la note {{4}} dans votre compte Whish. L'argent est-il arrivé ? Appuyez sur Reçu ou Non reçu.", 'buttons' => ['Reçu', 'Non reçu']],
             ],
             ShopTemplateService::REFUND_NEEDED => [
                 'ar' => ['body' => 'مطلوب استرداد في {{1}}: الطلب رقم {{2}} دُفع عبر Whish ({{3}}) لكنه أُلغي. الزبون: {{4}}. يرجى إعادة المبلغ من حساب Whish الخاص بك.'],
@@ -63,6 +63,14 @@ class StaffTemplateTexts
             ShopTemplateService::WHISH_UNPAID => [
                 'ar' => ['body' => 'أُلغي الطلب رقم {{1}} في {{2}} لأن الزبون لم يدفع عبر Whish. يرجى عدم تحضيره.'],
                 'fr' => ['body' => "La commande n° {{1}} chez {{2}} a été annulée car le client n'a pas payé par Whish. Merci de ne pas la préparer."],
+            ],
+            ShopTemplateService::QUOTE_REQUEST => [
+                'ar' => ['body' => 'طلب سعر جديد رقم {{1}} في {{2}} من {{3}}: {{4}}. للرد، أرسل: quote {{5}} ثم السعر ووصف العمل.'],
+                'fr' => ['body' => 'Nouvelle demande de prix n° {{1}} chez {{2}} de la part de {{3}} : {{4}}. Pour répondre, envoyez : quote {{5}}, puis le prix et la description du travail.'],
+            ],
+            ShopTemplateService::QUOTE_DECLINED => [
+                'ar' => ['body' => 'رفض الزبون عرض السعر رقم {{1}} في {{2}} ({{3}}). لا يلزم أي إجراء.'],
+                'fr' => ['body' => "Le client a refusé le devis n° {{1}} chez {{2}} ({{3}}). Aucune action n'est nécessaire."],
             ],
             ShopTemplateService::LOW_RATING => [
                 'ar' => ['body' => 'حصل الطلب رقم {{1}} في {{2}} على تقييم {{3}} من 5 من {{4}}. يرجى الاتصال بالزبون لمعرفة ما حدث.'],

@@ -11,6 +11,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\OrderConfirmation;
+use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
@@ -115,6 +116,84 @@ class WhishTransferTest extends TestCase
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === $digits)->last();
 
         return collect($last['interactive']['action']['buttons'] ?? [])->pluck('reply.id')->all();
+    }
+
+    /** Marks these customer templates (English) as approved by Meta for the shop. */
+    private function approveCustomerTemplates(string ...$events): void
+    {
+        $bot = $this->merchant->fresh()->settings['bot'];
+        foreach ($events as $event) {
+            $bot['templates'][CustomerTemplates::name($event, 'en')] = ['status' => 'APPROVED'];
+        }
+        $this->merchant->update(['settings' => array_merge($this->merchant->fresh()->settings, ['bot' => $bot])]);
+    }
+
+    /** @return array{0: string, 1: list<string>, 2: list<string>} template name, its variables, its button payloads */
+    private function lastTemplateToCustomer(): array
+    {
+        $sent = Http::recorded()->map(fn ($p) => $p[0])
+            ->last(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96170123456' && $r['type'] === 'template');
+        $this->assertNotNull($sent, 'a template went to the customer');
+        $components = $sent['template']['components'];
+
+        return [
+            $sent['template']['name'],
+            array_column($components[0]['parameters'], 'text'),
+            array_map(fn ($c) => $c['parameters'][0]['payload'], array_slice($components, 1)),
+        ];
+    }
+
+    public function test_how_to_pay_reaches_a_customer_the_shop_accepts_two_days_later_as_a_template_with_its_button(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::PAY_INSTRUCTIONS);
+        $this->say('add 2 shawarma');
+        $this->say('confirm | | Bliss St, Building 4 | whish | USD');
+        $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->latest('number')->firstOrFail();
+
+        $this->travel(2)->days();
+        $this->tap("stf:accept:{$order->id}", self::STAFF);
+
+        [$name, $params, $buttons] = $this->lastTemplateToCustomer();
+        $this->assertSame('neotalab_c_pay_instructions_en', $name);
+        $this->assertSame(['Beirut Bites', (string) $order->number, '12.00$', '70123456', (string) $order->number, '15'], array_map(fn ($p) => str_contains($p, '$') ? '12.00$' : $p, $params));
+        $this->assertSame(["wh:paid:{$order->id}"], $buttons);
+    }
+
+    public function test_a_payment_checked_two_days_later_is_confirmed_to_the_customer_by_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED);
+        $order = $this->acceptedWhishOrder();
+        $this->tap("wh:paid:{$order->id}", self::CUSTOMER);
+
+        $this->travel(2)->days();
+        $this->tap("stf:wh_ok:{$order->id}", self::STAFF);
+
+        [$name, $params] = $this->lastTemplateToCustomer();
+        $this->assertSame('neotalab_c_pay_confirmed_en', $name);
+        $this->assertSame([(string) $order->number, 'Beirut Bites'], array_slice($params, 0, 2));
+    }
+
+    public function test_a_payment_the_shop_cannot_find_two_days_later_is_told_to_the_customer_by_template(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::PAY_NOT_RECEIVED);
+        $order = $this->acceptedWhishOrder();
+        $this->tap("wh:paid:{$order->id}", self::CUSTOMER);
+
+        $this->travel(2)->days();
+        $this->tap("stf:wh_no:{$order->id}", self::STAFF);
+
+        $this->assertSame(['neotalab_c_pay_not_received_en', [(string) $order->number, 'Beirut Bites'], []], $this->lastTemplateToCustomer());
+    }
+
+    public function test_the_closed_payment_window_two_days_later_reaches_the_customer_with_the_i_paid_button(): void
+    {
+        $this->approveCustomerTemplates(CustomerTemplates::PAY_EXPIRED);
+        $order = $this->acceptedWhishOrder();
+
+        $this->travel(2)->days();
+        (new CheckWhishTransfer($order->id))->handle(app(OrderConfirmation::class));
+
+        $this->assertSame(['neotalab_c_pay_expired_en', [(string) $order->number, 'Beirut Bites'], ["wh:paid:{$order->id}"]], $this->lastTemplateToCustomer());
     }
 
     public function test_accepting_sends_the_shop_number_the_order_number_and_a_paid_button(): void

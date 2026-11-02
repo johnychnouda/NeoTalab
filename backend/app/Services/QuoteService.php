@@ -10,6 +10,7 @@ use App\Models\OrderItem;
 use App\Models\Quote;
 use App\Services\WhatsApp\CustomerMessenger;
 use App\Services\WhatsApp\CustomerTemplates;
+use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\Money;
@@ -53,7 +54,9 @@ class QuoteService
         ], $merchant->locale ?? 'en');
         $reached = false;
         foreach ($this->staff->staff($merchant) as $member) {
-            $reached = $this->staff->send($merchant, $member, $body, []) || $reached;
+            $reached = $this->staff->send($merchant, $member, $body, [], ShopTemplateService::QUOTE_REQUEST, [
+                (string) $quote->number, $merchant->name, $customer->phone, StaffMessenger::oneLine((string) $quote->description, 400), (string) $quote->number,
+            ]) || $reached;
         }
 
         // No staff number got it: whoever holds the shop phone sees this chat and prices it here.
@@ -108,7 +111,8 @@ class QuoteService
 
         if (! $accept) {
             $quote->update(['status' => 'declined']);
-            $this->tellStaff($merchant, __('whatsapp.quote.staff_declined', ['number' => $quote->number, 'phone' => OrderMessage::phone($customer->phone)], $merchant->locale ?? 'en'));
+            $this->tellStaff($merchant, __('whatsapp.quote.staff_declined', ['number' => $quote->number, 'phone' => OrderMessage::phone($customer->phone)], $merchant->locale ?? 'en'),
+                ShopTemplateService::QUOTE_DECLINED, [(string) $quote->number, $merchant->name, (string) $customer->phone]);
 
             return [__('whatsapp.quote.declined', ['shop' => $merchant->name], $locale), null];
         }
@@ -180,10 +184,11 @@ class QuoteService
         return ['number' => $m[1] === '' ? null : (int) $m[1], 'price' => (float) $price, 'title' => trim($m[3], ' -—:')];
     }
 
-    private function tellStaff(Merchant $merchant, string $body): void
+    /** @param  list<string>  $templateParams */
+    private function tellStaff(Merchant $merchant, string $body, ?string $template = null, array $templateParams = []): void
     {
         foreach ($this->staff->staff($merchant) as $member) {
-            $this->staff->send($merchant, $member, $body, []);
+            $this->staff->send($merchant, $member, $body, [], $template, $templateParams);
         }
     }
 }
