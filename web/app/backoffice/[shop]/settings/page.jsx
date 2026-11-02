@@ -30,12 +30,15 @@ const GROUPS = {
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
     late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
     scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders, quotes: !!p.quotes,
+    deposit_percent: num(p.deposit_percent) || 0, job_stages: stagesOf(p),
   }),
   payments: (p) => ({
     whish_number: p.whish_number || "", wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
   }),
   alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
 };
+// The job steps are typed one per line; empty lines are dropped, at most 8 are kept.
+const stagesOf = (p) => String(p.job_stages_text ?? (p.job_stages || []).join("\n")).split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // Lebanese numbers typed any way ("+961 70 123 456", "0096170123456", "70 123 456") compare equal.
 const localDigits = (n) => String(n || "").replace(/\D+/g, "").replace(/^00/, "").replace(/^961/, "").replace(/^0+/, "");
@@ -216,6 +219,9 @@ function Settings() {
                 <input id="o-rem" type="number" min="0" max="2880" value={p.reminder_mins ?? 120} onChange={(e) => setP("reminder_mins", e.target.value)} />
               </Field>
             </div>
+            <Field id="o-dep" label={t("ops.deposit")} hint={p.whish_connected ? t("ops.depositHint") : t("ops.depositNoWhish")}>
+              <input id="o-dep" type="number" min="0" max="100" step="5" value={p.deposit_percent ?? 0} onChange={(e) => setP("deposit_percent", e.target.value)} />
+            </Field>
           </Card>
         )}
         {p.business_mode && p.business_mode !== "orders" && <TeamCard api={api} t={t} toast={toast} />}
@@ -278,6 +284,12 @@ function Settings() {
               label={t("ops.gift")} hint={t("ops.giftHint")} />
             <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
               label={t("ops.quotes")} hint={t("ops.quotesHint")} />
+          </Card>
+          <Card title={t("ops.jobs")} desc={t("ops.jobsHint")}>
+            <Field id="o-jobs" label={t("ops.jobsLabel")}>
+              <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
+                placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
+            </Field>
           </Card>
         </>)}
       </>)}
