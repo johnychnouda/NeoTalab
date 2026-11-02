@@ -8,7 +8,7 @@ No known open defect. Everything below is either an outside action, something ne
 3. ~~Restore a real backup~~ Done 30 Oct. Repeat it once real shops exist.
 4. Uptime alert (UptimeRobot or similar).
 5. ~~Confirm the 29 and 30 Oct migrations ran~~ Done 30 Oct: `migrate:status` in the Railway console shows all three as Ran.
-6. New templates to be approved by Meta (31 Oct): 33 on NeoTalab's number (the hourly `templates:sync` submits them after deploy) and, per shop when it connects, 99 (45 for staff and owner, 54 for customers), all in English, Arabic and French. Until approved, nothing is sent as plain text; the owner sees an alert for customers and staff. Each shop's customer templates (`neotalab_c_*`) need one live check with a real shop (the lab does not enforce the 24-hour rule).
+6. New templates to be approved by Meta (31 Oct): 33 on NeoTalab's number (the hourly `templates:sync` submits them after deploy) and, per shop when it connects, 120 (51 for staff and owner, 69 for customers), all in English, Arabic and French. Until approved, nothing is sent as plain text; the owner sees an alert for customers and staff. Each shop's customer templates (`neotalab_c_*`) need one live check with a real shop (the lab does not enforce the 24-hour rule).
 7. Check Owner → Inbox → System for failed checkouts from the split-cash bug (D29), if any shop took such orders before the fix.
 
 ## Not tested yet (could hide defects)

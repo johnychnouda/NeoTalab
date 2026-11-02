@@ -68,7 +68,9 @@ def appt(shop_id, phone):
 BOOK = {"en": "Please book {svc} tomorrow at {t}", "ar": "احجز لي {svc} غداً الساعة {t}", "fr": "Réservez-moi {svc} demain à {t}"}
 WORDS = {"en": ("deposit of", "Deposit received", "could not find"), "ar": ("عربوناً", "تم استلام العربون", "لم يجد"), "fr": ("acompte de", "Acompte reçu", "n'a pas trouvé")}
 
-for i, (name, svc, lang, staffed) in enumerate([("Car wash", "Full wash", "en", True), ("Tutor", "Maths lesson", "ar", False)]):
+import os
+ONLY_JOBS = os.environ.get("S30_ONLY") == "jobs"  # skip the deposit shops (their payment-window wait takes ten minutes)
+for i, (name, svc, lang, staffed) in enumerate([] if ONLY_JOBS else [("Car wash", "Full wash", "en", True), ("Tutor", "Maths lesson", "ar", False)]):
     suite(f"Deposits: {name} ({lang}, {'with staff' if staffed else 'owner alone'})")
     sh = setup(i, name, svc, lang, staffed, {"business_mode": "appointments", "appointment_capacity": 1, "slot_step_mins": 30, "deposit_percent": 50, "wishTimeoutMins": 5}, price=20)
     pid, who = sh["pid"], sh["who"]

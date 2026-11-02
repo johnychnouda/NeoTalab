@@ -136,13 +136,13 @@ thank-you, a late scheduled-order reminder).
   `shops:check-whatsapp` runs daily at 10:20 Beirut and repeats every 3 days), `neotalab_shop_active` (the owner switched a
   shop back on; stopping one by hand sends `neotalab_shop_paused` too), `neotalab_request_received` and
   `neotalab_request_declined` (one message per kind per number per day, 30 an hour overall, because the form is public).
-- **From a shop's number to its staff and owner (15, EN/AR/FR = 45):** new order, staff alert, new booking, order due,
+- **From a shop's number to its staff and owner (17, EN/AR/FR = 51):** new order, staff alert, new booking, order due,
   payment check, refund needed, billing reminder, customer cancelled, scheduled order due, booking cancelled, not
-  delivered, Whish unpaid, low rating, quote request, quote declined. Button titles are translated; the button ids come from the code.
-- **From a shop's number to customers (18 events, EN/AR/FR = 54):** accepted, ready, on its way, delayed, cancelled,
+  delivered, Whish unpaid, low rating, quote request, quote declined, job card, deposit check. Button titles are translated; the button ids come from the code.
+- **From a shop's number to customers (23 events, EN/AR/FR = 69):** accepted, ready, on its way, delayed, cancelled,
   refund, booking reminder, driver outside, delivered, delivered with the rating question, quote ready (with its two
   buttons), scheduled-order reminder, and the Whish messages: how to pay (with "I paid"), payment confirmed, payment
-  not found, payment window closed (with "I paid"), booking cancelled by the shop, booking moved by the shop.
+  not found, payment window closed (with "I paid"), booking cancelled by the shop, booking moved by the shop, job step, and the deposit messages (how to pay with "I paid", received, not found, window closed).
 - A new shop starts in the language its owner used on the join page.
 - Not added, on purpose: anything promotional (Marketing costs more and needs consent); drivers (they receive deliveries
   inside the window their own "start" opens).
@@ -161,6 +161,25 @@ A shop with no staff is run by its owner: the booking ticket goes to the number 
 (`StaffMessenger::managers`), and that number may use the booking buttons and "today"/"tomorrow" only; anything else it
 sends is an ordinary customer's message. A shop that has staff does not treat its owner number as staff. A customer's
 tap on a team button changes nothing.
+
+## Deposits and job steps (2 November 2026)
+
+**Deposits (bookings only).** A shop sets a percent (5–100, 0 = off) in Settings → Orders. It applies when the shop takes
+Whish (that is how the deposit is paid) and the service is not free. The booking then holds its time as `pending_deposit`
+for the shop's Whish payment window (5–120 minutes, default 15): the customer gets the amount, the shop's Whish number and a
+5-letter note to write, with an "I paid" button. "I paid" → `deposit_check`: the team (or a lone owner) gets a check with
+Received / Not received. Received → `booked`, only now the ticket and the reminder go out, and the customer is told the
+rest is paid at the shop. Not received, or the window ends (queue job `ExpireBookingDeposit`) → cancelled, the time is
+free. A held time cannot be booked by someone else; a customer can still cancel a held booking. Cancelling a booking whose
+deposit was paid tells the team a deposit is on it; the money is returned by the shop by hand (no refund automation).
+
+**Job steps (orders).** A shop lists up to 8 steps in Settings → Orders ("Car received", "Work in progress"…). An accepted
+order then gives the team a job card (Next stage / All stages / Ready) instead of the usual ticket; each move tells the
+customer in their language (message inside 24 hours, template after) and shows in "Where's my order?". A shop with no staff
+gives the card to its owner. Step names are the shop's own words and are not translated.
+
+**Quote requests** are now recognised wherever "quote", "devis", "عرض سعر" and similar stand in the message; "price" and
+"how much" still count only at the start.
 
 ## Before going live with real shops
 
