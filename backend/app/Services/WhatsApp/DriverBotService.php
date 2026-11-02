@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Services\AppointmentService;
+use App\Services\BookingDeposits;
 use App\Services\DriverDispatcher;
 use App\Services\JobStageService;
 use App\Services\OrderConfirmation;
@@ -120,7 +121,7 @@ class DriverBotService
         $id = (string) ($msg['interactive']['button_reply']['id'] ?? $msg['interactive']['list_reply']['id'] ?? $msg['button']['payload'] ?? '');
 
         // A lone owner may also move a job on and mark an order ready: those buttons are only ever sent to them.
-        return preg_match('/^stf:(appt_|job_|ready:|picked_up:|delivered:)/', $id) === 1
+        return preg_match('/^stf:(appt_|dp_|job_|ready:|picked_up:|delivered:)/', $id) === 1
             || $this->bookingDay((string) ($msg['text']['body'] ?? '')) !== null;
     }
 
@@ -150,6 +151,10 @@ class DriverBotService
             $this->reply($merchant, $to, $this->daySchedule($merchant, $day === 'tomorrow', $locale));
 
             return true;
+        }
+        // The shop checked its Whish account for a booking's deposit: Received confirms the booking, Not received cancels it.
+        if (preg_match('/^stf:dp_(ok|no):([^:]+)$/', $id, $d)) {
+            return $this->checkDeposit($merchant, $to, $d[1] === 'ok', $d[2], $locale);
         }
         if (! preg_match('/^stf:appt_(change|move|cancel|keep|to):([^:]+)(?::(\d{12}))?$/', $id, $m)) {
             return false;
@@ -194,7 +199,8 @@ class DriverBotService
                     break;
                 }
                 $this->tellCustomer($merchant, $appointment, CustomerTemplates::BOOKING_CANCELLED_SHOP, 'shop_cancelled', $when);
-                $this->reply($merchant, $to, __('whatsapp.appointment.staff_cancelled_ok', $params, $locale));
+                $this->reply($merchant, $to, __('whatsapp.appointment.staff_cancelled_ok', $params, $locale)
+                    .($appointment->deposit_paid_at ? "\n".__('whatsapp.appointment.deposit_note', ['amount' => Money::format((float) $appointment->deposit_amount, $merchant->currency)], $locale) : ''));
                 break;
             case 'move':
                 $this->offerNewTimes($merchant, $to, $appointment, $params, $locale, false);
@@ -210,6 +216,25 @@ class DriverBotService
                 $this->reply($merchant, $to, __('whatsapp.appointment.staff_moved_ok', ['phone' => $params['phone']] + $when($locale), $locale));
                 break;
         }
+
+        return true;
+    }
+
+    protected function checkDeposit(Merchant $merchant, string $to, bool $received, string $appointmentId, string $locale): bool
+    {
+        $appointment = Appointment::query()->with(['customer', 'provider'])->whereKey($appointmentId)->first();
+        if (! $appointment) {
+            $this->reply($merchant, $to, __('whatsapp.driver.not_yours', [], $locale));
+
+            return true;
+        }
+
+        $deposits = app(BookingDeposits::class);
+        $done = $received ? $deposits->confirm($merchant, $appointment) : $deposits->refuse($merchant, $appointment);
+        $p = $deposits->params($merchant, $appointment, $locale);
+        $this->reply($merchant, $to, $done
+            ? __($received ? 'whatsapp.appointment.deposit_ok' : 'whatsapp.appointment.deposit_no', $p, $locale)
+            : __('whatsapp.appointment.deposit_already', [], $locale));
 
         return true;
     }

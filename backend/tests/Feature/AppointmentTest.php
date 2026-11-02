@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\ExpireBookingDeposit;
 use App\Jobs\NotifyStaffOfAppointmentCancelled;
 use App\Jobs\SendAppointmentReminder;
 use App\Models\Appointment;
@@ -13,6 +14,7 @@ use App\Models\Merchant;
 use App\Models\Product;
 use App\Models\ShopHour;
 use App\Models\SystemAlert;
+use App\Services\BookingDeposits;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\OrderMessage;
@@ -46,7 +48,7 @@ class AppointmentTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, SendAppointmentReminder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, SendAppointmentReminder::class, ExpireBookingDeposit::class]);
         // Tuesday 6 Oct 2026, 08:00 in Beirut (UTC+3).
         Carbon::setTestNow(Carbon::parse('2026-10-06 08:00', 'Asia/Beirut'));
 
@@ -605,5 +607,184 @@ class AppointmentTest extends TestCase
         $this->press("stf:appt_cancel:{$appointment->id}", '+96171000999');
 
         $this->assertSame('booked', $appointment->fresh()->status);
+    }
+
+    // ── a booking that asks for a deposit ────────────────────────────────────
+
+    private function depositShop(int $percent = 50): void
+    {
+        $this->settings(['deposit_percent' => $percent, 'whish' => ['number' => '70123456'], 'wish_timeout_mins' => 15]);
+    }
+
+    private function lastButtonsTo(string $phone): array
+    {
+        return collect($this->lastMessageTo($phone)['interactive']['action']['buttons'] ?? [])->pluck('reply.id')->all();
+    }
+
+    public function test_a_booking_that_asks_for_a_deposit_holds_the_time_and_gives_the_whish_instructions(): void
+    {
+        $this->team();
+        $this->depositShop();
+
+        $this->say('book haircut 2026-10-08 11:00');
+
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $this->assertSame('pending_deposit', $appointment->status);
+        $this->assertSame('5.00', number_format((float) $appointment->deposit_amount, 2, '.', ''), 'half of the 10$ haircut');
+        $text = $this->lastTo(self::CUSTOMER);
+        $this->assertStringContainsString('holding your Haircut on Thu 8 Oct at 11:00 for 15 minutes', $text);
+        $this->assertStringContainsString('deposit of 5.00$', $text);
+        $this->assertStringContainsString('70123456', $text);
+        $this->assertStringContainsString($appointment->deposit_code, $text);
+        $this->assertStringContainsString('The rest (5.00$) is paid at the shop', $text);
+        $this->assertSame(["wh:dpaid:{$appointment->id}"], $this->lastButtonsTo(self::CUSTOMER));
+        Bus::assertNotDispatched(SendAppointmentReminder::class);
+        Bus::assertDispatched(ExpireBookingDeposit::class, fn ($job) => $job->appointmentId === $appointment->id);
+        $this->assertStringNotContainsString('New booking', $this->lastTo(self::STAFF), 'the team hears once the deposit is confirmed');
+    }
+
+    public function test_the_held_time_cannot_be_booked_by_someone_else(): void
+    {
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+
+        $this->say('book haircut 2026-10-08 11:00', '+96170999111');
+
+        $this->assertStringContainsString('just taken', $this->lastTo('+96170999111'));
+        $this->assertSame(1, Appointment::query()->withoutGlobalScopes()->whereIn('status', Appointment::HOLDING)->count());
+    }
+
+    public function test_i_paid_sends_the_shop_a_check_and_the_shop_confirms_the_booking(): void
+    {
+        $this->team();
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $code = $appointment->deposit_code;
+
+        $this->press("wh:dpaid:{$appointment->id}", self::CUSTOMER);
+        $this->assertSame('deposit_check', $appointment->fresh()->status);
+        $this->assertStringContainsString('checking the deposit', $this->lastTo(self::CUSTOMER));
+        $check = $this->lastMessageTo(self::STAFF);
+        $this->assertStringContainsString("Look for the note {$code}", $check['interactive']['body']['text']);
+        $this->assertSame(["stf:dp_ok:{$appointment->id}", "stf:dp_no:{$appointment->id}"], array_column(array_column($check['interactive']['action']['buttons'], 'reply'), 'id'));
+
+        $this->press("stf:dp_ok:{$appointment->id}");
+
+        $paid = $appointment->fresh();
+        $this->assertSame('booked', $paid->status);
+        $this->assertNotNull($paid->deposit_paid_at);
+        $this->assertStringContainsString('Deposit received! Your Haircut on Thu 8 Oct at 11:00 is confirmed', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Deposit confirmed', $this->lastTo(self::STAFF) ?: '');
+        Bus::assertDispatched(SendAppointmentReminder::class);
+    }
+
+    public function test_the_shop_that_does_not_find_the_money_cancels_the_booking_and_frees_the_time(): void
+    {
+        $this->team();
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $this->press("wh:dpaid:{$appointment->id}", self::CUSTOMER);
+
+        $this->press("stf:dp_no:{$appointment->id}");
+
+        $this->assertSame('cancelled', $appointment->fresh()->status);
+        $this->assertStringContainsString('could not find your Whish deposit', $this->lastTo(self::CUSTOMER));
+        $this->say('book haircut 2026-10-08 11:00', '+96170999111');
+        $this->assertSame('pending_deposit', Appointment::query()->withoutGlobalScopes()->where('status', 'pending_deposit')->sole()->status, 'the time is free again');
+
+        // A second tap changes nothing.
+        $this->press("stf:dp_ok:{$appointment->id}");
+        $this->assertSame('cancelled', $appointment->fresh()->status);
+        $this->assertStringContainsString('already checked', $this->lastTo(self::STAFF));
+    }
+
+    public function test_the_time_is_released_when_the_customer_never_pays(): void
+    {
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+
+        (new ExpireBookingDeposit($appointment->id))->handle(app(BookingDeposits::class));
+
+        $this->assertSame('cancelled', $appointment->fresh()->status);
+        $this->assertSame('system', $appointment->fresh()->cancelled_by);
+        $this->assertStringContainsString('did not receive the deposit', $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_a_booking_the_customer_reported_is_not_released_by_the_window(): void
+    {
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $this->press("wh:dpaid:{$appointment->id}", self::CUSTOMER);
+
+        (new ExpireBookingDeposit($appointment->id))->handle(app(BookingDeposits::class));
+
+        $this->assertSame('deposit_check', $appointment->fresh()->status);
+    }
+
+    public function test_no_deposit_is_asked_without_a_whish_number_a_percent_or_for_a_free_service(): void
+    {
+        $this->settings(['deposit_percent' => 50]); // no Whish number
+        $this->say('book haircut 2026-10-08 11:00');
+        $this->assertSame('booked', Appointment::query()->withoutGlobalScopes()->latest()->firstOrFail()->status);
+
+        $this->depositShop(0);
+        $this->say('book haircut 2026-10-08 12:00');
+        $this->assertSame('booked', Appointment::query()->withoutGlobalScopes()->where('starts_at', '>', now())->latest()->firstOrFail()->status);
+
+        $this->depositShop();
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Consult', 'price' => 0, 'duration_mins' => 30]);
+        $this->say('book consult 2026-10-08 14:00');
+        $this->assertSame('booked', Appointment::query()->withoutGlobalScopes()->where('service_name', 'Consult')->sole()->status);
+    }
+
+    public function test_a_customer_can_cancel_a_booking_that_waits_for_its_deposit(): void
+    {
+        $this->team();
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+
+        $this->say('cancel appointment');
+
+        $this->assertSame('cancelled', Appointment::query()->withoutGlobalScopes()->sole()->status);
+        $this->assertStringNotContainsString('cancelled by the customer', $this->lastTo(self::STAFF), 'the team never heard of it');
+    }
+
+    public function test_the_team_is_reminded_of_the_deposit_when_a_paid_booking_is_cancelled(): void
+    {
+        $this->team();
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $this->press("wh:dpaid:{$appointment->id}", self::CUSTOMER);
+        $this->press("stf:dp_ok:{$appointment->id}");
+
+        $this->say('cancel appointment');
+
+        $this->assertStringContainsString('A deposit of 5.00$ was paid with this booking', $this->lastTo(self::STAFF));
+    }
+
+    public function test_the_deposit_instructions_reach_the_customer_by_template_after_two_days_and_the_rest_in_arabic(): void
+    {
+        $this->team();
+        $this->depositShop();
+        $this->say('book haircut 2026-10-08 11:00');
+        $appointment = Appointment::query()->withoutGlobalScopes()->sole();
+        $this->press("wh:dpaid:{$appointment->id}", self::CUSTOMER);
+        $bot = $this->merchant->fresh()->settings['bot'];
+        $bot['templates']['neotalab_c_deposit_confirmed_en'] = ['status' => 'APPROVED'];
+        $this->settings(['bot' => $bot]);
+
+        Carbon::setTestNow(now()->addDays(2));
+        $this->staffWroteToShop($this->merchant, self::STAFF);
+        $this->press("stf:dp_ok:{$appointment->id}");
+
+        $sent = collect(Http::recorded()->map(fn ($p) => $p[0])->all())
+            ->last(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === '96170123456' && $r['type'] === 'template');
+        $this->assertSame('neotalab_c_deposit_confirmed_en', $sent['template']['name']);
+        $this->assertSame(['Haircut', 'Hair Studio', 'Thu 8 Oct', '11:00'], array_column($sent['template']['components'][0]['parameters'], 'text'));
     }
 }

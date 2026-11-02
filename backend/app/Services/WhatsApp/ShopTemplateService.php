@@ -56,6 +56,9 @@ class ShopTemplateService
     /** Staff: an accepted job, with buttons to move it to the next stage. */
     public const JOB_CARD = 'neotalab_job_card';
 
+    /** Staff: a booking's deposit to check in the shop's Whish account. */
+    public const DEPOSIT_CHECK = 'neotalab_deposit_check';
+
     /** Staff: a customer asked for a price. */
     public const QUOTE_REQUEST = 'neotalab_quote_request';
 
@@ -151,6 +154,11 @@ class ShopTemplateService
                 'body' => 'Job #{{1}} at {{2}}: {{3}}. Stage: {{4}}. Use the buttons to move it to the next stage, see all stages, or mark it ready.',
                 'example' => ['57', 'Beirut Garage', '1× Brake pads · Total 80.00 USD (cash) · +96170123456', 'Car received'],
                 'buttons' => ['Next stage', 'All stages', 'Ready / on its way'],
+            ],
+            self::DEPOSIT_CHECK => [
+                'body' => 'Deposit to check for {{1}} at {{2}}: {{3}} from {{4}}. Look for the note {{5}} in your Whish account. Did the money arrive? Tap Received or Not received.',
+                'example' => ['Haircut · Wed 14 Oct 15:30', 'Glow Salon', '5.00$', '+96170123456', 'K7Q2X'],
+                'buttons' => ['Received', 'Not received'],
             ],
             self::QUOTE_REQUEST => [
                 'body' => 'New price request #{{1}} at {{2}} from {{3}}: {{4}}. To answer, send: quote {{5}}, then the price and what the job is.',

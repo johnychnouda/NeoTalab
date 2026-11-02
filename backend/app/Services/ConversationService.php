@@ -48,6 +48,9 @@ class ConversationService
     /** Set when the customer asked to cancel: the order waits for the customer's Yes/No button. */
     private ?string $cancelAwaitingId = null;
 
+    /** The booking waiting for its deposit (the caller sends the "I paid" button under the instructions), or null. */
+    private ?string $depositAwaitingId = null;
+
     public function __construct(
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
@@ -184,6 +187,7 @@ class ConversationService
 
         $this->fulfillmentMissing = false;
         $this->cancelAwaitingId = null;
+        $this->depositAwaitingId = null;
         [$reply, $order] = match ($output->recommendedAction) {
             RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
             RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
@@ -222,6 +226,8 @@ class ConversationService
             'fulfillment_choice' => $this->fulfillmentMissing,
             // The order the customer must confirm cancelling (buttons are sent for it), or null.
             'cancel_confirm' => $this->cancelAwaitingId,
+            // A booking that waits for its deposit: the instructions get the "I paid" button.
+            'deposit_appointment' => $this->depositAwaitingId,
             'cart_result' => $cartResult,
             'conversation' => $conversation,
             'reply' => $reply,
@@ -535,6 +541,12 @@ class ConversationService
             return __('whatsapp.appointment.taken', [], $locale)."\n".$this->availability($conversation, $req);
         }
 
+        if ($appointment->status === 'pending_deposit') {
+            $this->depositAwaitingId = $appointment->id;
+
+            return app(BookingDeposits::class)->instructions($merchant, $appointment, $locale);
+        }
+
         $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.booked', [
@@ -578,8 +590,11 @@ class ConversationService
         }
 
         $appointment = $matches->first();
+        $neverReachedTheTeam = $appointment->status === 'pending_deposit'; // its ticket only comes once the deposit is confirmed
         $appointment->forceFill(['status' => 'cancelled', 'cancelled_by' => 'customer'])->save();
-        NotifyStaffOfAppointmentCancelled::dispatch($appointment->id)->afterCommit();
+        if (! $neverReachedTheTeam) {
+            NotifyStaffOfAppointmentCancelled::dispatch($appointment->id)->afterCommit();
+        }
         $local = $appointment->starts_at->copy()->setTimezone($tz);
 
         return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);

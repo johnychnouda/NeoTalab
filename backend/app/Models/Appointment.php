@@ -18,6 +18,9 @@ class Appointment extends Model
         'provider_id',
         'service_name',
         'price',
+        'deposit_amount',
+        'deposit_code',
+        'deposit_paid_at',
         'starts_at',
         'ends_at',
         'status',
@@ -29,11 +32,16 @@ class Appointment extends Model
     {
         return [
             'price' => 'decimal:2',
+            'deposit_amount' => 'decimal:2',
+            'deposit_paid_at' => 'datetime',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'reminded_at' => 'datetime',
         ];
     }
+
+    /** The statuses that hold a time on the calendar: a deposit not yet confirmed still holds its slot. */
+    public const HOLDING = ['booked', 'pending_deposit', 'deposit_check'];
 
     public function customer(): BelongsTo
     {

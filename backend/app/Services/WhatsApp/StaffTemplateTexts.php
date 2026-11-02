@@ -68,6 +68,10 @@ class StaffTemplateTexts
                 'ar' => ['body' => 'العمل رقم {{1}} في {{2}}: {{3}}. المرحلة: {{4}}. استخدم الأزرار لنقله إلى المرحلة التالية أو لرؤية كل المراحل أو لتعليمه جاهزاً.', 'buttons' => ['المرحلة التالية', 'كل المراحل', 'جاهز / في الطريق']],
                 'fr' => ['body' => "Travail n° {{1}} chez {{2}} : {{3}}. Étape : {{4}}. Utilisez les boutons pour passer à l'étape suivante, voir toutes les étapes ou le marquer prêt.", 'buttons' => ['Étape suivante', 'Toutes les étapes', 'Prêt / en route']],
             ],
+            ShopTemplateService::DEPOSIT_CHECK => [
+                'ar' => ['body' => 'عربون للتحقق منه لـ {{1}} في {{2}}: {{3}} من {{4}}. ابحث عن الملاحظة {{5}} في حساب Whish الخاص بك. هل وصل المبلغ؟ اضغط وصل أو لم يصل.', 'buttons' => ['وصل', 'لم يصل']],
+                'fr' => ['body' => "Acompte à vérifier pour {{1}} chez {{2}} : {{3}} de {{4}}. Cherchez la note {{5}} dans votre compte Whish. L'argent est-il arrivé ? Appuyez sur Reçu ou Non reçu.", 'buttons' => ['Reçu', 'Non reçu']],
+            ],
             ShopTemplateService::QUOTE_REQUEST => [
                 'ar' => ['body' => 'طلب سعر جديد رقم {{1}} في {{2}} من {{3}}: {{4}}. للرد، أرسل: quote {{5}} ثم السعر ووصف العمل.'],
                 'fr' => ['body' => 'Nouvelle demande de prix n° {{1}} chez {{2}} de la part de {{3}} : {{4}}. Pour répondre, envoyez : quote {{5}}, puis le prix et la description du travail.'],

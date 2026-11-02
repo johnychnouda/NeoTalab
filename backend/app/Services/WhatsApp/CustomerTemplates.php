@@ -33,6 +33,15 @@ class CustomerTemplates
     /** A repair or custom job moved to its next step. */
     public const JOB_STAGE = 'job_stage';
 
+    /** A booking's deposit: how to pay (with an "I paid" button), received, not found, window closed. */
+    public const DEPOSIT_INSTRUCTIONS = 'deposit_instructions';
+
+    public const DEPOSIT_CONFIRMED = 'deposit_confirmed';
+
+    public const DEPOSIT_NOT_FOUND = 'deposit_not_found';
+
+    public const DEPOSIT_EXPIRED = 'deposit_expired';
+
     public const OUTSIDE = 'order_outside';
 
     public const DELIVERED = 'order_delivered';
@@ -188,6 +197,26 @@ class CustomerTemplates
                 'en' => ['Update on your order #{{1}} from {{2}}: {{3}}. We will keep you posted in this chat.', ['128', 'Beirut Garage', 'Work in progress']],
                 'ar' => ['تحديث بخصوص طلبك رقم {{1}} من {{2}}: {{3}}. سنبقيك على اطلاع في هذه المحادثة.', ['128', 'كراج بيروت', 'العمل جارٍ']],
                 'fr' => ['Mise à jour de votre commande n° {{1}} chez {{2}} : {{3}}. Nous vous tiendrons informé dans cette conversation.', ['128', 'Garage Beyrouth', 'Travail en cours']],
+            ],
+            self::DEPOSIT_INSTRUCTIONS => [
+                'en' => ['Good news! {{1}} is holding your {{2}} on {{3}} at {{4}}. To confirm it, please pay a deposit of {{5}} to the Whish number {{6}} and write {{7}} in the Whish note. When you have paid, tap the button below. You have {{8}} minutes.', ['Glow Salon', 'Haircut', 'Wed 14 Oct', '15:30', '5.00$', '70123456', 'K7Q2X', '15'], ['I paid']],
+                'ar' => ['أخبار سارة! يحجز لك {{1}} موعد {{2}} يوم {{3}} الساعة {{4}}. لتأكيده، يرجى دفع عربون بقيمة {{5}} إلى رقم Whish {{6}} وكتابة {{7}} في ملاحظة Whish. بعد الدفع، اضغط الزر أدناه. لديك {{8}} دقيقة.', ['صالون جلو', 'قص شعر', 'الأربعاء 14 تشرين الأول', '15:30', '5.00$', '70123456', 'K7Q2X', '15'], ['دفعت']],
+                'fr' => ['Bonne nouvelle ! {{1}} retient votre {{2}} du {{3}} à {{4}}. Pour le confirmer, merci de payer un acompte de {{5}} au numéro Whish {{6}} en écrivant {{7}} dans la note Whish. Une fois le paiement fait, appuyez sur le bouton ci-dessous. Vous avez {{8}} minutes.', ['Glow Salon', 'Coupe', 'mercredi 14 octobre', '15h30', '5.00$', '70123456', 'K7Q2X', '15'], ["J'ai payé"]],
+            ],
+            self::DEPOSIT_CONFIRMED => [
+                'en' => ['Your deposit was received! Your {{1}} at {{2}} on {{3}} at {{4}} is confirmed. Thank you!', ['Haircut', 'Glow Salon', 'Wed 14 Oct', '15:30']],
+                'ar' => ['تم استلام العربون! تم تأكيد موعد {{1}} في {{2}} يوم {{3}} الساعة {{4}}. شكراً لك!', ['قص شعر', 'صالون جلو', 'الأربعاء 14 تشرين الأول', '15:30']],
+                'fr' => ['Acompte reçu ! Votre {{1}} chez {{2}} du {{3}} à {{4}} est confirmé. Merci !', ['Coupe', 'Glow Salon', 'mercredi 14 octobre', '15h30']],
+            ],
+            self::DEPOSIT_NOT_FOUND => [
+                'en' => ['The shop could not find your Whish deposit, so your {{1}} at {{2}} on {{3}} at {{4}} was cancelled. You can book again anytime.', ['Haircut', 'Glow Salon', 'Wed 14 Oct', '15:30']],
+                'ar' => ['لم يجد المتجر عربونك عبر Whish، لذلك أُلغي موعد {{1}} في {{2}} يوم {{3}} الساعة {{4}}. يمكنك الحجز مجدداً في أي وقت.', ['قص شعر', 'صالون جلو', 'الأربعاء 14 تشرين الأول', '15:30']],
+                'fr' => ["La boutique n'a pas trouvé votre acompte Whish, votre {{1}} chez {{2}} du {{3}} à {{4}} a donc été annulé. Vous pouvez réserver à nouveau à tout moment.", ['Coupe', 'Glow Salon', 'mercredi 14 octobre', '15h30']],
+            ],
+            self::DEPOSIT_EXPIRED => [
+                'en' => ['We did not receive the deposit for your {{1}} at {{2}} on {{3}} at {{4}} in time, so the time was released. You can book again anytime.', ['Haircut', 'Glow Salon', 'Wed 14 Oct', '15:30']],
+                'ar' => ['لم نستلم العربون لموعد {{1}} في {{2}} يوم {{3}} الساعة {{4}} في الوقت المحدد، لذلك تم تحرير الموعد. يمكنك الحجز مجدداً في أي وقت.', ['قص شعر', 'صالون جلو', 'الأربعاء 14 تشرين الأول', '15:30']],
+                'fr' => ["Nous n'avons pas reçu l'acompte pour votre {{1}} chez {{2}} du {{3}} à {{4}} à temps, le créneau a donc été libéré. Vous pouvez réserver à nouveau à tout moment.", ['Coupe', 'Glow Salon', 'mercredi 14 octobre', '15h30']],
             ],
             self::BOOKING => [
                 'en' => ['Reminder: your {{1}} at {{2}} is on {{3}} at {{4}}. If you need to change it, please write to us in this chat. See you soon!', ['Haircut', 'Glow Salon', 'Wednesday 14 October', '15:30']],

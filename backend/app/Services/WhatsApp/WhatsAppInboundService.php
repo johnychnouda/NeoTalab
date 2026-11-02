@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Jobs\NotifyStaffOfHandoff;
+use App\Models\Appointment;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
@@ -13,6 +14,7 @@ use App\Models\Quote;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\SpeechToText;
 use App\Services\AppointmentService;
+use App\Services\BookingDeposits;
 use App\Services\ChatMenu;
 use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
@@ -373,6 +375,19 @@ class WhatsAppInboundService
                 return;
             }
 
+            // "I paid" under a booking's deposit instructions: the shop checks its Whish account next.
+            if ($buttonId !== null && preg_match('/^wh:dpaid:(.+)$/', $buttonId, $dm)) {
+                $appointment = Appointment::query()->where('merchant_id', $merchant->id)
+                    ->where('customer_id', $conversation->customer_id)->whereKey($dm[1])->first();
+                if ($appointment && $appointment->status === 'pending_deposit') {
+                    app(BookingDeposits::class)->customerPaid($merchant, $appointment);
+                } elseif ($appointment && $appointment->status !== 'deposit_check') {
+                    $this->reply($merchant, $fromPhone, __('whatsapp.appointment.deposit_already', [], $locale));
+                }
+
+                return;
+            }
+
             // Accept / No thanks under a repair quote.
             if ($buttonId !== null && preg_match('/^qt:(yes|no):(.+)$/', $buttonId, $qm)) {
                 [$text, $order] = app(QuoteService::class)->answer($merchant, $conversation->customer, $qm[2], $qm[1] === 'yes');
@@ -420,6 +435,19 @@ class WhatsAppInboundService
             // "Cancel order #N?" with Yes / No buttons: the customer's tap decides, not the assistant.
             if ($result['cancel_confirm'] !== null) {
                 $this->send($merchant, $fromPhone, $this->cancelQuestion($merchant, $result['cancel_confirm'], $reply, $locale));
+
+                return;
+            }
+
+            // A booking that holds its time until the deposit is paid: the instructions come with the "I paid" button.
+            if ($result['deposit_appointment'] !== null) {
+                $this->send($merchant, $fromPhone, ['type' => 'interactive', 'interactive' => [
+                    'type' => 'button', 'body' => ['text' => mb_substr($reply, 0, 1024)],
+                    'action' => ['buttons' => [['type' => 'reply', 'reply' => [
+                        'id' => "wh:dpaid:{$result['deposit_appointment']}",
+                        'title' => mb_substr(__('whatsapp.checkout.btn_whish_paid', [], $locale), 0, 20),
+                    ]]]],
+                ]]);
 
                 return;
             }

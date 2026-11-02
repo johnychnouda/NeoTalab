@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ExpireBookingDeposit;
 use App\Jobs\NotifyStaffOfAppointment;
 use App\Jobs\SendAppointmentReminder;
 use App\Models\Appointment;
@@ -14,6 +15,7 @@ use App\Support\ShopSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Bookable services (products with a duration). Free times come from the shop's opening hours,
@@ -58,7 +60,7 @@ class AppointmentService
         $earliest = now()->setTimezone($tz)->addMinutes(self::MIN_NOTICE_MINS);
         $duration = (int) $service->duration_mins;
         $booked = Appointment::query()
-            ->where('status', 'booked')
+            ->whereIn('status', Appointment::HOLDING)
             ->where('starts_at', '<', $end->copy()->utc())
             ->where('ends_at', '>', $start->copy()->utc())
             ->get(['starts_at', 'ends_at', 'provider_id']);
@@ -139,7 +141,7 @@ class AppointmentService
         $localStart = $localStart->copy()->setTimezone($this->tz($merchant));
 
         $appointment = DB::transaction(function () use ($merchant, $customer, $service, $localStart, $provider) {
-            $sameDay = Appointment::query()->where('status', 'booked')->whereDate('starts_at', $localStart->copy()->utc()->toDateString())->lockForUpdate()->get();
+            $sameDay = Appointment::query()->whereIn('status', Appointment::HOLDING)->whereDate('starts_at', $localStart->copy()->utc()->toDateString())->lockForUpdate()->get();
 
             if (! in_array($localStart->format('H:i'), $this->availableSlots($merchant, $service, $localStart, $provider), true)) {
                 return null;
@@ -163,6 +165,8 @@ class AppointmentService
                 }
             }
 
+            $deposit = $this->depositFor($merchant, $service);
+
             return Appointment::create([
                 'merchant_id' => $merchant->id,
                 'customer_id' => $customer->id,
@@ -172,14 +176,17 @@ class AppointmentService
                 'price' => $service->price,
                 'starts_at' => $localStart->copy()->utc(),
                 'ends_at' => $localStart->copy()->addMinutes((int) $service->duration_mins)->utc(),
-                'status' => 'booked',
+                'status' => $deposit ? 'pending_deposit' : 'booked',
+                'deposit_amount' => $deposit,
+                'deposit_code' => $deposit ? strtoupper(Str::random(5)) : null,
             ]);
         });
 
-        if ($appointment) {
-            NotifyStaffOfAppointment::dispatch($appointment->id)->afterCommit();
-
-            $this->scheduleReminder($merchant, $appointment);
+        if ($appointment && $appointment->status === 'booked') {
+            $this->confirmed($merchant, $appointment);
+        } elseif ($appointment) {
+            // The time is held while the customer pays: after the payment window it is released.
+            ExpireBookingDeposit::dispatch($appointment->id)->delay(now()->addMinutes($this->depositWindow($merchant)));
         }
 
         return $appointment;
@@ -231,6 +238,33 @@ class AppointmentService
         return $moved;
     }
 
+    /** A booking is on the calendar for good: the team is told and the reminder is queued. */
+    public function confirmed(Merchant $merchant, Appointment $appointment): void
+    {
+        NotifyStaffOfAppointment::dispatch($appointment->id)->afterCommit();
+        $this->scheduleReminder($merchant, $appointment);
+    }
+
+    /**
+     * The deposit this service asks for, or null: deposits are on in the shop's settings, the shop takes Whish
+     * (that is how the deposit is paid), and the service is not free.
+     */
+    public function depositFor(Merchant $merchant, Product $service): ?string
+    {
+        $shop = ShopSettings::for($merchant);
+        if ($shop->depositPercent() === 0 || $shop->whishNumber() === null || (float) $service->price <= 0) {
+            return null;
+        }
+
+        return number_format(max(0.01, round((float) $service->price * $shop->depositPercent() / 100, 2)), 2, '.', '');
+    }
+
+    /** Minutes a customer has to pay the deposit: the same window as a Whish order. */
+    public function depositWindow(Merchant $merchant): int
+    {
+        return max(1, (int) (($merchant->settings ?? [])['wish_timeout_mins'] ?? 15));
+    }
+
     /** The shop cancels a booking (the customer is told by the caller). False when it was no longer booked. */
     public function cancelByShop(Appointment $appointment): bool
     {
@@ -254,7 +288,7 @@ class AppointmentService
     {
         return Appointment::query()
             ->where('customer_id', $customer->id)
-            ->where('status', 'booked')
+            ->whereIn('status', Appointment::HOLDING)
             ->where('starts_at', '>', now())
             ->orderBy('starts_at')
             ->first();
@@ -265,7 +299,7 @@ class AppointmentService
     {
         return Appointment::query()
             ->where('customer_id', $customer->id)
-            ->where('status', 'booked')
+            ->whereIn('status', Appointment::HOLDING)
             ->where('starts_at', '>', now())
             ->orderBy('starts_at')
             ->get();

@@ -6,6 +6,7 @@ use App\Jobs\Concerns\LoadsAppointment;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\StaffMessenger;
+use App\Support\Money;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -30,6 +31,10 @@ class NotifyStaffOfAppointmentCancelled implements ShouldQueue
         }
 
         $body = __('whatsapp.appointment.staff_cancelled', $this->appointmentParams($appointment, $merchant), $merchant->locale ?? 'en');
+        // A booking cancelled after its deposit was paid: the shop decides whether to send the money back.
+        if ($appointment->deposit_paid_at) {
+            $body .= "\n".__('whatsapp.appointment.deposit_note', ['amount' => Money::format((float) $appointment->deposit_amount, $merchant->currency)], $merchant->locale ?? 'en');
+        }
 
         $params = $this->appointmentParams($appointment, $merchant);
         foreach ($messenger->managers($merchant) as $member) {

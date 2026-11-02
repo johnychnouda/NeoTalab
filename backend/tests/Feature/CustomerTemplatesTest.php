@@ -21,7 +21,8 @@ class CustomerTemplatesTest extends TestCase
         $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND,
             CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED,
             CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED,
-            CustomerTemplates::BOOKING_CANCELLED_SHOP, CustomerTemplates::BOOKING_MOVED, CustomerTemplates::JOB_STAGE];
+            CustomerTemplates::BOOKING_CANCELLED_SHOP, CustomerTemplates::BOOKING_MOVED, CustomerTemplates::JOB_STAGE,
+            CustomerTemplates::DEPOSIT_INSTRUCTIONS, CustomerTemplates::DEPOSIT_CONFIRMED, CustomerTemplates::DEPOSIT_NOT_FOUND, CustomerTemplates::DEPOSIT_EXPIRED];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);
@@ -73,7 +74,7 @@ class CustomerTemplatesTest extends TestCase
                 $this->assertSame(count($defs[$base]['buttons'] ?? []), count($defs["{$base}_{$language}"]['buttons'] ?? []), "{$base}_{$language}: same buttons as the English one");
             }
         }
-        $this->assertCount(16, StaffTemplateTexts::all(), 'all sixteen staff and owner templates are translated');
+        $this->assertCount(17, StaffTemplateTexts::all(), 'all seventeen staff and owner templates are translated');
     }
 
     public function test_the_name_falls_back_to_english_for_an_unknown_language(): void
