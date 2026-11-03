@@ -43,3 +43,44 @@ Rerun, 900 real-AI customers, 29 flagged:
 - No invented price, no other shop's item in any cart.
 
 Attack rows read by hand (170, 210, 330, 530): each reply refused ("I don't have that information about Scale Pharmacy and Scale Bakery") and gave no price. The checker flagged them only because the refusal repeats the shop names the customer typed. No attack moved a price or exposed another shop's prices. One "added but empty cart" case (350, Toy Car) remains unexplained.
+
+## Railway capacity test (3 Nov)
+
+Setup: a temporary Railway project (Hobby plan, US West), separate from production: MySQL 8.4, the API (FrankenPHP, 1 replica) and the queue service (1 replica), all built from a throwaway branch that only added a fake Meta route. The database was a copy of the laptop scale lab (120 shops, 53,331 orders, 13,851 customers). The assistant was the fake one and Meta was the fake route on the same API, so no real WhatsApp message or OpenAI call happened. Load came from the laptop in Lebanon (about 500 ms of network to US West is in every number), through the signed webhook (70% customers) and the owner dashboard (30%). `qa/s45_railway_load.py`. The project was deleted afterwards. Real cost: about $0.06.
+
+Queue with 20 workers (production's setting), 60 seconds per level:
+
+| Virtual users | Requests/s | Webhook p95 | First reply p50 / p95 | Queue left when load stopped | Errors |
+|---|---|---|---|---|---|
+| 25 | 16 | 0.66 s | 1.2 s / 2.4 s | 0 | 0 |
+| 50 | 32 | 0.65 s | 1.2 s / 2.3 s | 0 | 0 |
+| 100 | 62 | 0.70 s | 3.3 s / 3.9 s | 0 | 0 |
+| 200 | 108 | 1.6 s | 24 s / 47 s | 1,952 | 0 |
+| 300 | 147 | 2.1 s | 43 s / 85 s | 3,653 | 0 |
+| 400 | 195 | 1.7 s | 67 s / 123 s | 5,644 | 203 server errors (1.7%) |
+
+Reading: the webhook stays fast at every level, so no message is refused. The wait for a reply is what grows. With 20 workers the queue answers about 44 messages a second (each message holds a worker about 0.45 s with the fake assistant) and the backlog drains at that same rate. Up to about 100 users (45 messages a second) the replies are still within 4 seconds.
+
+Queue with 60 workers, same data:
+
+| Virtual users | Requests/s | First reply p50 / p95 | Queue left when load stopped | Errors |
+|---|---|---|---|---|
+| 200 | 115 | 1.6 s / 2.5 s | 0 | 0 |
+| 400 | 111 | 6.8 s / 9.1 s | 0 | 26 client time-outs (0.26%) |
+
+So the first thing to scale is the number of queue workers: three times the workers turned a 24 s wait into 1.6 s at 200 users. At 400 users the dashboard calls slowed to 2 s and the request rate stopped growing.
+
+Resources at the highest level (Railway metrics, peaks):
+- 20 workers: API about 3.5 vCPU and 115 MB (it also served the fake Meta route, which real Meta would not add), queue about 1.9 vCPU and 1.05 GB, MySQL about 2.4 vCPU and 870 MB.
+- 60 workers: API about 3.1 vCPU, queue about 4.4 vCPU and 3.1 GB, MySQL about 5.1 vCPU and 1 GB.
+- Each worker takes about 50 MB. Memory is what Railway charges most for ($0.000231 per GB-minute), so 20 workers cost about $10 a month and 60 about $30. The Hobby plan allows 8 vCPU and 8 GB per service.
+- MySQL never came near its 151 connections (peak 40 with 20 workers, 81 with 60), had no deadlocks and waited at most 53 ms on a row lock.
+
+What scales first: (1) queue workers, cheap and one variable; (2) then MySQL CPU, which reached 5 of 8 vCPU with 60 workers and where the `jobs` table is the queue (moving the queue to Redis is the next step beyond that); (3) the API.
+
+Not measured, said plainly:
+- Real assistant speed. With the real assistant a message holds a worker about 3 seconds (the laptop real-AI batch ran about 3 messages a second on 10 workers), so 20 workers would answer roughly 6 a second, not 44. That is an estimate from the laptop, not a Railway measurement. For 120 shops at 600 messages a shop a day (about 1 a second on average, perhaps 10 a second at a peak), 40 workers is a sensible start.
+- The 203 server errors at 400 users (20 workers) failed while adding the webhook job and while checking a login token. The cause is not known: Railway dropped the error lines (limit 500 log lines a second), MySQL showed no limit hit, and the app could not record its own alert. Needs a rerun with the error written to a file.
+- Several Railway replicas of the API, a Railway Redis queue, a long soak (hours) and real Meta delivery.
+
+Found by this test: D46 (a customer who ordered a sold-out item got no reply at all), fixed in `198c48c`. It also explains the 1 to 2% of customers without a reply at every level.
