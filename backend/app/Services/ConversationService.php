@@ -18,6 +18,7 @@ use App\Services\AI\CatalogResolver;
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
+use App\Services\AI\ExactItemFromMessage;
 use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
 use App\Services\AI\ReplyFigures;
@@ -179,7 +180,8 @@ class ConversationService
             ));
         }
 
-        $actions = $this->quantities->correct($message, $output->cartActions, $input->catalog);
+        $actions = (new ExactItemFromMessage)->correct($message, $output->cartActions, $input->catalog);
+        $actions = $this->quantities->correct($message, $actions, $input->catalog);
         $actions = $this->cartEdits->apply($message, $actions, $input->cartLines, $input->catalog);
         $cartResult = $this->cartService->applyActions($cart, $actions);
 

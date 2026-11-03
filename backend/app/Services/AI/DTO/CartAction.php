@@ -49,6 +49,12 @@ final readonly class CartAction
         );
     }
 
+    /** The same action on another product: its size and extras belonged to the first one, so they are dropped. */
+    public function withProduct(string $productId): self
+    {
+        return new self(action: $this->action, productId: $productId, quantity: $this->quantity, notes: $this->notes);
+    }
+
     public function toArray(): array
     {
         return array_filter([
