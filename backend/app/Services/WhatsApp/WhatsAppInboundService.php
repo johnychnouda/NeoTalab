@@ -521,7 +521,7 @@ class WhatsAppInboundService
             return $this->chatMenu->handle($merchant, $result['conversation'], $locale, "mn:item:{$product->id}");
         }
 
-        return ['type' => 'text', 'text' => ['body' => __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale)]];
+        return ['type' => 'text', 'text' => __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale)];
     }
 
     /** The shop's services with minutes and prices, and how to book; null when there are none. */

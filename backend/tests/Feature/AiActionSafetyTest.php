@@ -157,6 +157,16 @@ class AiActionSafetyTest extends TestCase
         $this->assertSame(2, (int) $this->cart()->items()->first()->quantity);
     }
 
+    public function test_a_customer_who_orders_a_sold_out_item_is_told_so(): void
+    {
+        $this->burger->forceFill(['is_available' => false])->save();
+        $this->ai([$this->add($this->burger)]);
+        $this->say('1 burger');
+
+        $this->assertSame(0, $this->cart()->items()->count());
+        $this->assertStringContainsString('no longer available', collect($this->sentToCustomer())->last());
+    }
+
     public function test_an_answer_with_real_shop_prices_or_a_harmless_customer_number_is_left_alone(): void
     {
         $this->aiSays('A Burger is 6.00$ and Garlic is 0.50$ extra.');
