@@ -57,11 +57,14 @@ class AppServiceProvider extends ServiceProvider
         // Brute-force protection: per email+IP, a looser per-IP ceiling, and per email alone. The visitor
         // address comes from a forwarded header the proxy may pass on as the visitor sent it, so the
         // email-only limits are what stop one account being tried from endless "different" addresses.
+        // The email may arrive as an array or object from a hostile caller: it is only a limiter key here, and
+        // the form request rejects it afterwards, so anything that is not text counts as empty.
+        $loginKey = fn (Request $request): string => is_string($request->input('email')) ? Str::lower($request->input('email')) : '';
         RateLimiter::for('login', fn (Request $request) => [
-            Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()),
+            Limit::perMinute(5)->by($loginKey($request).'|'.$request->ip()),
             Limit::perMinute(20)->by($request->ip()),
-            Limit::perMinute(10)->by('email:'.Str::lower((string) $request->input('email'))),
-            Limit::perHour(30)->by('email-hour:'.Str::lower((string) $request->input('email'))),
+            Limit::perMinute(10)->by('email:'.$loginKey($request)),
+            Limit::perHour(30)->by('email-hour:'.$loginKey($request)),
         ]);
 
         // Public /join applications: per visitor, and a ceiling for everyone together (a flood with

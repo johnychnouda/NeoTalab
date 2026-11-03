@@ -30,6 +30,18 @@ class AuthTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'new@example.com']);
     }
 
+    public function test_login_with_an_array_or_object_instead_of_text_is_a_validation_error_not_a_crash(): void
+    {
+        foreach ([
+            ['email' => ['a@b.test'], 'password' => 'x'],
+            ['email' => ['$ne' => ''], 'password' => ['$ne' => '']],
+            ['email' => 'a@b.test', 'password' => ['x']],
+        ] as $body) {
+            $this->postJson('/api/v1/auth/login', $body)->assertStatus(422);
+        }
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => ['a@b.test']])->assertStatus(422);
+    }
+
     public function test_login_is_rate_limited_per_email(): void
     {
         $this->merchantWithUser();
