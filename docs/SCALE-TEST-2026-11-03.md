@@ -23,3 +23,6 @@ Customers of appointment shops cannot "add to cart" (139 empty carts); a stock t
 
 ## Not yet done
 Real-AI batches (thousands of conversations), Railway staging copy and capacity, load levels above 250 on a production-like server, failure and recovery tests, OWASP/scanner pass. The numbers above come from a laptop with the PHP dev server and fake AI, so they say the logic holds at this volume, not what Railway can carry.
+
+## Real AI, first sample (60 customers, 96 orders-type shops, EN/AR/FR)
+Not a pass. 5 of 60 customers asked for "2 X" where the shop also sells "X Large" or "X Small" as separate items, and the assistant put the Large/Small item in the cart (catalog price, never an invented price, but not the item asked for). The other 3 "failures" were my checker mistaking a cart total for a price (corrected in `s44_real_ai_scale.py`). No cart held another shop's item. This is open as D44: when the customer's words match one item exactly, that item should win over a longer name. Not fixed yet, and the sample is too small to give a rate.
