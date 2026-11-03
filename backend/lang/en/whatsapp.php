@@ -4,6 +4,7 @@
 // :minimum :zone :item :reason :driver :items :address :phone :payment :name :count :cash :url
 
 return [
+    'interrupted' => 'Sorry, I was interrupted and may have missed your last message. Please send it again; what is already in your cart is saved.',
     'closed' => 'Sorry, :shop is currently closed. Please try again during business hours.',
     'manual' => 'A team member will reply to you shortly.',
     'team_answering' => 'Thanks, a team member from :shop is handling this chat and will reply shortly.',

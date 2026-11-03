@@ -84,3 +84,17 @@ Not measured, said plainly:
 - Several Railway replicas of the API, a Railway Redis queue, a long soak (hours) and real Meta delivery.
 
 Found by this test: D46 (a customer who ordered a sold-out item got no reply at all), fixed in `198c48c`. It also explains the 1 to 2% of customers without a reply at every level.
+
+## Recovery tests (3 Nov, scale lab on the laptop)
+
+Workers run like production (`docker/queue.sh` loop, `--tries=3 --timeout=75`, retry after 150 s), fake assistant, mock Meta. Scripts: `qa/s46_recovery.py` (workers killed with SIGKILL mid-job), `qa/s47_outage.py` (database or Meta down for 20 s while 625 customers write; a message the webhook refused is delivered again with the same id, as Meta does).
+
+Correction to the earlier note in this document: the "worker killed loses the customer's message" finding first came from my lab workers running with `--tries=1`. Production runs `--tries=3`, so the job is retried. The real problem was different and is D47 below.
+
+| Test | Before the fix | After the fix |
+|---|---|---|
+| All workers killed mid-job (1,500 customers) | 1 customer never answered, cart already changed (D47) | the killed customer is answered after 183 s, nobody twice, carts exact |
+| Meta down 20 s (625 customers) | 125 customers (20%) never answered (D48) | all 625 answered (last after 211 s), nobody twice, carts exact |
+| Database down 20 s (625 customers) | not needed | webhook refused 127 messages with 500 for the length of the outage; workers recovered by themselves; after redelivery all 625 answered (212 s), nobody twice, carts exact, 0 failed jobs |
+
+Not covered: killing the API mid-request, a database outage longer than a few minutes, Meta's real redelivery timing (the test redelivers right after recovery), a Railway deploy with the real 0-second drain, and a full Redis or database failover.

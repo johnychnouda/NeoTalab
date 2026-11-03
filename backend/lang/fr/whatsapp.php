@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'interrupted' => 'Désolé, j\'ai été interrompu et j\'ai peut-être manqué votre dernier message. Renvoyez-le, s\'il vous plaît ; votre panier est conservé.',
     'closed' => "Désolé, :shop est actuellement fermé. Veuillez réessayer pendant les heures d'ouverture.",
     'manual' => "Un membre de l'équipe vous répondra sous peu.",
     'team_answering' => "Merci, un membre de l'équipe :shop s'occupe de cette discussion et vous répondra bientôt.",

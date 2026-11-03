@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
+use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
 use App\Services\AI\DTO\StructuredTurnOutput;
@@ -108,6 +109,50 @@ class WhatsAppInboundHardeningTest extends TestCase
         app(WhatsAppInboundService::class)->handle($payload);
         app(WhatsAppInboundService::class)->handle($payload);
 
+        $this->assertCount(1, $this->sentTexts());
+    }
+
+    public function test_a_message_whose_worker_died_is_answered_on_retry_without_running_it_again(): void
+    {
+        $merchant = $this->merchant('111');
+        $payload = ['entry' => [['changes' => [$this->change('111', [$this->message('wamid.DEAD')])]]]];
+        // The first attempt recorded the message, then its worker was killed: no handled_at, five minutes ago.
+        WhatsAppMessage::query()->forceCreate([
+            'merchant_id' => $merchant->id, 'wa_message_id' => 'wamid.DEAD', 'direction' => 'inbound', 'from_number' => '+96170123456',
+            'to_number' => '111', 'message_type' => 'text', 'payload' => ['id' => 'wamid.DEAD'], 'created_at' => now()->subMinutes(5),
+        ]);
+
+        app(WhatsAppInboundService::class)->handle($payload);
+        app(WhatsAppInboundService::class)->handle($payload);
+
+        $sent = $this->sentTexts();
+        $this->assertCount(1, $sent, 'one honest reply, not one per retry');
+        $this->assertStringContainsString('interrupted', $sent[0]);
+    }
+
+    public function test_a_message_still_being_handled_by_a_live_worker_is_left_alone(): void
+    {
+        $merchant = $this->merchant('111');
+        WhatsAppMessage::query()->forceCreate([
+            'merchant_id' => $merchant->id, 'wa_message_id' => 'wamid.SLOW', 'direction' => 'inbound', 'from_number' => '+96170123456',
+            'to_number' => '111', 'message_type' => 'text', 'payload' => ['id' => 'wamid.SLOW'], 'created_at' => now()->subSeconds(20),
+        ]);
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.SLOW')])]]]]);
+
+        $this->assertSame([], $this->sentTexts());
+    }
+
+    public function test_a_handled_message_is_marked_so_a_late_duplicate_stays_silent(): void
+    {
+        $merchant = $this->merchant('111');
+        $payload = ['entry' => [['changes' => [$this->change('111', [$this->message('wamid.DONE')])]]]];
+        app(WhatsAppInboundService::class)->handle($payload);
+
+        $this->assertArrayHasKey('handled_at', WhatsAppMessage::query()->where('merchant_id', $merchant->id)->where('wa_message_id', 'wamid.DONE')->first()->payload);
+
+        $this->travel(10)->minutes();
+        app(WhatsAppInboundService::class)->handle($payload);
         $this->assertCount(1, $this->sentTexts());
     }
 

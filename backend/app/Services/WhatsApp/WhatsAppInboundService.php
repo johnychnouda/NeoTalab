@@ -204,6 +204,8 @@ class WhatsAppInboundService
                 'payload' => $msg,
             ]);
         } catch (UniqueConstraintViolationException) {
+            $this->answerInterruptedMessage($merchant, $waMessageId, $fromPhone);
+
             return;
         }
 
@@ -219,6 +221,7 @@ class WhatsAppInboundService
 
         try {
             $this->handleMessage($merchant, $msg, $phoneNumberId, $fromPhone, $record);
+            $record->update(['payload' => array_merge($record->payload ?? $msg, ['handled_at' => now()->toIso8601String()])]);
         } finally {
             $lock?->release();
         }
@@ -775,6 +778,28 @@ class WhatsAppInboundService
     }
 
     /** A short note followed by the shop's menu list, so the customer always has a next step. */
+    /**
+     * A message arrives a second time (a queue retry, or Meta delivering again) and the first attempt never
+     * finished: its worker died after the message was recorded. The first attempt may already have changed the
+     * cart, so it is not run again; the customer is told to resend instead of being left without an answer.
+     * "Never finished" means no handled_at after longer than a job may run, so a slow live attempt is left alone.
+     */
+    protected function answerInterruptedMessage(Merchant $merchant, string $waMessageId, string $fromPhone): void
+    {
+        $first = WhatsAppMessage::query()->where('merchant_id', $merchant->id)->where('wa_message_id', $waMessageId)->where('direction', 'inbound')->first();
+        if (! $first || isset(($first->payload ?? [])['handled_at']) || $first->created_at->gt(now()->subSeconds(90))) {
+            return;
+        }
+        if (! Cache::add("wa-interrupted:{$merchant->id}:{$waMessageId}", 1, 3600)) {
+            return;
+        }
+
+        $first->update(['payload' => array_merge($first->payload ?? [], ['handled_at' => now()->toIso8601String(), 'interrupted' => true])]);
+        $locale = Customer::query()->where('phone', $fromPhone)->value('locale') ?: ($merchant->locale ?: 'en');
+        Log::warning('WhatsApp inbound: a message was interrupted before it was answered; the customer is asked to resend', ['merchant_id' => $merchant->id]);
+        $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('interrupted', $locale, $merchant->name));
+    }
+
     protected function replyWithMenu(Merchant $merchant, string $toPhone, string $locale, string $note): void
     {
         try {

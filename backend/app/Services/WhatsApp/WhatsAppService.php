@@ -2,10 +2,12 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Jobs\RetryWhatsAppSend;
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
 use App\Models\WhatsAppMessage;
 use App\Support\MerchantWhatsAppCredentials;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -29,6 +31,25 @@ class WhatsAppService
      * @return array<string,mixed>
      */
     public function sendToCustomer(Merchant $merchant, string $toPhone, array $message): array
+    {
+        try {
+            return $this->sendToCustomerNow($merchant, $toPhone, $message);
+        } catch (TransientWhatsAppException $e) {
+            // Meta is unreachable or busy: the message is kept and sent again shortly, not dropped.
+            RetryWhatsAppSend::dispatch($merchant->id, $toPhone, $message);
+            Log::warning('WhatsApp send postponed: Meta could not take it right now', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * One attempt, no retry.
+     *
+     * @param  array<string,mixed>  $message
+     * @return array<string,mixed>
+     */
+    public function sendToCustomerNow(Merchant $merchant, string $toPhone, array $message): array
     {
         $creds = MerchantWhatsAppCredentials::resolve($merchant);
         if (! $creds) {
@@ -89,9 +110,13 @@ class WhatsAppService
             $payload['location'] = $message['location'] ?? [];
         }
 
-        $response = Http::withToken($token)
-            ->acceptJson()
-            ->post($this->graphUrl("{$phoneId}/messages"), $payload);
+        try {
+            $response = Http::withToken($token)
+                ->acceptJson()
+                ->post($this->graphUrl("{$phoneId}/messages"), $payload);
+        } catch (ConnectionException $e) {
+            throw new TransientWhatsAppException('WhatsApp API unreachable: '.$e->getMessage(), 0, $e);
+        }
 
         $data = $response->json() ?? [];
 
@@ -102,9 +127,10 @@ class WhatsAppService
                 'body' => $data,
             ]);
 
-            throw new RuntimeException(
-                'WhatsApp API error: '.($data['error']['message'] ?? $response->status())
-            );
+            $reason = 'WhatsApp API error: '.($data['error']['message'] ?? $response->status());
+            throw ($response->status() === 429 || $response->status() >= 500)
+                ? new TransientWhatsAppException($reason)
+                : new RuntimeException($reason);
         }
 
         // The message is already delivered: logging it must never fail the caller, or a job
