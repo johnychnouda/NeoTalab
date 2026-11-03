@@ -180,7 +180,8 @@ class ConversationService
             ));
         }
 
-        $actions = (new ExactItemFromMessage)->correct($message, $output->cartActions, $input->catalog);
+        $actions = $this->withoutClearAfterAdd($output->cartActions);
+        $actions = (new ExactItemFromMessage)->correct($message, $actions, $input->catalog);
         $actions = $this->quantities->correct($message, $actions, $input->catalog);
         $actions = $this->cartEdits->apply($message, $actions, $input->cartLines, $input->catalog);
         $cartResult = $this->cartService->applyActions($cart, $actions);
@@ -253,6 +254,15 @@ class ConversationService
     /**
      * @return array{0: string, 1: ?Order}
      */
+    /** The assistant sometimes adds an item and clears the cart in the same turn, which empties what it just added. */
+    private function withoutClearAfterAdd(array $actions): array
+    {
+        $firstAdd = collect($actions)->search(fn ($a) => $a->action === 'add');
+
+        return $firstAdd === false ? $actions
+            : array_values(array_filter($actions, fn ($a, $i) => ! ($a->action === 'clear' && $i > $firstAdd), ARRAY_FILTER_USE_BOTH));
+    }
+
     private function checkout(Conversation $conversation, StructuredTurnOutput $output): array
     {
         $this->fulfillmentMissing = false;

@@ -149,6 +149,14 @@ class AiActionSafetyTest extends TestCase
         $this->assertSame('6.00', number_format((float) $this->cart()->items()->first()->unit_price, 2));
     }
 
+    public function test_an_add_followed_by_a_clear_in_one_turn_keeps_what_was_added(): void
+    {
+        $this->ai([$this->add($this->burger, ['quantity' => 2]), ['action' => 'clear', 'quantity' => 0]]);
+        $this->say('I want 2 Burger');
+
+        $this->assertSame(2, (int) $this->cart()->items()->first()->quantity);
+    }
+
     public function test_an_answer_with_real_shop_prices_or_a_harmless_customer_number_is_left_alone(): void
     {
         $this->aiSays('A Burger is 6.00$ and Garlic is 0.50$ extra.');
