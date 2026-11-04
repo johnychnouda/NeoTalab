@@ -86,30 +86,39 @@ Two things to tell shops honestly before they sign: (1) NeoTalab is $30; (2) Met
 
 ## 4b. How to cut the shop's Meta bill
 
-Meta charges per message sent, so the only lever is sending fewer. I ran one real button order (delivery shop, two zones) in a test and counted: **9 messages to the customer** (greeting list, "how many?", "added", "which area?", "send your location", "add details", "total and cash currency", receipt, confirmed), plus about 3.7 to the team, plus the non-order chats. About 17 per order in all.
+Meta charges per message sent, so the only lever is sending fewer. I ran one real button order (delivery shop, two zones) in a test and counted **9 messages to the customer**: greeting list, "how many?", "added", "which area?", "send your location", "add details", "total and cash currency", receipt, confirmed. Add about 3.7 to the team and the non-order chats and it is about 17 per order.
+
+**Correction (4 November):** my first version of this section proposed skipping the currency question. That was wrong. Customers can pay in dollars or in lira (or split), and the checkout asks only when the shop has a lira rate. **The currency choice stays.** The saving comes from merging steps instead.
 
 | # | What | Saves per order | Effort | Notes |
 |---|---|---|---|---|
-| 1 | Tell shops to advertise with **Click-to-WhatsApp ads** | everything for customers who arrive from an ad (free 7-day window) | none | Meta's page says marketing, utility and service messages inside that window are free. Most useful for shops that already use Instagram or Facebook ads |
-| 2 | **Trim the order flow**: skip the area step when there is one zone, skip the currency step when the shop takes one currency, merge "send your location" with "add details", default the quantity to 1 with a "change" button | 3 to 4 | small | Returning customers already skip address steps |
-| 3 | **Customer update level per shop**: minimal (accepted and delivered), normal, full; switches for the "taking longer" notice and the rating request | 1 to 3 | small | Each automatic update is a paid message |
-| 4 | **Team alerts to one manager number** by default instead of everyone | 1 to 2 | small | About a fifth of the messages per order go to the team |
-| 5 | Greeting nudge: "write your whole order in one message" | 3 to 4 for those who do | tiny | A typed or voice order needs fewer steps than the menu |
-| 6 | **WhatsApp Flows or a catalog checkout**: one message with a form for items, area, address and currency, answered in one go | about 5 | large (1 to 3 weeks) | Biggest saving; do it after the first real shops show how they order |
+| 1 | Tell shops to advertise with **Click-to-WhatsApp ads** | everything for customers who arrive from an ad (free 7-day window) | none | Meta's page says marketing, utility and service messages inside that window are free |
+| 2 | **Merge the receipt with the payment choice.** One list message shows the full receipt (items, delivery, total in dollars and in lira) with rows such as "Confirm, pay in dollars", "Confirm, pay in lira", "Confirm, split", "Edit", "Cancel" (and cash or Whish rows when the shop takes Whish). Tapping a row confirms. | 1 to 2 | small to medium | Keeps the currency choice and the confirm step. A message can hold up to 10 list rows, a button message only 3 |
+| 3 | **Merge "send your location" with "add details"**, and skip "which area?" when the pin already gives the area or the shop has one zone | 2 | small | Returning customers already skip address steps |
+| 4 | **Default the quantity to 1** with a "change quantity" button on the "added" message | 1 per item | small | |
+| 5 | **Customer update level per shop**: minimal (delivered only, with the rating request inside it), normal, full | 1 to 3 | small | Each automatic update is a paid message |
+| 6 | **Team alerts to one manager number** by default | 1 to 2 | small | About a fifth of the messages per order go to the team |
+| 7 | Greeting nudge: "write your whole order in one message" | 3 to 4 for those who do | tiny | A typed or voice order skips the menu |
+| 8 | **WhatsApp Flows or a catalog checkout**: one form message for items, area, address and payment | about 3 to 4 | large (1 to 3 weeks) | Biggest saving; do it after the first real shops show how they order |
+
+**Is this the minimum?** Per order, customer side, with these cuts:
+- A new customer who uses the menu buttons: **5 messages** (menu, added, location, receipt and payment, confirmed).
+- A customer who types the order: **3 to 4**.
+- A returning customer with a saved address who types: **2** (receipt and payment, confirmed).
+- Below that only Flows or a catalog get lower, and the shop's own team alerts and delivery updates still add 1 to 3.
 
 What not to do: never send marketing templates (about four times the price of a normal message). Splitting one shop over several numbers to get more free messages is allowed per number but is not a fix.
 
 **What it is worth** (shop's monthly Meta bill, at $0.0105 a message):
 
-| Messages per order | Free until (orders a month) | 150 orders | 300 orders | 600 orders |
+| Messages per order, all included | Free until (orders a month) | 150 orders | 300 orders | 600 orders |
 |---|---|---|---|---|
 | 17 (today) | 57 | $16.6 | $43.4 | $96.9 |
-| about 12 (items 2 and 4) | 80 | $8.7 | $27.6 | $65.4 |
-| about 10 (plus item 3) | 97 | $5.6 | $21.3 | $52.8 |
-| about 7 (plus item 6) | 138 | $0.8 | $11.9 | $33.9 |
-| about 5 (best case) | 194 | $0 | $5.6 | $21.3 |
+| about 11 (items 2 to 6, currency question kept) | 88 | $7.1 | $24.5 | $59.1 |
+| about 9 (customers type or come back) | 107 | $4.0 | $18.2 | $46.5 |
+| about 6 (Flows plus returning customers) | 161 | $0 | $8.7 | $27.6 |
 
-Items 2 to 4 together are about two to three days of work and take a 300-order shop from $43 to about $21.
+Items 2 to 6 together are about three to five days of work and take a 300-order shop from $43 to about $25.
 
 ## 5. How I calculated
 
