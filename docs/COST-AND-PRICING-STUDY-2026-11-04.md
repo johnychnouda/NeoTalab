@@ -84,6 +84,33 @@ Two things to tell shops honestly before they sign: (1) NeoTalab is $30; (2) Met
 3. **Meta numbers can differ.** The rates and the "1,000 free" rule come from Meta's page and two rate-card sites that disagree slightly. Confirm in WhatsApp Manager with the first shop.
 4. **Messages per order drive the shop's Meta bill.** Shorter flows (fewer menu messages) would cut it directly. Worth a look once real shops give real counts.
 
+## 4b. How to cut the shop's Meta bill
+
+Meta charges per message sent, so the only lever is sending fewer. I ran one real button order (delivery shop, two zones) in a test and counted: **9 messages to the customer** (greeting list, "how many?", "added", "which area?", "send your location", "add details", "total and cash currency", receipt, confirmed), plus about 3.7 to the team, plus the non-order chats. About 17 per order in all.
+
+| # | What | Saves per order | Effort | Notes |
+|---|---|---|---|---|
+| 1 | Tell shops to advertise with **Click-to-WhatsApp ads** | everything for customers who arrive from an ad (free 7-day window) | none | Meta's page says marketing, utility and service messages inside that window are free. Most useful for shops that already use Instagram or Facebook ads |
+| 2 | **Trim the order flow**: skip the area step when there is one zone, skip the currency step when the shop takes one currency, merge "send your location" with "add details", default the quantity to 1 with a "change" button | 3 to 4 | small | Returning customers already skip address steps |
+| 3 | **Customer update level per shop**: minimal (accepted and delivered), normal, full; switches for the "taking longer" notice and the rating request | 1 to 3 | small | Each automatic update is a paid message |
+| 4 | **Team alerts to one manager number** by default instead of everyone | 1 to 2 | small | About a fifth of the messages per order go to the team |
+| 5 | Greeting nudge: "write your whole order in one message" | 3 to 4 for those who do | tiny | A typed or voice order needs fewer steps than the menu |
+| 6 | **WhatsApp Flows or a catalog checkout**: one message with a form for items, area, address and currency, answered in one go | about 5 | large (1 to 3 weeks) | Biggest saving; do it after the first real shops show how they order |
+
+What not to do: never send marketing templates (about four times the price of a normal message). Splitting one shop over several numbers to get more free messages is allowed per number but is not a fix.
+
+**What it is worth** (shop's monthly Meta bill, at $0.0105 a message):
+
+| Messages per order | Free until (orders a month) | 150 orders | 300 orders | 600 orders |
+|---|---|---|---|---|
+| 17 (today) | 57 | $16.6 | $43.4 | $96.9 |
+| about 12 (items 2 and 4) | 80 | $8.7 | $27.6 | $65.4 |
+| about 10 (plus item 3) | 97 | $5.6 | $21.3 | $52.8 |
+| about 7 (plus item 6) | 138 | $0.8 | $11.9 | $33.9 |
+| about 5 (best case) | 194 | $0 | $5.6 | $21.3 |
+
+Items 2 to 4 together are about two to three days of work and take a 300-order shop from $43 to about $21.
+
 ## 5. How I calculated
 
 - **Railway:** your Usage page (memory $0.000231 per GB-minute, about $10 per GB-month; CPU about $0.0005 per vCPU-minute). Average memory last cycle 0.94 GB; the 40 workers add about 0.75 GB (queue memory went from 0.7 GB to 1.5 GB after the change).
