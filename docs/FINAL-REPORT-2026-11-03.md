@@ -49,8 +49,8 @@ All have a regression test, all pushed to `main` (suite: 665 passing). Details i
 
 ## Conditions (what makes "conditionally" true)
 
-1. **Real-assistant capacity on Railway is estimated, not measured.** Before a big launch, run one real-assistant load test on a temporary copy, or start with 40 workers (about $10 a month more) and watch the wait times.
-2. **A Railway deploy may stop workers instantly.** The retry now covers it (customers wait about 2.5 minutes, then are asked to resend), but setting Railway's deploy drain time (`RAILWAY_DEPLOYMENT_DRAINING_SECONDS`, for example 60) lets workers finish their current message first. Not tested on Railway.
+1. **Real-assistant capacity on Railway is estimated, not measured.** Production queue workers were raised from 20 to 40 on 4 November (about $8 a month more memory); watch the wait times, and run one real-assistant load test on a temporary copy before a big launch.
+2. **A Railway deploy may stop workers instantly.** The retry covers it (customers wait about 2.5 minutes, then are asked to resend). On 4 November the queue's deploy drain time was set to 60 seconds so workers can finish their current message first; the drain itself was not tested under load.
 3. **No long run.** Nothing ran for hours; slow memory growth or a once-a-day job could still hide.
 4. **Real WhatsApp delivery at scale and real payments are untested.** Meta was a stand-in; only your first real shops will show how Meta behaves at volume.
 5. **No independent penetration test, no commercial scanner, live site not scanned.**
@@ -63,3 +63,8 @@ All have a regression test, all pushed to `main` (suite: 665 passing). Details i
 - Temporary Railway project for the capacity test (cost about $0.06), a copy of the same data.
 - Scripts are in `qa/` (`s40` to `s48`); results are in `docs/SCALE-TEST-2026-11-03.md`.
 - Not measured and not claimed: voice notes and photos at scale, real payments, Meta's real delivery and rate limits.
+
+## Production changes made after the report (4 November)
+
+- The seven fixes (D45 to D49 and the recovery code) reached GitHub only on 4 November: my earlier pushes had not gone through and I had not noticed because I hid the push output. Railway deployed them to production on 4 November at about 08:20; `main` now tracks `origin/main`.
+- Production queue: `QUEUE_WORKERS` 20 → 40 and `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` = 60. Production health during the redeploy: 18 of 18 checks passed over 3 minutes, all four services online, queue memory 0.7 GB → 1.5 GB.
