@@ -282,8 +282,6 @@ export default function ZoneEditor({ api, toast, t, currency, shopPin, zones, on
                 <label className="zn-field"><span>{t("db.zone.min")}</span>
                   <input type="number" min="0" step="0.5" value={draft.min} onChange={(e) => setD("min", e.target.value)} placeholder="0" /></label>
               </div>
-              <label className="zn-field"><span>{t("db.zone.time")}</span>
-                <input type="number" min="1" max="240" value={draft.mins} onChange={(e) => setD("mins", e.target.value)} /></label>
               <div className="zn-colors" role="radiogroup" aria-label={t("db.zone.color")}>
                 {COLORS.map((c) => (
                   <button key={c} type="button" role="radio" aria-checked={draft.color === c} aria-label={c} style={{ background: c }}
