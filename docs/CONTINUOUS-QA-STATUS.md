@@ -225,3 +225,18 @@ matrix: [CONTINUOUS-QA-TEST-MATRIX.md](CONTINUOUS-QA-TEST-MATRIX.md) · bugs: [C
   `PlatformWhatsAppCheck`): Connected · number, Not working + Meta's message, or Not connected; a "Check again" button; a note when Meta has no approved
   display name. Meta's answer for +961 70 207 078 on 30 Oct: status CONNECTED, display name not approved (`NON_EXISTS`). Tests: `PlatformWhatsAppCheckTest` (6),
   browser `e2e/whatsapp-badge.spec.js`. The QR "Connect NeoTalab's number" button is a different method (a number on the WhatsApp Business app) and is not needed here.
+
+### Checkpoint 15, 5 November (delivery pin and delivery time, lab run `qa/s49_delivery_pin_and_time.py`)
+- Scale lab (laptop MySQL, API, queue workers, fake WhatsApp; Google off so the area's backup minutes are used). One restaurant, three
+  customers in English, Arabic and French, whole journey: typed address refused and the location button sent again (no order saved), the pin
+  accepted, the note for the driver, the receipt ("Preparation about 30 min. We will message you the arrival time when it is on its way"),
+  the order saved with the pin and the note, the shop accepts ("preparing now, ready around 2:16 PM"), the driver picks up ("on its way with
+  …, arriving in about 15 min (around 2:01 PM)"), delivered. All checks pass in the three languages.
+- The arrival time is counted from the moment the driver taps Picked up, so a test that taps at once shows 15 min after now, earlier than the
+  "ready around" time; in real use pickup happens at about the ready time.
+- Production, read-only check of Google from the server: shop pin read, key set, normal driving time 29 min and live-traffic time 38 min to a
+  point about 17 km away.
+- Browser checks on the shop dashboard (Delivery areas): English, Arabic, French; desktop, tablet, large phone, and a copy of the page in a
+  390 px frame (also 360 and 320: no sideways scroll). Quick setup, a circle with and without a name and fee, and a hand-drawn shape were saved
+  and deleted on the test shop.
+- Not done: a real phone tapping the dashboard or ordering on WhatsApp; the real assistant with a typed address; native Arabic and French readers.
