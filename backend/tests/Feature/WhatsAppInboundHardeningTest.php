@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
+use App\Models\Product;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\DTO\ConversationTurnInput;
@@ -60,7 +63,7 @@ class WhatsAppInboundHardeningTest extends TestCase
         return Http::recorded()
             ->map(fn ($pair) => $pair[0])
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages'))
-            ->map(fn (Request $r) => $r['text']['body'] ?? '')
+            ->map(fn (Request $r) => $r['text']['body'] ?? $r['interactive']['body']['text'] ?? '')
             ->values()->all();
     }
 
@@ -128,6 +131,46 @@ class WhatsAppInboundHardeningTest extends TestCase
         $sent = $this->sentTexts();
         $this->assertCount(1, $sent, 'one honest reply, not one per retry');
         $this->assertStringContainsString('interrupted', $sent[0]);
+    }
+
+    public function test_an_interrupted_message_shows_the_cart_so_an_item_already_added_is_not_asked_for_again(): void
+    {
+        $merchant = $this->merchant('111');
+        // The first attempt added the item, then its worker died before replying (seen at scale, s46 with 800 customers).
+        $product = Product::factory()->forMerchant($merchant)->create(['name' => 'Croissant', 'price' => 2.5]);
+        $customer = Customer::factory()->forMerchant($merchant)->create(['phone' => '+96170123456', 'locale' => 'en']);
+        $conversation = Conversation::factory()->forMerchant($merchant)->create(['customer_id' => $customer->id]);
+        $cart = Cart::factory()->forConversation($conversation)->create(['subtotal' => 2.5]);
+        CartItem::factory()->forCart($cart)->create(['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 2.5, 'line_total' => 2.5]);
+        WhatsAppMessage::query()->forceCreate([
+            'merchant_id' => $merchant->id, 'wa_message_id' => 'wamid.HALF', 'direction' => 'inbound', 'from_number' => '+96170123456',
+            'to_number' => '111', 'message_type' => 'text', 'payload' => ['id' => 'wamid.HALF'], 'created_at' => now()->subMinutes(5),
+        ]);
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.HALF', 'add 1 Croissant')])]]]]);
+
+        $sent = $this->sentTexts();
+        $this->assertCount(1, $sent);
+        $this->assertStringContainsString('Your cart:', $sent[0]);
+        $this->assertStringContainsString('1× Croissant', $sent[0]);
+    }
+
+    public function test_a_message_already_answered_before_its_worker_died_gets_no_second_reply(): void
+    {
+        $merchant = $this->merchant('111');
+        // The worker sent its reply, then died before marking the message handled (seen at scale, s46 with 800 customers).
+        WhatsAppMessage::query()->forceCreate([
+            'merchant_id' => $merchant->id, 'wa_message_id' => 'wamid.SENT', 'direction' => 'inbound', 'from_number' => '+96170123456',
+            'to_number' => '111', 'message_type' => 'text', 'payload' => ['id' => 'wamid.SENT'], 'created_at' => now()->subMinutes(5),
+        ]);
+        WhatsAppMessage::query()->forceCreate([
+            'merchant_id' => $merchant->id, 'wa_message_id' => 'wamid.REPLY', 'direction' => 'outbound', 'from_number' => '111',
+            'to_number' => '+96170123456', 'message_type' => 'text', 'payload' => ['text' => ['body' => 'Added']], 'created_at' => now()->subMinutes(5)->addSecond(),
+        ]);
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.SENT')])]]]]);
+
+        $this->assertSame([], $this->sentTexts());
     }
 
     public function test_a_message_still_being_handled_by_a_live_worker_is_left_alone(): void

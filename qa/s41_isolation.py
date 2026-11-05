@@ -115,6 +115,9 @@ forged = call("GET", "/products", "9999|not-a-real-token")[0]
 check("a made-up token is refused", forged == 401, forged)
 
 suite("Isolation: WhatsApp, same phone in two shops")
+# The messages below are answered by queue workers: start some, or the check sees no cart line and cannot judge.
+workers = [subprocess.Popen([LABSH, "php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=75"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True) for _ in range(3)]
 shared = sql("select phone from customers group by phone having count(distinct merchant_id) > 1 limit 5")
 check("the data has people who are customers of two shops", len(shared) >= 3, len(shared))
 mix = []
@@ -134,6 +137,7 @@ for (phone,) in shared[:5]:
     if conv_b1 != conv_b0 or items_b != items_b0: mix.append((phone, conv_b0, conv_b1, items_b0, items_b))
     if items_a <= items_a0: mix.append((phone, "shop A got no cart line: test did not exercise the path", items_a0, items_a))
 check("a customer who writes to shop A creates nothing in shop B (conversations, carts)", not mix, mix)
+for w in workers: w.kill()
 code, _, _ = wa_msg("PS9999-UNKNOWN", "96170000001", text="hi")
 check("a message to an unknown phone-number id is ignored (200, nothing created)", code == 200, code)
 raw = json.dumps({"object": "whatsapp_business_account", "entry": []}).encode()

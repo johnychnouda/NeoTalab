@@ -71,8 +71,20 @@ unanswered = [p for _, p in custs if "+" + p not in replies]
 counts = sorted(set(replies.values()))
 base = max(set(replies.values()), key=list(replies.values()).count) if replies else 0
 twice = [p for p, c in replies.items() if c > base]
-wrong = [p for _, p in custs if cart.get("+" + p) != 1.0]
+# A customer whose worker died is told "interrupted, please resend" (D47). Their cart is right if it holds 0 (nothing done)
+# or 1 (the item was added before the worker died, and the reply then shows it so they do not add it twice).
+told = {}  # phone -> does the reply list the cart
+for to, payload in sql(f"select to_number, payload from whatsapp_messages where direction='outbound' and to_number like '+96178{RUN:04d}%'"):
+    body = json.loads(payload)
+    text = body.get("text", {}).get("body") or body.get("interactive", {}).get("body", {}).get("text") or ""
+    if any(w in text for w in ("interrupted", "interrompu", "انقطعت")):
+        told[to] = told.get(to, False) or any(w in text for w in ("Your cart:", "Votre panier :", "سلّتك:"))
+wrong = [p for _, p in custs if ("+" + p in told and cart.get("+" + p, 0.0) not in (0.0, 1.0)) or ("+" + p not in told and cart.get("+" + p) != 1.0)]
+unshown = [p for _, p in custs if "+" + p in told and cart.get("+" + p) == 1.0 and not told["+" + p]]
+print(f"  customers told to resend: {len(told)}; of them with the item already in the cart: {sum(1 for p in told if cart.get(p) == 1.0)}")
 print(f"  everyone answered after: {'%.0f s' % done_at if done_at else 'NOT within 420 s'}; replies per customer seen: {counts} (usual {base}); failed jobs: {sql('select count(*) from failed_jobs')[0][0]}")
 check(f"{MODE}: every customer was answered", not unanswered, f"{len(unanswered)} unanswered")
 check(f"{MODE}: nobody was answered twice", not twice, f"{len(twice)} got more than {base} replies")
-check(f"{MODE}: every cart holds exactly 1 of the item asked for", not wrong, f"{len(wrong)} wrong carts")
+check(f"{MODE}: every cart holds exactly 1 of the item asked for (0 or 1 for a customer told to resend)", not wrong, f"{len(wrong)} wrong carts")
+if told:
+    check(f"{MODE}: a customer told to resend whose item was already added sees it in the reply", not unshown, unshown[:5])

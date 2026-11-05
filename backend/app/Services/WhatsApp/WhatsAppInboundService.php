@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Jobs\NotifyStaffOfHandoff;
 use App\Models\Appointment;
+use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
@@ -23,12 +24,14 @@ use App\Services\OrderService;
 use App\Services\QuoteService;
 use App\Services\SystemAlertService;
 use App\Support\BusinessKind;
+use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
 use App\Support\Money;
 use App\Support\OrderMessage;
+use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -795,9 +798,26 @@ class WhatsAppInboundService
         }
 
         $first->update(['payload' => array_merge($first->payload ?? [], ['handled_at' => now()->toIso8601String(), 'interrupted' => true])]);
-        $locale = Customer::query()->where('phone', $fromPhone)->value('locale') ?: ($merchant->locale ?: 'en');
+        // The worker may have replied and died just before marking the message handled: the customer already has an answer.
+        if (WhatsAppMessage::query()->where('merchant_id', $merchant->id)->where('direction', 'outbound')
+            ->where('to_number', $fromPhone)->where('created_at', '>=', $first->created_at)->exists()) {
+            return;
+        }
+        $customer =Customer::query()->where('phone', $fromPhone)->first();
+        $locale = $customer?->locale ?: ($merchant->locale ?: 'en');
         Log::warning('WhatsApp inbound: a message was interrupted before it was answered; the customer is asked to resend', ['merchant_id' => $merchant->id]);
-        $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('interrupted', $locale, $merchant->name));
+        // The first attempt may have added the item before it died: show the cart so it is not asked for twice.
+        $note = $this->text('interrupted', $locale, $merchant->name);
+        $items = Cart::query()->where('status', CartStatus::Open)
+            ->whereHas('conversation', fn ($q) => $q->where('customer_id', $customer?->id))
+            ->latest('updated_at')->first()?->items()->with('product')->get() ?? collect();
+        if ($items->isNotEmpty()) {
+            $note .= "\n".__('whatsapp.cart.your_cart', [], $locale);
+            foreach ($items as $item) {
+                $note .= "\n• ".Quantity::line($item->quantity, $item->product?->unit, (string) ($item->product?->name ?? '')).' — '.Money::format((float) $item->line_total, $merchant->currency);
+            }
+        }
+        $this->replyWithMenu($merchant, $fromPhone, $locale, $note);
     }
 
     protected function replyWithMenu(Merchant $merchant, string $toPhone, string $locale, string $note): void
