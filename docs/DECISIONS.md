@@ -195,7 +195,6 @@ Pickup is unchanged. The area's "Delivery time" stays as the backup when Google 
 
 For a delivery in minutes or hours, the customer is first told the preparation: the receipt says "Preparation about 25 min.
 We will message you the arrival time when it is on its way"; the confirmation, the shop's accept message, "Where's my
-order?" and a late update say "preparing now, ready around 10:25 AM". When the order goes out the arrival time is
 order?" and a late update say "preparing now, ready around 10:25 AM". When the order goes out, Google is asked again at that
 moment (live traffic, from the shop to the customer's pin; the time saved at accept if Google cannot answer) and the customer is
 told "on its way with <driver> — arriving in about 15 min (around 10:45 AM)". A shop that delivers itself (no driver) gets
