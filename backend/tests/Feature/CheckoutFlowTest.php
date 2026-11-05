@@ -178,11 +178,75 @@ class CheckoutFlowTest extends TestCase
         $this->assertSame('Jbeil', $saved[0]['zone']);
     }
 
+    public function test_a_typed_address_is_not_taken_the_location_pin_is_required(): void
+    {
+        $this->menuOrder();
+        $this->pickRow("co:zone:{$this->jbeil->id}");
+        $this->assertSame('location_request_message', $this->last()['interactive']['type']);
+
+        $this->say('Jbeil, Main Street, Building 4, 2nd floor');
+
+        $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'asks for the pin again, with the button');
+        $this->assertStringContainsString('location', $this->last()['interactive']['body']['text']);
+        $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
+
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.12, 'longitude' => 35.65]]);
+        $this->assertSame(['co:skip:'], $this->buttonIds(), 'the pin is accepted; building and floor are only a note');
+    }
+
+    public function test_an_address_the_assistant_heard_becomes_the_note_and_the_pin_is_still_asked(): void
+    {
+        $this->menuOrder();
+        $conversation = Conversation::query()->withoutGlobalScopes()->latest()->firstOrFail();
+
+        app(\App\Services\CheckoutFlow::class)->start($this->merchant, $conversation, 'en', ['fulfillment' => 'delivery', 'delivery_address' => 'Sassine street, bldg Rizk, 3rd floor']);
+        $this->pickRow("co:zone:{$this->jbeil->id}");
+
+        $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'a typed address never replaces the pin');
+
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.12, 'longitude' => 35.65]]);
+        $this->assertSame(['co:cur:USD', 'co:cur:LBP', 'co:cur:MIXED'], $this->buttonIds(), 'what the customer already typed is kept as the note: no second question');
+        $this->tap('co:cur:USD');
+        $this->tap('co:ok:');
+        $this->assertStringContainsString('Sassine street, bldg Rizk, 3rd floor', $this->order()->delivery_address);
+        $this->assertEquals(34.12, $this->order()->delivery_lat);
+    }
+
+    public function test_a_delivery_order_with_only_a_typed_address_is_refused_even_when_the_assistant_places_it(): void
+    {
+        $this->menuOrder();
+        $conversation = Conversation::query()->withoutGlobalScopes()->latest()->firstOrFail();
+
+        app(\App\Support\CurrentTenant::class)->set($this->merchant);
+
+        [$reply, $order] = app(\App\Services\ConversationService::class)->placeOrderFromDetails($conversation, [
+            'fulfillment' => 'delivery', 'delivery_zone' => 'Jbeil', 'delivery_address' => 'Main Street, Building 4, 2nd floor',
+        ]);
+
+        $this->assertNull($order);
+        $this->assertStringContainsString('location pin', $reply);
+        $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
+    }
+
+    public function test_an_old_saved_address_without_a_pin_is_not_offered(): void
+    {
+        $this->menuOrder();
+        $customer = Customer::query()->withoutGlobalScopes()->where('phone', '+'.self::CUSTOMER)->firstOrFail();
+        $customer->forceFill(['addresses' => [['id' => 'old1', 'zone' => 'Jbeil', 'address' => 'Main Street, Building 4', 'location' => null]]])->save();
+        $this->tap('co:cancel:');
+
+        $this->menuOrder();
+
+        $rows = array_column($this->last()['interactive']['action']['sections'][0]['rows'] ?? [], 'id');
+        $this->assertSame([], array_filter($rows, fn ($id) => str_starts_with($id, 'co:addr:')), 'a typed address from before is not a delivery point');
+    }
+
     public function test_cash_split_between_dollars_and_lira(): void
     {
         $this->menuOrder();
         $this->pickRow("co:zone:{$this->jbeil->id}");
-        $this->say('Bliss St, Building 4');
+        $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.12, 'longitude' => 35.65]]);
+        $this->tap('co:skip:');
         $this->tap('co:cur:MIXED');
         $this->assertStringContainsString('How many dollars will you pay?', $this->last()['text']['body']);
 

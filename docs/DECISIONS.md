@@ -181,6 +181,16 @@ gives the card to its owner. Step names are the shop's own words and are not tra
 **Quote requests** are now recognised wherever "quote", "devis", "عرض سعر" and similar stand in the message; "price" and
 "how much" still count only at the start.
 
+## Delivery needs the location pin (5 November 2026)
+
+A delivery order always has the customer's WhatsApp location pin. A typed address is never taken as where to deliver:
+at the location step typed text only gets the location button again. What the customer types (or what the assistant
+heard, "Sassine street, bldg Rizk, 3rd floor") is the note for the driver, asked right after the pin with a Skip button.
+Why: the pin gives the zone, the fee and the Google driving time; a typed address gives none of that and was the only
+reason for the delivery area's fixed time. `CheckoutService` refuses a delivery without a pin as well, so an assistant
+that places an order by itself cannot get around it. Saved addresses without a pin (from before) are no longer offered.
+Pickup is unchanged. The area's "Delivery time" stays as the backup when Google cannot answer.
+
 ## Before going live with real shops
 
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:

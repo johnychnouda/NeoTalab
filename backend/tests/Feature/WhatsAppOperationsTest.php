@@ -120,7 +120,7 @@ class WhatsAppOperationsTest extends TestCase
         $digits = preg_replace('/\D+/', '', $phone);
 
         return Http::recorded()->map(fn ($p) => $p[0])
-            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === $digits)
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === $digits && ($r['type'] ?? '') !== 'location')
             ->map(fn (Request $r) => [
                 'text' => $r['text']['body'] ?? ($r['interactive']['body']['text'] ?? ''),
                 'buttons' => collect($r['interactive']['action']['buttons'] ?? [])->pluck('reply.id')->all(),
@@ -1012,7 +1012,7 @@ class WhatsAppOperationsTest extends TestCase
         // A typed "delivery" moves on to the next question (the address), without the assistant.
         $this->say('delivery');
         $this->assertStringNotContainsString('understand', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('type your address', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('send your location', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_staff_get_pickup_orders_and_close_them_with_buttons(): void

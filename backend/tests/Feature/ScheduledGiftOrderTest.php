@@ -108,7 +108,8 @@ class ScheduledGiftOrderTest extends TestCase
     {
         $this->say('add 1 Roses');
         $this->say('done');
-        $this->say('Bliss St, Building 4');
+        $this->receive(['type' => 'location', 'location' => ['latitude' => 33.8938, 'longitude' => 35.5018]]);
+        $this->tap('co:skip:');
     }
 
     public function test_the_customer_picks_friday_ten_to_twelve_and_sends_it_to_someone(): void

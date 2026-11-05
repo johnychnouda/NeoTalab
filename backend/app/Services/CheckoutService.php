@@ -74,8 +74,8 @@ class CheckoutService
         if ($fulfillment === 'delivery') {
             $zone = $this->resolveZone($details['delivery_zone'] ?? null);
 
-            // A shared WhatsApp location pin is enough on its own; otherwise a written address is required.
-            if (! $hasPin && mb_strlen($address) < 5) {
+            // Delivery needs the customer's WhatsApp location pin; the written address is only the note for the driver.
+            if (! $hasPin) {
                 throw new CheckoutException('address_required');
             }
         } else {

@@ -91,8 +91,7 @@ class CheckoutFlow
 
         $state = ['fulfillment' => $wanted];
         if ($wanted === 'delivery' && mb_strlen($address) >= 5) {
-            $state['address'] = $address;
-            $state['address_done'] = true;
+            $state['note'] = $address; // building, floor: the location pin is still asked
         }
 
         return $state;
@@ -225,28 +224,31 @@ class CheckoutFlow
             return null;
         }
 
-        // Free input: a location pin or typed address while we wait for one, or address details.
-        if ($step === 'location' && ($location || ($text !== null && mb_strlen(trim($text)) >= 5))) {
-            if ($location) {
-                if (DeliveryZone::mapped()) {
-                    $zone = DeliveryZone::at((float) $location['lat'], (float) $location['lng']);
-                    if (! $zone) {
-                        return $this->outOfArea($merchant, $conversation, $state, $locale);
-                    }
-                    $state['zone'] = $zone->name;
-                    if ($refusal = $this->belowMinimum($merchant, $conversation, $state, $locale)) {
-                        return $refusal;
-                    }
+        // Free input: a location pin while we wait for one (a typed address is never taken), or the note for the driver.
+        if ($step === 'location' && $location) {
+            if (DeliveryZone::mapped()) {
+                $zone = DeliveryZone::at((float) $location['lat'], (float) $location['lng']);
+                if (! $zone) {
+                    return $this->outOfArea($merchant, $conversation, $state, $locale);
                 }
-                $state['location'] = $location;
-                $state['address'] = trim((string) ($location['address'] ?? ''));
+                $state['zone'] = $zone->name;
+                if ($refusal = $this->belowMinimum($merchant, $conversation, $state, $locale)) {
+                    return $refusal;
+                }
+            }
+            $state['location'] = $location;
+            $state['address'] = trim((string) ($location['address'] ?? ''));
+            if (! empty($state['note'])) {
+                // What the customer already typed (building, floor) is the note: no second question.
+                $state['address'] = trim($state['address'].' — '.$state['note'], ' —');
+                unset($state['note']);
+                $state['address_done'] = true;
+            } else {
                 $state['step'] = 'details';
                 $this->save($conversation, $state);
 
                 return $this->buttons($this->t('details', $locale), [['co:skip:', $this->t('btn_skip', $locale)]]);
             }
-            $state['address'] = trim((string) $text);
-            $state['address_done'] = true;
         } elseif ($step === 'details' && $text !== null && trim($text) !== '') {
             $state['address'] = trim(trim($state['address'] ?? '').' — '.trim($text), ' —');
             $state['address_done'] = true;
@@ -326,7 +328,7 @@ class CheckoutFlow
         }
 
         if ($state['fulfillment'] === 'delivery' && empty($state['address_done'])) {
-            $saved = $conversation->customer->addresses ?? [];
+            $saved = array_values(array_filter($conversation->customer->addresses ?? [], fn ($a) => ! empty($a['location'])));
             if ($saved !== [] && empty($state['new_address'])) {
                 $rows = array_map(fn ($a) => [
                     'id' => "co:addr:{$a['id']}",

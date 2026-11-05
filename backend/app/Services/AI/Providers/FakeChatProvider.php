@@ -140,6 +140,9 @@ class FakeChatProvider implements ChatProvider
                 'cash_main' => is_numeric($parts[4] ?? null) ? (float) $parts[4] : null,
                 'fulfillment' => ($parts[5] ?? '') ?: null,
                 'notes' => null,
+                // Customers always share a location pin and a typed address is only the note for the driver: an address
+                // in this test command stands in for both. A pin the customer really sent earlier wins (ConversationService).
+                'location' => ($parts[1] ?? '') !== '' ? ['lat' => 33.8938, 'lng' => 35.5018] : null,
             ],
         );
     }

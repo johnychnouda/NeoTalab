@@ -268,7 +268,10 @@ class ConversationService
         $this->fulfillmentMissing = false;
         $location = ($conversation->state ?? [])['location'] ?? null;
 
-        [$reply, $order] = $this->placeOrderFromDetails($conversation, ($output->checkout ?? []) + ['location' => $location]);
+        $details = $output->checkout ?? [];
+        $details['location'] = $location ?? ($details['location'] ?? null);
+
+        [$reply, $order] = $this->placeOrderFromDetails($conversation, $details);
 
         // A typed order is remembered like a button one, so the next checkout offers this address.
         if ($order && $order->fulfillment === 'delivery') {

@@ -421,7 +421,13 @@ class CheckoutTest extends TestCase
 
         $reply = $this->lastReply();
         $this->assertStringNotContainsString('How would you like to get your order', $reply);
-        $this->assertStringContainsString('Sassine street, bldg Rizk', $reply, 'straight to the receipt with the typed address');
+        $this->assertStringContainsString('location', $reply, 'the delivery question is skipped, but the location pin is still asked for');
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
+            'metadata' => ['phone_number_id' => '555'],
+            'messages' => [['id' => 'wamid.IN'.(++$this->seq), 'from' => '96170123456', 'type' => 'location', 'location' => ['latitude' => 33.8938, 'longitude' => 35.5018]]],
+        ]]]]]]);
+        $this->assertStringContainsString('Sassine street, bldg Rizk', $this->lastReply(), 'then straight to the receipt, the typed address is the note');
     }
 
     public function test_buttons_after_the_reply_use_the_customers_language_not_the_shops(): void
