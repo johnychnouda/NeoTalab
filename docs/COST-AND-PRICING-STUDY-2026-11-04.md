@@ -85,6 +85,8 @@ Two things to tell shops honestly before they sign: (1) NeoTalab is $30; (2) Met
 4. **Messages per order drive the shop's Meta bill.** Shorter flows (fewer menu messages) would cut it directly. Worth a look once real shops give real counts.
 
 ## 4b. How to cut the shop's Meta bill
+> **Correction (5 November):** the message-saving numbers in section 4b below were optimistic. A careful count of every message (see `docs/MESSAGE-STUDY-2026-11-05.md`) gives, for a typical shop at 300 orders, about **$39 today, $29 after the simple cuts, $25 with lean team and driver messages, $20 with the form checkout** (not $9). Use the new study for those numbers.
+
 
 Meta charges per message sent, so the only lever is sending fewer. I ran one real button order (delivery shop, two zones) in a test and counted **9 messages to the customer**: greeting list, "how many?", "added", "which area?", "send your location", "add details", "total and cash currency", receipt, confirmed. Add about 3.7 to the team and the non-order chats and it is about 17 per order.
 
