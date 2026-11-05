@@ -27,6 +27,7 @@ class LaunchChecklistService
             ['key' => 'whatsapp_secret', 'level' => 'required', 'ok' => filled(config('whatsapp.app_secret'))],
             ['key' => 'whatsapp_token', 'level' => 'required', 'ok' => MerchantWhatsAppCredentials::platformAccessToken() !== ''],
             ['key' => 'whatsapp_signup', 'level' => 'required', 'ok' => filled(config('whatsapp.meta_app_id')) && filled(config('whatsapp.embedded_signup_config_id'))],
+            ['key' => 'migrations', 'level' => 'required', 'ok' => $this->migrationsAreUpToDate()],
             ['key' => 'queue', 'level' => 'required', 'ok' => $this->queueIsMoving()],
             ['key' => 'scheduler', 'level' => 'required', 'ok' => $this->schedulerIsRunning()],
             ['key' => 'email', 'level' => 'recommended', 'ok' => $this->emailIsSetUp()],
@@ -35,6 +36,21 @@ class LaunchChecklistService
             ['key' => 'maps', 'level' => 'optional', 'ok' => filled(config('services.google_maps.key'))],
             ['key' => 'sentry', 'level' => 'optional', 'ok' => filled(config('sentry.dsn'))],
         ];
+    }
+
+    /** Every migration file in the code has run on this database (a missing column breaks a page). */
+    protected function migrationsAreUpToDate(): bool
+    {
+        $migrator = app('migrator');
+        $repository = $migrator->getRepository();
+
+        if (! $repository->repositoryExists()) {
+            return false;
+        }
+
+        $files = $migrator->getMigrationFiles([...$migrator->paths(), database_path('migrations')]);
+
+        return array_diff(array_keys($files), $repository->getRan()) === [];
     }
 
     /** No message has been waiting more than 5 minutes for a queue worker. */

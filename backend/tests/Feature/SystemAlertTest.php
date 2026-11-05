@@ -11,6 +11,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -264,6 +265,19 @@ class SystemAlertTest extends TestCase
         $this->artisan('schedule:run');
         $checks = collect($this->withToken($token)->getJson('/api/v1/admin/system-status')->json('checks'))->keyBy('key');
         $this->assertTrue($checks['scheduler']['ok']);
+    }
+
+    public function test_launch_checklist_warns_about_pending_migrations(): void
+    {
+        $token = $this->tokenFor($this->platformAdmin());
+        $checks = fn () => collect($this->withToken($token)->getJson('/api/v1/admin/system-status')->assertOk()->json('checks'))->keyBy('key');
+
+        $this->assertTrue($checks()['migrations']['ok'], 'every migration has run');
+        $this->assertSame('required', $checks()['migrations']['level']);
+
+        DB::table('migrations')->where('migration', '2026_10_31_100000_add_language_to_onboarding_requests')->delete();
+
+        $this->assertFalse($checks()['migrations']['ok'], 'a migration that has not run is flagged');
     }
 
     public function test_launch_checklist_is_for_the_platform_owner_only(): void

@@ -75,14 +75,16 @@ seeder prints a generated password once; save it, then change it after first log
 
 ## Migrations after a release
 
-The API service runs `php artisan migrate --force` on start only while `RUN_MIGRATIONS` is `true`.
-Step 2 says to set it to `false` after the first deploy, so a later release needs the migrations run
-once by hand. Check the value on the API service first.
+The API service runs `php artisan migrate --force` every time it starts. Leave `RUN_MIGRATIONS`
+unset (or `true`) on the API service. Only the API service runs it, never the queue service.
 
-- Before the release: `RUN_MIGRATIONS=true` runs them on the next start (set it back to `false` after).
-- Or run once from the Railway shell of the API service: `php artisan migrate --force`.
+All migrations in this project only add tables or columns, so running them on start is safe.
+Do not set `RUN_MIGRATIONS=false`: on 3 to 5 November 2026 production had it set to `false`, three
+migrations were not run, and the `/join` form failed with `Unknown column 'language'` (bug D50).
 
-Releases with new migrations: 29 October 2026 (`remove_whish_api_settings`, `create_subscription_payments_table`).
+Safety net: Owner portal → Inbox → System → Launch checklist has a **Database updates** row that
+turns red when a migration in the code has not run. If it ever does, open the Railway console of
+the API service and run `php artisan migrate --force`.
 
 ## Step 3: Queue worker (same `backend/`)
 
