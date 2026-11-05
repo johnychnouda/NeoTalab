@@ -196,20 +196,23 @@ Pickup is unchanged. The area's "Delivery time" stays as the backup when Google 
 For a delivery in minutes or hours, the customer is first told the preparation: the receipt says "Preparation about 25 min.
 We will message you the arrival time when it is on its way"; the confirmation, the shop's accept message, "Where's my
 order?" and a late update say "preparing now, ready around 10:25 AM". When the order goes out the arrival time is
-recalculated from that moment (Google's driving time from the customer's pin, without live traffic) and the customer is
+order?" and a late update say "preparing now, ready around 10:25 AM". When the order goes out, Google is asked again at that
+moment (live traffic, from the shop to the customer's pin; the time saved at accept if Google cannot answer) and the customer is
 told "on its way with <driver> — arriving in about 15 min (around 10:45 AM)". A shop that delivers itself (no driver) gets
 the same arrival message; before it got "on its way!" with no time. The receipt no longer needs the area's minutes, so it
-costs no Google request; the one request per order is made when the shop accepts and is reused at dispatch. Pickup orders,
-shops that count in days, appointments and orders for a chosen time are unchanged.
+costs no Google request. Google is asked when the shop accepts (normal driving time, saved on the order for the plan and the
+late check), when the order leaves (live traffic, for the arrival time) and once more for each delay message on the road
+(traffic-aware requests are priced higher than the normal ones: check the current rate and free quota). Pickup orders, shops
+that count in days, appointments and orders for a chosen time are unchanged.
 
 **Late.** `OrderTiming::dueAt()` is when the customer's latest promise runs out: for a delivery still at the shop, the time
 it should leave (promised arrival minus the driving time); otherwise the promised time. `CheckLateOrder` runs `late_alert_mins`
 (at most 5) after that, so a slow kitchen is reported at the time the customer was told, not 20 minutes later. The customer
 gets "taking a little longer — new time: preparing now, ready around …" (the kitchen: leave in 10 minutes, then the drive) up to
 3 times. When the order leaves, a new check is scheduled just after the new arrival time; if it is not delivered by then the
-customer gets "a little delayed on the road — new arrival: arriving in about 10 min" (10 more minutes each time, up to the same 3
-updates). After 3 updates nothing more is sent automatically. The driving time has no live traffic: a jam shows up as a delay
-message after the arrival time, not before.
+customer gets "a little delayed on the road — new arrival: arriving in about 10 min", up to the same 3 updates. The new time is
+Google's live time from the shop counted from the moment the order left (the driver's own position is not known), or 10 more
+minutes if that is not at least 3 minutes away or Google cannot answer. After 3 updates nothing more is sent automatically.
 
 ## Before going live with real shops
 
