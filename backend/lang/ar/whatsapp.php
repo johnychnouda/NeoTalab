@@ -203,7 +203,6 @@ return [
         'reason' => ' السبب: :reason',
         'refund' => '💸 سيُعيد :shop المبلغ الذي دفعته عبر Whish.',
         'late' => '⏱ طلبك رقم :number يتأخر قليلًا — الوقت الجديد: :when. نعتذر عن الانتظار!',
-        'late_on_the_way' => '🛵 طلبك رقم :number تأخر قليلًا في الطريق — الوصول الجديد: :when. نعتذر عن الانتظار!',
         'ready_pickup' => '📦 طلبك رقم :number جاهز! يمكنك استلامه الآن من :address.',
         'collected' => '✅ شكراً لاستلامك الطلب رقم :number من :shop!',
         'out_for_delivery' => '🛵 طلبك رقم :number في الطريق إليك!',

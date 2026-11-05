@@ -12,8 +12,9 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Food shops: runs just after the promised time. If the order is not delivered yet, the customer
- * gets a new, realistic time (and this check runs again then), up to OrderTiming::MAX_UPDATES.
+ * Food shops: runs just after the time the customer was told the order would be ready (or leave the shop). If it has not
+ * left yet, the customer gets a new, realistic time (and this check runs again then), up to OrderTiming::MAX_UPDATES.
+ * Once the order is on its way the customer keeps the arrival time they were given: nothing more is sent.
  */
 class CheckLateOrder implements ShouldQueue
 {
@@ -27,7 +28,7 @@ class CheckLateOrder implements ShouldQueue
     {
         [$order, $merchant] = $this->loadOrder($this->orderId) ?? [null, null];
         if (! $order || ! $order->customer?->phone || ! $order->promised_at
-            || ! in_array($order->status, ['confirmed', 'preparing', 'ready', 'assigned', 'picked_up'], true)
+            || ! in_array($order->status, ['confirmed', 'preparing', 'ready', 'assigned'], true)
             || $order->eta_updates >= OrderTiming::MAX_UPDATES || $timing->dueAt($order)->isFuture()) {
             return;
         }
@@ -36,10 +37,8 @@ class CheckLateOrder implements ShouldQueue
         $previous = $tenant->get();
         $tenant->set($merchant);
         try {
-            // On the way: Google's live time again (a few more minutes if it cannot say). Still at the shop: a bit more cooking, then the drive.
-            $new = $order->status === 'picked_up'
-                ? $timing->arrivalOnTheRoad($merchant, $order)
-                : now()->addMinutes(OrderTiming::SIGNIFICANT_MINS + ($order->fulfillment === 'delivery' ? app(TravelTime::class)->minutes($merchant, $order) : 0));
+            // Still at the shop: a bit more cooking, then the drive.
+            $new = now()->addMinutes(OrderTiming::SIGNIFICANT_MINS + ($order->fulfillment === 'delivery' ? app(TravelTime::class)->minutes($merchant, $order) : 0));
         } finally {
             $tenant->set($previous);
         }
@@ -51,7 +50,7 @@ class CheckLateOrder implements ShouldQueue
             $when = $timing->phrase($merchant, $order, $locale);
             $this->sendCustomerAs(
                 $merchant, $order->customer->phone,
-                ['type' => 'text', 'text' => __($order->status === 'picked_up' ? 'whatsapp.status.late_on_the_way' : 'whatsapp.status.late', ['number' => $order->number, 'shop' => $merchant->name, 'when' => $when], $locale)],
+                ['type' => 'text', 'text' => __('whatsapp.status.late', ['number' => $order->number, 'shop' => $merchant->name, 'when' => $when], $locale)],
                 CustomerTemplates::DELAYED, [(string) $order->number, $merchant->name, $when], $locale,
             );
         } catch (\Throwable $e) {

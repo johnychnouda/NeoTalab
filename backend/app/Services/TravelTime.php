@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Log;
  *
  * Cost: when the shop accepts, Google is asked once per order (the answer is kept on the order) without
  * live traffic, which bills the cheaper "Essentials" tier (10,000 free a month, then $5 per 1,000). When the
- * order leaves the shop it is asked again with live traffic (live()), and once more for each delay message
- * on the road; Google prices traffic-aware requests higher (check the current "Pro" rate and free quota).
+ * order leaves the shop it is asked once more with live traffic (live()); Google prices traffic-aware requests
+ * higher (check the current "Pro" rate and free quota).
  */
 class TravelTime
 {

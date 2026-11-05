@@ -200,25 +200,6 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('arriving in about 20 min', $this->lastTo(self::CUSTOMER)['text']);
     }
 
-    public function test_a_delay_on_the_road_asks_google_again_for_the_time_left(): void
-    {
-        config(['services.google_maps.key' => 'test-key']);
-        $this->settings(['shop_location' => 'https://maps.google.com/?q=33.8959,35.4784']);
-        $this->receive(['type' => 'location', 'location' => ['latitude' => 33.88, 'longitude' => 35.51]], self::CUSTOMER);
-        $order = $this->order('| | cash');
-        $this->tap("stf:accept:{$order->id}");
-
-        Carbon::setTestNow(Carbon::parse('2026-10-14 10:30', 'Asia/Beirut'));
-        $this->tap("stf:picked_up:{$order->id}"); // Google: 20 min, arrival 10:50
-
-        // Traffic got worse: Google now says 30 min from the shop, counted from when it left (11:00).
-        Carbon::setTestNow(Carbon::parse('2026-10-14 10:56', 'Asia/Beirut'));
-        $this->google = 1800;
-        app()->call([new CheckLateOrder($order->id), 'handle']);
-        $this->assertSame('11:00', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), '30 min from 10:30');
-        $this->assertStringContainsString('arriving in about 4 min (around 11:00 AM)', $this->lastTo(self::CUSTOMER)['text']);
-    }
-
     public function test_shop_can_refuse_and_stock_comes_back(): void
     {
         $order = $this->order();
@@ -315,21 +296,24 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('taking a little longer — new time: preparing now, ready around 10:41 AM', $this->lastTo(self::CUSTOMER)['text']);
     }
 
-    public function test_a_delay_on_the_road_is_reported_after_the_order_has_left(): void
+    public function test_nothing_more_is_sent_automatically_once_the_order_is_on_its_way(): void
     {
         $order = $this->order();
         $this->tap("stf:accept:{$order->id}");
 
         Carbon::setTestNow(Carbon::parse('2026-10-14 10:30', 'Asia/Beirut'));
         $this->tap("stf:picked_up:{$order->id}");
-        $this->assertSame('🛵 Your order #1 is on its way — arriving in about 15 min (around 10:45 AM).', $this->lastTo(self::CUSTOMER)['text']);
-        // Left at 10:30, 15 min drive: the next check is 5 min after the new arrival time.
-        Bus::assertDispatched(CheckLateOrder::class, fn ($job) => $job->orderId === $order->id
-            && $job->delay->setTimezone('Asia/Beirut')->format('H:i') === '10:50');
+        $arrival = $this->lastTo(self::CUSTOMER)['text'];
+        $this->assertSame('🛵 Your order #1 is on its way — arriving in about 15 min (around 10:45 AM).', $arrival);
 
-        Carbon::setTestNow(Carbon::parse('2026-10-14 10:51', 'Asia/Beirut'));
+        // No late check is scheduled for the road: only the one from the kitchen stage, which is over.
+        Bus::assertDispatchedTimes(CheckLateOrder::class, 1);
+
+        // Even if that old check runs later, the customer is not told anything new.
+        Carbon::setTestNow(Carbon::parse('2026-10-14 10:55', 'Asia/Beirut'));
         app()->call([new CheckLateOrder($order->id), 'handle']);
-        $this->assertSame('🛵 Your order #1 is a little delayed on the road — new arrival: arriving in about 10 min (around 11:01 AM). Sorry for the wait!', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertSame($arrival, $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertSame('10:45', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'));
     }
 
     public function test_shop_without_staff_keeps_the_bot_accepting(): void

@@ -132,18 +132,6 @@ class OrderTiming
         return now()->addMinutes($this->travel->live($merchant, $order) ?? $this->travel->minutes($merchant, $order));
     }
 
-    /**
-     * A delay on the road: Google's live time from the shop, counted from the moment the order left (the driver's own
-     * position is not known). If that is not at least 3 minutes away, or Google can't answer, 10 more minutes.
-     */
-    public function arrivalOnTheRoad(Merchant $merchant, Order $order): Carbon
-    {
-        $live = $order->picked_up_at ? $this->travel->live($merchant, $order) : null;
-        $at = $live ? $order->picked_up_at->copy()->addMinutes($live) : null;
-
-        return $at && $at->gt(now()->addMinutes(3)) ? $at : now()->addMinutes(self::SIGNIFICANT_MINS);
-    }
-
     public function nextWorkingDayEnd(Merchant $merchant, Carbon $from): Carbon
     {
         return $this->addWorkingDays($merchant, $from->copy()->setTimezone($this->tz($merchant)), 1)->endOfDay()->utc();

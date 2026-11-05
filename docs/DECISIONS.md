@@ -200,18 +200,18 @@ moment (live traffic, from the shop to the customer's pin; the time saved at acc
 told "on its way with <driver> — arriving in about 15 min (around 10:45 AM)". A shop that delivers itself (no driver) gets
 the same arrival message; before it got "on its way!" with no time. The receipt no longer needs the area's minutes, so it
 costs no Google request. Google is asked when the shop accepts (normal driving time, saved on the order for the plan and the
-late check), when the order leaves (live traffic, for the arrival time) and once more for each delay message on the road
-(traffic-aware requests are priced higher than the normal ones: check the current rate and free quota). Pickup orders, shops
+late check) and when the order leaves (live traffic, for the arrival time). Traffic-aware requests are priced higher than the
+normal ones: check the current rate and free quota. Pickup orders, shops
 that count in days, appointments and orders for a chosen time are unchanged.
 
 **Late.** `OrderTiming::dueAt()` is when the customer's latest promise runs out: for a delivery still at the shop, the time
 it should leave (promised arrival minus the driving time); otherwise the promised time. `CheckLateOrder` runs `late_alert_mins`
 (at most 5) after that, so a slow kitchen is reported at the time the customer was told, not 20 minutes later. The customer
 gets "taking a little longer — new time: preparing now, ready around …" (the kitchen: leave in 10 minutes, then the drive) up to
-3 times. When the order leaves, a new check is scheduled just after the new arrival time; if it is not delivered by then the
-customer gets "a little delayed on the road — new arrival: arriving in about 10 min", up to the same 3 updates. The new time is
-Google's live time from the shop counted from the moment the order left (the driver's own position is not known), or 10 more
-minutes if that is not at least 3 minutes away or Google cannot answer. After 3 updates nothing more is sent automatically.
+3 times. Once the order is on its way the customer keeps the arrival time they were given: no late check is scheduled when it leaves and
+`CheckLateOrder` ignores orders already on their way (decided 5 November: no "delayed on the road" message). A driver's live
+position is not available (WhatsApp's business service does not pass on live location), so the arrival time is the one asked of
+Google when the order left the shop.
 
 ## Before going live with real shops
 
