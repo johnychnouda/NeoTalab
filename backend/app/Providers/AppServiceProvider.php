@@ -69,9 +69,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Public /join applications: per visitor, and a ceiling for everyone together (a flood with
         // faked addresses still stops; real shops apply a few times a day at most).
+        // A server error on our side never counts: a bug must not lock a shop out of trying again.
+        $notOurError = fn ($response): bool => $response->getStatusCode() < 500;
         RateLimiter::for('onboarding', fn (Request $request) => [
-            Limit::perHour(5)->by($request->ip()),
-            Limit::perHour(30)->by('onboarding:all'),
+            Limit::perHour(5)->by($request->ip())->after($notOurError),
+            Limit::perHour(30)->by('onboarding:all')->after($notOurError),
         ]);
 
         // Authenticated API traffic.

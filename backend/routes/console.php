@@ -23,8 +23,11 @@ Schedule::command('orders:due')->hourly()->withoutOverlapping();
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
 
 // Proof the scheduler is alive, shown in Owner portal → Inbox → System → Launch checklist.
-Schedule::call(fn () => Cache::put(LaunchChecklistService::SCHEDULER_HEARTBEAT, now()->getTimestamp(), 3600))
-    ->name('scheduler:heartbeat')->everyMinute();
+// The closure returns nothing: Cache::put returns false on one failed write, and the scheduler would
+// report that as "Scheduled command [] failed". A stale heartbeat already turns the checklist red.
+Schedule::call(function (): void {
+    Cache::put(LaunchChecklistService::SCHEDULER_HEARTBEAT, now()->getTimestamp(), 3600);
+})->name('scheduler:heartbeat')->everyMinute();
 
 // Without the AI, customers who type freely only get the test bot: say so every morning.
 if (app()->isProduction() && (config('ai.driver') !== 'openai' || blank(config('ai.openai.api_key')))) {

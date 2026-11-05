@@ -11,6 +11,8 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -278,6 +280,16 @@ class SystemAlertTest extends TestCase
         DB::table('migrations')->where('migration', '2026_10_31_100000_add_language_to_onboarding_requests')->delete();
 
         $this->assertFalse($checks()['migrations']['ok'], 'a migration that has not run is flagged');
+    }
+
+    public function test_a_failed_heartbeat_write_is_not_reported_as_a_failed_command(): void
+    {
+        $heartbeat = collect(app(Schedule::class)->events())->first(fn ($event) => $event->description === 'scheduler:heartbeat');
+        Cache::shouldReceive('put')->once()->andReturn(false); // one cache write hiccup (a deploy, a dropped connection)
+
+        $heartbeat->run($this->app);
+
+        $this->assertSame(0, $heartbeat->exitCode, 'the checklist already shows a stale heartbeat; no alert for one missed beat');
     }
 
     public function test_launch_checklist_is_for_the_platform_owner_only(): void
