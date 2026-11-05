@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Log;
  * the customer's WhatsApp pin, it asks Google's Routes API; otherwise it uses the delivery area's
  * driving time set by the shop.
  *
- * Cost: Google is asked once per order (the answer is kept on the order) and without live
- * traffic, which bills the cheaper "Essentials" tier (10,000 free a month, then $5 per 1,000).
+ * Cost: when the shop accepts, Google is asked once per order (the answer is kept on the order) without
+ * live traffic, which bills the cheaper "Essentials" tier (10,000 free a month, then $5 per 1,000). When the
+ * order leaves the shop it is asked again with live traffic (live()), and once more for each delay message
+ * on the road; Google prices traffic-aware requests higher (check the current "Pro" rate and free quota).
  */
 class TravelTime
 {
@@ -41,6 +43,17 @@ class TravelTime
         return max(1, (int) ($zone->delivery_mins ?? self::FALLBACK_MINS));
     }
 
+    /** Driving minutes from the shop to the customer's pin right now, with live traffic; null when Google Maps can't answer. */
+    public function live(Merchant $merchant, Order $order): ?int
+    {
+        $shop = $this->shopLocation($merchant);
+        if (! $shop || $order->delivery_lat === null || $order->delivery_lng === null) {
+            return null;
+        }
+
+        return $this->driveMinutes($shop[0], $shop[1], (float) $order->delivery_lat, (float) $order->delivery_lng, true);
+    }
+
     /** Driving minutes from the shop pin to a point, or null when Google Maps can't answer. */
     public function between(Merchant $merchant, float $lat, float $lng): ?int
     {
@@ -58,7 +71,7 @@ class TravelTime
         return $this->between($merchant, (float) $order->delivery_lat, (float) $order->delivery_lng);
     }
 
-    protected function driveMinutes(float $fromLat, float $fromLng, float $toLat, float $toLng): ?int
+    protected function driveMinutes(float $fromLat, float $fromLng, float $toLat, float $toLng, bool $liveTraffic = false): ?int
     {
         $key = (string) config('services.google_maps.key');
         if ($key === '') {
@@ -73,7 +86,7 @@ class TravelTime
                 'origin' => ['location' => ['latLng' => ['latitude' => $fromLat, 'longitude' => $fromLng]]],
                 'destination' => ['location' => ['latLng' => ['latitude' => $toLat, 'longitude' => $toLng]]],
                 'travelMode' => 'DRIVE',
-                'routingPreference' => 'TRAFFIC_UNAWARE',
+                'routingPreference' => $liveTraffic ? 'TRAFFIC_AWARE' : 'TRAFFIC_UNAWARE',
             ]);
             $seconds = (int) rtrim((string) $response->json('routes.0.duration'), 's');
 

@@ -36,9 +36,9 @@ class CheckLateOrder implements ShouldQueue
         $previous = $tenant->get();
         $tenant->set($merchant);
         try {
-            // On the way: a few more minutes. Still at the shop: a bit more cooking, then the drive.
+            // On the way: Google's live time again (a few more minutes if it cannot say). Still at the shop: a bit more cooking, then the drive.
             $new = $order->status === 'picked_up'
-                ? now()->addMinutes(OrderTiming::SIGNIFICANT_MINS)
+                ? $timing->arrivalOnTheRoad($merchant, $order)
                 : now()->addMinutes(OrderTiming::SIGNIFICANT_MINS + ($order->fulfillment === 'delivery' ? app(TravelTime::class)->minutes($merchant, $order) : 0));
         } finally {
             $tenant->set($previous);

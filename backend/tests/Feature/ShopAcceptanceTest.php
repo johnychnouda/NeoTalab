@@ -46,6 +46,8 @@ class ShopAcceptanceTest extends TestCase
 
     private int $seq = 0;
 
+    private int|string $google = 1200;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -54,7 +56,10 @@ class ShopAcceptanceTest extends TestCase
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake([
             'graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200),
-            'routes.googleapis.com/*' => Http::response(['routes' => [['duration' => '1200s']]], 200),
+            // Google's answer is whatever the test sets in $this->google: seconds, or 'down'.
+            'routes.googleapis.com/*' => fn () => $this->google === 'down'
+                ? Http::response('down', 503)
+                : Http::response(['routes' => [['duration' => $this->google.'s']]], 200),
         ]);
         Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class]);
 
@@ -171,9 +176,47 @@ class ShopAcceptanceTest extends TestCase
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'routes.googleapis.com') && $r['destination']['location']['latLng']['latitude'] == 33.88
             && $r['routingPreference'] === 'TRAFFIC_UNAWARE');
 
-        // Leaving the shop reuses the same driving time: Google is asked once per order.
+        // Leaving the shop asks Google again, now with live traffic, for the arrival time the customer is told.
+        $this->google = 1800;
         $this->tap("stf:picked_up:{$order->id}");
-        $this->assertCount(1, Http::recorded(fn (Request $r) => str_contains($r->url(), 'routes.googleapis.com')));
+        $this->assertCount(2, Http::recorded(fn (Request $r) => str_contains($r->url(), 'routes.googleapis.com')));
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'routes.googleapis.com') && $r['routingPreference'] === 'TRAFFIC_AWARE');
+        $this->assertSame('10:30', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), '30 min with traffic');
+        $this->assertSame('🛵 Your order #1 is on its way — arriving in about 30 min (around 10:30 AM).', $this->lastTo(self::CUSTOMER)['text']);
+    }
+
+    public function test_when_google_cannot_answer_at_dispatch_the_saved_driving_time_is_used(): void
+    {
+        config(['services.google_maps.key' => 'test-key']);
+        $this->settings(['shop_location' => 'https://maps.google.com/?q=33.8959,35.4784']);
+        $this->receive(['type' => 'location', 'location' => ['latitude' => 33.88, 'longitude' => 35.51]], self::CUSTOMER);
+        $order = $this->order('| | cash');
+        $this->tap("stf:accept:{$order->id}");
+
+        $this->google = 'down';
+        $this->tap("stf:picked_up:{$order->id}");
+
+        $this->assertSame('10:20', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), 'the 20 min saved when it was accepted');
+        $this->assertStringContainsString('arriving in about 20 min', $this->lastTo(self::CUSTOMER)['text']);
+    }
+
+    public function test_a_delay_on_the_road_asks_google_again_for_the_time_left(): void
+    {
+        config(['services.google_maps.key' => 'test-key']);
+        $this->settings(['shop_location' => 'https://maps.google.com/?q=33.8959,35.4784']);
+        $this->receive(['type' => 'location', 'location' => ['latitude' => 33.88, 'longitude' => 35.51]], self::CUSTOMER);
+        $order = $this->order('| | cash');
+        $this->tap("stf:accept:{$order->id}");
+
+        Carbon::setTestNow(Carbon::parse('2026-10-14 10:30', 'Asia/Beirut'));
+        $this->tap("stf:picked_up:{$order->id}"); // Google: 20 min, arrival 10:50
+
+        // Traffic got worse: Google now says 30 min from the shop, counted from when it left (11:00).
+        Carbon::setTestNow(Carbon::parse('2026-10-14 10:56', 'Asia/Beirut'));
+        $this->google = 1800;
+        app()->call([new CheckLateOrder($order->id), 'handle']);
+        $this->assertSame('11:00', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), '30 min from 10:30');
+        $this->assertStringContainsString('arriving in about 4 min (around 11:00 AM)', $this->lastTo(self::CUSTOMER)['text']);
     }
 
     public function test_shop_can_refuse_and_stock_comes_back(): void

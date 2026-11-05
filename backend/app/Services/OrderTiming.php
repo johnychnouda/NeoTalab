@@ -126,10 +126,22 @@ class OrderTiming
         ], $locale);
     }
 
-    /** New arrival time once the driver has the order: now + driving time. */
+    /** New arrival time once the order leaves the shop: now + Google's driving time with live traffic (the time saved at accept if Google can't answer). */
     public function arrivalFromNow(Merchant $merchant, Order $order): Carbon
     {
-        return now()->addMinutes($this->travel->minutes($merchant, $order));
+        return now()->addMinutes($this->travel->live($merchant, $order) ?? $this->travel->minutes($merchant, $order));
+    }
+
+    /**
+     * A delay on the road: Google's live time from the shop, counted from the moment the order left (the driver's own
+     * position is not known). If that is not at least 3 minutes away, or Google can't answer, 10 more minutes.
+     */
+    public function arrivalOnTheRoad(Merchant $merchant, Order $order): Carbon
+    {
+        $live = $order->picked_up_at ? $this->travel->live($merchant, $order) : null;
+        $at = $live ? $order->picked_up_at->copy()->addMinutes($live) : null;
+
+        return $at && $at->gt(now()->addMinutes(3)) ? $at : now()->addMinutes(self::SIGNIFICANT_MINS);
     }
 
     public function nextWorkingDayEnd(Merchant $merchant, Carbon $from): Carbon
