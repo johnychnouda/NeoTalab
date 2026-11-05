@@ -5,6 +5,7 @@ import { useLang } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { BEIRUT, MAPS_KEY, MAP_OPTIONS, loadGoogleMaps, parsePin, shopMarkerIcon } from "@/lib/googleMaps";
 import { ConfirmModal } from "@/components/ui";
+import { zoneNameFor, zoneProblem } from "@/lib/zoneDraft";
 
 const COLORS = ["#25d366", "#3b82f6", "#f59e0b", "#a855f7", "#ef4444", "#14b8a6", "#eab308", "#ec4899"];
 const RINGS = [{ km: 3, fee: "1", min: "" }, { km: 6, fee: "2", min: "" }, { km: 10, fee: "3", min: "" }];
@@ -198,11 +199,14 @@ export default function ZoneEditor({ api, toast, t, currency, shopPin, zones, on
   }
 
   async function save() {
-    if (!draft.name.trim()) { toast(t("db.zone.nameRequired"), "error"); return; }
+    const suggestion = km ? t("db.zone.ringName", { km: Math.round(km) }) : "";
+    const problem = zoneProblem(draft, suggestion);
+    if (problem === "name") { toast(t("db.zone.nameRequired"), "error"); return; }
     if (MAPS_KEY && !draft.area) { toast(t("db.zone.drawFirst"), "error"); return; }
+    if (problem === "fee") { toast(t("db.zone.feeRequired"), "error"); return; }
     setBusy(true);
     const body = {
-      name: draft.name.trim(), color: draft.color, area: draft.area,
+      name: zoneNameFor(draft, suggestion), color: draft.color, area: draft.area,
       deliveryFee: parseFloat(draft.fee) || 0, minimumOrder: parseFloat(draft.min) || 0, deliveryMins: parseInt(draft.mins, 10) || 15,
     };
     try {
@@ -220,6 +224,7 @@ export default function ZoneEditor({ api, toast, t, currency, shopPin, zones, on
     setBusy(true);
     try {
       const list = rings.filter((r) => Number(r.km) > 0).sort((a, b) => a.km - b.km);
+      if (list.some((r) => String(r.fee ?? "").trim() === "")) { toast(t("db.zone.feeRequired"), "error"); setBusy(false); return; }
       for (const [i, r] of list.entries()) {
         await api("POST", "/settings/zones", {
           name: t("db.zone.ringName", { km: r.km }), color: COLORS[i % COLORS.length],
