@@ -236,6 +236,8 @@ if lc == 200:
     newer = json.loads(rt).get("token") if c == 200 else None
     check("'sign out other devices' kills every older token (both) and hands back one working replacement token",
           c == 200 and req("GET", "/auth/me", t1)[0] == 401 and req("GET", "/auth/me", t2)[0] == 401 and bool(newer) and req("GET", "/auth/me", newer)[0] == 200, c)
+    if newer:  # keep the lab's token file working for the next suites (s43 uses every shop's token)
+        tf = f"{LAB}/scale/tokens.json"; tk = json.load(open(tf)); tk[SG["id"]] = newer; json.dump(tk, open(tf, "w"))
 else:
     check("scale-lab shop can sign in with the lab password (setup)", False, lc)
 c, _, t = req("POST", "/auth/login", body={"email": {"$ne": ""}, "password": {"$ne": ""}})
