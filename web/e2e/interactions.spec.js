@@ -20,7 +20,7 @@ test("join: complete the three steps and send an application", async ({ page }) 
   await page.getByRole("button", { name: /Continue/ }).click();
   await expect(page.getByText(/Step 3 of 3/)).toBeVisible();
   await page.getByPlaceholder(/Ali Haddad|e\.g\./).first().fill("QA Tester");
-  await page.locator('input[type="tel"]').first().fill(`7${String(Date.now()).slice(-7)}`);
+  await page.locator('input[type="tel"]').first().fill(`70${String(Date.now()).slice(-6)}`);
   await page.locator('input[type="checkbox"]').first().check();
   await page.getByRole("button", { name: /Send my application/ }).click();
   await expect(page.getByText(/Application sent/)).toBeVisible({ timeout: 20_000 });
