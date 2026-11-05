@@ -105,7 +105,7 @@ class CheckoutTest extends TestCase
         $this->assertSame(2, $order->items->sole()->quantity);
 
         $this->assertStringContainsString('Order #1 confirmed', $this->lastReply());
-        $this->assertStringContainsString('confirmed — leaving the shop around', $this->lastReply());
+        $this->assertStringContainsString('confirmed — preparing now, ready around', $this->lastReply());
         $this->assertStringContainsString('12.00$', $this->lastReply());
 
         $conversation = Conversation::query()->withoutGlobalScopes()->findOrFail($order->conversation_id);

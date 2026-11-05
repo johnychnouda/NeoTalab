@@ -49,6 +49,17 @@ class OrderTiming
         };
     }
 
+    /**
+     * When the customer's latest promise runs out: a delivery still at the shop is judged by when it should leave
+     * (what the customer was told), anything else by its promised time.
+     */
+    public function dueAt(Order $order): Carbon
+    {
+        return $order->fulfillment === 'delivery' && $order->status !== 'picked_up'
+            ? $order->promised_at->copy()->subMinutes((int) $order->travel_mins)
+            : $order->promised_at;
+    }
+
     /** The promise made when the shop accepts. */
     public function promise(Merchant $merchant, Order $order): Carbon
     {
@@ -85,11 +96,17 @@ class OrderTiming
             ], $locale);
         }
 
-        // Delivery: first when it leaves the shop (the preparation); the arrival time comes when it is on its way.
+        // Delivery: first when the preparation is done (it leaves then); the arrival time comes when it is on its way.
         if ($order->fulfillment === 'delivery' && $order->status !== 'picked_up') {
-            return __('whatsapp.timing.leaving_around', [
-                'time' => $this->time($merchant, $at->copy()->subMinutes((int) $order->travel_mins), $locale),
+            return __('whatsapp.timing.preparing_ready_around', [
+                'time' => $this->time($merchant, $this->dueAt($order), $locale),
             ], $locale);
+        }
+
+        // On its way: "arriving in about 15 min (around 10:45 AM)"; past the time, only the clock time.
+        $mins = (int) ceil(now()->diffInSeconds($at, false) / 60);
+        if ($order->fulfillment === 'delivery' && $mins >= 1) {
+            return __('whatsapp.timing.arriving_in', ['duration' => $this->duration($mins, $locale), 'time' => $this->time($merchant, $at, $locale)], $locale);
         }
 
         return __($order->fulfillment === 'pickup' ? 'whatsapp.timing.ready_around' : 'whatsapp.timing.arriving_around', [

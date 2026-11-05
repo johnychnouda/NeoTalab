@@ -116,7 +116,7 @@ class OrderConfirmation
         // new time automatically (CheckLateOrder). Shops that count in days use orders:due.
         $late = ShopSettings::for($merchant)->lateAlertMins();
         if ($late > 0 && ! $this->timing->inDays($merchant)) {
-            CheckLateOrder::dispatch($order->id)->delay($order->promised_at->copy()->addMinutes(min($late, 5)));
+            CheckLateOrder::dispatch($order->id)->delay($this->timing->dueAt($order)->copy()->addMinutes(min($late, 5)));
         }
     }
 

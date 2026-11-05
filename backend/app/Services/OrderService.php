@@ -209,6 +209,8 @@ class OrderService
         $timing = app(OrderTiming::class);
         if ($merchant && ! $timing->inDays($merchant)) {
             $order->forceFill(['promised_at' => $timing->arrivalFromNow($merchant, $order)])->save();
+            // A delay on the road is reported too: the next check is just after the new arrival time.
+            app(OrderConfirmation::class)->lateCheck($merchant, $order);
         }
 
         return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));

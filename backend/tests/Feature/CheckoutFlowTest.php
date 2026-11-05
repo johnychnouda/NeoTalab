@@ -161,7 +161,7 @@ class CheckoutFlowTest extends TestCase
         $this->assertStringContainsString('2× Zaatar — 4.00$', $receipt);
         $this->assertStringContainsString('Delivery (Jbeil): 1.50$', $receipt);
         $this->assertStringContainsString('Total: 5.50$*', $receipt);
-        $this->assertStringContainsString('Ready in about 25 min. We will message you your arrival time when it is on its way.', $receipt, 'the preparation only: the arrival time comes at dispatch');
+        $this->assertStringContainsString('Preparation about 25 min. We will message you the arrival time when it is on its way.', $receipt, 'the preparation only: the arrival time comes at dispatch');
         $this->assertStringNotContainsString('At your door', $receipt);
         $this->assertStringContainsString('493,000 LBP', $receipt);
         $this->assertSame(['co:ok:', 'co:edit:', 'co:cancel:'], $this->buttonIds());

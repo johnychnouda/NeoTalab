@@ -28,7 +28,7 @@ class CheckLateOrder implements ShouldQueue
         [$order, $merchant] = $this->loadOrder($this->orderId) ?? [null, null];
         if (! $order || ! $order->customer?->phone || ! $order->promised_at
             || ! in_array($order->status, ['confirmed', 'preparing', 'ready', 'assigned', 'picked_up'], true)
-            || $order->eta_updates >= OrderTiming::MAX_UPDATES || $order->promised_at->isFuture()) {
+            || $order->eta_updates >= OrderTiming::MAX_UPDATES || $timing->dueAt($order)->isFuture()) {
             return;
         }
 
@@ -51,13 +51,13 @@ class CheckLateOrder implements ShouldQueue
             $when = $timing->phrase($merchant, $order, $locale);
             $this->sendCustomerAs(
                 $merchant, $order->customer->phone,
-                ['type' => 'text', 'text' => __('whatsapp.status.late', ['number' => $order->number, 'shop' => $merchant->name, 'when' => $when], $locale)],
+                ['type' => 'text', 'text' => __($order->status === 'picked_up' ? 'whatsapp.status.late_on_the_way' : 'whatsapp.status.late', ['number' => $order->number, 'shop' => $merchant->name, 'when' => $when], $locale)],
                 CustomerTemplates::DELAYED, [(string) $order->number, $merchant->name, $when], $locale,
             );
         } catch (\Throwable $e) {
             Log::warning('Late-order message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }
 
-        self::dispatch($order->id)->delay($new->copy()->addMinutes(2));
+        self::dispatch($order->id)->delay($timing->dueAt($order)->addMinutes(2));
     }
 }

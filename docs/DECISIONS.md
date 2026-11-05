@@ -193,15 +193,23 @@ Pickup is unchanged. The area's "Delivery time" stays as the backup when Google 
 
 ## Delivery time: preparation first, arrival when it is on its way (5 November 2026)
 
-For a delivery in minutes or hours, the customer is first told when the order **leaves the shop** (the shop's preparation
-time): the receipt says "Ready in about 25 min. We will message you your arrival time when it is on its way", and the
-confirmation, the shop's accept message, "Where's my order?" and a late update say "leaving the shop around 10:25 AM".
-When the order goes out the arrival time is recalculated from that moment (Google's driving time from the customer's pin,
-without live traffic) and the customer is told "on its way with <driver> — arriving around 10:45 AM". A shop that delivers
-itself (no driver) now gets that same arrival message; before it got "on its way!" with no time. The receipt no longer
-needs the area's minutes, so it costs no Google request; the one request per order is made when the shop accepts and is
-reused at dispatch. Pickup orders, shops that count in days, appointments and orders for a chosen time are unchanged.
-The internal promise (preparation + driving) still drives the late-order check.
+For a delivery in minutes or hours, the customer is first told the preparation: the receipt says "Preparation about 25 min.
+We will message you the arrival time when it is on its way"; the confirmation, the shop's accept message, "Where's my
+order?" and a late update say "preparing now, ready around 10:25 AM". When the order goes out the arrival time is
+recalculated from that moment (Google's driving time from the customer's pin, without live traffic) and the customer is
+told "on its way with <driver> — arriving in about 15 min (around 10:45 AM)". A shop that delivers itself (no driver) gets
+the same arrival message; before it got "on its way!" with no time. The receipt no longer needs the area's minutes, so it
+costs no Google request; the one request per order is made when the shop accepts and is reused at dispatch. Pickup orders,
+shops that count in days, appointments and orders for a chosen time are unchanged.
+
+**Late.** `OrderTiming::dueAt()` is when the customer's latest promise runs out: for a delivery still at the shop, the time
+it should leave (promised arrival minus the driving time); otherwise the promised time. `CheckLateOrder` runs `late_alert_mins`
+(at most 5) after that, so a slow kitchen is reported at the time the customer was told, not 20 minutes later. The customer
+gets "taking a little longer — new time: preparing now, ready around …" (the kitchen: leave in 10 minutes, then the drive) up to
+3 times. When the order leaves, a new check is scheduled just after the new arrival time; if it is not delivered by then the
+customer gets "a little delayed on the road — new arrival: arriving in about 10 min" (10 more minutes each time, up to the same 3
+updates). After 3 updates nothing more is sent automatically. The driving time has no live traffic: a jam shows up as a delay
+message after the arrival time, not before.
 
 ## Before going live with real shops
 
