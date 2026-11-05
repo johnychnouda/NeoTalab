@@ -527,7 +527,7 @@ class CheckoutFlow
         $chosen = ($state['when'] ?? 'asap') !== 'asap' ? DeliverySchedule::parse($merchant, $state['when']) : null;
         $out .= $chosen
             ? "\n🗓 ".DeliverySchedule::label($merchant, $chosen, $locale)
-            : "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $zone?->delivery_mins, $locale);
+            : "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $locale);
         if (! empty($state['recipient'])) {
             $out .= "\n🎁 ".$state['recipient']['name'].' · '.$state['recipient']['phone'].(filled($state['card'] ?? null) ? "\n💌 “{$state['card']}”" : '');
         }

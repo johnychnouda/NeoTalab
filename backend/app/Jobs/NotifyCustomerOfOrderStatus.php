@@ -39,7 +39,8 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
         $key = 'whatsapp.status.'.match (true) {
             $order->fulfillment === 'pickup' && $order->status === 'ready' => 'ready_pickup',
             $order->fulfillment === 'pickup' && $order->status === 'delivered' => 'collected',
-            $order->status === 'picked_up' && (! $order->driver_id || app(OrderTiming::class)->inDays($merchant)) => 'out_for_delivery',
+            $order->status === 'picked_up' && app(OrderTiming::class)->inDays($merchant) => 'out_for_delivery',
+            $order->status === 'picked_up' && ! $order->driver_id => 'out_for_delivery_eta',
             default => $order->status,
         };
         $locale = $order->customer->locale ?? $merchant->locale ?? 'en';
@@ -98,7 +99,7 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
         return match ($key) {
             'whatsapp.status.confirmed' => [CustomerTemplates::ACCEPTED, [$shop, $number, $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : ''], $locale],
             'whatsapp.status.ready_pickup' => [CustomerTemplates::READY, [$number, $shop, ShopSettings::for($merchant)->pickupAddress() ?: $shop], $locale],
-            'whatsapp.status.out_for_delivery', 'whatsapp.status.picked_up' => [CustomerTemplates::ON_THE_WAY, [$number, $shop], $locale],
+            'whatsapp.status.out_for_delivery', 'whatsapp.status.out_for_delivery_eta', 'whatsapp.status.picked_up' => [CustomerTemplates::ON_THE_WAY, [$number, $shop], $locale],
             // Thank-you; with the rating question when the shop asks for one (the customer's number then opens the chat again).
             'whatsapp.status.delivered', 'whatsapp.status.collected' => [$askRating ? CustomerTemplates::DELIVERED_RATE : CustomerTemplates::DELIVERED, [$number, $shop], $locale],
             // A cancelled order the customer already paid for (Whish) says the money comes back.

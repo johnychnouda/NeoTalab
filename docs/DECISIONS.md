@@ -191,6 +191,18 @@ reason for the delivery area's fixed time. `CheckoutService` refuses a delivery 
 that places an order by itself cannot get around it. Saved addresses without a pin (from before) are no longer offered.
 Pickup is unchanged. The area's "Delivery time" stays as the backup when Google cannot answer.
 
+## Delivery time: preparation first, arrival when it is on its way (5 November 2026)
+
+For a delivery in minutes or hours, the customer is first told when the order **leaves the shop** (the shop's preparation
+time): the receipt says "Ready in about 25 min. We will message you your arrival time when it is on its way", and the
+confirmation, the shop's accept message, "Where's my order?" and a late update say "leaving the shop around 10:25 AM".
+When the order goes out the arrival time is recalculated from that moment (Google's driving time from the customer's pin,
+without live traffic) and the customer is told "on its way with <driver> — arriving around 10:45 AM". A shop that delivers
+itself (no driver) now gets that same arrival message; before it got "on its way!" with no time. The receipt no longer
+needs the area's minutes, so it costs no Google request; the one request per order is made when the shop accepts and is
+reused at dispatch. Pickup orders, shops that count in days, appointments and orders for a chosen time are unchanged.
+The internal promise (preparation + driving) still drives the late-order check.
+
 ## Before going live with real shops
 
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:

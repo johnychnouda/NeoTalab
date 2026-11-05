@@ -85,21 +85,27 @@ class OrderTiming
             ], $locale);
         }
 
+        // Delivery: first when it leaves the shop (the preparation); the arrival time comes when it is on its way.
+        if ($order->fulfillment === 'delivery' && $order->status !== 'picked_up') {
+            return __('whatsapp.timing.leaving_around', [
+                'time' => $this->time($merchant, $at->copy()->subMinutes((int) $order->travel_mins), $locale),
+            ], $locale);
+        }
+
         return __($order->fulfillment === 'pickup' ? 'whatsapp.timing.ready_around' : 'whatsapp.timing.arriving_around', [
             'time' => $this->time($merchant, $at, $locale),
         ], $locale);
     }
 
-    /** The estimate shown on the receipt, before the shop accepts. */
-    public function estimate(Merchant $merchant, string $fulfillment, ?int $zoneMins, string $locale): string
+    /** The estimate shown on the receipt, before the shop accepts: the preparation only, a delivery's arrival time comes when it leaves. */
+    public function estimate(Merchant $merchant, string $fulfillment, string $locale): string
     {
         if ($this->inDays($merchant)) {
             return __($fulfillment === 'pickup' ? 'whatsapp.timing.estimate_days_pickup' : 'whatsapp.timing.estimate_days', ['range' => $this->dayRange($merchant)], $locale);
         }
-        $mins = $this->prepMins($merchant) + ($fulfillment === 'delivery' ? ($zoneMins ?? TravelTime::FALLBACK_MINS) : 0);
 
-        return __($fulfillment === 'pickup' ? 'whatsapp.timing.estimate_ready' : 'whatsapp.timing.estimate_arrival', [
-            'duration' => $this->duration($mins, $locale),
+        return __($fulfillment === 'pickup' ? 'whatsapp.timing.estimate_ready' : 'whatsapp.timing.estimate_delivery', [
+            'duration' => $this->duration($this->prepMins($merchant), $locale),
         ], $locale);
     }
 

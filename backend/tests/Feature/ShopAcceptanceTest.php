@@ -150,10 +150,10 @@ class ShopAcceptanceTest extends TestCase
 
         $this->tap("stf:accept:{$order->id}");
 
-        // 25 min preparation + 20 min drive to Hamra = 10:45.
+        // 25 min preparation + 20 min drive to Hamra = 10:45 is the shop's promise; the customer is first told when it leaves (10:25).
         $this->assertSame('confirmed', $order->fresh()->status);
         $this->assertSame('2026-10-14 10:45', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
-        $this->assertSame('✅ Beirut Bites accepted your order #1 — arriving around 10:45 AM.', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertSame('✅ Beirut Bites accepted your order #1 — leaving the shop around 10:25 AM.', $this->lastTo(self::CUSTOMER)['text']);
         $this->assertSame(["stf:picked_up:{$order->id}", "stf:delivered:{$order->id}"], $this->lastTo(self::STAFF)['buttons']);
     }
 
@@ -208,10 +208,10 @@ class ShopAcceptanceTest extends TestCase
 
         Carbon::setTestNow(now()->addMinutes(60));
         app()->call([new CheckLateOrder($order->id), 'handle']);
-        $this->assertStringContainsString('taking a little longer — new time: arriving around 11:25 AM', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertStringContainsString('taking a little longer — new time: leaving the shop around 11:10 AM', $this->lastTo(self::CUSTOMER)['text']);
 
         $this->tap("stf:picked_up:{$order->id}");
-        $this->assertSame('🛵 Your order #1 is on its way!', $this->lastTo(self::CUSTOMER)['text'], 'no driver: shop delivers itself');
+        $this->assertSame('🛵 Your order #1 is on its way — arriving around 11:15 AM.', $this->lastTo(self::CUSTOMER)['text'], 'no driver: shop delivers itself, the arrival time comes now');
         $this->assertSame('11:15', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), '15 min drive from now');
     }
 
@@ -250,8 +250,8 @@ class ShopAcceptanceTest extends TestCase
     {
         $this->settings(['timing_unit' => 'days', 'delivery_days_min' => 1, 'delivery_days_max' => 2]);
 
-        $this->assertSame('Ready for pickup in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'pickup', null, 'en'));
-        $this->assertSame('Delivered in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'delivery', null, 'en'));
+        $this->assertSame('Ready for pickup in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'pickup', 'en'));
+        $this->assertSame('Delivered in 1–2 working days', app(OrderTiming::class)->estimate($this->merchant, 'delivery', 'en'));
     }
 
     public function test_shop_without_staff_keeps_the_bot_accepting(): void
@@ -261,7 +261,7 @@ class ShopAcceptanceTest extends TestCase
         $order = $this->order();
 
         $this->assertSame('confirmed', $order->status);
-        $this->assertStringContainsString('confirmed — arriving around', $this->lastTo(self::CUSTOMER)['text']);
+        $this->assertStringContainsString('confirmed — leaving the shop around', $this->lastTo(self::CUSTOMER)['text']);
     }
 
     public function test_driver_gets_im_outside_and_customer_can_track_the_order(): void

@@ -144,7 +144,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('confirmed', $order->status);
         $this->assertSame(25, $order->eta_mins);
         $this->assertSame($rami->id, $order->driver_id);
-        $this->assertStringContainsString('confirmed — arriving around', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('confirmed — leaving the shop around', $this->lastTo(self::CUSTOMER));
 
         $toRami = $this->sentTo($rami->whatsapp_number);
         $delivery = end($toRami);
@@ -417,7 +417,7 @@ class WhatsAppOperationsTest extends TestCase
         app()->call([new CheckLateOrder($order->id), 'handle']);
         app()->call([new CheckLateOrder($order->id), 'handle']); // new time is in the future: nothing more
 
-        $this->assertStringContainsString('new time: arriving around', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('new time: leaving the shop around', $this->lastTo(self::CUSTOMER));
         $apologies = array_filter($this->sentTo(self::CUSTOMER), fn ($m) => str_contains($m['text'], 'taking a little longer'));
         $this->assertCount(1, $apologies);
     }
@@ -1058,7 +1058,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame(["stf:picked_up:{$order->id}", "stf:delivered:{$order->id}"], collect($this->sentTo($owner->whatsapp_number))->last()['buttons']);
 
         $this->tap("stf:picked_up:{$order->id}", $owner->whatsapp_number);
-        $this->assertSame('🛵 Your order #1 is on its way!', $this->lastTo(self::CUSTOMER));
+        $this->assertSame('🛵 Your order #1 is on its way — arriving around 12:15 PM.', $this->lastTo(self::CUSTOMER));
 
         $this->tap("stf:delivered:{$order->id}", $owner->whatsapp_number);
         $this->assertSame('delivered', $order->fresh()->status);
