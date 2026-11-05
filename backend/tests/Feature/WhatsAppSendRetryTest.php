@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\RetryPlatformSend;
 use App\Jobs\RetryWhatsAppSend;
 use App\Models\Merchant;
+use App\Models\PlatformSetting;
 use App\Services\WhatsApp\TransientWhatsAppException;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\Roles;
@@ -87,5 +89,55 @@ class WhatsAppSendRetryTest extends TestCase
 
         $this->expectException(TransientWhatsAppException::class);
         (new RetryWhatsAppSend($this->merchant->id, '+96170123456', ['type' => 'text', 'text' => 'hello']))->handle(app(WhatsAppService::class));
+    }
+
+    private function platformSend(): array
+    {
+        PlatformSetting::singleton()->forceFill(['settings' => ['wa_phone_id' => '999']])->save();
+
+        return app(WhatsAppService::class)->sendPlatform('+96170123456', ['type' => 'text', 'text' => 'hello']);
+    }
+
+    public function test_a_message_from_the_platform_number_is_retried_when_meta_fails(): void
+    {
+        Queue::fake();
+        $metaError = ['error' => ['message' => '(#131000) Something went wrong', 'code' => 131000]];
+        Http::fake(['graph.facebook.com/*' => Http::response($metaError, 500)]);
+
+        $this->assertSame([], $this->platformSend());
+
+        Queue::assertPushed(RetryPlatformSend::class, fn ($job) => $job->toPhone === '+96170123456' && $job->message['text'] === 'hello');
+    }
+
+    public function test_a_refusal_for_a_platform_message_is_still_an_error(): void
+    {
+        Queue::fake();
+        Http::fake(['graph.facebook.com/*' => Http::response(['error' => ['message' => 'Template not approved']], 400)]);
+
+        $this->expectException(RuntimeException::class);
+        try {
+            $this->platformSend();
+        } finally {
+            Queue::assertNotPushed(RetryPlatformSend::class);
+        }
+    }
+
+    public function test_the_platform_retry_sends_once_meta_is_back(): void
+    {
+        PlatformSetting::singleton()->forceFill(['settings' => ['wa_phone_id' => '999']])->save();
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OK']]], 200)]);
+
+        (new RetryPlatformSend('+96170123456', ['type' => 'text', 'text' => 'hello']))->handle(app(WhatsAppService::class));
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_the_platform_retry_asks_the_queue_to_try_again_while_meta_is_still_down(): void
+    {
+        PlatformSetting::singleton()->forceFill(['settings' => ['wa_phone_id' => '999']])->save();
+        Http::fake(['graph.facebook.com/*' => Http::response('down', 503)]);
+
+        $this->expectException(TransientWhatsAppException::class);
+        (new RetryPlatformSend('+96170123456', ['type' => 'text', 'text' => 'hello']))->handle(app(WhatsAppService::class));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Jobs\RetryPlatformSend;
 use App\Jobs\RetryWhatsAppSend;
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
@@ -66,6 +67,24 @@ class WhatsAppService
      * @return array<string,mixed>
      */
     public function sendPlatform(string $toPhone, array $message): array
+    {
+        try {
+            return $this->sendPlatformNow($toPhone, $message);
+        } catch (TransientWhatsAppException $e) {
+            RetryPlatformSend::dispatch($toPhone, $message);
+            Log::warning('Platform WhatsApp send postponed: Meta could not take it right now', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * One attempt, no retry.
+     *
+     * @param  array<string,mixed>  $message
+     * @return array<string,mixed>
+     */
+    public function sendPlatformNow(string $toPhone, array $message): array
     {
         $platform = PlatformSetting::singleton();
         $extra = $platform->settings ?? [];
