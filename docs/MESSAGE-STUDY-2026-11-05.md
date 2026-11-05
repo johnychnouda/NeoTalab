@@ -73,6 +73,27 @@ Real assistant orders may add a button checkout after the typed part, so "2 to 3
 
 The mix I used for the "typical shop": 35% pickup, 40% delivery with a driver, 10% manager accepts, 5% Whish, 10% typed, plus about 3.75 messages per order for chats that do not end in an order (1.5 such chats per order, 2.5 messages each). **That mix and the 3.75 are my assumptions; the first real shops will replace them.**
 
+## 3b. A busy restaurant (100 orders a day)
+
+A restaurant often orders **three items or more** at a time, and the menu costs **3 messages per extra item** (the item list, "how many?", "added"; I counted it in a 3-item test: 9 messages before checkout even starts). So the "typical shop" numbers above understate a restaurant.
+
+Assumptions: 3,000 orders a month, 3 items per order, 70% delivery with a driver and 30% pickup, plus 3.75 messages per order for chats that do not end in an order. Meta's higher Lebanon rate; at the lower rate every bill is about 13% smaller.
+
+| Plan | Messages per order | Meta bill, 3,000 orders | Per order | Per day |
+|---|---|---|---|---|
+| Today (menu buttons) | about 23 | **about $706** | 24 cents | $24 |
+| Lean menu (groups A to D) | about 16 | about $506 | 17 cents | $17 |
+| Customers type the whole order in one message | about 11 | about $339 | 11 cents | $11 |
+| Form or catalog cart | about 9 | **about $286** | 9.5 cents | $9.5 |
+| Form, and 20% of customers come from Click-to-WhatsApp ads | | about $226 | | |
+| Form, and 40% come from ads | | about $167 | | |
+
+The same restaurant at 50 orders a day: $348 today, $248 lean menu, $164 typed, $138 form.
+
+**What this means:** the menu alone only gets a busy restaurant from about $706 to about $506. The big drop comes from letting the customer send the **whole order at once**, typed or by form. That is why, for restaurants, the form or catalog cart is not optional polish: it is the main saving. At about 9 cents an order, Meta is about 0.4% to 1% of sales if the average order is $10 to $25.
+
+**What cannot lower it further, checked:** Meta's free 7-day window exists only for customers who arrive from a Click-to-WhatsApp ad (not for Page buttons, QR codes or links). The Groups API (one message to a kitchen group) needs an Official Business Account, holds 8 people at most, cannot send buttons, and is priced per message anyway. Meta's volume discounts apply only to utility messages at volumes far above one restaurant, and count across a whole business portfolio (which would mean NeoTalab becoming Meta's reseller and paying the bills itself). So the floor for a restaurant at this size is about **$170 to $290 a month**.
+
 ## 4. What limits the design (Meta's rules)
 
 - A button message holds **3 buttons**; a list message holds **10 rows**. So "confirm in dollars, in lira, split, edit, cancel" must be a list, not buttons.
@@ -93,23 +114,25 @@ The mix I used for the "typical shop": 35% pickup, 40% delivery with a driver, 1
 | A | **Skip "which area?"** when the pin already falls in a zone or the shop has one zone | 1 | low | Old step stays when the pin is outside every zone or zones are not drawn |
 | A | **Location request and building together**: the request says "send your location, then type building and floor". If only the pin arrives, the old "add details" question still comes | 0.7 | low | Fallback keeps the old question |
 | B | **Receipt and payment choice in one list message**: the receipt text, then rows "Confirm, pay in dollars", "Confirm, pay in lira", "Confirm, split cash", cash or Whish rows when the shop takes Whish, "Edit", "Cancel". Tapping a row confirms | 1 to 2 (3 for Whish shops) | medium | Split still asks its amount; edit and cancel behave exactly as now; same totals and rounding; every existing checkout test must pass |
-| C | **Customer update level per shop** (set once in settings): *standard* (confirmed, on the way, delivered with rating) is the default; *minimal* sends delivered only; *full* adds ready and late notes. "Taking longer" only when truly late | 0 to 2 | low | A shop can change it any time; money and refusal messages are never affected |
+| C | **One fixed set of customer updates**: confirmed (with the time), on the way, delivered with the rating question. "Ready for pickup" only where a team member presses it. "Taking longer" only when an order is really late | 0 to 1 | low | No setting to switch; money and refusal messages are never affected |
 | C | **Thanks for a rating** only when the rating is low (the apology) | 0.8 | low | Low ratings still alert the team |
-| D | **Team alert to the manager numbers only** by default, not every staff number | 0 to 2 | low | A shop can add numbers back; nothing is lost because the manager can forward |
+| D | **Team alert to the manager numbers only**, not every staff number | 0 to 2 | low | Uses the manager and staff roles already in the team list; the manager sees every order |
 | D | **No "confirmed, prepare it now" message** for shops that use drivers (the driver message already carries the order) | 1 | low | Shops without drivers keep it |
 | D | **Lean driver mode**: assignment and map pin, then the first message's buttons stay in use; a short "completed" only at the end | 1 to 2 | medium | The driver still gets an answer after every tap; tested with a real flow |
-| E | **WhatsApp Flows form** for items, area, address and payment; fallback to the chat when the app does not show it | 3 to 5 | high effort | Built last, shop by shop, classic chat stays as fallback |
+| E | **A form or a catalog cart** for items, area, address and payment: the customer picks several items in one screen and sends one order. The chat stays as the fallback when the app does not show it | 3 to 5, and much more for orders with several items | high effort | Built after the first real shops; see section 6b for why busy restaurants need it |
+| E | **Typed or voice order in one message** ("2 shawarma, 1 fries, 1 cola") and a hint in the welcome message that this works | 3 per extra item | tiny | The assistant already understands several items in one message; checked with the real assistant in the lab |
 | F | Click-to-WhatsApp ads | all messages for ad customers | none | Advice to shops, nothing to build |
 | F | Fill in the shop's WhatsApp Business profile (hours, address, description) so fewer customers ask | fewer non-order chats | none | Add to the sign-up checklist |
 
-## 6. Making sure nothing breaks
+## 6. Making sure nothing breaks (no switch: one version for every shop)
 
-1. **A switch per shop: "classic" or "lean".** Existing shops stay on classic until lean is proven. New shops get lean. Switching back takes one setting, no deploy.
-2. **A message counter per order** (how many messages each order really used, by kind). It replaces my assumptions with real numbers and shows the saving per shop.
-3. **Every changed step keeps its old path as a fallback** (the old question still comes when the new shortcut cannot apply).
-4. **Tests before and after:** the full existing suite (665) must pass unchanged on classic; new tests for each changed step on lean: quantity 1, 2 and more; one zone, several zones, pin outside; location with and without building; receipt-and-payment rows for dollars, lira, split, Whish, edit, cancel; minimum order; closed shop; sold out; saved address; driver flow end to end; rating thanks low and high.
-5. **Lab proof before any real shop:** the scale lab with the real assistant (900 customers) on lean must match classic: no wrong cart, no missing reply, same totals; the recovery tests (killed workers, Meta down) rerun on lean.
-6. **Rollout:** one shop first, watch for a week, then the rest.
+Decision (5 November): there is no "classic" and "lean" choice. Every shop gets the lean version, so no shop ever pays the higher bill by accident or by habit.
+
+1. **Shipped in steps, each step complete on its own.** Every merged or shortened step keeps its old question as a fallback inside the same flow (for example, if only the pin arrives, the "add details" question still comes).
+2. **Tests first:** the full existing suite (665) must pass, then new tests for each changed step: quantity 1, 2 and more; one zone, several zones, pin outside every zone; location with and without building; receipt-and-payment rows for dollars, lira, split, Whish, edit and cancel; minimum order; closed shop; sold out; saved address; driver flow end to end; rating thanks low and high; multi-item orders of 1, 3 and 8 items.
+3. **Lab proof before it goes live:** the scale lab with the real assistant (900 customers) must show no wrong cart, no missing reply, the same totals as today; the recovery tests (killed workers, Meta down) rerun.
+4. **Rollback is a redeploy**, not a setting a shop can touch. Production health is checked during and after each deploy, as I did on 4 November.
+5. **A message counter per order** (how many messages each order really used, by kind) goes in with the first step. It replaces my assumptions with real numbers and shows the real saving.
 
 ## 7. Billing awareness (so no shop is ever surprised or cut off)
 
@@ -121,10 +144,10 @@ The mix I used for the "typical shop": 35% pickup, 40% delivery with a driver, 1
 
 ## 8. Order of work and effort (estimates)
 
-1. Counter, switch, usage card and the 800-message warning: about 2 days. **Do first; it protects shops from being cut off and gives real numbers.**
-2. Groups A to D (quantity default, area skip, merged receipt and payment, update level, team alert target, lean driver): about 4 to 6 days with tests.
-3. Lab proof and one-shop rollout: about 2 days.
-4. Flows form: about 1 to 3 weeks, only after real shops show how customers order. It saves the least for delivery shops, so it is the last priority.
+1. **Counter and usage card, with the 800-message warning:** about 2 days. Protects shops from being cut off and gives real numbers.
+2. **Groups A to D** (quantity default, area skip, location with building, receipt and payment in one message, fixed updates, team alert to managers, lean driver messages), with tests and the lab proof: about 6 to 8 days.
+3. **Typed or voice order in one message** (a hint in the welcome message, and checking the assistant with 3 to 8 items in the real-assistant lab): about 2 days. **Biggest saving per day of work for restaurants.**
+4. **The form or catalog cart:** about 1 to 3 weeks. Built right after step 3 because of the restaurant numbers above.
 
 ## 9. What I could not verify
 
