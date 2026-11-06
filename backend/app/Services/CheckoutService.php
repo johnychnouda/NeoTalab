@@ -56,8 +56,7 @@ class CheckoutService
 
         // A time the customer picked (florists, cakes) must be one of the shop's own windows; it can be
         // chosen while the shop is closed now, for when it is open.
-        $shopSettings = ShopSettings::for($merchant);
-        $deliverAt = $shopSettings->scheduledOrders() && filled($details['deliver_at'] ?? null)
+        $deliverAt = filled($details['deliver_at'] ?? null)
             ? (DeliverySchedule::parse($merchant, (string) $details['deliver_at']) ?? throw new CheckoutException('schedule_invalid'))
             : null;
 
@@ -144,7 +143,7 @@ class CheckoutService
             'accepted_at' => $payment === 'whish' || $waitForShop ? null : now(),
             'eta_mins' => $shop->prepTimeMins(),
             'deliver_at' => $deliverAt?->copy()->utc(),
-        ] + $this->gift($shop, $details);
+        ];
 
         // Retried on a deadlock: two checkouts that take stock of the same items in a different order can still collide.
         return DB::transaction(function () use ($merchant, $conversation, $cart, $zone, $address, $payment, $subtotal, $deliveryFee, $notes, $extra) {
@@ -301,27 +300,6 @@ class CheckoutService
         }
 
         return $zone;
-    }
-
-    /**
-     * Sent to someone else (flowers, gifts): who receives it, their phone for the driver, the card.
-     *
-     * @param  array<string, mixed>  $details
-     * @return array<string, ?string>
-     */
-    private function gift(ShopSettings $shop, array $details): array
-    {
-        $name = trim((string) ($details['recipient_name'] ?? ''));
-        $phone = preg_replace('/[^\d+]/', '', (string) ($details['recipient_phone'] ?? ''));
-        if (! $shop->giftOrders() || $name === '' || strlen(ltrim($phone, '+')) < 7) {
-            return [];
-        }
-
-        return [
-            'recipient_name' => mb_substr($name, 0, 80),
-            'recipient_phone' => mb_substr($phone, 0, 30),
-            'gift_message' => filled($details['gift_message'] ?? null) ? mb_substr(trim((string) $details['gift_message']), 0, 300) : null,
-        ];
     }
 
     private function lineName(CartItem $item): string

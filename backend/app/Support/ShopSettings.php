@@ -33,8 +33,6 @@ final class ShopSettings
         'region' => ['', 'string'],           // governorate (see the join form's list); filled from the pin
         'city' => ['', 'string'],             // city or town; filled from the pin
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
-        'scheduled_orders' => [false, 'bool'], // customers pick a delivery/pickup day and time (florists, cakes)
-        'gift_orders' => [false, 'bool'],      // customers can send it to someone else, with a card message
         'job_stages' => [[], 'array'],         // repairs and custom work: the steps of a job, shown to the customer (max 8)
         'deposit_percent' => [0, 'int'],       // bookings: this share of the price is paid by Whish to hold the time; 0 = off
         'quotes' => [false, 'bool'],           // repair / custom work: the customer asks for a price, the shop sends it
@@ -79,16 +77,6 @@ final class ShopSettings
         $percent = (int) $this->get('deposit_percent');
 
         return $percent >= 5 && $percent <= 100 ? $percent : 0;
-    }
-
-    public function scheduledOrders(): bool
-    {
-        return (bool) $this->get('scheduled_orders');
-    }
-
-    public function giftOrders(): bool
-    {
-        return (bool) $this->get('gift_orders');
     }
 
     public function prepTimeMins(): int
@@ -231,8 +219,6 @@ final class ShopSettings
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
-            'scheduled_orders' => ['sometimes', 'boolean'],
-            'gift_orders' => ['sometimes', 'boolean'],
             'job_stages' => ['sometimes', 'nullable', 'array', 'max:8'],
             'job_stages.*' => ['nullable', 'string', 'max:40'],
             'deposit_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],

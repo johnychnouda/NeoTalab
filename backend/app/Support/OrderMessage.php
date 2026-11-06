@@ -36,18 +36,12 @@ final class OrderMessage
         ];
     }
 
-    /** Lines under the items: the time the customer chose, and who receives a gift with the card text. */
+    /** Lines under the items: the time the customer chose. */
     public static function extras(Order $order, Merchant $merchant, string $locale): string
     {
         $lines = [];
         if ($order->deliver_at) {
             $lines[] = '🗓 '.DeliverySchedule::label($merchant, $order->deliver_at, $locale);
-        }
-        if ($order->recipient_name) {
-            $lines[] = __('whatsapp.staff.gift_for', ['name' => $order->recipient_name, 'phone' => self::phone($order->recipient_phone)], $locale);
-            if ($order->gift_message) {
-                $lines[] = __('whatsapp.staff.gift_card', ['message' => $order->gift_message], $locale);
-            }
         }
 
         return $lines === [] ? '' : "\n".implode("\n", $lines);
@@ -92,10 +86,6 @@ final class OrderMessage
     {
         $locale ??= $merchant->locale ?? 'en';
         $params = self::params($order, $merchant, $locale);
-        // A gift is handed to the person receiving it: the driver calls them.
-        if ($order->recipient_phone) {
-            $params['phone'] = self::phone($order->recipient_phone)." ({$order->recipient_name})";
-        }
         $params['collect'] = $order->payment_method === 'whish'
             ? __('whatsapp.driver.paid_whish', [], $locale)
             : __('whatsapp.driver.collect_cash', ['amount' => $params['collect']], $locale);
