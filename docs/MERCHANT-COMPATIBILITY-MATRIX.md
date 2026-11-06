@@ -10,7 +10,7 @@ a unit label per item (piece, kg, box…) · quantities 1–99, kg items in ¼ k
 · dated offers (% off) · delivery areas (circle or drawn shape, fee, minimum) or pickup · cash in $ / lira /
 split, or Whish · shop accepts orders (staff buttons or ✅/❌ from the shop phone) · drivers on WhatsApp ·
 bookings for items with a duration (a team: the person the customer names, or the first one free) ·
-customer-chosen day and two-hour window, gift orders to another person (when switched on) · quotes for repair/custom work ·
+the shop's own time by default, "Another time" or a written time (one-hour, two-hour or whole-day slots by kind of shop) · three one-tap ratings (order, service, delivery person) · quotes for repair/custom work ·
 nightly report · AI in Arabic, Arabizi, English, French. Kinds set the wording and suggestions only
 (`App\Support\BusinessKind`): restaurant, grocery, retail, flowers, water, laundry, services, other (pharmacies and clinics removed 25 Oct).
 
@@ -33,7 +33,7 @@ The whole backend suite (513 tests) passes on SQLite **and on MySQL 26.10** (25 
 | 8 | Salons, barbers, beauty | PARTIALLY (core works) | Services with minutes and price, free times, booking, reminder, cancel, done/no-show (`AppointmentTest`, `s07`); team: book the named person or the first one free (`ServiceProviderTest`) | No deposit; reschedule = cancel + book; per-person working hours not checked in the lab |
 | 9 | Clinics, dentists, doctors | **REMOVED FROM THE PLATFORM** (25 Oct decision) | Sign-up refuses them | — |
 | 10 | Repair shops, services | PARTIALLY | Quotes: customer describes the job, staff (or the shop phone) send a price, customer accepts once and it becomes an order (`QuoteTest` 12, incl. other shop's staff refused) | No deposit; no job stages beyond the order's (ready/collected); a quote order is always cash and pickup; photos of the job are not attached to the request |
-| 11 | Florists, gifts, made-to-order | PARTIALLY (core works) | Options, notes; customer picks the day and a two-hour window; gift to another person with a card message (`ScheduledGiftOrderTest`) | No deposit; quotes can be switched on for custom cakes |
+| 11 | Florists, gifts, made-to-order | PARTIALLY (core works) | Options, notes; the customer can pick another time or write it (two-hour slots for hours shops) (`ChooseTimeTest`); no gift orders (removed 6 Nov) | No deposit; quotes can be switched on for custom cakes |
 | 12 | Digital products, subscriptions | NOT SUPPORTED | — | No digital delivery, recurring orders or licences |
 | 13 | Multi-branch, multi-location | NOT SUPPORTED | Workaround: one NeoTalab shop (and WhatsApp number) per branch | No shared catalogue, per-branch stock/prices or routing to the nearest branch |
 | 14 | Water / gas delivery (found in code) | PARTIALLY | Gallons, cylinders, delivery areas (`s23`) | No refill subscriptions or bottle deposits |
