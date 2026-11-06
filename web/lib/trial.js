@@ -4,7 +4,12 @@
  */
 export function trialDaysLeft(endsAt) {
   if (!endsAt) return null;
-  return Math.max(0, calendarDaysBetween(new Date(), endsAt));
+  return Math.max(0, daysUntil(endsAt));
+}
+
+/** Whole calendar days from now until a date: 0 on the day itself, negative once the day has passed. */
+export function daysUntil(date, now = new Date()) {
+  return calendarDaysBetween(now, date);
 }
 
 /** Whole calendar days from one date to another (negative when the second is earlier). */

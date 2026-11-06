@@ -8,6 +8,7 @@ import { useLiveRefresh } from "@/lib/live";
 import { ErrorBanner } from "@/components/owner/ui";
 import { formatMoney } from "@/lib/money";
 import { company } from "@/lib/company";
+import { daysUntil } from "@/lib/trial";
 
 /** Where each setup step is done in the dashboard (WhatsApp is connected by NeoTalab). */
 const WHERE = {
@@ -106,7 +107,7 @@ function MetaFees({ url, t }) {
 function Plan({ sub, shopName, t, locale }) {
   if (!sub) return null;
   const date = (iso) => new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "long" });
-  const daysLeft = sub.renews_at ? Math.ceil((new Date(sub.renews_at) - Date.now()) / 86400000) : null;
+  const daysLeft = sub.renews_at ? daysUntil(sub.renews_at) : null;
   const fee = formatMoney(sub.fee);
   const per = t(sub.billing_cycle === "yearly" ? "db.sub.year" : "db.sub.month");
   const due = sub.status === "pending" || (daysLeft !== null && daysLeft < 0);

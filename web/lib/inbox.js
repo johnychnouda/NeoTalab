@@ -1,6 +1,7 @@
 import { getRenewalDate } from "@/lib/api";
 import { mapPin } from "@/components/LocationPicker";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
+import { daysUntil } from "@/lib/trial";
 
 /** Renewals this close (in days) show up as "renews soon". */
 const RENEWAL_WARNING_DAYS = 3;
@@ -41,7 +42,7 @@ export function buildInboxAlerts(merchants, requests, t) {
     }
     const rd = getRenewalDate(m);
     if (rd) {
-      const daysLeft = Math.ceil((rd - Date.now()) / 86400000);
+      const daysLeft = daysUntil(rd);
       if (daysLeft > 0 && daysLeft <= RENEWAL_WARNING_DAYS) {
         items.push({
           id: `due_${m.id}`,
@@ -72,7 +73,7 @@ export function buildInboxAlerts(merchants, requests, t) {
       }
     }
     if (m.subscription_status === "trial" && m.trial_ends_at) {
-      const left = Math.ceil((new Date(m.trial_ends_at) - Date.now()) / 86400000);
+      const left = daysUntil(m.trial_ends_at);
       if (left >= 0 && left <= 2) {
         items.push({
           id: `trial_${m.id}`,
