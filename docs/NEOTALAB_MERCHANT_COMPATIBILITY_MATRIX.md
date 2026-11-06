@@ -14,7 +14,7 @@ laundry, services, other). It is not built per industry; everything runs on one 
 | Catering | Partially | works as ordinary orders; no quotes by headcount or deposits |
 | Clothing, shoes, cosmetics, perfume, jewelry, gifts, toys, books, general retail | Partially | one size dimension; no returns |
 | Electronics, appliances, furniture, auto parts, sports | Partially | no serial numbers, warranty or deposits |
-| Flowers | Partially (core works) | chosen delivery day, gift orders |
+| Flowers | Partially (core works) | no gift orders (removed 6 Nov); another time works |
 | Salons, barbers, nails, spa, massage, makeup, skincare, tattoo | Partially (core works) | bookings with minutes, team, cancel; no deposit; reschedule is cancel then book |
 | Pharmacy, medical, dental, optical, physiotherapy, vet, clinics | **Not appropriate: removed 25 Oct** | sign-up refuses them (regulated; owner decision) |
 | Cleaning, plumbing, electrical, garage, laundry, home maintenance | Partially | quotes then order; no job stages, no deposit |

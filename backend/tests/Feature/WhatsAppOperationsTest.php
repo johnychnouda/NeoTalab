@@ -179,7 +179,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
         $this->assertSame('delivered', $order->fresh()->status);
         $this->assertStringContainsString('was delivered', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('How was it?', $this->lastTo(self::CUSTOMER), 'rating asked in the same message');
+        $this->assertStringContainsString('1 of 3. How was your order?', $this->lastTo(self::CUSTOMER), 'rating asked in the same message');
         $this->assertStringContainsString('Delivery #1 completed', $this->lastTo($rami->whatsapp_number));
 
         $rami->refresh();
@@ -457,6 +457,125 @@ class WhatsAppOperationsTest extends TestCase
 
         $this->assertSame(5, $order->fresh()->rating);
         $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
+    }
+
+    /** @return array{text: string, buttons: list<string>} */
+    private function lastMessageTo(string $phone): array
+    {
+        $msgs = $this->sentTo($phone);
+
+        return end($msgs) ?: ['text' => '', 'buttons' => []];
+    }
+
+    public function test_after_delivery_the_customer_gets_three_one_tap_questions(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $first = $this->lastMessageTo(self::CUSTOMER);
+        $this->assertStringContainsString('was delivered', $first['text']);
+        $this->assertStringContainsString('1 of 3. How was your order?', $first['text']);
+        $this->assertSame(["rt:{$order->id}:order:5", "rt:{$order->id}:order:3", "rt:{$order->id}:order:1"], $first['buttons']);
+
+        $this->tap("rt:{$order->id}:order:5", self::CUSTOMER);
+        $this->assertStringContainsString('2 of 3. How was the service?', $this->lastTo(self::CUSTOMER));
+        $this->tap("rt:{$order->id}:service:3", self::CUSTOMER);
+        $this->assertStringContainsString('3 of 3. How did Rami, your delivery person, treat you?', $this->lastTo(self::CUSTOMER));
+        $this->tap("rt:{$order->id}:delivery:5", self::CUSTOMER);
+
+        $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
+        $fresh = $order->fresh();
+        $this->assertSame([5, 3, 5], [$fresh->rating, $fresh->rating_service, $fresh->rating_delivery]);
+    }
+
+    public function test_a_pickup_order_is_asked_two_questions_not_three(): void
+    {
+        $order = $this->order();
+        $order->forceFill(['fulfillment' => 'pickup', 'driver_id' => null, 'status' => 'delivered'])->save();
+        \App\Jobs\NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+
+        $this->assertStringContainsString('1 of 2. How was your order?', $this->lastTo(self::CUSTOMER));
+        $this->tap("rt:{$order->id}:order:5", self::CUSTOMER);
+        $this->assertStringContainsString('2 of 2. How was the service?', $this->lastTo(self::CUSTOMER));
+        $this->tap("rt:{$order->id}:service:5", self::CUSTOMER);
+
+        $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
+        $this->assertNull($order->fresh()->rating_delivery);
+    }
+
+    public function test_a_bad_answer_alerts_the_staff_and_says_what_was_bad(): void
+    {
+        $owner = $this->staff();
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->tap("rt:{$order->id}:order:5", self::CUSTOMER);
+        $this->tap("rt:{$order->id}:service:5", self::CUSTOMER);
+        $this->tap("rt:{$order->id}:delivery:1", self::CUSTOMER);
+
+        $alert = $this->lastTo($owner->whatsapp_number);
+        $this->assertStringContainsString("Order #{$order->number}", $alert);
+        $this->assertStringContainsString('the delivery person (Rami) was rated Bad', $alert);
+        $this->assertStringContainsString(self::CUSTOMER, $alert);
+        $this->assertStringContainsString('Beirut Bites will look into it', $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_a_bad_order_or_service_answer_names_it_in_the_alert(): void
+    {
+        $owner = $this->staff();
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->tap("rt:{$order->id}:order:1", self::CUSTOMER);
+        $this->assertStringContainsString('the order was rated Bad', $this->lastTo($owner->whatsapp_number));
+        $this->tap("rt:{$order->id}:service:1", self::CUSTOMER);
+        $this->assertStringContainsString('the service was rated Bad', $this->lastTo($owner->whatsapp_number));
+    }
+
+    public function test_okay_and_great_do_not_alert_anyone(): void
+    {
+        $owner = $this->staff();
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("stf:accept:{$order->id}", $owner->whatsapp_number);
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+        $before = count($this->sentTo($owner->whatsapp_number));
+
+        $this->tap("rt:{$order->id}:order:3", self::CUSTOMER);
+        $this->tap("rt:{$order->id}:service:5", self::CUSTOMER);
+        $this->tap("rt:{$order->id}:delivery:3", self::CUSTOMER);
+
+        $this->assertCount($before, $this->sentTo($owner->whatsapp_number));
+        $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
+    }
+
+    public function test_tapping_a_rating_twice_does_not_change_it_or_skip_a_question(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->tap("rt:{$order->id}:order:5", self::CUSTOMER);
+        $this->tap("rt:{$order->id}:order:1", self::CUSTOMER);
+
+        $this->assertSame(5, $order->fresh()->rating, 'the first answer stands');
+        $this->assertStringContainsString('2 of 3. How was the service?', $this->lastTo(self::CUSTOMER), 'the next question again, not a later one');
+    }
+
+    public function test_a_rating_button_from_another_number_is_ignored(): void
+    {
+        $rami = $this->driver();
+        $order = $this->order();
+        $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
+
+        $this->tap("rt:{$order->id}:order:1", '+96170999888');
+
+        $this->assertNull($order->fresh()->rating);
     }
 
     public function test_a_number_typed_in_a_new_order_after_the_rating_question_is_not_a_rating(): void

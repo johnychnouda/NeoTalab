@@ -14,6 +14,7 @@ use App\Support\DeliverySchedule;
 use App\Support\Money;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
+use App\Support\TimeRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -53,9 +54,9 @@ class CheckoutFlow
         }
 
         $closedNow = ! $this->checkout->isOpen($merchant);
-        // Shops that take orders for later (florists, cakes) also take them while closed, for an open time.
-        $scheduled = ShopSettings::for($merchant)->scheduledOrders() && DeliverySchedule::days($merchant) !== [];
-        if ((($merchant->settings ?? [])['mode'] ?? 'auto') === 'closed' || ($closedNow && ! $scheduled)) {
+        // A closed shop still takes an order for an open time, when it has one to offer.
+        $later = DeliverySchedule::days($merchant) !== [];
+        if ((($merchant->settings ?? [])['mode'] ?? 'auto') === 'closed' || ($closedNow && ! $later)) {
             return $this->text(__('whatsapp.checkout.shop_closed', ['shop' => $merchant->name], $locale));
         }
 
@@ -154,6 +155,8 @@ class CheckoutFlow
                     $state['currency'] = in_array($value, ['LBP', 'MIXED'], true) ? $value : $merchant->currency;
                     unset($state['cash_main']);
                     break;
+                case 'time':
+                    return $this->ask($conversation, $state, 'when_list', $this->timeList($merchant, $locale));
                 case 'when':
                     if ($value === 'asap') {
                         $state['when'] = 'asap';
@@ -162,17 +165,13 @@ class CheckoutFlow
                     }
                     break;
                 case 'day':
-                    return $this->ask($conversation, $state, 'when_time', $this->windowList($merchant, $value, $locale));
+                    [$date, $page] = array_pad(explode(':', $value, 2), 2, 0);
+
+                    return $this->ask($conversation, $state, 'when_time', $this->windowList($merchant, $date, $locale, (int) $page));
                 case 'win':
                     if (DeliverySchedule::parse($merchant, $value)) {
                         $state['when'] = $value;
                     }
-                    break;
-                case 'gift':
-                    $state['gift'] = $value === 'yes';
-                    break;
-                case 'card':
-                    $state['card'] = '';
                     break;
                 case 'ok':
                     return $this->confirm($merchant, $conversation, $state, $locale);
@@ -260,18 +259,10 @@ class CheckoutFlow
                 return $this->text($this->t('split_invalid', $locale, ['max' => $this->money($merchant, $total)]));
             }
             $state['cash_main'] = round($amount, 2);
-        } elseif ($step === 'recipient' && $text !== null) {
-            // "Lara 70 123 456": a name and a phone number, in any order.
-            $phone = preg_match('/\+?[\d\s\-]{7,}/u', strtr($text, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']), $m) ? preg_replace('/[^\d+]/', '', $m[0]) : '';
-            $name = trim(preg_replace('/\+?[\d\s\-٠-٩]{7,}/u', ' ', $text), " ,-\n");
-            if (strlen(ltrim($phone, '+')) < 7 || $name === '') {
-                return $this->text($this->t('recipient_invalid', $locale));
-            }
-            $state['recipient'] = ['name' => mb_substr($name, 0, 80), 'phone' => $phone];
-        } elseif ($step === 'card' && $text !== null) {
-            $state['card'] = mb_substr(trim($text), 0, 300);
         } elseif ($step === 'location' && $text !== null) {
             return $this->location($this->t('address_short', $locale));
+        } elseif (in_array($step, ['confirm', 'when_list', 'when_time', 'when_day'], true) && $text !== null && $location === null && ($typed = $this->typedTime($merchant, $conversation, $state, $text, $locale)) !== null) {
+            return $typed;
         } else {
             // Anything else ("add a pepsi", a question): back to the assistant.
             $this->exit($conversation);
@@ -375,30 +366,10 @@ class CheckoutFlow
             }
         }
 
-        // Florists, cakes: when it should arrive (or be ready), as soon as possible or a chosen window.
-        if ($settings->scheduledOrders() && empty($state['when'])) {
-            if (! empty($state['later_only'])) {
-                return $this->ask($conversation, $state, 'when_day', $this->dayList($merchant, $locale, $this->t('closed_pick_day', $locale, ['shop' => $merchant->name])));
-            }
-
-            return $this->ask($conversation, $state, 'when', $this->buttons($this->t('when', $locale), [
-                ['co:when:asap', $this->t('btn_asap', $locale)],
-                ['co:when:pick', $this->t('btn_pick_day', $locale)],
-            ]));
-        }
-
-        // Sent to someone else: their name and phone (for the driver), then the card.
-        if ($settings->giftOrders() && ! isset($state['gift'])) {
-            return $this->ask($conversation, $state, 'gift', $this->buttons($this->t('gift_ask', $locale), [
-                ['co:gift:yes', $this->t('btn_gift_yes', $locale)],
-                ['co:gift:no', $this->t('btn_gift_no', $locale)],
-            ]));
-        }
-        if (! empty($state['gift']) && empty($state['recipient'])) {
-            return $this->ask($conversation, $state, 'recipient', $this->text($this->t('recipient_ask', $locale)));
-        }
-        if (! empty($state['gift']) && ! isset($state['card'])) {
-            return $this->ask($conversation, $state, 'card', $this->buttons($this->t('card_ask', $locale), [['co:card:', $this->t('btn_no_card', $locale)]]));
+        // A shop that is closed right now takes the order for an open time: the customer picks it here. Every other
+        // order gets the shop's own time, and "Another time" on the summary is the way to ask for a different one.
+        if (! empty($state['later_only']) && empty($state['when'])) {
+            return $this->ask($conversation, $state, 'when_list', $this->timeList($merchant, $locale, $this->t('closed_pick_day', $locale, ['shop' => $merchant->name])));
         }
 
         if (empty($state['payment'])) {
@@ -436,9 +407,11 @@ class CheckoutFlow
             ])));
         }
 
-        return $this->ask($conversation, $state, 'confirm', $this->buttons($this->receipt($merchant, $conversation, $state, $locale), [
+        $chosen = ($state['when'] ?? 'asap') !== 'asap' && empty($state['later_only']);
+
+        return $this->ask($conversation, $state, 'confirm', $this->buttons($this->receipt($merchant, $conversation, $state, $locale)."\n\n".$this->t('change_items_hint', $locale), [
             ['co:ok:', $this->t('btn_confirm', $locale)],
-            ['co:edit:', $this->t('btn_edit', $locale)],
+            $chosen ? ['co:when:asap', $this->t('btn_asap', $locale)] : ['co:time:', $this->t('btn_other_time', $locale)],
             ['co:cancel:', $this->t('btn_cancel', $locale)],
         ]));
     }
@@ -458,9 +431,6 @@ class CheckoutFlow
             'payment_currency' => $state['currency'] ?? $merchant->currency,
             'cash_main' => $state['cash_main'] ?? null,
             'deliver_at' => ($state['when'] ?? 'asap') !== 'asap' ? $state['when'] : null,
-            'recipient_name' => $state['recipient']['name'] ?? null,
-            'recipient_phone' => $state['recipient']['phone'] ?? null,
-            'gift_message' => ($state['card'] ?? '') ?: null,
         ]);
 
         $this->exit($conversation, $order ? 'completed' : null);
@@ -528,9 +498,6 @@ class CheckoutFlow
         $out .= $chosen
             ? "\n🗓 ".DeliverySchedule::label($merchant, $chosen, $locale)
             : "\n⏱ ".app(OrderTiming::class)->estimate($merchant, (string) ($state['fulfillment'] ?? 'delivery'), $locale);
-        if (! empty($state['recipient'])) {
-            $out .= "\n🎁 ".$state['recipient']['name'].' · '.$state['recipient']['phone'].(filled($state['card'] ?? null) ? "\n💌 “{$state['card']}”" : '');
-        }
 
         return $out;
     }
@@ -576,11 +543,12 @@ class CheckoutFlow
      * @param  array<string, mixed>  $message
      * @return array<string, mixed>
      */
-    /** The next open days as a list ("Fri 9 Oct"). */
+    /** The next open days as a list ("Fri 9 Oct"). A shop that counts in days picks the day itself: no time after it. */
     protected function dayList(Merchant $merchant, string $locale, ?string $body = null): array
     {
+        $byDay = DeliverySchedule::byDay($merchant);
         $rows = array_map(fn ($day) => [
-            'id' => 'co:day:'.$day->toDateString(),
+            'id' => $byDay ? 'co:win:'.DeliverySchedule::windows($merchant, $day)[0]->format('Y-m-d H:i') : 'co:day:'.$day->toDateString(),
             'title' => $day->copy()->locale($locale)->isoFormat('ddd D MMM'),
             'description' => '',
         ], DeliverySchedule::days($merchant));
@@ -588,20 +556,151 @@ class CheckoutFlow
         return $this->list($body ?? $this->t('pick_day', $locale), $this->t('btn_choose', $locale), $rows);
     }
 
-    /** That day's two-hour windows as a list ("10:00–12:00"). */
-    protected function windowList(Merchant $merchant, string $date, string $locale): array
+    /** That day's windows as a list ("10:00–11:00"), nine to a page with "More times" last. */
+    protected function windowList(Merchant $merchant, string $date, string $locale, int $page = 0): array
     {
         $day = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? Carbon::createFromFormat('Y-m-d', $date, $merchant->timezone ?: config('app.timezone'))->startOfDay() : null;
-        $windows = $day ? array_slice(DeliverySchedule::windows($merchant, $day), 0, 10) : [];
-        if ($windows === []) {
+        $windows = $day ? DeliverySchedule::windows($merchant, $day) : [];
+        $shown = array_slice($windows, $page * 9, 9);
+        if ($shown === []) {
             return $this->dayList($merchant, $locale);
         }
 
-        return $this->list($this->t('pick_time', $locale, ['day' => $day->copy()->locale($locale)->isoFormat('ddd D MMM')]), $this->t('btn_choose', $locale), array_map(fn ($w) => [
+        $rows = array_map(fn ($w) => [
             'id' => 'co:win:'.$w->format('Y-m-d H:i'),
-            'title' => $w->format('H:i').'–'.$w->copy()->addMinutes(DeliverySchedule::WINDOW_MINS)->format('H:i'),
+            'title' => $w->format('H:i').'–'.$w->copy()->addMinutes(DeliverySchedule::windowMins($merchant))->format('H:i'),
             'description' => '',
-        ], $windows));
+        ], $shown);
+        if (count($windows) > ($page + 1) * 9) {
+            $rows[] = ['id' => 'co:day:'.$date.':'.($page + 1), 'title' => $this->t('more_times', $locale), 'description' => ''];
+        }
+
+        return $this->list($this->t('pick_time', $locale, ['day' => $day->copy()->locale($locale)->isoFormat('ddd D MMM')]), $this->t('btn_choose', $locale), $rows);
+    }
+
+    /**
+     * One list of the next times the shop can do, earliest first, with "Another day" last. A shop that counts in
+     * days gets its days. Nothing in it is earlier than the shop's own preparation time allows.
+     *
+     * @return array<string, mixed>
+     */
+    protected function timeList(Merchant $merchant, string $locale, ?string $body = null): array
+    {
+        if (DeliverySchedule::byDay($merchant)) {
+            return $this->dayList($merchant, $locale, $body);
+        }
+
+        $slots = [];
+        foreach (DeliverySchedule::days($merchant) as $day) {
+            foreach (DeliverySchedule::windows($merchant, $day) as $window) {
+                $slots[] = $window;
+                if (count($slots) >= 9) {
+                    break 2;
+                }
+            }
+        }
+        if ($slots === []) {
+            return $this->text($this->t('no_times', $locale));
+        }
+
+        $rows = array_map(fn (Carbon $w) => ['id' => 'co:win:'.$w->format('Y-m-d H:i'), 'title' => $this->slotTitle($merchant, $w, $locale), 'description' => ''], $slots);
+        $rows[] = ['id' => 'co:when:pick', 'title' => $this->t('another_day', $locale), 'description' => ''];
+
+        return $this->list(
+            $body ?? $this->t('when_pick', $locale, ['earliest' => DeliverySchedule::label($merchant, $slots[0], $locale)]),
+            $this->t('btn_choose', $locale),
+            $rows,
+        );
+    }
+
+    /** "Today 20:00–21:00", "Tomorrow 12:00–13:00", "Fri 9 14:00–15:00": short enough for a list row. */
+    protected function slotTitle(Merchant $merchant, Carbon $start, string $locale): string
+    {
+        $today = now()->setTimezone($merchant->timezone ?: (string) config('app.timezone'))->startOfDay();
+        $day = match (true) {
+            $start->isSameDay($today) => $this->t('today', $locale),
+            $start->isSameDay($today->copy()->addDay()) => $this->t('tomorrow', $locale),
+            default => $start->copy()->locale($locale)->isoFormat('ddd D'),
+        };
+
+        return $day.' '.$start->format('H:i').'–'.$start->copy()->addMinutes(DeliverySchedule::windowMins($merchant))->format('H:i');
+    }
+
+    /**
+     * The customer wrote the time they want on the summary ("tomorrow at 6", "demain à 18h"). The slot that holds it
+     * becomes the order's time; when the shop cannot do it, the customer gets the earliest times to choose from.
+     * Null when the message is not a time at all, so it goes to the assistant as before.
+     *
+     * @param  array<string, mixed>  $state
+     * @return array<string, mixed>|null
+     */
+    protected function typedTime(Merchant $merchant, Conversation $conversation, array $state, string $text, string $locale): ?array
+    {
+        $now = now()->setTimezone($merchant->timezone ?: (string) config('app.timezone'));
+        $request = TimeRequest::parse($text, $now);
+        if (! $request) {
+            return null;
+        }
+
+        $byDay = DeliverySchedule::byDay($merchant);
+        if ($byDay && ! $request['date']) {
+            return null; // a shop that counts in days has no hours to choose
+        }
+
+        $days = DeliverySchedule::days($merchant);
+        if ($request['date']) {
+            $days = array_values(array_filter($days, fn (Carbon $d) => $d->toDateString() === $request['date']));
+        }
+
+        $slot = null;
+        if ($byDay) {
+            $slot = $days !== [] ? DeliverySchedule::windows($merchant, $days[0])[0] : null;
+        } elseif ($request['hour'] === null) {
+            // A day with no time: that day's windows.
+            return $days !== [] ? $this->ask($conversation, $state, 'when_time', $this->windowList($merchant, $request['date'], $locale)) : $this->unavailableTime($merchant, $conversation, $state, $locale);
+        } else {
+            $hours = $request['ambiguous'] ? ($request['hour'] === 12 ? [0, 12] : [$request['hour'], $request['hour'] + 12]) : [$request['hour']];
+            $length = DeliverySchedule::windowMins($merchant);
+            foreach ($days as $day) {
+                foreach ($hours as $hour) {
+                    $at = $day->copy()->setTime($hour, $request['minute']);
+                    foreach (DeliverySchedule::windows($merchant, $day) as $window) {
+                        if ($at->gte($window) && $at->lt($window->copy()->addMinutes($length))) {
+                            $slot = $window;
+                            break 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (! $slot) {
+            return $this->unavailableTime($merchant, $conversation, $state, $locale);
+        }
+
+        $state['when'] = $slot->format('Y-m-d H:i');
+        $this->save($conversation, $state);
+
+        return $this->next($merchant, $conversation, $locale);
+    }
+
+    /**
+     * The written time cannot be done: say when the earliest is and show the times.
+     *
+     * @param  array<string, mixed>  $state
+     * @return array<string, mixed>
+     */
+    protected function unavailableTime(Merchant $merchant, Conversation $conversation, array $state, string $locale): array
+    {
+        $first = null;
+        foreach (DeliverySchedule::days($merchant) as $day) {
+            if ($first = (DeliverySchedule::windows($merchant, $day)[0] ?? null)) {
+                break;
+            }
+        }
+        $body = $first ? $this->t('time_unavailable', $locale, ['earliest' => DeliverySchedule::label($merchant, $first, $locale)]) : null;
+
+        return $this->ask($conversation, $state, 'when_list', $this->timeList($merchant, $locale, $body));
     }
 
     protected function ask(Conversation $conversation, array $state, string $step, array $message): array

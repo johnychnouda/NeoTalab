@@ -93,7 +93,7 @@ class OrderConfirmation
         }
 
         // Chosen for later (flowers for Friday): the driver and the late check wait until it is due.
-        $due = $order->deliver_at?->copy()->subMinutes($this->timing->prepMins($merchant));
+        $due = $order->deliver_at && ! $this->timing->inDays($merchant) ? $order->deliver_at->copy()->subMinutes($this->timing->prepMins($merchant)) : null;
         if ($due && $due->isFuture()) {
             NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
             StartScheduledOrder::dispatch($order->id)->delay($due);

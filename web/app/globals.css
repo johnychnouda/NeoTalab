@@ -2685,10 +2685,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 
 /* Delivery zones on Google Maps (Settings → Delivery areas) */
 .sset.sset-wide { max-width: 1180px; }
-/* Tabs made of cards use the width of a big screen: two columns when there is room, one on phones and tablets. */
+/* Tabs made of cards use the width of a big screen: two columns when there is room, one on phones and tablets (a grid: columns balance differently in each browser). */
 .sset.sset-cards { max-width: 1180px; }
-.sset-cols { columns: 460px; column-gap: 14px; }
-.sset-cols > * { break-inside: avoid; }
+.sset-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 14px; align-items: start; }
+.sset-cols > .sset-card { margin-bottom: 0; }
 .zn-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
 .zn-map-wrap { position: relative; }
 .zn-map { height: min(620px, calc(100svh - 260px)); min-height: 420px; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; background: #16221c; }

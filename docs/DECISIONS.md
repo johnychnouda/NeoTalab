@@ -229,16 +229,38 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   hid them and was removed on 6 Nov 2026. Google's newer vector map needs a Map ID created in the
   Google Cloud console; not set up (the test browser could not load it).
 
+## Ordering time, ratings and gifts (6 Nov 2026)
+
+- **Time.** An order gets the shop's own time (preparation in minutes, hours or days by kind of shop). No
+  question is asked. The order summary has Confirm / Another time / Cancel (it replaced "Edit order": changing
+  items is typed, as before). "Another time" opens one list of the next times, earliest first, with "Another
+  day" last; a customer can also write the time in plain words on the summary ("tomorrow at 6", "demain à
+  18h", "بكرا الساعة 6 مساء") and the slot that holds it is taken. Slots: one hour for minutes shops, two for
+  hours shops, a whole day for days shops (never before the shop's own days). Nothing earlier than the shop's
+  own time is ever offered. A shop that is closed right now takes the order for an open time. After a time is
+  chosen the middle button is "Soonest possible". `App\Support\DeliverySchedule`, `App\Support\TimeRequest`,
+  `CheckoutFlow`; `ChooseTimeTest`, `TimeRequestTest`, lab `qa/s52_time_and_rating.py`.
+- **Rating, always on.** After delivery or pickup the customer answers one-tap questions, Great / Okay / Bad
+  (stored as 5 / 3 / 1): the order, the service and, for a delivery with a driver, the delivery person (named).
+  `App\Services\RatingFlow`; button ids `rt:{order}:{question}:{value}`; columns `orders.rating`,
+  `rating_service`, `rating_delivery`. A Bad answer alerts the staff in the shop's language and says which of
+  the three (the delivery person by name). The reports (nightly, dashboard) count every answer and the
+  dashboard shows the three averages. A number typed after a template message still counts as the order
+  rating (the old way). The switch for ratings was removed.
+- **Gifts removed** (the shop owner's decision): no "send it to someone else", recipient or card message. The
+  `orders.recipient_*` and `gift_message` columns stay (old orders keep their data); nothing writes them.
+  A flower shop delivers to the location pin the customer shares, with a note for the driver.
+
 ## Shop Settings page (6 Nov 2026)
 
 - Tabs: Shop & account · Orders · Delivery areas · Opening hours · Payments · Reports & chats. The
   Account tab (only "Change password") now sits in the Shop tab.
 - Money settings live together on Payments: cash in lira and the exchange rate, then Whish Pay. The
-  card that used to be called "Payment & feedback" on Orders is now "Order options": ratings, delivery
-  day and time, gifts, quotes.
-- Options are shown by kind of shop (`business_kind`), so a restaurant is not asked about repairs:
-  quotes and job steps are hidden for restaurant, grocery and water shops; gifts are hidden for water,
-  laundry and grocery shops. An option that is already switched on always stays visible, so it can be
-  switched off.
+  Whish badge says "Number saved" / "Not set" (there is no connection to Whish, only the shop's number)
+  and the card explains the steps.
+- Rating, choosing a time and gifts are no longer settings (see below). What is left of the old
+  "Payment & feedback" box is one card, "Repairs and custom work" (the quote switch and the job steps),
+  shown by kind of shop (`business_kind`): hidden for restaurant, grocery and water shops. An option that is
+  already switched on always stays visible, so it can be switched off.
 - On a big screen the cards of a tab sit in two columns (one column below about 1000 px).
 

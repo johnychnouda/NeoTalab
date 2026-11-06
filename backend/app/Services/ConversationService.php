@@ -693,9 +693,6 @@ class ConversationService
             'fulfillment' => ShopSettings::for($merchant)->fulfillment(),
             'whish_enabled' => ShopSettings::for($merchant)->whishNumber() !== null,
             'business_mode' => ShopSettings::for($merchant)->businessMode(),
-            // The checkout asks for the day and time / the recipient and card; the assistant never does.
-            'scheduled_orders' => ShopSettings::for($merchant)->scheduledOrders(),
-            'gift_orders' => ShopSettings::for($merchant)->giftOrders(),
             'now' => now()->setTimezone($merchant->timezone ?: config('app.timezone'))->format('Y-m-d H:i l'),
             'services' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : $this->appointments->services()
                 ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])

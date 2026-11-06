@@ -65,7 +65,10 @@ class OrderTiming
     {
         // A time the customer chose: the end of that window.
         if ($order->deliver_at) {
-            return $order->deliver_at->copy()->addMinutes(DeliverySchedule::WINDOW_MINS);
+            // A day chosen by a shop that counts in days: the end of that day; otherwise the end of the chosen window.
+            return DeliverySchedule::byDay($merchant)
+                ? $order->deliver_at->copy()->setTimezone($this->tz($merchant))->endOfDay()->utc()
+                : $order->deliver_at->copy()->addMinutes(DeliverySchedule::windowMins($merchant));
         }
 
         if ($this->inDays($merchant)) {
@@ -84,7 +87,7 @@ class OrderTiming
         $at = $order->promised_at ?? $this->promise($merchant, $order);
 
         // The window the customer chose, until a late update gives a new time.
-        if ($order->deliver_at && $at->lte($order->deliver_at->copy()->addMinutes(DeliverySchedule::WINDOW_MINS))) {
+        if ($order->deliver_at && $at->lte($order->deliver_at->copy()->addMinutes(DeliverySchedule::windowMins($merchant)))) {
             return __($order->fulfillment === 'pickup' ? 'whatsapp.timing.ready_scheduled' : 'whatsapp.timing.scheduled', [
                 'when' => DeliverySchedule::label($merchant, $order->deliver_at, $locale),
             ], $locale);
@@ -159,6 +162,12 @@ class OrderTiming
         [$min, $max] = ShopSettings::for($merchant)->deliveryDays();
 
         return $min === $max ? (string) $max : "{$min}–{$max}";
+    }
+
+    /** The first day a customer can choose in a shop that counts in days: today plus its minimum days, skipping closed days. */
+    public function earliestDay(Merchant $merchant): Carbon
+    {
+        return $this->addWorkingDays($merchant, $this->local($merchant), ShopSettings::for($merchant)->deliveryDays()[0])->startOfDay();
     }
 
     /** Adds working days, skipping days the shop is closed (Sundays if no hours are set). */

@@ -28,8 +28,8 @@ const GROUPS = {
     region: p.region || null, city: p.city || null,
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
-    late_alert_mins: num(p.late_alert_mins), rating_delay_mins: num(p.rating_delay_mins),
-    scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders, quotes: !!p.quotes,
+    late_alert_mins: num(p.late_alert_mins),
+    quotes: !!p.quotes,
     deposit_percent: num(p.deposit_percent) || 0, job_stages: stagesOf(p),
   }),
   payments: (p) => ({
@@ -125,7 +125,6 @@ function Settings() {
   const unit = p.timing_unit || "minutes";
   const lbpOn = Number(p.lbp_rate) > 0;
   const kind = p.business_kind || "other";
-  const showGift = !["water", "laundry", "grocery"].includes(kind) || !!p.gift_orders;
   const showQuotes = !["restaurant", "grocery", "water"].includes(kind) || !!p.quotes;
   const showJobs = showQuotes || stagesOf(p).length > 0;
 
@@ -267,26 +266,18 @@ function Settings() {
             )}
           </Card>
 
-          <Card title={t("db.set.card.extras")}>
-            <Switch checked={Number(p.rating_delay_mins ?? 30) > 0} onChange={(on) => setP("rating_delay_mins", on ? "30" : "0")}
-              label={t("ops.rating")} hint={t("ops.ratingHint")} />
-            <Switch checked={!!p.scheduled_orders} onChange={(on) => setP("scheduled_orders", on)}
-              label={t("ops.scheduled")} hint={t("ops.scheduledHint")} />
-            {showGift && (
-              <Switch checked={!!p.gift_orders} onChange={(on) => setP("gift_orders", on)}
-                label={t("ops.gift")} hint={t("ops.giftHint")} />
-            )}
-            {showQuotes && (
-              <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
-                label={t("ops.quotes")} hint={t("ops.quotesHint")} />
-            )}
-          </Card>
-          {showJobs && (
-            <Card title={t("ops.jobs")} desc={t("ops.jobsHint")}>
-              <Field id="o-jobs" label={t("ops.jobsLabel")}>
-                <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
-                  placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
-              </Field>
+          {(showQuotes || showJobs) && (
+            <Card title={t("db.set.card.repairs")}>
+              {showQuotes && (
+                <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
+                  label={t("ops.quotes")} hint={t("ops.quotesHint")} />
+              )}
+              {showJobs && (
+                <Field id="o-jobs" label={t("ops.jobsLabel")} hint={t("ops.jobsHint")}>
+                  <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
+                    placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
+                </Field>
+              )}
             </Card>
           )}
         </>)}
@@ -339,6 +330,7 @@ function Settings() {
         </Card>
         <Card title="Whish Pay" desc={t("db.whish.intro")}
           action={<span className={`sset-badge ${p.whish_connected ? "ok" : ""}`}>{p.whish_connected ? t("db.whish.ok") : t("db.whish.notConnected")}</span>}>
+          <p className="sset-hint" style={{ marginTop: 0, marginBottom: 14 }}>{t("db.whish.how")}</p>
           <div className="sset-grid">
             <Field id="w-no" label={t("db.whish.number")}>
               <input id="w-no" dir="ltr" inputMode="numeric" value={p.whish_number || ""} onChange={(e) => setP("whish_number", e.target.value)} placeholder={t("db.whish.numberPh")} />

@@ -7,6 +7,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Services\ChatMenu;
 use App\Services\OrderTiming;
+use App\Services\RatingFlow;
 use App\Services\WhatsApp\CustomerTemplates;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
@@ -51,7 +52,7 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
         $reason = $order->reject_reason ?? $order->cancel_reason;
 
         // The rating question rides on the delivered message (one WhatsApp message instead of two).
-        $askRating = $order->status === 'delivered' && ! $order->rating_requested_at && ShopSettings::for($merchant)->asksForRating();
+        $askRating = $order->status === 'delivered' && ! $order->rating_requested_at;
         if ($askRating) {
             $order->forceFill(['rating_requested_at' => now()])->save();
         }
@@ -66,14 +67,17 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
                     : (ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name),
                 'reason' => $reason ? __('whatsapp.status.reason', ['reason' => $reason], $locale) : '',
                 'when' => $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : '',
-            ]), $locale).($order->payment_status === 'refund_due' ? "\n".__('whatsapp.status.refund', ['shop' => $merchant->name], $locale) : '')
-                .($askRating ? "\n\n".__('whatsapp.rating.ask', [], $locale) : '');
+            ]), $locale).($order->payment_status === 'refund_due' ? "\n".__('whatsapp.status.refund', ['shop' => $merchant->name], $locale) : '');
 
             // Accepted / on the way: with the "Where's my order?" button. Days later, when the customer's
             // 24 hours are over, the approved template for the event goes instead (the others are skipped).
-            $sent = $this->sendCustomerAs($merchant, $order->customer->phone, in_array($order->status, ['confirmed', 'picked_up'], true)
-                ? ChatMenu::withStatusButton($order, $text, $locale)
-                : ['type' => 'text', 'text' => $text], ...$this->template($key, $order, $merchant, $locale, $askRating));
+            // The delivered message carries the first of the one-tap rating questions (Great / Okay / Bad).
+            $message = match (true) {
+                $askRating => app(RatingFlow::class)->message($order, 'order', $locale, $text),
+                in_array($order->status, ['confirmed', 'picked_up'], true) => ChatMenu::withStatusButton($order, $text, $locale),
+                default => ['type' => 'text', 'text' => $text],
+            };
+            $sent = $this->sendCustomerAs($merchant, $order->customer->phone, $message, ...$this->template($key, $order, $merchant, $locale, $askRating));
 
             // The rating question was not delivered: ask again at the next chance, not never.
             if ($askRating && ! $sent) {

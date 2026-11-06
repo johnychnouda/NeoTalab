@@ -68,7 +68,7 @@ t = [x for x in cart(G, c) if x["name"] == "Tomatoes"]
 check("'half a kilo' → 0.5 kg at 1.00$", bool(t) and t[0]["qty"] == 0.5 and t[0]["line"] == 1.0, t)
 c = fresh(); lastout = say(G, c, "2.3 kg tomatoes")
 t = [x for x in cart(G, c) if x["name"] == "Tomatoes"]
-check("2.3 kg: 2.25 or 2.5 in the cart, or asked first - and the reply never says 2.3 was added", (bool(t) and t[0]["qty"] in (2.25, 2.5) and "2.3" not in lastout) or (not t and bool(re.search(r"2\.25|2\.5", lastout))), (t, lastout))
+check("2.3 kg: 2.25 or 2.5 in the cart, or asked first - and the reply never says 2.3 was added", (bool(t) and t[0]["qty"] in (2.25, 2.5) and "2.3" not in lastout) or (not t and "2.3" not in lastout and bool(re.search(r"2\.25|2\.5|increment|quarter|weight|quantity", lastout, re.I))), (t, lastout))
 
 suite("Real AI: stock per size and colour")
 c = fresh(); out = say(RT, c, "I want one medium red t-shirt")

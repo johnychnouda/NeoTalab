@@ -20,6 +20,7 @@ use App\Services\ChatMenu;
 use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
+use App\Services\RatingFlow;
 use App\Services\OrderService;
 use App\Services\QuoteService;
 use App\Services\SystemAlertService;
@@ -364,6 +365,13 @@ class WhatsAppInboundService
 
             $buttonId = $this->extractButtonId($msg);
 
+            // Great / Okay / Bad under a rating question.
+            if ($buttonId !== null && preg_match('/^rt:([^:]+):(order|service|delivery):([135])$/', $buttonId, $rm)) {
+                $this->answerRating($merchant, $fromPhone, $rm[1], $rm[2], (int) $rm[3], $locale);
+
+                return;
+            }
+
             // Yes / No under "cancel order #N?".
             if ($buttonId !== null && str_starts_with($buttonId, 'cx:')) {
                 [, $answer, $orderId] = array_pad(explode(':', $buttonId, 3), 3, '');
@@ -698,9 +706,53 @@ class WhatsAppInboundService
     }
 
     /**
-     * Tells the shop about a 1–3 rating: every staff member inside the 24-hour window, else the
-     * report number if it wrote to the shop number in the last 24 hours (there is no template for
-     * this, and plain text outside the window is dropped). Returns whether anyone got it.
+     * A tap on Great / Okay / Bad. The answer is kept once (a second tap on the same question changes nothing), a Bad
+     * one tells the shop, and the next question follows until the customer has answered them all.
+     */
+    protected function answerRating(Merchant $merchant, string $fromPhone, string $orderId, string $question, int $value, string $locale): void
+    {
+        $order = Order::query()->whereKey($orderId)->whereHas('customer', fn ($q) => $q->where('phone', $fromPhone))->first();
+        $flow = app(RatingFlow::class);
+        if (! $order || ! in_array($question, $flow->questions($order), true)) {
+            return;
+        }
+
+        if ($order->{RatingFlow::COLUMNS[$question]} === null) {
+            $flow->save($order, $question, $value);
+            if ($value === RatingFlow::BAD && $this->alertBadRating($merchant, $order, $question, $fromPhone)) {
+                Cache::put("rating-alerted:{$order->id}", true, now()->addDay());
+            }
+            $order->refresh();
+        }
+
+        if ($next = $flow->next($order)) {
+            $this->send($merchant, $fromPhone, $flow->message($order, $next, $locale));
+
+            return;
+        }
+
+        $bad = collect([$order->rating, $order->rating_service, $order->rating_delivery])->contains(RatingFlow::BAD);
+        $key = ! $bad ? 'thanks' : (Cache::get("rating-alerted:{$order->id}") ? 'sorry' : 'sorry_noted');
+        $this->reply($merchant, $fromPhone, __("whatsapp.rating.{$key}", ['shop' => $merchant->name], $locale));
+    }
+
+    /** Tells the shop that one of the three was rated Bad, and which. Returns whether anyone got it. */
+    protected function alertBadRating(Merchant $merchant, Order $order, string $question, string $customerPhone): bool
+    {
+        $shopLocale = $merchant->locale ?? 'en';
+        $body = __('whatsapp.staff.bad_rating', [
+            'number' => $order->number,
+            'what' => __("whatsapp.rating.what_{$question}", ['driver' => $order->driver?->name ?? ''], $shopLocale),
+            'phone' => OrderMessage::phone($customerPhone),
+        ], $shopLocale);
+
+        return $this->tellTheShop($merchant, $body, [(string) $order->number, $merchant->name, (string) RatingFlow::BAD, $customerPhone]);
+    }
+
+    /**
+     * Tells the shop about a 1–3 rating typed as a number (the old way, after a message sent by template): every
+     * staff member inside the 24-hour window, else the report number if it wrote to the shop number in the last 24
+     * hours (there is no template for this, and plain text outside the window is dropped). Returns whether anyone got it.
      */
     protected function alertLowRating(Merchant $merchant, Order $order, string $customerPhone): bool
     {
@@ -708,11 +760,17 @@ class WhatsAppInboundService
             'number' => $order->number, 'rating' => $order->rating, 'phone' => OrderMessage::phone($customerPhone),
         ], $merchant->locale ?? 'en');
 
+        return $this->tellTheShop($merchant, $body, [(string) $order->number, $merchant->name, (string) $order->rating, $customerPhone]);
+    }
+
+    /**
+     * @param  list<string>  $templateParams  number, shop, rating, customer phone (the approved low-rating template)
+     */
+    protected function tellTheShop(Merchant $merchant, string $body, array $templateParams): bool
+    {
         $told = false;
         foreach ($this->staff->staff($merchant) as $member) {
-            $told = $this->staff->send($merchant, $member, $body, [], ShopTemplateService::LOW_RATING, [
-                (string) $order->number, $merchant->name, (string) $order->rating, $customerPhone,
-            ]) || $told;
+            $told = $this->staff->send($merchant, $member, $body, [], ShopTemplateService::LOW_RATING, $templateParams) || $told;
         }
 
         $report = ShopSettings::for($merchant)->reportWhatsapp();

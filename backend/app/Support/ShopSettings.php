@@ -18,7 +18,6 @@ final class ShopSettings
         'report_whatsapp' => ['', 'string'],  // owner's personal number for the nightly report; '' = off
         'report_hour' => [23, 'int'],         // local hour (0-23) the report is sent
         'bot_pause_mins' => [60, 'int'],      // bot stays quiet in a chat this long after the merchant types in it
-        'rating_delay_mins' => [30, 'int'],   // wait after delivery before asking for a rating; 0 = off
         'fulfillment' => ['delivery', 'string'], // delivery | pickup | both
         'pickup_address' => ['', 'string'],   // where pickup customers collect their order
         'business_mode' => ['orders', 'string'], // orders | appointments | both
@@ -33,8 +32,6 @@ final class ShopSettings
         'region' => ['', 'string'],           // governorate (see the join form's list); filled from the pin
         'city' => ['', 'string'],             // city or town; filled from the pin
         'business_kind' => ['', 'string'],    // see BusinessKind::KINDS; '' = from merchants.business_type
-        'scheduled_orders' => [false, 'bool'], // customers pick a delivery/pickup day and time (florists, cakes)
-        'gift_orders' => [false, 'bool'],      // customers can send it to someone else, with a card message
         'job_stages' => [[], 'array'],         // repairs and custom work: the steps of a job, shown to the customer (max 8)
         'deposit_percent' => [0, 'int'],       // bookings: this share of the price is paid by Whish to hold the time; 0 = off
         'quotes' => [false, 'bool'],           // repair / custom work: the customer asks for a price, the shop sends it
@@ -79,16 +76,6 @@ final class ShopSettings
         $percent = (int) $this->get('deposit_percent');
 
         return $percent >= 5 && $percent <= 100 ? $percent : 0;
-    }
-
-    public function scheduledOrders(): bool
-    {
-        return (bool) $this->get('scheduled_orders');
-    }
-
-    public function giftOrders(): bool
-    {
-        return (bool) $this->get('gift_orders');
     }
 
     public function prepTimeMins(): int
@@ -181,17 +168,6 @@ final class ShopSettings
         return max(0, (int) $this->get('reminder_mins'));
     }
 
-    public function ratingDelayMins(): int
-    {
-        return max(0, (int) $this->get('rating_delay_mins'));
-    }
-
-    /** Rating question in the delivered message; rating_delay_mins = 0 switches it off. */
-    public function asksForRating(): bool
-    {
-        return $this->ratingDelayMins() > 0;
-    }
-
     /**
      * Shop-currency amount in LBP, rounded up to the nearest 1,000 (the smallest note in use).
      */
@@ -216,7 +192,6 @@ final class ShopSettings
             'report_whatsapp' => ['sometimes', 'nullable', 'string', 'max:30'],
             'report_hour' => ['sometimes', 'integer', 'min:0', 'max:23'],
             'bot_pause_mins' => ['sometimes', 'integer', 'min:1', 'max:1440'],
-            'rating_delay_mins' => ['sometimes', 'integer', 'min:0', 'max:1440'],
             'fulfillment' => ['sometimes', 'string', 'in:delivery,pickup,both'],
             'pickup_address' => ['sometimes', 'nullable', 'string', 'max:300'],
             'business_mode' => ['sometimes', 'string', 'in:orders,appointments,both'],
@@ -231,8 +206,6 @@ final class ShopSettings
             'region' => ['sometimes', 'nullable', 'string', 'max:100'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'business_kind' => ['sometimes', 'string', 'in:'.implode(',', array_keys(BusinessKind::KINDS))],
-            'scheduled_orders' => ['sometimes', 'boolean'],
-            'gift_orders' => ['sometimes', 'boolean'],
             'job_stages' => ['sometimes', 'nullable', 'array', 'max:8'],
             'job_stages.*' => ['nullable', 'string', 'max:40'],
             'deposit_percent' => ['sometimes', 'integer', 'min:0', 'max:100'],
