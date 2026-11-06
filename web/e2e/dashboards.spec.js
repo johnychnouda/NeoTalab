@@ -86,18 +86,32 @@ test.describe("shop dashboard", () => {
       await expect(page.getByText(/Lebanese lira/i)).toHaveCount(0);
     });
 
-    test("quotes and job steps show only for shops that need them", async ({ page }) => {
+    test("repairs and custom work options show only for shops that need them", async ({ page }) => {
       await open(page, "Orders");
       const p = await profile(page);
       const fixedPrice = ["restaurant", "grocery", "water"].includes(p.business_kind) && !p.quotes;
       const quotes = page.getByText("Quote a price for each job");
-      const steps = page.getByText("Job steps", { exact: true });
+      const steps = page.locator("#o-jobs");
       if (fixedPrice) { await expect(quotes).toHaveCount(0); await expect(steps).toHaveCount(0); }
       else { await expect(quotes).toBeVisible(); await expect(steps).toBeVisible(); }
     });
 
-    test("on a wide screen the cards sit in two columns; on a narrow one in one", async ({ page }) => {
+    test("rating, delivery time and gifts are not settings any more: they are part of every order", async ({ page }) => {
       await open(page, "Orders");
+      for (const gone of ["Ask customers to rate", "Customers choose the delivery day and time", "Gifts: send it to someone else", "Order options"]) {
+        await expect(page.getByText(gone)).toHaveCount(0);
+      }
+    });
+
+    test("the Whish badge says a number is saved, not that something is connected, and explains how it works", async ({ page }) => {
+      await open(page, "Payments");
+      await expect(page.getByText(/Number saved|Not set/)).toBeVisible();
+      await expect(page.getByText("Connected", { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/How it works: after you accept an order/)).toBeVisible();
+    });
+
+    test("on a wide screen the cards sit in two columns; on a narrow one in one", async ({ page }) => {
+      await open(page, "Payments");
       const lefts = await page.locator(".sset-cols > .sset-card").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
       const width = page.viewportSize().width;
       const columns = new Set(lefts).size;

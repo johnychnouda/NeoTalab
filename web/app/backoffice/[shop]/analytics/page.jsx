@@ -69,6 +69,11 @@ export default function AnalyticsPage() {
       <div className="section-title">
         {t("db.rep.ratings")} {data?.ratings?.average != null ? `— ${data.ratings.average} / 5 (${data.ratings.count})` : ""}
       </div>
+      {data?.ratings?.average != null && (
+        <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "-4px 0 10px" }}>
+          {["order", "service", "delivery"].filter((k) => data.ratings.by?.[k] != null).map((k) => `${t(`db.rep.rate.${k}`)} ${data.ratings.by[k]}`).join(" · ")}
+        </p>
+      )}
       <div className="table-scroll">
         <table className="data-table stack-on-phone">
         <thead><tr><th>#</th><th>{t("th.customer")}</th><th>{t("db.rep.rating")}</th><th>{t("th.time")}</th></tr></thead>
@@ -78,7 +83,7 @@ export default function AnalyticsPage() {
             <tr key={`${r.number}-${r.rated_at}`}>
               <td className="stack-title">#{r.number}</td>
               <td data-label={t("th.customer")}><span><WaLink number={r.customer_phone} /> {r.customer_name || ""}</span></td>
-              <td data-label={t("db.rep.rating")}><span className="stars" aria-label={`${r.rating} / 5`}>{"★".repeat(r.rating)}<span>{"★".repeat(5 - r.rating)}</span></span></td>
+              <td data-label={t("db.rep.rating")}><span className="stars" aria-label={`${r.rating} / 5`}>{"★".repeat(r.rating)}<span>{"★".repeat(5 - r.rating)}</span></span>{r.what && <small style={{ display: "block", color: "var(--text-muted)" }}>{t(`db.rep.rate.${r.what}`)}</small>}</td>
               <td data-label={t("th.time")} style={{ color: "var(--text-muted)", fontSize: 12 }}>{r.rated_at ? new Date(r.rated_at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }) : ""}</td>
             </tr>
           ))}
