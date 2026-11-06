@@ -7,6 +7,7 @@ use App\Models\CartItem;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Merchant;
+use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\ChatProvider;
@@ -171,6 +172,18 @@ class WhatsAppInboundHardeningTest extends TestCase
         app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.SENT')])]]]]);
 
         $this->assertSame([], $this->sentTexts());
+    }
+
+    public function test_a_message_from_neotalabs_own_number_gets_no_reply(): void
+    {
+        // The nightly report may go to the shop's own number: NeoTalab is not a customer to answer.
+        $this->merchant('111');
+        PlatformSetting::singleton()->update(['settings' => ['wa_phone_id' => '999', 'wa_display_phone' => '+961 70 000 111']]);
+
+        app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.NT', 'Daily report', '96170000111')])]]]]);
+
+        $this->assertSame([], $this->sentTexts());
+        $this->assertSame(0, Customer::query()->withoutGlobalScopes()->where('phone', '+96170000111')->count());
     }
 
     public function test_a_message_still_being_handled_by_a_live_worker_is_left_alone(): void

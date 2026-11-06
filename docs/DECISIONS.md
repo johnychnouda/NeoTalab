@@ -81,8 +81,11 @@ groceries, retail, salons, clinics, services).
   reference can be used once. Early payments add the new period to the end of the current one. Shops whose
   trial ends unpaid are suspended automatically.
 - The platform has its own WhatsApp number (welcome messages and `system_alert` problem alerts),
-  connected from Owner portal → Settings → WhatsApp. Nightly reports and subscription reminders
-  are sent from each shop's own number and do not use this one.
+  connected from Owner portal → Settings → WhatsApp. The nightly report is also sent from it (the
+  approved `neotalab_daily_report` template), to the number the owner enters in the shop's Settings;
+  that may be the shop's own WhatsApp number, since NeoTalab's number is a different sender. The bot
+  ignores anything NeoTalab's number writes to a shop. Subscription reminders are sent from each
+  shop's own number.
 - Problems the server logs are listed in Owner portal → Inbox → System and sent by email and
   WhatsApp to the addresses set in Settings → Alerts.
 
@@ -218,3 +221,10 @@ Google when the order left the shop.
 Meta must approve the platform's Meta app before other businesses can connect their WhatsApp:
 the business behind the platform completes **Business Verification**, then requests **Advanced
 Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in App Review.
+
+## Maps
+
+- Every map (join form, shop location, delivery areas) uses Google's normal light map with shops and
+  landmarks shown, so an owner can find their shop ("next to the pharmacy"). The earlier dark style
+  hid them and was removed on 6 Nov 2026. Google's newer vector map needs a Map ID created in the
+  Google Cloud console; not set up (the test browser could not load it).

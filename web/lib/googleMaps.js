@@ -28,24 +28,8 @@ export function preloadGoogleMaps() {
   loadGoogleMaps().catch(() => {});
 }
 
-/** Dark map that matches the dashboard; roads and places stay readable. */
-export const DARK_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#16221c" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9fb0a6" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0c1511" }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#2c4237" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d6e2db" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#26372e" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1a2921" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#33493d" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0b1f2a" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f6b7a" }] },
-];
-
+/** Google's own current map look (the one in the Google Maps app), with shops and landmarks shown. */
 export const MAP_OPTIONS = {
-  styles: DARK_STYLE,
   mapTypeControl: false, streetViewControl: false, fullscreenControl: true, clickableIcons: false,
   gestureHandling: "greedy",
 };

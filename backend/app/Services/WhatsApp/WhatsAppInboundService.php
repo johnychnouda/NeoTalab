@@ -193,6 +193,11 @@ class WhatsAppInboundService
         if ($waMessageId === '' || $fromPhone === '+') {
             return;
         }
+        // NeoTalab's own number writing to the shop (the nightly report can go to the shop's number): not a customer.
+        $platformNumber = MerchantWhatsAppCredentials::platformNumberDigits();
+        if ($platformNumber !== '' && ltrim($fromPhone, '+') === $platformNumber) {
+            return;
+        }
 
         // The unique (merchant_id, wa_message_id) index is the idempotency guard; Meta retries
         // deliveries, and two workers may race on the same message.
@@ -803,7 +808,7 @@ class WhatsAppInboundService
             ->where('to_number', $fromPhone)->where('created_at', '>=', $first->created_at)->exists()) {
             return;
         }
-        $customer =Customer::query()->where('phone', $fromPhone)->first();
+        $customer = Customer::query()->where('phone', $fromPhone)->first();
         $locale = $customer?->locale ?: ($merchant->locale ?: 'en');
         Log::warning('WhatsApp inbound: a message was interrupted before it was answered; the customer is asked to resend', ['merchant_id' => $merchant->id]);
         // The first attempt may have added the item before it died: show the cart so it is not asked for twice.

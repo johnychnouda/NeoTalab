@@ -818,20 +818,15 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertStringContainsString('2026-10-09', $this->requestsTo('+96171222333')[0]['text']['body']);
     }
 
-    public function test_the_report_number_cannot_be_the_shops_own_number(): void
+    public function test_the_report_can_go_to_the_shops_own_number(): void
     {
+        // The report is sent from NeoTalab's own number, so an owner with a single number gets it there.
         $settings = $this->merchant->settings;
         $settings['bot']['display_phone_number'] = '+961 71 444 555';
-        $settings['ops_whatsapp'] = '+96171666777';
         $this->merchant->update(['settings' => $settings]);
 
-        foreach (['71 444 555', '+96171666777'] as $own) {
-            $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['report_whatsapp' => $own])
-                ->assertStatus(422)->assertJsonValidationErrors('report_whatsapp');
-        }
-
-        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['report_whatsapp' => '71 222 333'])
-            ->assertOk()->assertJsonPath('profile.report_whatsapp', '+96171222333');
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['report_whatsapp' => '71 444 555'])
+            ->assertOk()->assertJsonPath('profile.report_whatsapp', '+96171444555');
     }
 
     public function test_owner_is_reminded_before_the_subscription_ends(): void

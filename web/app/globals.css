@@ -2674,7 +2674,7 @@ button.wa-mic { border: 0; cursor: pointer; }
 .mk-cell-num { max-width: 100px; }
 
 /* Shop location picker (Settings → Orders) */
-.lp { display: grid; gap: 8px; }
+.lp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .lp-map { display: block; width: 100%; height: 280px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; background: var(--surface2); }
 .lp.compact .lp-map { height: 200px; }
 .lp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -2730,7 +2730,8 @@ button.wa-mic { border: 0; cursor: pointer; }
   .zn-map { height: 380px; min-height: 0; }
 }
 /* Search box on the location map (Google Places). */
-.lp-search gmp-place-autocomplete { width: 100%; color-scheme: dark; }
+.lp-search { min-width: 0; }
+.lp-search gmp-place-autocomplete { width: 100%; min-width: 0; max-width: 100%; color-scheme: dark; }
 .lp-search:empty { display: none; }
 .usage-month { width: 220px; max-width: 100%; }
 @media (max-width: 640px) { .usage-month { width: 100%; } }

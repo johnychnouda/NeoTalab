@@ -215,15 +215,6 @@ class MerchantSettingsService
         if (filled($payload['report_whatsapp'] ?? null)) {
             $payload['report_whatsapp'] = Countries::toE164((string) $payload['report_whatsapp'], $settings['country'] ?? 'LB')
                 ?? throw ValidationException::withMessages(['report_whatsapp' => [__('Enter a valid WhatsApp number, e.g. 70 123 456.')]]);
-            // The shop's number can't send WhatsApp messages to itself, so the report would never arrive.
-            $country = $settings['country'] ?? 'LB';
-            $own = array_filter([
-                Countries::toE164((string) ($settings['bot']['display_phone_number'] ?? ''), $country),
-                Countries::toE164((string) MerchantProfileSync::whatsapp($merchant), $country),
-            ]);
-            if (in_array($payload['report_whatsapp'], $own, true)) {
-                throw ValidationException::withMessages(['report_whatsapp' => [__('This is the shop\'s own WhatsApp number. Enter the personal number of the owner or manager.')]]);
-            }
         }
 
         $ops = Validator::make(

@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
+use App\Services\WhatsApp\PlatformWhatsAppCheck;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
 /**
@@ -56,6 +58,26 @@ final class MerchantWhatsAppCredentials
         }
 
         return self::platformAccessToken();
+    }
+
+    /**
+     * NeoTalab's own number as digits ('' when not known). Saved when it was connected by QR; when its ID was
+     * typed in by hand it is asked from Meta once (at most once an hour if Meta does not answer).
+     */
+    public static function platformNumberDigits(): string
+    {
+        $platform = PlatformSetting::singleton();
+        $settings = $platform->settings ?? [];
+        $display = (string) ($settings['wa_display_phone'] ?? '');
+        if ($display === '' && trim((string) ($settings['wa_phone_id'] ?? '')) !== '' && Cache::add('wa-platform-number-lookup', 1, 3600)) {
+            $phone = app(PlatformWhatsAppCheck::class)->run()['phone'] ?? null;
+            if (is_string($phone) && $phone !== '') {
+                $display = $phone;
+                $platform->update(['settings' => array_merge($settings, ['wa_display_phone' => $phone])]);
+            }
+        }
+
+        return (string) preg_replace('/\D+/', '', $display);
     }
 
     public static function platformAccessToken(): string
