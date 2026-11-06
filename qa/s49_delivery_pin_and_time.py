@@ -44,6 +44,9 @@ try:
        '["name"=>$n,"role"=>$role,"whatsapp_number"=>$p,"password"=>"secret123","status"=>"off_duty","availability"=>"available","is_active"=>true]); } '
        'App\\Models\\DeliveryZone::withoutGlobalScopes()->where("merchant_id",$m->id)->update(["is_active"=>false]); '
        'echo json_encode(["ok"=>true]);')
+    # Other drivers left on duty by earlier lab runs would be handed these orders: off duty for the run, restored after.
+    OTHERS = tj('$ids=App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("role","driver")->where("phone","!=","+' + DRIVER + '")->where("status","on_duty")->pluck("id")->all(); '
+                'App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",$ids)->update(["status"=>"off_duty"]); echo json_encode($ids);')
     say(STAFF, text="hi")
     say(DRIVER, text="start")
     # Starting a shift hands the driver an older waiting order from earlier lab runs: free them for this order.
@@ -122,4 +125,7 @@ try:
         check(f"{lang}: delivered", orders_of(C)[0]["status"] == "delivered", orders_of(C))
 finally:
     subprocess.run(["pkill", "-9", "-f", "queue:work"])
+    if "OTHERS" in globals():
+        tj('App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",' + json.dumps(OTHERS) + ')->update(["status"=>"on_duty"]); echo json_encode(1);')
+        tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["status"=>"off_duty","active_order_id"=>null]); echo json_encode(1);')
     tj('App\\Models\\DeliveryZone::withoutGlobalScopes()->whereIn("id",' + json.dumps(ZONES) + ')->update(["is_active"=>true]); echo json_encode(1);')

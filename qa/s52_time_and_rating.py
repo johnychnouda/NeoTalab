@@ -159,6 +159,7 @@ try:
 finally:
     if 'OTHERS' in globals():
         tj('App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",' + json.dumps(OTHERS) + ')->update(["status"=>"on_duty"]); echo json_encode(1);')
+    tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["status"=>"off_duty","active_order_id"=>null]); echo json_encode(1);')
     for w in workers:
         w.kill()
     subprocess.run(["pkill", "-9", "-f", "queue:work"])

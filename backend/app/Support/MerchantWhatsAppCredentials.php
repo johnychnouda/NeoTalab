@@ -61,19 +61,25 @@ final class MerchantWhatsAppCredentials
     }
 
     /**
-     * NeoTalab's own number as digits ('' when not known). Saved when it was connected by QR; when its ID was
-     * typed in by hand it is asked from Meta once (at most once an hour if Meta does not answer).
+     * NeoTalab's own number as digits ('' when not known). Saved by the QR connection; when its ID was typed in by
+     * hand it is asked from Meta once and remembered for a day (never written to the settings, which would make the
+     * owner portal think the number was connected with the QR). If Meta does not answer it is asked again in ten minutes.
      */
     public static function platformNumberDigits(): string
     {
-        $platform = PlatformSetting::singleton();
-        $settings = $platform->settings ?? [];
+        $settings = PlatformSetting::singleton()->settings ?? [];
         $display = (string) ($settings['wa_display_phone'] ?? '');
-        if ($display === '' && trim((string) ($settings['wa_phone_id'] ?? '')) !== '' && Cache::add('wa-platform-number-lookup', 1, 3600)) {
-            $phone = app(PlatformWhatsAppCheck::class)->run()['phone'] ?? null;
-            if (is_string($phone) && $phone !== '') {
-                $display = $phone;
-                $platform->update(['settings' => array_merge($settings, ['wa_display_phone' => $phone])]);
+        $phoneId = trim((string) ($settings['wa_phone_id'] ?? ''));
+
+        if ($display === '' && $phoneId !== '') {
+            $key = "wa-platform-number:{$phoneId}";
+            $display = (string) Cache::get($key, '');
+            if ($display === '' && Cache::add("{$key}:asked", 1, now()->addMinutes(10))) {
+                $phone = app(PlatformWhatsAppCheck::class)->run()['phone'] ?? null;
+                if (is_string($phone) && $phone !== '') {
+                    $display = $phone;
+                    Cache::put($key, $phone, now()->addDay());
+                }
             }
         }
 
