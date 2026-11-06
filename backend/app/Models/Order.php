@@ -32,6 +32,8 @@ class Order extends Model
         'late_notified_at',
         'rating_requested_at',
         'rating',
+        'rating_service',
+        'rating_delivery',
         'rated_at',
         'status',
         'job_stage',

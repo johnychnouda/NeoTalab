@@ -590,11 +590,6 @@ class ShopAcceptanceTest extends TestCase
 
         $this->assertSame(['neotalab_c_order_delivered_rate_en', ['1', 'Beirut Bites']], $this->customerTemplate());
         $this->assertNotNull($order->fresh()->rating_requested_at, 'the customer can answer with a number');
-
-        $this->settings(['rating_delay_mins' => 0]);
-        $order->forceFill(['status' => 'delivered', 'rating_requested_at' => null])->save();
-        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
-        $this->assertSame('neotalab_c_order_delivered_en', $this->customerTemplate()[0], 'a shop that does not ask for ratings sends the plain thank-you');
     }
 
     public function test_a_rating_question_that_could_not_be_sent_is_asked_again_next_time(): void

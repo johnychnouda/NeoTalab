@@ -82,7 +82,10 @@ class DailyReportService
         try {
             $delivered = Order::query()->where('status', 'delivered')->whereBetween('delivered_at', [$from, $to])->get();
             $late = Order::query()->whereBetween('late_notified_at', [$from, $to])->count();
-            $avg = Order::query()->whereBetween('rated_at', [$from, $to])->avg('rating');
+            // Every answer counts: the order, the service and the delivery person.
+            $answers = Order::query()->whereBetween('rated_at', [$from, $to])->get(['rating', 'rating_service', 'rating_delivery'])
+                ->flatMap(fn (Order $o) => [$o->rating, $o->rating_service, $o->rating_delivery])->filter(fn ($v) => $v !== null);
+            $avg = $answers->isEmpty() ? null : (float) $answers->avg();
             $top = OrderItem::query()
                 ->whereIn('order_id', $delivered->pluck('id'))
                 ->selectRaw('product_name, SUM(quantity) as qty')

@@ -216,6 +216,15 @@ return [
         'thanks' => 'شكراً على تقييمك! 🙏',
         'sorry' => 'شكراً لك، ونعتذر لأن التجربة لم تكن مثالية. سيتابع :shop الموضوع. 🙏',
         'sorry_noted' => 'شكراً لإخبارنا، ونعتذر لأن التجربة لم تكن مثالية. 🙏',
+        'great' => '👍 ممتاز',
+        'okay' => '😐 عادي',
+        'bad' => '👎 سيء',
+        'q_order' => ':n من :total. كيف كان طلبك؟',
+        'q_service' => ':n من :total. كيف كانت الخدمة؟',
+        'q_delivery' => ':n من :total. كيف تعامل معك :driver، مندوب التوصيل؟',
+        'what_order' => 'الطلب',
+        'what_service' => 'الخدمة',
+        'what_delivery' => 'مندوب التوصيل (:driver)',
     ],
 
     'driver' => [
@@ -253,6 +262,7 @@ return [
     'staff' => [
         'scheduled_due' => '🗓 الطلب رقم :number موعده :when — حضّره الآن.',
         'low_rating' => '⭐ الطلب رقم :number حصل على تقييم :rating/5 من :phone. اتصلوا بالزبون لمعرفة ما الذي لم يكن جيداً.',
+        'bad_rating' => '👎 طلب #:number: :what — تقييم "سيء" من :phone. اتصل بالزبون لمعرفة ما حصل.',
         'still_waiting' => '⏰ ما زال بانتظار القبول — الطلب رقم :number',
         'button_accept' => '✅ قبول · :time',
         'button_reject' => '❌ لا يمكن',
