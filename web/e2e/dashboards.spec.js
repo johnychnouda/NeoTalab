@@ -120,3 +120,62 @@ test.describe("shop dashboard", () => {
     });
   });
 });
+
+// Delivery areas are distance rows ("up to 3 km: 1$"); there is no drawing on the map. The shop's pin and areas are set
+// with plain requests and put back afterwards.
+test.describe("delivery areas as distance rows", () => {
+  test.use({ storageState: "e2e/.auth/shop.json" });
+  const API = process.env.E2E_API_URL || "http://127.0.0.1:8011/api/v1";
+
+  test("the owner types distances and fees, saves, and the rows are still there after a reload", async ({ page, request }) => {
+    const problems = watchPage(page);
+    await page.goto(`/backoffice/${SHOP.slug}/settings`);
+    await page.waitForLoadState("networkidle");
+    const token = await page.evaluate(() => localStorage.getItem("nt_merchant_token"));
+    const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
+    const zones = async () => (await (await request.get(`${API}/settings/zones`, { headers })).json()).zones;
+    const profile = async () => { const j = await (await request.get(`${API}/settings/profile`, { headers })).json(); return j.profile || j; };
+    const before = await profile();
+    const savedZones = await zones();
+    for (const z of savedZones) await request.delete(`${API}/settings/zones/${z.id}`, { headers });
+    await request.patch(`${API}/settings/profile`, { headers, data: { shop_location: "33.893800, 35.501800" } });
+    try {
+      await page.goto(`/backoffice/${SHOP.slug}/settings?tab=areas`);
+      await expect(page.getByRole("button", { name: /draw a shape/i })).toHaveCount(0);
+      const km = page.getByLabel("km"); const fee = page.getByLabel("fee");
+      await expect(km).toHaveCount(3); // a new shop starts on 3, 6 and 10 km
+      await expect(km.nth(0)).toHaveValue("3");
+
+      await fee.nth(0).fill("1.5");
+      await page.getByRole("button", { name: /add a distance/i }).click();
+      await expect(km).toHaveCount(4);
+      await km.nth(3).fill("3"); // the same as the first row
+      await fee.nth(3).fill("9");
+      await page.getByRole("button", { name: "Save delivery areas" }).click();
+      await expect(page.getByText(/two rows have the same distance/i)).toBeVisible();
+      expect(await zones()).toHaveLength(0); // nothing was saved
+
+      await km.nth(3).fill("15");
+      await page.getByRole("button", { name: "Save delivery areas" }).click();
+      await expect(page.getByRole("button", { name: "Save delivery areas" })).toBeDisabled();
+      const saved = await zones();
+      expect(saved.map((z) => [z.area.type, z.area.radius, Number(z.delivery_fee)]).sort((a, b) => a[1] - b[1]))
+        .toEqual([["circle", 3000, 1.5], ["circle", 6000, 2], ["circle", 10000, 3], ["circle", 15000, 9]]);
+
+      await page.reload();
+      await expect(page.getByLabel("km")).toHaveCount(4);
+      await page.getByRole("button", { name: "remove" }).nth(3).click(); // taking a row away
+      await page.getByRole("button", { name: "Save delivery areas" }).click();
+      await expect(page.getByRole("button", { name: "Save delivery areas" })).toBeDisabled();
+      expect(await zones()).toHaveLength(3);
+      expect(await horizontalOverflow(page)).toBeNull();
+      expect(problems.filter((p) => !/maps|google|gstatic/i.test(p))).toEqual([]);
+    } finally {
+      for (const z of await zones()) await request.delete(`${API}/settings/zones/${z.id}`, { headers });
+      for (const z of savedZones) {
+        await request.post(`${API}/settings/zones`, { headers, data: { name: z.name, area: z.area, color: z.color, deliveryFee: Number(z.delivery_fee), minimumOrder: Number(z.minimum_order), deliveryMins: z.delivery_mins } });
+      }
+      await request.patch(`${API}/settings/profile`, { headers, data: { shop_location: before.shop_location || "" } });
+    }
+  });
+});

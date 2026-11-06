@@ -55,10 +55,11 @@ groceries, retail, salons, clinics, services).
   templates (new order, customer needs a person, new booking, due today, refund needed).
 - **Drivers** start and end shifts by sending "start" / "stop", get deliveries automatically
   (the driver free the longest), and tap Picked up / Delivered.
-- **Delivery zones on Google Maps:** each zone is a circle or a shape drawn on the map with its fee,
-  minimum and time (quick setup: rings around the shop). At checkout the customer sends a location pin
-  first; the zone it falls in sets the fee (the smallest zone when they overlap), and a pin outside
-  every zone is told the shop doesn't deliver there. Zones without a shape still work by name.
+- **Delivery areas are distance rows:** the owner types "up to 3 km: 1$, up to 6 km: 2$" (each row is a circle
+  around the shop pin, with its fee, minimum and an estimated time); the map is only a preview. At checkout the
+  customer sends a location pin first; the smallest circle it falls in sets the fee, and a pin outside every
+  circle is told the shop doesn't deliver there. Drawing shapes was removed (see "Delivery areas as rows").
+  Areas drawn earlier, and zones without a shape (by name), keep working.
 - **Time units per shop:** minutes (food), hours, or working days (retail, made to order).
 - **Big menus:** above 80 items the AI only receives the items that match the conversation.
 - **Menu import in lira:** each row is lira or dollars on its own (marked LL/LBP/ليرة, or 1,000 and
@@ -263,4 +264,17 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   shown by kind of shop (`business_kind`): hidden for restaurant, grocery and water shops. An option that is
   already switched on always stays visible, so it can be switched off.
 - On a big screen the cards of a tab sit in two columns (one column below about 1000 px).
+
+## Delivery areas as rows (6 Nov 2026)
+
+- **One way only: distance rows.** Clicking points on a map to draw a shape was too hard for shop owners, so the
+  Delivery areas tab is now a list of rows: up to N km, fee, minimum order, with "Add a distance" (up to 8) and one
+  Save. Each row is saved as a circle centred on the shop pin; the map shows the circles as a preview.
+- **Why circles:** owners think in "how far", customers understand it, and nothing can be drawn wrong. The weak spot
+  is the sea or a mountain inside a circle; add a way to cut those out only if a real shop needs it.
+- **Older areas stay:** shapes drawn before, circles centred somewhere else, and zones without a shape are shown
+  below the rows with their name. Their prices can change and they can be removed, but they cannot be redrawn here.
+  Saving a row never sends a new shape for them.
+- **No backend change:** the API still accepts a circle or a polygon; only the dashboard stopped offering polygons.
+- A row keeps a name the owner gave it while its distance is unchanged; otherwise it is named "Up to N km".
 
