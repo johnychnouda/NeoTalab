@@ -40,10 +40,13 @@ export function buildInboxAlerts(merchants, requests, t) {
         merchantId: m.id,
       });
     }
+    // A trial that ends in 2 days or less has its own reminder (below): no second "due soon" one for the same date.
+    const trialLeft = m.subscription_status === "trial" && m.trial_ends_at ? daysUntil(m.trial_ends_at) : null;
+    const trialReminder = trialLeft !== null && trialLeft >= 0 && trialLeft <= 2;
     const rd = getRenewalDate(m);
     if (rd) {
       const daysLeft = daysUntil(rd);
-      if (daysLeft > 0 && daysLeft <= RENEWAL_WARNING_DAYS) {
+      if (!trialReminder && daysLeft > 0 && daysLeft <= RENEWAL_WARNING_DAYS) {
         items.push({
           id: `due_${m.id}`,
           category: "billing",
@@ -72,22 +75,19 @@ export function buildInboxAlerts(merchants, requests, t) {
         });
       }
     }
-    if (m.subscription_status === "trial" && m.trial_ends_at) {
-      const left = daysUntil(m.trial_ends_at);
-      if (left >= 0 && left <= 2) {
-        items.push({
-          id: `trial_${m.id}`,
-          category: "billing",
-          urgency: 3,
-          icon: "⏳",
-          color: "#a78bfa",
-          title: m.shop_name,
-          sub: left === 0 ? t("ow.inbox.trialToday") : t("ow.inbox.trialLeft", { n: left }),
-          detail: t("ow.inbox.trialDetail"),
-          actionUrl: `/owner/billing?m=${m.id}&filter=trial`,
-          merchantId: m.id,
-        });
-      }
+    if (trialReminder) {
+      items.push({
+        id: `trial_${m.id}`,
+        category: "billing",
+        urgency: 3,
+        icon: "⏳",
+        color: "#a78bfa",
+        title: m.shop_name,
+        sub: trialLeft === 0 ? t("ow.inbox.trialToday") : t("ow.inbox.trialLeft", { n: trialLeft }),
+        detail: t("ow.inbox.trialDetail"),
+        actionUrl: `/owner/billing?m=${m.id}&filter=trial`,
+        merchantId: m.id,
+      });
     }
   }
 
