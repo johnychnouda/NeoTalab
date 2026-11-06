@@ -48,7 +48,7 @@ test.describe("shop dashboard", () => {
     });
   }
 
-  for (const tab of ["Orders", "Delivery areas", "Opening hours", "Payments", "Reports & chats", "Account"]) {
+  for (const tab of ["Shop & account", "Orders", "Delivery areas", "Opening hours", "Payments", "Reports & chats"]) {
     test(`shop settings tab "${tab}" opens`, async ({ page }) => {
       const problems = watchPage(page);
       await page.goto(`${base}/settings`);
@@ -58,4 +58,51 @@ test.describe("shop dashboard", () => {
       expect(real).toEqual([]);
     });
   }
+
+  test.describe("settings, tidied", () => {
+    const open = async (page, tab) => {
+      await page.goto(`${base}/settings`);
+      await page.getByRole("tab", { name: tab }).click();
+      await page.waitForLoadState("networkidle");
+    };
+    const profile = (page) => page.evaluate(async (api) => {
+      const r = await fetch(`${api}/settings/profile`, { headers: { Authorization: `Bearer ${localStorage.getItem("nt_merchant_token")}`, Accept: "application/json" } });
+      const j = await r.json();
+      return j.profile || j.data?.profile || j.data || j;
+    }, process.env.E2E_API_URL || "http://127.0.0.1:8011/api/v1");
+
+    test("the Shop & account tab holds the shop's name and the password change", async ({ page }) => {
+      await open(page, "Shop & account");
+      await expect(page.getByLabel(/Shop name/i)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Change password" })).toBeVisible();
+      await expect(page.getByRole("tab", { name: "Account", exact: true })).toHaveCount(0);
+    });
+
+    test("money settings are together: the lira switch is on Payments, not on Orders", async ({ page }) => {
+      await open(page, "Payments");
+      await expect(page.getByText(/Lebanese lira/i).first()).toBeVisible();
+      await expect(page.getByText("Whish Pay")).toBeVisible();
+      await open(page, "Orders");
+      await expect(page.getByText(/Lebanese lira/i)).toHaveCount(0);
+    });
+
+    test("quotes and job steps show only for shops that need them", async ({ page }) => {
+      await open(page, "Orders");
+      const p = await profile(page);
+      const fixedPrice = ["restaurant", "grocery", "water"].includes(p.business_kind) && !p.quotes;
+      const quotes = page.getByText("Quote a price for each job");
+      const steps = page.getByText("Job steps", { exact: true });
+      if (fixedPrice) { await expect(quotes).toHaveCount(0); await expect(steps).toHaveCount(0); }
+      else { await expect(quotes).toBeVisible(); await expect(steps).toBeVisible(); }
+    });
+
+    test("on a wide screen the cards sit in two columns; on a narrow one in one", async ({ page }) => {
+      await open(page, "Orders");
+      const lefts = await page.locator(".sset-cols > .sset-card").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+      const width = page.viewportSize().width;
+      const columns = new Set(lefts).size;
+      if (width >= 1280) expect(columns).toBe(2);
+      if (width < 900) expect(columns).toBe(1);
+    });
+  });
 });

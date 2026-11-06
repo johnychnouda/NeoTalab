@@ -28,12 +28,12 @@ const GROUPS = {
     region: p.region || null, city: p.city || null,
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
-    late_alert_mins: num(p.late_alert_mins), lbp_rate: num(p.lbp_rate), rating_delay_mins: num(p.rating_delay_mins),
+    late_alert_mins: num(p.late_alert_mins), rating_delay_mins: num(p.rating_delay_mins),
     scheduled_orders: !!p.scheduled_orders, gift_orders: !!p.gift_orders, quotes: !!p.quotes,
     deposit_percent: num(p.deposit_percent) || 0, job_stages: stagesOf(p),
   }),
   payments: (p) => ({
-    whish_number: p.whish_number || "", wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15,
+    whish_number: p.whish_number || "", wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15, lbp_rate: num(p.lbp_rate),
   }),
   alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
 };
@@ -124,6 +124,10 @@ function Settings() {
   const pickup = !bookingsOnly && ["pickup", "both"].includes(p.fulfillment);
   const unit = p.timing_unit || "minutes";
   const lbpOn = Number(p.lbp_rate) > 0;
+  const kind = p.business_kind || "other";
+  const showGift = !["water", "laundry", "grocery"].includes(kind) || !!p.gift_orders;
+  const showQuotes = !["restaurant", "grocery", "water"].includes(kind) || !!p.quotes;
+  const showJobs = showQuotes || stagesOf(p).length > 0;
 
   async function saveAll() {
     setBusy(true);
@@ -152,13 +156,12 @@ function Settings() {
   }
 
   const tabs = [
-    ["shop", t("db.set.tab.shop"), changed.includes("shop")],
+    ["shop", t("db.set.tab.shopAccount"), changed.includes("shop")],
     ["orders", t("db.set.tab.orders"), changed.includes("orders")],
     ...(delivers ? [["areas", t("db.set.tab.areas"), false]] : []),
     ["hours", t("db.set.tab.hours"), hoursChanged],
     ...(!bookingsOnly ? [["payments", t("db.set.tab.payments"), changed.includes("payments")]] : []),
     ["alerts", t("db.set.tab.alerts"), changed.includes("alerts")],
-    ["account", t("db.set.tab.account"), false],
   ];
   const tab = tabs.some(([id]) => id === picked) ? picked : "shop"; // a tab this shop doesn't have opens Shop
 
@@ -168,7 +171,7 @@ function Settings() {
   ].filter(Boolean);
 
   return (
-    <div className={`sset${tab === "areas" ? " sset-wide" : ""}`}>
+    <div className={`sset${tab === "areas" ? " sset-wide" : ""}${["shop", "orders", "payments", "alerts"].includes(tab) ? " sset-cards" : ""}`}>
       <div className="page-header"><h1>{t("settings.title")}</h1></div>
 
       {warnings.map((w) => (
@@ -187,17 +190,20 @@ function Settings() {
       </div>
 
       {tab === "shop" && (
-        <Card title={t("db.set.card.shop")} desc={t("db.set.card.shopDesc")}>
-          <Field id="s-name" label={t("db.set.shopName")}>
-            <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" />
-          </Field>
-          <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
-            <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
-          </Field>
-        </Card>
+        <div className="sset-cols">
+          <Card title={t("db.set.card.shop")} desc={t("db.set.card.shopDesc")}>
+            <Field id="s-name" label={t("db.set.shopName")}>
+              <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" />
+            </Field>
+            <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
+              <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
+            </Field>
+          </Card>
+          <PasswordCard api={api} t={t} toast={toast} />
+        </div>
       )}
 
-      {tab === "orders" && (<>
+      {tab === "orders" && (<div className="sset-cols">
         {p.business_mode && p.business_mode !== "orders" && (
           <Card title={t("db.set.card.bookings")}>
             <div className="sset-grid three">
@@ -261,31 +267,30 @@ function Settings() {
             )}
           </Card>
 
-          <Card title={t("db.set.card.after")}>
-            <Switch checked={lbpOn} onChange={(on) => setP("lbp_rate", on ? String(Number(saved.lbp_rate) > 0 ? saved.lbp_rate : LBP_RATE) : "")}
-              label={t("db.set.lbpOn")} hint={t("db.set.lbpOnHint")} />
-            {lbpOn && (
-              <Field id="o-lbp" label={t("ops.lbp")} narrow>
-                <input id="o-lbp" type="number" min="1" step="100" value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} />
-              </Field>
-            )}
+          <Card title={t("db.set.card.extras")}>
             <Switch checked={Number(p.rating_delay_mins ?? 30) > 0} onChange={(on) => setP("rating_delay_mins", on ? "30" : "0")}
               label={t("ops.rating")} hint={t("ops.ratingHint")} />
             <Switch checked={!!p.scheduled_orders} onChange={(on) => setP("scheduled_orders", on)}
               label={t("ops.scheduled")} hint={t("ops.scheduledHint")} />
-            <Switch checked={!!p.gift_orders} onChange={(on) => setP("gift_orders", on)}
-              label={t("ops.gift")} hint={t("ops.giftHint")} />
-            <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
-              label={t("ops.quotes")} hint={t("ops.quotesHint")} />
+            {showGift && (
+              <Switch checked={!!p.gift_orders} onChange={(on) => setP("gift_orders", on)}
+                label={t("ops.gift")} hint={t("ops.giftHint")} />
+            )}
+            {showQuotes && (
+              <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
+                label={t("ops.quotes")} hint={t("ops.quotesHint")} />
+            )}
           </Card>
-          <Card title={t("ops.jobs")} desc={t("ops.jobsHint")}>
-            <Field id="o-jobs" label={t("ops.jobsLabel")}>
-              <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
-                placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
-            </Field>
-          </Card>
+          {showJobs && (
+            <Card title={t("ops.jobs")} desc={t("ops.jobsHint")}>
+              <Field id="o-jobs" label={t("ops.jobsLabel")}>
+                <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
+                  placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
+              </Field>
+            </Card>
+          )}
         </>)}
-      </>)}
+      </div>)}
 
       {tab === "areas" && (
         <Card title={t("db.zone.title")} desc={t("db.zone.intro")}>
@@ -322,7 +327,16 @@ function Settings() {
         </Card>
       )}
 
-      {tab === "payments" && (
+      {tab === "payments" && (<div className="sset-cols">
+        <Card title={t("db.set.card.money")}>
+          <Switch checked={lbpOn} onChange={(on) => setP("lbp_rate", on ? String(Number(saved.lbp_rate) > 0 ? saved.lbp_rate : LBP_RATE) : "")}
+            label={t("db.set.lbpOn")} hint={t("db.set.lbpOnHint")} />
+          {lbpOn && (
+            <Field id="o-lbp" label={t("ops.lbp")} narrow>
+              <input id="o-lbp" type="number" min="1" step="100" value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} />
+            </Field>
+          )}
+        </Card>
         <Card title="Whish Pay" desc={t("db.whish.intro")}
           action={<span className={`sset-badge ${p.whish_connected ? "ok" : ""}`}>{p.whish_connected ? t("db.whish.ok") : t("db.whish.notConnected")}</span>}>
           <div className="sset-grid">
@@ -334,9 +348,9 @@ function Settings() {
             <input id="w-to" type="number" min="5" max="120" value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} />
           </Field>
         </Card>
-      )}
+      </div>)}
 
-      {tab === "alerts" && (<>
+      {tab === "alerts" && (<div className="sset-cols">
         <Card title={t("db.set.card.report")}>
           <div className="sset-grid wide-first">
             <Field id="a-rep" label={t("ops.report")} hint={t("ops.reportHint")}>
@@ -353,9 +367,7 @@ function Settings() {
             <input id="a-pause" type="number" min="1" max="1440" value={p.bot_pause_mins ?? 60} onChange={(e) => setP("bot_pause_mins", e.target.value)} />
           </Field>
         </Card>
-      </>)}
-
-      {tab === "account" && <PasswordCard api={api} t={t} toast={toast} />}
+      </div>)}
 
       {dirty && (
         <div className="sset-savebar" role="region" aria-label={t("db.set.unsaved")}>

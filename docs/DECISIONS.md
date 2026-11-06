@@ -228,3 +228,17 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   landmarks shown, so an owner can find their shop ("next to the pharmacy"). The earlier dark style
   hid them and was removed on 6 Nov 2026. Google's newer vector map needs a Map ID created in the
   Google Cloud console; not set up (the test browser could not load it).
+
+## Shop Settings page (6 Nov 2026)
+
+- Tabs: Shop & account · Orders · Delivery areas · Opening hours · Payments · Reports & chats. The
+  Account tab (only "Change password") now sits in the Shop tab.
+- Money settings live together on Payments: cash in lira and the exchange rate, then Whish Pay. The
+  card that used to be called "Payment & feedback" on Orders is now "Order options": ratings, delivery
+  day and time, gifts, quotes.
+- Options are shown by kind of shop (`business_kind`), so a restaurant is not asked about repairs:
+  quotes and job steps are hidden for restaurant, grocery and water shops; gifts are hidden for water,
+  laundry and grocery shops. An option that is already switched on always stays visible, so it can be
+  switched off.
+- On a big screen the cards of a tab sit in two columns (one column below about 1000 px).
+

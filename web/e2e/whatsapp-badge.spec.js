@@ -53,13 +53,20 @@ test("owner alerts tab: the language of WhatsApp alerts can be chosen and is sav
   const select = page.locator("#set-alert-lang");
   await expect(select.locator("option")).toHaveText(["English", "العربية", "Français"]);
 
+  // Wait for the server's answer, not only for the request to leave: reloading too early drops the save.
+  const saveAndWait = async () => {
+    const answered = page.waitForResponse((r) => r.request().method() === "PATCH" && r.url().includes("/admin/platform-settings"));
+    await page.getByRole("button", { name: "Save" }).first().click();
+    const res = await answered;
+    expect(res.ok()).toBe(true);
+    return res.request();
+  };
+
   await select.selectOption("fr");
-  const saved = page.waitForRequest((r) => r.method() === "PATCH" && r.url().includes("/admin/platform-settings"));
-  await page.getByRole("button", { name: "Save" }).first().click();
-  expect((await saved).postDataJSON().alert_language).toBe("fr");
+  expect((await saveAndWait()).postDataJSON().alert_language).toBe("fr");
 
   await page.reload();
   await expect(page.locator("#set-alert-lang")).toHaveValue("fr");
   await page.locator("#set-alert-lang").selectOption("en");
-  await page.getByRole("button", { name: "Save" }).first().click();
+  await saveAndWait();
 });
