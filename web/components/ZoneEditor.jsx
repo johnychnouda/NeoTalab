@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLang } from "@/lib/i18n";
 import { formatMoney } from "@/lib/money";
 import { BEIRUT, MAPS_KEY, MAP_OPTIONS, loadGoogleMaps, parsePin, shopMarkerIcon } from "@/lib/googleMaps";
-import { COLORS, DEFAULT_ROWS, MAX_ROWS, planSave, rowsFromZones, rowsProblem } from "@/lib/zoneDraft";
+import { COLORS, DEFAULT_ROWS, MAX_KM, MAX_ROWS, MIN_KM, kmFromRadius, planSave, rowsFromZones, rowsProblem } from "@/lib/zoneDraft";
 
 /**
  * Delivery areas as distance rows: "up to 3 km: 1$, up to 6 km: 2$". Each row is a circle around the shop pin,
@@ -56,29 +56,43 @@ export default function ZoneEditor({ api, toast, t, currency, shopPin, zones, on
     // eslint-disable-next-line react-hooks/exhaustive-deps -- built once
   }, []);
 
-  // The preview: a circle per row around the shop (furthest first so the near ones stay on top), plus the old drawn areas.
-  const preview = JSON.stringify({ rings: rings.map((r) => [r.km, r.fee]), shop, zones: zones.map((z) => z.id) });
+  // The map: the shop pin, a circle per row around it and the areas drawn earlier. Rebuilt when rows are added or
+  // removed or the saved zones change; typing a number only moves the circle's edge, so a drag is never interrupted.
+  const ringsNow = useRef(rings);
+  ringsNow.current = rings;
+  const shapes = useRef([]); // one { circle, label } per row, in row order
+  const structure = JSON.stringify({ shop, ids: rings.map((r) => r.id || null), zones: zones.map((z) => z.id) });
+  const radiusOf = (r) => (Number(r.km) >= MIN_KM && Number(r.km) <= MAX_KM ? Number(r.km) * 1000 : null);
+  const feeLabel = (fee) => ({ text: money(parseFloat(fee) || 0), color: "#ffffff", fontSize: "12px", fontWeight: "700", className: "zn-label" });
   useEffect(() => {
     const g = maps.current;
     if (!ready || !g) return;
     overlays.current.forEach((o) => o.setMap(null));
     overlays.current = [];
+    shapes.current = [];
     const bounds = new g.LatLngBounds();
-    const label = (position, fee) => overlays.current.push(new g.Marker({
-      position, map: map.current, clickable: false, zIndex: 500, icon: { path: g.SymbolPath.CIRCLE, scale: 0 },
-      label: { text: money(parseFloat(fee) || 0), color: "#ffffff", fontSize: "12px", fontWeight: "700", className: "zn-label" },
-    }));
-    const style = (color) => ({ map: map.current, strokeColor: color, strokeOpacity: 0.9, strokeWeight: 2, fillColor: color, fillOpacity: 0.12, clickable: false });
+    const style = (color) => ({ map: map.current, strokeColor: color, strokeOpacity: 0.9, strokeWeight: 2, fillColor: color, fillOpacity: 0.12 });
 
     if (shop) {
       overlays.current.push(new g.Marker({ position: shop, map: map.current, icon: shopMarkerIcon(g), title: t("db.zone.shop"), zIndex: 999 }));
       bounds.extend(shop);
-      [...rings].filter((r) => Number(r.km) >= 0.5 && Number(r.km) <= 60).sort((a, b) => Number(b.km) - Number(a.km)).forEach((r, i, list) => {
-        const color = COLORS[(list.length - 1 - i) % COLORS.length];
-        const circle = new g.Circle({ ...style(color), center: shop, radius: Number(r.km) * 1000 });
-        overlays.current.push(circle);
-        bounds.union(circle.getBounds());
-        label(g.geometry.spherical.computeOffset(shop, Number(r.km) * 1000, 0), r.fee);
+      ringsNow.current.forEach((r, i) => {
+        const radius = radiusOf(r);
+        // Only the edge can be dragged (the centre stays on the shop pin): it fills in this row's distance.
+        const circle = new g.Circle({ ...style(COLORS[i % COLORS.length]), center: shop, radius: radius ?? MIN_KM * 1000, visible: radius !== null, editable: true, draggable: false, zIndex: 100 });
+        circle.addListener("radius_changed", () => {
+          const typedRadius = radiusOf(ringsNow.current[i]);
+          if (typedRadius !== null && Math.abs(circle.getRadius() - typedRadius) <= 50) return; // we moved it ourselves, from the typed number
+          const km = kmFromRadius(circle.getRadius());
+          if (Math.abs(circle.getRadius() - km * 1000) > 50) circle.setRadius(km * 1000); // held at the limits
+          setBad(null);
+          setRings((rs) => rs.map((x, j) => (j === i && Number(x.km) !== km ? { ...x, km: String(km) } : x)));
+        });
+        const label = new g.Marker({ position: g.geometry.spherical.computeOffset(shop, circle.getRadius(), 0), map: radius === null ? null : map.current, clickable: false, zIndex: 500,
+          icon: { path: g.SymbolPath.CIRCLE, scale: 0 }, label: feeLabel(r.fee) });
+        shapes.current.push({ circle, label });
+        overlays.current.push(circle, label);
+        if (radius !== null) bounds.union(circle.getBounds());
       });
     }
     custom.forEach((row) => {
@@ -86,14 +100,33 @@ export default function ZoneEditor({ api, toast, t, currency, shopPin, zones, on
       if (!z?.area) return;
       const color = z.color || COLORS[1];
       const shape = z.area.type === "circle"
-        ? new g.Circle({ ...style(color), center: { lat: z.area.center[0], lng: z.area.center[1] }, radius: z.area.radius })
-        : new g.Polygon({ ...style(color), paths: z.area.points.map(([lat, lng]) => ({ lat, lng })) });
+        ? new g.Circle({ ...style(color), center: { lat: z.area.center[0], lng: z.area.center[1] }, radius: z.area.radius, clickable: false })
+        : new g.Polygon({ ...style(color), paths: z.area.points.map(([lat, lng]) => ({ lat, lng })), clickable: false });
       overlays.current.push(shape);
       if (shape.getBounds) bounds.union(shape.getBounds()); else z.area.points.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
     });
     if (!bounds.isEmpty()) map.current.fitBounds(bounds, 40);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- redraw when the numbers change
-  }, [ready, preview]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see the comment above
+  }, [ready, structure]);
+
+  // Typing a distance or a fee moves the circle's edge and its label.
+  const typed = JSON.stringify(rings.map((r) => [r.km, r.fee]));
+  useEffect(() => {
+    const g = maps.current;
+    if (!ready || !g || !shop) return;
+    ringsNow.current.forEach((r, i) => {
+      const s = shapes.current[i];
+      if (!s) return;
+      const radius = radiusOf(r);
+      s.circle.setVisible(radius !== null);
+      s.label.setMap(radius === null ? null : map.current);
+      if (radius === null) return;
+      if (Math.abs(s.circle.getRadius() - radius) > 50) s.circle.setRadius(radius);
+      s.label.setPosition(g.geometry.spherical.computeOffset(shop, radius, 0));
+      s.label.setLabel(feeLabel(r.fee));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, typed]);
 
   async function save() {
     const problem = rowsProblem(all);

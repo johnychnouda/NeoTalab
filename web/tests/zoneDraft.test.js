@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ROWS, isRing, minutesFor, planSave, rowsFromZones, rowsProblem } from "@/lib/zoneDraft";
+import { DEFAULT_ROWS, isRing, kmFromRadius, minutesFor, planSave, rowsFromZones, rowsProblem } from "@/lib/zoneDraft";
 
 const shop = { lat: 33.9, lng: 35.6 };
 const ringName = (km) => `Up to ${km} km`;
@@ -104,5 +104,20 @@ describe("saving the rows", () => {
     expect(isRing(circle("a", 3, { area: { type: "circle", center: [33.95, 35.6], radius: 3000 } }), shop)).toBe(false);
     expect(isRing(drawn("d"), shop)).toBe(false);
     expect(isRing(circle("a", 3), null)).toBe(false);
+  });
+});
+
+describe("dragging a circle's edge", () => {
+  it("turns the radius into a round distance, to 0.1 km", () => {
+    expect(kmFromRadius(2366)).toBe(2.4);
+    expect(kmFromRadius(2500)).toBe(2.5);
+    expect(kmFromRadius(2549)).toBe(2.5);
+    expect(kmFromRadius(2551)).toBe(2.6);
+  });
+
+  it("never goes below 0.5 km or above 60 km", () => {
+    expect(kmFromRadius(40)).toBe(0.5);
+    expect(kmFromRadius(0)).toBe(0.5);
+    expect(kmFromRadius(90_000)).toBe(60);
   });
 });
