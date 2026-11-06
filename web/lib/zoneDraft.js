@@ -9,6 +9,9 @@ export const MAX_ROWS = 8;
 export const MIN_KM = 0.5;
 export const MAX_KM = 60;
 
+/** A circle's radius, as dragged on the map, to the distance shown in its row: to 0.1 km, between 0.5 and 60. */
+export const kmFromRadius = (metres) => Math.min(MAX_KM, Math.max(MIN_KM, Math.round(metres / 100) / 10));
+
 export const minutesFor = (metres) => Math.round(5 + (metres / 1000) * 3);
 
 function metresBetween(lat1, lng1, lat2, lng2) {

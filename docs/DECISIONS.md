@@ -277,4 +277,9 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   Saving a row never sends a new shape for them.
 - **No backend change:** the API still accepts a circle or a polygon; only the dashboard stopped offering polygons.
 - A row keeps a name the owner gave it while its distance is unchanged; otherwise it is named "Up to N km".
+- **Drag the edge (added the same day):** on the map the edge of each circle can be dragged; the row's distance
+  follows, rounded to 0.1 km and held between 0.5 and 60 km. The centre cannot be moved: it is the shop pin.
+  Typing a distance moves the circle and never rounds what was typed. The map-only part is tested with a
+  stand-in map (`e2e/zone-drag.spec.js`) because Google's key works only on neotalab.com; check the real drag on
+  the live site after a change to `ZoneEditor`.
 
