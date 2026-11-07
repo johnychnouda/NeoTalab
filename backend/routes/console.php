@@ -1,15 +1,9 @@
 <?php
 
 use App\Services\LaunchChecklistService;
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
-
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
 
 // On Railway the API service runs these: docker/entrypoint.sh loops `schedule:run` every minute
 // in the background (RUN_SCHEDULER, default on). Locally: `php artisan schedule:work`.
