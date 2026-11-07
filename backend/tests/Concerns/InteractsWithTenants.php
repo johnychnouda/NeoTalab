@@ -14,8 +14,15 @@ trait InteractsWithTenants
     /** The platform owner records a shop's Whish payment for NeoTalab (a unique reference unless given). */
     protected function recordWhishPayment(string $token, Merchant $merchant, ?string $reference = null): TestResponse
     {
+        // The transfer is the fee that applies to this payment: a cycle picked for the next period counts.
+        $fresh = $merchant->fresh();
+        $cycle = $fresh->settings['next_billing_cycle'] ?? $fresh->billing_cycle;
+
         return $this->withToken($token)->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", [
             'whish_reference' => $reference ?? 'WS-'.strtoupper(Str::random(8)),
+            'sender_name' => 'TEST SENDER',
+            'sender_phone' => '96170000000',
+            'received_amount' => (float) ($fresh->settings[$cycle === 'yearly' ? 'yearly_fee' : 'monthly_fee'] ?? 0),
             'confirmed_check' => true,
         ]);
     }

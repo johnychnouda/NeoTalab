@@ -118,10 +118,13 @@ class MerchantController extends Controller
         // The owner must tick that they checked this transfer in the NeoTalab Whish account.
         $data = $request->validate([
             'whish_reference' => ['required', 'string', 'max:60'],
+            'sender_name' => ['required', 'string', 'max:80'],
+            'sender_phone' => ['required', 'string', 'max:30'],
+            'received_amount' => ['required', 'numeric', 'min:0'],
             'confirmed_check' => ['required', 'accepted'],
         ]);
         $merchant = $adminMerchants->find($id);
-        $payment = $payments->record($merchant, $request->user(), $data['whish_reference']);
+        $payment = $payments->record($merchant, $request->user(), $data['whish_reference'], (float) $data['received_amount'], $data['sender_name'], $data['sender_phone']);
         app(BillingNoticeService::class)->paid($merchant->fresh());
 
         return response()->json([

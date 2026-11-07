@@ -348,6 +348,8 @@ class AdminMerchantService
             ->map(fn (SubscriptionPayment $p) => [
                 'id' => $p->id,
                 'whish_reference' => $p->whish_reference,
+                'sender_name' => $p->sender_name,
+                'sender_phone' => $p->sender_phone,
                 'amount' => (string) $p->amount,
                 'currency' => $p->currency,
                 'cycle' => $p->cycle,

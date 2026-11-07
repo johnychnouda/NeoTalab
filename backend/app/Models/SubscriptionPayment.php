@@ -14,7 +14,7 @@ class SubscriptionPayment extends Model
     use HasUuids;
 
     protected $fillable = [
-        'merchant_id', 'whish_reference', 'amount', 'currency', 'cycle',
+        'merchant_id', 'whish_reference', 'sender_name', 'sender_phone', 'amount', 'currency', 'cycle',
         'period_start', 'period_end', 'confirmed_by', 'confirmed_at',
     ];
 

@@ -41,10 +41,16 @@ class SubscriptionPaymentTest extends TestCase
         ]);
     }
 
-    private function record(Merchant $merchant, string $reference)
+    private function record(Merchant $merchant, string $reference, ?float $received = null)
     {
         return $this->withToken($this->tokenFor($this->admin))
-            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", ['whish_reference' => $reference, 'confirmed_check' => true]);
+            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", [
+                'whish_reference' => $reference,
+                'sender_name' => 'ZENAR MAHMOUD',
+                'sender_phone' => '96176459317',
+                'received_amount' => $received ?? (float) ($merchant->settings[$merchant->billing_cycle === 'yearly' ? 'yearly_fee' : 'monthly_fee'] ?? 0),
+                'confirmed_check' => true,
+            ]);
     }
 
     public function test_recording_a_whish_payment_marks_the_shop_paid_for_one_month(): void
@@ -167,5 +173,60 @@ class SubscriptionPaymentTest extends TestCase
             ->assertUnprocessable();
 
         $this->assertSame(0, SubscriptionPayment::query()->count());
+    }
+
+    public function test_the_transfer_must_match_the_fee_and_nothing_is_saved_otherwise(): void
+    {
+        [$merchant] = $this->shop();
+
+        $this->record($merchant, 'WS-SHORT-1', 20)->assertUnprocessable()->assertJsonValidationErrors('received_amount');
+        $this->record($merchant, 'WS-OVER-1', 30)->assertUnprocessable()->assertJsonValidationErrors('received_amount');
+
+        $this->assertSame('trial', $merchant->fresh()->settings['subscription_status']);
+        $this->assertSame(0, SubscriptionPayment::query()->count());
+
+        $this->record($merchant, 'WS-SHORT-1', 25)->assertCreated();
+    }
+
+    public function test_the_sender_is_saved_and_listed(): void
+    {
+        [$merchant] = $this->shop();
+        $this->record($merchant, 'WS-SENDER-1')->assertCreated();
+
+        $this->withToken($this->tokenFor($this->admin))
+            ->getJson("/api/v1/admin/merchants/{$merchant->id}/payments")
+            ->assertJsonPath('payments.0.sender_name', 'ZENAR MAHMOUD')
+            ->assertJsonPath('payments.0.sender_phone', '96176459317');
+    }
+
+    public function test_the_sender_and_the_amount_are_required(): void
+    {
+        [$merchant] = $this->shop();
+
+        $this->withToken($this->tokenFor($this->admin))
+            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", ['whish_reference' => 'WS-BARE-1', 'confirmed_check' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sender_name', 'sender_phone', 'received_amount']);
+    }
+
+    public function test_paying_switches_on_a_shop_that_was_stopped_for_not_paying(): void
+    {
+        [$merchant] = $this->shop(['subscription_status' => 'pending']);
+        $merchant->forceFill(['status' => 'suspended'])->save();
+
+        $this->record($merchant, 'WS-BACKON-1')->assertCreated();
+
+        $this->assertSame('active', $merchant->fresh()->status);
+        $this->assertSame('paid', $merchant->fresh()->settings['subscription_status']);
+    }
+
+    public function test_paying_does_not_switch_on_a_shop_the_owner_stopped_by_hand(): void
+    {
+        [$merchant] = $this->shop(['subscription_status' => 'paid']);
+        $merchant->forceFill(['status' => 'suspended'])->save();
+
+        $this->record($merchant, 'WS-HELD-1')->assertCreated();
+
+        $this->assertSame('suspended', $merchant->fresh()->status);
     }
 }

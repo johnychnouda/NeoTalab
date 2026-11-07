@@ -16,14 +16,14 @@ use Illuminate\Validation\ValidationException;
  */
 class SubscriptionPaymentService
 {
-    public function record(Merchant $merchant, User $confirmedBy, string $reference): SubscriptionPayment
+    public function record(Merchant $merchant, User $confirmedBy, string $reference, float $received, string $senderName, string $senderPhone): SubscriptionPayment
     {
         $reference = strtoupper(trim($reference));
         if (! preg_match('/^[A-Z0-9-]{4,40}$/', $reference)) {
             throw ValidationException::withMessages(['whish_reference' => [__('Enter the Whish reference: letters, digits and dashes only.')]]);
         }
 
-        return DB::transaction(function () use ($merchant, $confirmedBy, $reference) {
+        return DB::transaction(function () use ($merchant, $confirmedBy, $reference, $received, $senderName, $senderPhone) {
             $locked = Merchant::query()->whereKey($merchant->id)->lockForUpdate()->firstOrFail();
             $settings = $locked->settings ?? [];
 
@@ -39,6 +39,11 @@ class SubscriptionPaymentService
                 throw ValidationException::withMessages(['merchant' => [__('Set the shop\'s subscription fee before recording a payment.')]]);
             }
 
+            // What reached the NeoTalab Whish account must be the fee, to the cent: never a part, never a guess.
+            if (abs($received - $amount) >= 0.005) {
+                throw ValidationException::withMessages(['received_amount' => [__('The transfer was :received but the fee is :fee. Record it only when they match.', ['received' => number_format($received, 2), 'fee' => number_format($amount, 2)])]]);
+            }
+
             // Paying early adds the new period to the end of the current one, so no days are lost.
             $now = now();
             $from = $locked->subscription_ends_at && $locked->subscription_ends_at->isFuture() ? $locked->subscription_ends_at : $now;
@@ -48,6 +53,8 @@ class SubscriptionPaymentService
                 $payment = SubscriptionPayment::query()->create([
                     'merchant_id' => $locked->id,
                     'whish_reference' => $reference,
+                    'sender_name' => trim($senderName),
+                    'sender_phone' => trim($senderPhone),
                     'amount' => $amount,
                     'currency' => strtoupper((string) $locked->currency ?: 'USD'),
                     'cycle' => $cycle,
@@ -58,6 +65,13 @@ class SubscriptionPaymentService
                 ]);
             } catch (UniqueConstraintViolationException) {
                 throw ValidationException::withMessages(['whish_reference' => [__('This Whish reference was already recorded.')]]);
+            }
+
+            // A shop stopped for not paying (an ended trial or an overdue month) is switched on by its payment.
+            // One the owner stopped by hand stays stopped: it was not "pending".
+            $wasUnpaid = ($settings['subscription_status'] ?? null) === 'pending';
+            if ($wasUnpaid && $locked->status === 'suspended') {
+                $locked->status = 'active';
             }
 
             $settings['subscription_status'] = 'paid';

@@ -38,19 +38,24 @@ export default function BillingPage() {
   const [remindersModal, setRemindersModal] = useState(false);
   const [paying, setPaying] = useState(null);
   const [reference, setReference] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [received, setReceived] = useState("");
   const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  function closePaying() {
+    setPaying(null); setReference(""); setSenderPhone(""); setSenderName(""); setReceived(""); setChecked(false);
+  }
 
   // The owner checks the NeoTalab Whish account, then records the payment with its reference.
   async function recordPayment() {
     if (!paying) return;
     setSaving(true);
     try {
-      await api("POST", `/admin/merchants/${paying.id}/payments`, { whish_reference: reference.trim(), confirmed_check: true });
+      await api("POST", `/admin/merchants/${paying.id}/payments`, { whish_reference: reference.trim(), sender_phone: senderPhone.trim(), sender_name: senderName.trim(), received_amount: Number(received), confirmed_check: true });
       toast(t("ow.b.paymentRecorded"));
-      setPaying(null);
-      setReference("");
-      setChecked(false);
+      closePaying();
       load();
     } catch (e) {
       toast(e?.message || t("ow.b.paymentFailed"), "error");
@@ -88,6 +93,11 @@ export default function BillingPage() {
   }, [merchants]);
 
   const now = new Date();
+
+  // The transfer shown in Whish must equal the fee to the cent before it can be recorded.
+  const fee = paying ? merchantFee(paying) : 0;
+  const amountWrong = received.trim() !== "" && Math.abs(Number(received) - fee) >= 0.005;
+  const canRecord = reference.trim() && senderPhone.trim() && senderName.trim() && received.trim() !== "" && !amountWrong && checked;
   const thisMonth = now.getMonth();
   const thisYear = now.getFullYear();
 
@@ -281,13 +291,26 @@ export default function BillingPage() {
 
       {paying && (
         <Modal title={`${t("ow.b.recordTitle")} · ${paying.shop_name}`}
-          onClose={() => { setPaying(null); setReference(""); setChecked(false); }}
-          footer={<button type="button" className="btn-primary" disabled={saving || !reference.trim() || !checked} onClick={recordPayment}>{t("ow.b.recordConfirm")}</button>}>
+          onClose={closePaying}
+          footer={<button type="button" className="btn-primary" disabled={saving || !canRecord} onClick={recordPayment}>{t("ow.b.recordConfirm")}</button>}>
           <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>{t("ow.b.recordHint")}</p>
           <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
             {t("ow.b.referenceLabel")}
             <input dir="ltr" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
           </label>
+          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
+            {t("ow.b.senderPhoneLabel")}
+            <input dir="ltr" inputMode="tel" value={senderPhone} placeholder={t("ow.b.senderPhonePh")} onChange={(e) => setSenderPhone(e.target.value)} />
+          </label>
+          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
+            {t("ow.b.senderNameLabel")}
+            <input dir="ltr" value={senderName} placeholder={t("ow.b.senderNamePh")} onChange={(e) => setSenderName(e.target.value)} />
+          </label>
+          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
+            {t("ow.b.receivedLabel")}
+            <input dir="ltr" inputMode="decimal" value={received} onChange={(e) => setReceived(e.target.value)} />
+          </label>
+          {amountWrong && <p role="alert" style={{ fontSize: 13, marginTop: 8, color: "var(--danger, #f87171)" }}>{t("ow.b.amountMismatch", { received: Number(received).toFixed(2), fee: fee.toFixed(2) })}</p>}
           <p style={{ fontSize: 13, marginTop: 12, fontWeight: 600 }}>
             {t("ow.b.recordAmount", { amount: `${merchantFee(paying).toFixed(2)}$`, cycle: paying.billing_cycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly") })}
           </p>
