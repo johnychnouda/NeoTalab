@@ -23,7 +23,6 @@ trait InteractsWithTenants
             'sender_name' => 'TEST SENDER',
             'sender_phone' => '96170000000',
             'received_amount' => (float) ($fresh->settings[$cycle === 'yearly' ? 'yearly_fee' : 'monthly_fee'] ?? 0),
-            'confirmed_check' => true,
         ]);
     }
 

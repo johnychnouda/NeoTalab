@@ -41,11 +41,10 @@ export default function BillingPage() {
   const [senderPhone, setSenderPhone] = useState("");
   const [senderName, setSenderName] = useState("");
   const [received, setReceived] = useState("");
-  const [checked, setChecked] = useState(false);
   const [saving, setSaving] = useState(false);
 
   function closePaying() {
-    setPaying(null); setReference(""); setSenderPhone(""); setSenderName(""); setReceived(""); setChecked(false);
+    setPaying(null); setReference(""); setSenderPhone(""); setSenderName(""); setReceived("");
   }
 
   // The owner checks the NeoTalab Whish account, then records the payment with its reference.
@@ -53,7 +52,7 @@ export default function BillingPage() {
     if (!paying) return;
     setSaving(true);
     try {
-      await api("POST", `/admin/merchants/${paying.id}/payments`, { whish_reference: reference.trim(), sender_phone: senderPhone.trim(), sender_name: senderName.trim(), received_amount: Number(received), confirmed_check: true });
+      await api("POST", `/admin/merchants/${paying.id}/payments`, { whish_reference: reference.trim(), sender_phone: senderPhone.trim(), sender_name: senderName.trim(), received_amount: Number(received) });
       toast(t("ow.b.paymentRecorded"));
       closePaying();
       load();
@@ -95,10 +94,21 @@ export default function BillingPage() {
   const now = new Date();
 
   // The transfer shown in Whish must equal the fee to the cent before it can be recorded.
-  const fee = paying ? merchantFee(paying) : 0;
+  // A cycle picked for the next period applies to this payment, the same rule the server uses.
+  const payCycle = paying ? (paying.next_billing_cycle || paying.billing_cycle) : "monthly";
+  const fee = paying ? (payCycle === "yearly" ? paying.yearly_fee : paying.monthly_fee) || 0 : 0;
+  const paidUntil = (() => {
+    if (!paying) return null;
+    const ends = paying.subscription_ends ? new Date(paying.subscription_ends) : null;
+    const from = ends && ends > now ? ends : new Date(now);
+    if (payCycle === "yearly") from.setFullYear(from.getFullYear() + 1); else from.setMonth(from.getMonth() + 1);
+    return from;
+  })();
+  const willSwitchOn = !!paying && paying.status === "suspended" && paying.subscription_status === "pending";
   const amountWrong = received.trim() !== "" && Math.abs(Number(received) - fee) >= 0.005;
   const amountMatches = received.trim() !== "" && !amountWrong;
-  const canRecord = reference.trim() && senderPhone.trim() && senderName.trim() && received.trim() !== "" && !amountWrong && checked;
+  const detailsFilled = !!(reference.trim() && senderPhone.trim() && senderName.trim() && received.trim() !== "") && !amountWrong;
+  const canRecord = detailsFilled;
   const thisMonth = now.getMonth();
   const thisYear = now.getFullYear();
 
@@ -294,21 +304,23 @@ export default function BillingPage() {
         <Modal title={`${t("ow.b.recordTitle")} · ${paying.shop_name}`} onClose={closePaying}
           footer={
             <>
+              {!canRecord && !saving && <span className="pay-why">{t("ow.b.needFields")}</span>}
               <button type="button" className="btn-sm" onClick={closePaying}>{t("ow.b.cancel")}</button>
               <button type="button" className="btn-primary" disabled={saving || !canRecord} onClick={recordPayment}>
                 {saving ? t("ow.b.recording") : t("ow.b.recordConfirm")}
               </button>
             </>
           }>
+          <div onKeyDown={(e) => { if (e.key === "Enter" && canRecord && !saving && e.target.tagName === "INPUT") recordPayment(); }}>
           <p className="pay-hint">{t("ow.b.recordHint")}</p>
           <div className="pay-expected">
             <span>{t("ow.b.expected")}</span>
-            <strong>{fee.toFixed(2)}$ · {paying.billing_cycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly")}</strong>
+            <strong>{fee.toFixed(2)}$ · {payCycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly")}</strong>
           </div>
 
           <div className="field">
             <label htmlFor="pay-ref">{t("ow.b.referenceLabel")}</label>
-            <input id="pay-ref" dir="ltr" inputMode="numeric" autoComplete="off" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
+            <input id="pay-ref" autoFocus dir="ltr" inputMode="numeric" autoComplete="off" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
           </div>
           <div className="pay-row">
             <div className="field">
@@ -327,10 +339,13 @@ export default function BillingPage() {
             {amountMatches && <p className="pay-note ok">{t("ow.b.amountOk")}</p>}
           </div>
 
-          <label className="pay-check">
-            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-            <span>{t("ow.b.recordCheck")}</span>
-          </label>
+          {canRecord && (
+            <p className="pay-result" role="status">
+              {t("ow.b.willBePaid", { shop: paying.shop_name, date: paidUntil.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}
+              {willSwitchOn ? ` ${t("ow.b.willSwitchOn")}` : ""}
+            </p>
+          )}
+          </div>
         </Modal>
       )}
 

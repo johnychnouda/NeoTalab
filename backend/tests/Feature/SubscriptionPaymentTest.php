@@ -49,7 +49,6 @@ class SubscriptionPaymentTest extends TestCase
                 'sender_name' => 'ZENAR MAHMOUD',
                 'sender_phone' => '96176459317',
                 'received_amount' => $received ?? (float) ($merchant->settings[$merchant->billing_cycle === 'yearly' ? 'yearly_fee' : 'monthly_fee'] ?? 0),
-                'confirmed_check' => true,
             ]);
     }
 
@@ -164,17 +163,6 @@ class SubscriptionPaymentTest extends TestCase
             ->assertJsonPath('payments.0.confirmed_by', $this->admin->id);
     }
 
-    public function test_recording_needs_the_owner_to_confirm_the_transfer_was_checked(): void
-    {
-        [$merchant] = $this->shop();
-
-        $this->withToken($this->tokenFor($this->admin))
-            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", ['whish_reference' => 'WS-NOCHECK-1'])
-            ->assertUnprocessable();
-
-        $this->assertSame(0, SubscriptionPayment::query()->count());
-    }
-
     public function test_the_transfer_must_match_the_fee_and_nothing_is_saved_otherwise(): void
     {
         [$merchant] = $this->shop();
@@ -204,7 +192,7 @@ class SubscriptionPaymentTest extends TestCase
         [$merchant] = $this->shop();
 
         $this->withToken($this->tokenFor($this->admin))
-            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", ['whish_reference' => 'WS-BARE-1', 'confirmed_check' => true])
+            ->postJson("/api/v1/admin/merchants/{$merchant->id}/payments", ['whish_reference' => 'WS-BARE-1'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['sender_name', 'sender_phone', 'received_amount']);
     }
