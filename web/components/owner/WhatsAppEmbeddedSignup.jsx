@@ -218,11 +218,11 @@ export default function WhatsAppEmbeddedSignup({
       resetSignup();
     }, SIGNUP_TIMEOUT_MS);
 
-    // If no popup activity soon, browser almost certainly blocked it.
+    // Facebook sends nothing until a step is finished, so a quiet window is normal: only hint at pop-ups,
+    // and keep listening. Resetting here would drop the message that tells us the signup finished.
     popupWatchRef.current = setTimeout(() => {
       if (!openedPopupRef.current && !signupRef.current.code) {
-        toast(T("ow.es.noPopup"), "error");
-        resetSignup();
+        toast(T("ow.es.popupHint"), "info");
       }
     }, POPUP_WATCH_MS);
 
