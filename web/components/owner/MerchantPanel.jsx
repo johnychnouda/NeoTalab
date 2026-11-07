@@ -16,6 +16,7 @@ import { joinOptionLabel, JOIN_BUSINESS_TYPES, JOIN_LEBANON_REGIONS, JOIN_CITY_O
 import { lebaneseMobileError, toLebaneseWhatsapp } from "@/lib/phone";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { writeUrlParam } from "@/lib/urlParam";
+import { parsePin } from "@/lib/googleMaps";
 
 /**
  * Slide-in side panel for a single merchant (Info / Billing / WhatsApp tabs).
@@ -670,12 +671,15 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   const [region, setRegion] = useState(m.region || "");
   const [city, setCity] = useState(knownCity(m.region, m.city) ? m.city : m.city ? JOIN_CITY_OTHER : "");
   const [cityOther, setCityOther] = useState(knownCity(m.region, m.city) ? "" : m.city || "");
-  const [street, setStreet] = useState(m.street || "");
   const [location, setLocation] = useState(m.shop_location || "");
   const [finding, setFinding] = useState(false);
+  const [changingLocation, setChangingLocation] = useState(!m.shop_location);
   const [busy, setBusy] = useState(false);
   const cities = getLebanonCitiesForRegion(region);
   const locationChanged = location.trim() !== (m.shop_location || "");
+  // The saved pin opens on Google Maps in one tap; a pasted link opens as it is.
+  const point = parsePin(location);
+  const mapsHref = point ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : /^https?:\/\//i.test(location.trim()) ? location.trim() : "";
 
   // The pin (a pasted Google Maps link or the saved pin) gives the governorate and city.
   async function lookupArea(value) {
@@ -723,7 +727,7 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
       const area = locationChanged && location.trim() ? await lookupArea(location) : null;
       const typedCity = city === JOIN_CITY_OTHER || !cities.length ? cityOther.trim() : city;
       const data = await api("PATCH", `/admin/merchants/${m.id}`, {
-        shopName: name.trim(), ownerName: ownerName.trim() || null, whatsappNumber: number, street: street.trim(),
+        shopName: name.trim(), ownerName: ownerName.trim() || null, whatsappNumber: number,
         region: area?.region || region,
         city: area?.city || (area?.region && area.region !== region ? "" : typedCity),
         ...(locationChanged ? { location: location.trim() || null } : {}),
@@ -761,11 +765,21 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
           ) : (
             <input id="es-city" value={cityOther} onChange={(e) => setCityOther(e.target.value)} placeholder={t("jn.cityOther")} />
           )}</div>
-        <div className="field"><label htmlFor="es-loc">{finding ? t("ow.edit.areaFinding") : t("ow.edit.location")}</label>
-          <input id="es-loc" dir="ltr" value={location} placeholder={t("ow.edit.locationPh")}
-            onChange={(e) => setLocation(e.target.value)} onBlur={onLocationBlur} /></div>
-        <div className="field"><label htmlFor="es-street">{t("jn.street")}</label>
-          <input id="es-street" value={street} onChange={(e) => setStreet(e.target.value)} /></div>
+        <div className="field esm-wide">
+          <label htmlFor="es-loc">{finding ? t("ow.edit.areaFinding") : t("ow.edit.location")}</label>
+          {changingLocation || !mapsHref ? (
+            <>
+              <input id="es-loc" dir="ltr" value={location} placeholder={t("ow.edit.locationPh")}
+                onChange={(e) => setLocation(e.target.value)} onBlur={onLocationBlur} />
+              <p className="esm-hint">{t("ow.edit.locationHint")}</p>
+            </>
+          ) : (
+            <div className="esm-loc">
+              <a className="btn-sm esm-maps" href={mapsHref} target="_blank" rel="noopener noreferrer">{t("ow.edit.openMaps")} ↗</a>
+              <button type="button" className="set-link set-link-btn" onClick={() => setChangingLocation(true)}>{t("ow.edit.changeLocation")}</button>
+            </div>
+          )}
+        </div>
       </div>
     </Modal>
   );
