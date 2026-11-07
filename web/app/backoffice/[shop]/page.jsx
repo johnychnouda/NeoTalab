@@ -100,11 +100,21 @@ export default function ShopHome() {
       <Plan sub={shop.subscription} shopName={shopName} t={t} locale={locale} />
       <MetaFees url={setup.meta_payment_url} t={t} />
 
-      <h2 className="gs-h">{t("db.home.required")}</h2>
-      <ol className="gs-list">{required.map(row)}</ol>
+      {done === setup.steps.length ? (
+        // Everything is done: the steps fold into one line, still one click away for edits.
+        <details className="set-advanced gs-folded">
+          <summary><span>{t("db.home.stepsDone")}</span></summary>
+          <ol className="gs-list">{setup.steps.map(row)}</ol>
+        </details>
+      ) : (
+        <>
+          <h2 className="gs-h">{t("db.home.required")}</h2>
+          <ol className="gs-list">{required.map(row)}</ol>
 
-      <h2 className="gs-h">{t("db.home.optional")}</h2>
-      <ol className="gs-list">{optional.map(row)}</ol>
+          <h2 className="gs-h">{t("db.home.optional")}</h2>
+          <ol className="gs-list">{optional.map(row)}</ol>
+        </>
+      )}
     </div>
   );
 }
