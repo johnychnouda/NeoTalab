@@ -85,7 +85,7 @@ return [
         'btn_cancel' => '❌ Cancel',
         'your_order' => 'Your order',
         'subtotal' => 'Subtotal',
-        'delivery_fee' => 'Delivery (:zone)',
+        'delivery_fee' => 'Delivery',
         'total' => 'Total',
         'pickup_at' => 'Pickup at :address',
         'cash' => 'Cash on delivery',

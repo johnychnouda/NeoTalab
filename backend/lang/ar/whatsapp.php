@@ -82,7 +82,7 @@ return [
         'btn_cancel' => '❌ إلغاء',
         'your_order' => 'طلبك',
         'subtotal' => 'المجموع',
-        'delivery_fee' => 'التوصيل (:zone)',
+        'delivery_fee' => 'التوصيل',
         'total' => 'الإجمالي',
         'pickup_at' => 'الاستلام من :address',
         'cash' => 'نقدًا عند التسليم',

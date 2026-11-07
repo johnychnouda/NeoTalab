@@ -159,7 +159,7 @@ class CheckoutFlowTest extends TestCase
         $this->tap('co:cur:LBP');
         $receipt = $this->last()['interactive']['body']['text'];
         $this->assertStringContainsString('2× Zaatar — 4.00$', $receipt);
-        $this->assertStringContainsString('Delivery (Jbeil): 1.50$', $receipt);
+        $this->assertStringContainsString('Delivery: 1.50$', $receipt);
         $this->assertStringContainsString('Total: 5.50$*', $receipt);
         $this->assertStringContainsString('Preparation about 25 min. We will message you the arrival time when it is on its way.', $receipt, 'the preparation only: the arrival time comes at dispatch');
         $this->assertStringNotContainsString('At your door', $receipt);

@@ -82,7 +82,7 @@ return [
         'btn_cancel' => '❌ Annuler',
         'your_order' => 'Votre commande',
         'subtotal' => 'Sous-total',
-        'delivery_fee' => 'Livraison (:zone)',
+        'delivery_fee' => 'Livraison',
         'total' => 'Total',
         'pickup_at' => 'Retrait : :address',
         'cash' => 'Espèces à la livraison',
