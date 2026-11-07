@@ -3159,3 +3159,15 @@ button.wa-mic { border: 0; cursor: pointer; }
 .ie-stock { border-collapse: collapse; font-size: 13px; }
 .ie-stock th, .ie-stock td { padding: 4px 6px; text-align: start; white-space: nowrap; }
 .ie-stock input { width: 64px; }
+
+/* Touch screens (phones, tablets): the small buttons get a comfortable tap size. Laptops keep the compact look. */
+@media (pointer: coarse), (max-width: 768px) {
+  .btn-sm, .btn-primary { min-height: 40px; }
+  .pill-btn { min-height: 38px; display: inline-flex; align-items: center; }
+  .zn-x { min-width: 40px; min-height: 40px; }
+  .sset-switch { width: 50px; height: 30px; }
+  .sset-switch > span { width: 24px; height: 24px; top: 3px; inset-inline-start: 3px; }
+  .sset-switch.on > span { inset-inline-start: 23px; }
+  .dash-lang button { height: 38px; }
+  .site-lang button { padding-block: 9px; }
+}
