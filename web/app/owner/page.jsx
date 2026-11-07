@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useOwner } from "./layout";
 import { timeAgo } from "@/lib/api";
 import { trialDaysLeft } from "@/lib/trial";
@@ -12,6 +12,7 @@ import MerchantPanel from "@/components/owner/MerchantPanel";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
+import { useUrlParam, writeUrlParam } from "@/lib/urlParam";
 import { mapPin } from "@/components/LocationPicker";
 import { joinOptionLabel } from "@/lib/joinFormOptions";
 import { MERCHANT_FILTERS, pillClass } from "@/lib/pillTones";
@@ -50,7 +51,7 @@ export default function MerchantsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useUrlParam("filter");
   const [panel, setPanel] = useState(null); // { id, tab }
   const [modal, setModal] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -114,9 +115,7 @@ export default function MerchantsPage() {
       setTimeout(() => setHighlightReq(null), 2500);
     }
 
-    if (mid || reqId || filterParam) {
-      window.history.replaceState({}, "", "/owner");
-    }
+    if (reqId) writeUrlParam("req", null);
   }, [merchants, requests]);
 
   const counts = {
@@ -148,6 +147,19 @@ export default function MerchantsPage() {
   const filteredBotIssues = searchTerm
     ? botIssues.filter((m) => matchesMerchantSearch(m, searchTerm))
     : botIssues;
+
+  // The open merchant panel lives in the address bar (?m=<id>&tab=), so a refresh reopens it.
+  const panelWasOpen = useRef(false);
+  useEffect(() => {
+    if (panel) {
+      panelWasOpen.current = true;
+      writeUrlParam("m", panel.id);
+      writeUrlParam("tab", panel.tab, "info");
+    } else if (panelWasOpen.current) {
+      writeUrlParam("m", null);
+      writeUrlParam("tab", null);
+    }
+  }, [panel]);
 
   const panelMerchant = panel ? merchants.find((m) => m.id === panel.id) : null;
 

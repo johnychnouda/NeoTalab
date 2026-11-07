@@ -5,6 +5,7 @@ import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import FormSelect from "@/components/FormSelect";
 import { useLiveRefresh } from "@/lib/live";
+import { useUrlParam } from "@/lib/urlParam";
 import { formatMoney, currencyLabel, toLbp, formatLbp } from "@/lib/money";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
@@ -34,7 +35,7 @@ export default function MenuPage() {
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null);
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState("all"); // "all", a category id, or "none"
+  const [active, setActive] = useUrlParam("category", "all"); // "all", a category id, or "none"
   const [dragId, setDragId] = useState(null);
   const drag = useRef(null);
   const itemDrag = useRef(null);

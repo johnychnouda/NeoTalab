@@ -15,6 +15,7 @@ import { useLiveRefresh } from "@/lib/live";
 import { joinOptionLabel, JOIN_BUSINESS_TYPES, JOIN_LEBANON_REGIONS, JOIN_CITY_OTHER, getLebanonCitiesForRegion } from "@/lib/joinFormOptions";
 import { lebaneseMobileError, toLebaneseWhatsapp } from "@/lib/phone";
 import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
+import { writeUrlParam } from "@/lib/urlParam";
 
 /**
  * Slide-in side panel for a single merchant (Info / Billing / WhatsApp tabs).
@@ -32,12 +33,13 @@ const PI = {
 };
 
 export default function MerchantPanel({ merchant: m, initialTab = "info", api, onClose, onChanged, onConfirm, onModal }) {
-  const [tab, setTab] = useState(initialTab);
+  const [tab, pickTab] = useState(initialTab);
+  const setTab = (id) => { pickTab(id); writeUrlParam("tab", id, "info"); };
   const [mounted, setMounted] = useState(false);
   const toast = useToast();
   const { t } = useLang();
 
-  useEffect(() => { setTab(initialTab); }, [initialTab, m?.id]);
+  useEffect(() => { pickTab(initialTab); }, [initialTab, m?.id]);
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {

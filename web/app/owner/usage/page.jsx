@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui";
 import FormSelect from "@/components/FormSelect";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
+import { useUrlParam } from "@/lib/urlParam";
 
 const usd = (n, digits) => { const v = Number(n || 0); return `$${v.toFixed(digits ?? (v > 0 && v < 1 ? 3 : 2))}`; };
 
@@ -32,7 +33,8 @@ export default function UsagePage() {
   const { api } = useOwner();
   const { t: tr, locale } = useLang();
   const months = lastMonths(locale);
-  const [month, setMonth] = useState(months[0].value);
+  const [monthParam, setMonth] = useUrlParam("month", months[0].value);
+  const month = months.some((x) => x.value === monthParam) ? monthParam : months[0].value;
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 

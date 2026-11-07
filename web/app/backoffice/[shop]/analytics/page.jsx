@@ -8,12 +8,14 @@ import { useLiveRefresh } from "@/lib/live";
 import { formatMoney } from "@/lib/money";
 import { WaLink } from "@/components/ui";
 import { ErrorBanner } from "@/components/owner/ui";
+import { useUrlParam } from "@/lib/urlParam";
 
 export default function AnalyticsPage() {
   const { api, shop } = useMerchant();
   const { t, locale } = useLang();
 
-  const [days, setDays] = useState("30");
+  const [daysParam, setDays] = useUrlParam("days", "30");
+  const days = ["7", "30", "90"].includes(daysParam) ? daysParam : "30";
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 

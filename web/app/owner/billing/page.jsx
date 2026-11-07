@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/owner/ui";
 import { BILLING_FILTERS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
+import { useUrlParam, writeUrlParam } from "@/lib/urlParam";
 import { trialDaysLeft as trialDaysLeftFrom, calendarDaysBetween } from "@/lib/trial";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ export default function BillingPage() {
 
   const [merchants, setMerchants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useUrlParam("filter");
   const [confirm, setConfirm] = useState(null);
   const [remindersModal, setRemindersModal] = useState(false);
   const [paying, setPaying] = useState(null);
@@ -83,9 +84,7 @@ export default function BillingPage() {
         setTimeout(() => row?.classList.remove("action-highlight"), 2500);
       }, 150);
     }
-    if (mid || filterParam) {
-      window.history.replaceState({}, "", "/owner/billing");
-    }
+    if (mid) writeUrlParam("m", null);
   }, [merchants]);
 
   const now = new Date();

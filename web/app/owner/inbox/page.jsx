@@ -12,6 +12,7 @@ import { PageHeader, EmptyState, EMPTY_ICONS } from "@/components/owner/ui";
 import SystemAlerts from "@/components/owner/SystemAlerts";
 import { INBOX_ALERT_FILTERS, INBOX_TABS, pillClass } from "@/lib/pillTones";
 import { useLang } from "@/lib/i18n";
+import { useUrlParam } from "@/lib/urlParam";
 
 const HISTORY_META = {
   merchant: { key: "ow.hist.merchant", color: "var(--green)" },
@@ -58,7 +59,7 @@ function InboxContent() {
   const [alerts, setAlerts] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alertFilter, setAlertFilter] = useState("all");
+  const [alertFilter, setAlertFilter] = useUrlParam("filter", "all");
   const [systemCount, setSystemCount] = useState(0);
 
   const loadAlerts = useCallback(async () => {

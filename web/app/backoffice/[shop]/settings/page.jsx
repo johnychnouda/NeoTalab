@@ -6,6 +6,7 @@ import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
 import { setToken } from "@/lib/api";
 import { useToast } from "@/components/ui";
+import { writeUrlParam } from "@/lib/urlParam";
 import FormSelect from "@/components/FormSelect";
 import Segmented from "@/components/Segmented";
 import LocationPicker, { mapPin } from "@/components/LocationPicker";
@@ -57,7 +58,8 @@ function Settings() {
   const toast = useToast();
   const params = useSearchParams();
 
-  const [picked, setTab] = useState(params.get("tab") || "shop");
+  const [picked, pickTab] = useState(params.get("tab") || "shop");
+  const setTab = (id) => { pickTab(id); writeUrlParam("tab", id, "shop"); };
   const [saved, setSaved] = useState(null);
   const [p, setProfile] = useState(null);
   const [savedHours, setSavedHours] = useState([]);
@@ -88,7 +90,7 @@ function Settings() {
   }, [api, toast]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { const q = params.get("tab"); if (q) setTab(q); }, [params]);
+  useEffect(() => { const q = params.get("tab"); if (q) pickTab(q); }, [params]);
 
   // A new pin (dropped, searched or pasted) fills the governorate and city. The saved pin never does, so a
   // city typed by hand survives a reload. Waits a moment so a pasted link is looked up once, not per letter.
