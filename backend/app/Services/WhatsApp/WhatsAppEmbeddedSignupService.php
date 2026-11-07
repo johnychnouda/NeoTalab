@@ -2,6 +2,7 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Jobs\SubmitShopTemplates;
 use App\Models\Merchant;
 use App\Models\PlatformSetting;
 use App\Services\MerchantBotService;
@@ -91,12 +92,9 @@ class WhatsAppEmbeddedSignupService
             $merchant->save();
         }
 
-        // Submit the owner-notification templates right away so Meta can approve them early.
-        try {
-            app(ShopTemplateService::class)->sync($merchant->fresh());
-        } catch (\Throwable $e) {
-            Log::warning('Template submission after signup failed', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
-        }
+        // Submit the message templates to Meta right away, but after the answer: about a hundred calls
+        // do not fit in this request's 30 seconds.
+        SubmitShopTemplates::dispatch($merchant->id);
 
         return $merchant->fresh();
     }

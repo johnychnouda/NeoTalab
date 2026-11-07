@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SubmitShopTemplates;
 use App\Models\PlatformSetting;
 use App\Models\SystemAlert;
 use App\Services\WhatsApp\WhatsAppInboundService;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
@@ -82,6 +84,27 @@ class WhatsAppEmbeddedSignupTest extends TestCase
         $pin = Crypt::decryptString($merchant->settings['bot']['registration_pin']);
         Http::assertSent(fn ($r) => str_ends_with($r->url(), '987654321012345/register')
             && $r['messaging_product'] === 'whatsapp' && $r['pin'] === $pin);
+    }
+
+    public function test_templates_are_sent_after_the_answer_not_inside_the_signup_request(): void
+    {
+        Queue::fake();
+        Http::fake([
+            'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'EAAX_embedded_token'], 200),
+            'graph.facebook.com/*/123456789/subscribed_apps' => Http::response(['success' => true], 200),
+            'graph.facebook.com/*/987654321012345/register' => Http::response(['success' => true], 200),
+            'graph.facebook.com/*/987654321012345*' => Http::response(['display_phone_number' => '+96171112233', 'verified_name' => 'Test Shop'], 200),
+        ]);
+        [$merchant] = $this->merchantWithUser();
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->postJson("/api/v1/admin/merchants/{$merchant->id}/whatsapp/embedded-signup", [
+                'code' => 'oauth-code-from-meta', 'phoneNumberId' => '987654321012345', 'wabaId' => '123456789',
+            ])
+            ->assertOk();
+
+        Queue::assertPushed(SubmitShopTemplates::class, fn ($job) => $job->merchantId === $merchant->id);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'message_templates'));
     }
 
     public function test_a_number_meta_cannot_register_is_reported(): void
