@@ -9,7 +9,7 @@ test.describe("shop dashboard in Arabic and French", () => {
     test(`${code}: direction ${dir}, main pages fit the screen`, async ({ page, context }) => {
       await context.addCookies([{ name: "nt_lang", value: code, url: "http://localhost:3001" }]);
       const problems = watchPage(page);
-      for (const path of [`/backoffice/${slug}`, `/backoffice/${slug}/menu`, `/backoffice/${slug}/drivers`, `/backoffice/${slug}/analytics`, `/backoffice/${slug}/settings`]) {
+      for (const path of [`/backoffice/${slug}`, `/backoffice/${slug}/menu`, `/backoffice/${slug}/drivers`, `/backoffice/${slug}/settings`]) {
         await page.goto(path);
         await page.waitForLoadState("networkidle");
         await expect(page.locator("html")).toHaveAttribute("dir", dir);

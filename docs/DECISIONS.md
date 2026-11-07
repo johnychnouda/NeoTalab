@@ -323,3 +323,10 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   or prices; an answer is kept for a week; a failure or a note already in that language leaves it as written. Never
   used for messages to customers. Setting: `AI_TRANSLATE_MODEL` (empty = the chat model), `AI_TRANSLATE_TIMEOUT`.
 - **Not translated:** the typed delivery address and menu item names stay as written.
+
+## No Reports page in the shop dashboard (7 November)
+
+- **The owner's decision:** the shop dashboard no longer has a Reports page (sales, best sellers, ratings). The sidebar
+  link is gone, and `/backoffice/<shop>/analytics` sends an old link or bookmark to the shop's home.
+- **Kept:** the nightly report the shop gets on WhatsApp and its settings (Settings → Reports & chats), the server route
+  `analytics/dashboard`, and all order data. Only the page was removed.
