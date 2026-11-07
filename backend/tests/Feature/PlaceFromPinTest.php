@@ -113,4 +113,32 @@ class PlaceFromPinTest extends TestCase
             ->assertJsonPath('profile.region', 'South Lebanon')
             ->assertJsonPath('profile.city', 'Sidon');
     }
+
+    public function test_the_pasted_google_link_is_kept_so_the_button_opens_the_shop_page(): void
+    {
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+        $admin = $this->tokenFor($this->platformAdmin());
+        $place = 'https://www.google.com/maps/place/Example+Shop/@33.9,35.5,17z/data=!3d33.8938!4d35.5018';
+
+        $this->withToken($admin)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['location' => $place])
+            ->assertOk()
+            ->assertJsonPath('merchant.shop_location', '33.8938,35.5018')
+            ->assertJsonPath('merchant.map_url', $place);
+
+        // Typing plain numbers afterwards drops the old link: the button opens the new pin.
+        $this->withToken($admin)->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['location' => '33.9000,35.5100'])
+            ->assertOk()
+            ->assertJsonPath('merchant.map_url', 'https://www.google.com/maps?q=33.9,35.51');
+    }
+
+    public function test_a_link_that_is_not_google_is_refused_and_never_kept(): void
+    {
+        [$merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER);
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->patchJson("/api/v1/admin/merchants/{$merchant->id}", ['location' => 'https://evil.example/x'])
+            ->assertUnprocessable();
+
+        $this->assertArrayNotHasKey('shop_location_url', Merchant::find($merchant->id)->settings ?? []);
+    }
 }

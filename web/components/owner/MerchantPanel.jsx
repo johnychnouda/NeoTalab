@@ -677,9 +677,9 @@ function EditShopModal({ t, m, api, toast, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const cities = getLebanonCitiesForRegion(region);
   const locationChanged = location.trim() !== (m.shop_location || "");
-  // The saved pin opens on Google Maps in one tap; a pasted link opens as it is.
+  // The saved Google link (the shop's own page) opens in one tap; without one, the pin; a link being pasted opens as it is.
   const point = parsePin(location);
-  const mapsHref = point ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : /^https?:\/\//i.test(location.trim()) ? location.trim() : "";
+  const mapsHref = !locationChanged && m.map_url ? m.map_url : point ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : /^https?:\/\//i.test(location.trim()) ? location.trim() : "";
 
   // The pin (a pasted Google Maps link or the saved pin) gives the governorate and city.
   async function lookupArea(value) {

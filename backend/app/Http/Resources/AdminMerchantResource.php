@@ -63,7 +63,7 @@ class AdminMerchantResource extends JsonResource
                     : null,
             'fee_history' => array_reverse($settings['fee_history'] ?? []),
             'shop_location' => $settings['shop_location'] ?? null,
-            'map_url' => MapLocation::mapsUrl((string) ($settings['shop_location'] ?? '')),
+            'map_url' => ($settings['shop_location_url'] ?? null) ?: MapLocation::mapsUrl((string) ($settings['shop_location'] ?? '')),
             'bot_status' => $bot['status'] ?? 'inactive',
             'bot_phone_id' => $bot['phone_id'] ?? null,
             'bot_display_phone' => $bot['display_phone_number'] ?? null,

@@ -52,6 +52,16 @@ class MapLocation
         return null;
     }
 
+    /** The Google Maps link inside what was pasted (the shop's own page), or null when there is none. */
+    public static function googleLink(string $input): ?string
+    {
+        if (! preg_match('~https?://\S+~i', $input, $m)) {
+            return null;
+        }
+
+        return self::isGoogle($m[0]) ? $m[0] : null;
+    }
+
     /** A link that opens this pin in Google Maps, or null when the text has no coordinates. */
     public static function mapsUrl(string $latLng): ?string
     {

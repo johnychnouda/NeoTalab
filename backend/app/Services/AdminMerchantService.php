@@ -128,12 +128,21 @@ class AdminMerchantService
             $raw = trim((string) $this->pick($payload, 'location'));
             if ($raw === '') {
                 $settings['shop_location'] = null;
+                unset($settings['shop_location_url']);
             } else {
                 $pin = MapLocation::resolve($raw);
                 if (! $pin) {
                     throw ValidationException::withMessages(['location' => ['No location found in this link. Paste a Google Maps link or the numbers of the pin.']]);
                 }
                 $settings['shop_location'] = $pin;
+
+                // The Google link itself is kept, so the owner's button opens the shop's own page, not a bare pin.
+                $link = MapLocation::googleLink($raw);
+                if ($link) {
+                    $settings['shop_location_url'] = $link;
+                } else {
+                    unset($settings['shop_location_url']);
+                }
             }
         }
 
