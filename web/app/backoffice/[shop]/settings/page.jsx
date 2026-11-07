@@ -294,7 +294,7 @@ function Settings() {
         <Card title={t("db.set.tab.hours")} desc={t("db.set.hoursDesc")}
           action={<button type="button" className="btn-sm" onClick={copyHours} disabled={!hours.some((h) => !h.isClosed)}>{t("db.set.copyAll")}</button>}>
           <ul className="sset-hours">
-            {hours.map((h) => {
+            {[...hours].sort((a, b) => ((a.dayOfWeek + 6) % 7) - ((b.dayOfWeek + 6) % 7)).map((h) => {
               const update = (patch) => setHours(hours.map((x) => (x.dayOfWeek === h.dayOfWeek ? { ...x, ...patch } : x)));
               const day = t(`db.day.${h.dayOfWeek}`);
               return (
