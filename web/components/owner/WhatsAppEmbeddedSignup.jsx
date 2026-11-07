@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLang } from "@/lib/i18n";
 
 const FB_SDK_URL = "https://connect.facebook.net/en_US/sdk.js";
-const SIGNUP_TIMEOUT_MS = 180000;
+const SIGNUP_TIMEOUT_MS = 15 * 60 * 1000;
 const POPUP_WATCH_MS = 4000;
 
 let sdkPromise = null;
