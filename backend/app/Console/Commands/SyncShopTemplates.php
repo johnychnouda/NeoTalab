@@ -22,7 +22,8 @@ class SyncShopTemplates extends Command
             Log::warning('Platform template sync failed', ['error' => $e->getMessage()]);
         }
 
-        foreach (Merchant::query()->where('status', 'active')->get() as $merchant) {
+        // A suspended shop is still connected and must be ready the day it is switched back on.
+        foreach (Merchant::query()->whereIn('status', ['active', 'suspended'])->get() as $merchant) {
             try {
                 $templates->sync($merchant);
             } catch (\Throwable $e) {
