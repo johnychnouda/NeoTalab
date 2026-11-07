@@ -283,3 +283,23 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   stand-in map (`e2e/zone-drag.spec.js`) because Google's key works only on neotalab.com; check the real drag on
   the live site after a change to `ZoneEditor`.
 
+
+## Shops connect their own WhatsApp number (7 November)
+
+- **The shop owner connects, not NeoTalab.** The shop dashboard's home shows a "Connect WhatsApp" step while the shop has
+  no number. The owner signs in to Facebook, confirms the number with Meta's SMS code and adds a payment card on the
+  last screen of the same window. The WhatsApp account is then created in the shop's own Meta business, so NeoTalab
+  never needs access to it and never touches the card (shops pay Meta's message fees themselves).
+- **Safe by design:** only the shop's owner or admin can do it (`settings/whatsapp/embedded-signup`); only for its own
+  shop; only while it has no number (changing a connected number stays with the NeoTalab owner, with the button in
+  Merchants → shop → WhatsApp); a number another shop already uses is refused. A failed signup writes its reason to
+  Owner → Inbox → System.
+- **The owner's Connect button was removed** from Merchants → shop → WhatsApp (the owner's decision: the shop connects
+  and pays for itself). It now says the shop connects its own number. The server route behind it
+  (`admin/merchants/{id}/whatsapp/embedded-signup`) is still there. If Meta blocks outside shop owners until NeoTalab's
+  Access Verification (Tech Provider) is finished, or refuses a shop owner's Facebook account, the button can be put back.
+- **Not tested against real Meta:** the Facebook window can only be tried by a real shop owner. The server side is
+  tested with a stand-in Meta (`ShopWhatsAppSignupTest`).
+- **Two limits fixed on the way:** the signup request used to run past PHP's 30 seconds because it also sent about a
+  hundred templates to Meta (now a queued job, `SubmitShopTemplates`); the page gave up on the Facebook window after
+  3 minutes (now 15), which lost the finish message.

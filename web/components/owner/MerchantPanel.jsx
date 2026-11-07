@@ -14,7 +14,6 @@ import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
 import { joinOptionLabel, JOIN_BUSINESS_TYPES, JOIN_LEBANON_REGIONS, JOIN_CITY_OTHER, getLebanonCitiesForRegion } from "@/lib/joinFormOptions";
 import { lebaneseMobileError, toLebaneseWhatsapp } from "@/lib/phone";
-import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 import { writeUrlParam } from "@/lib/urlParam";
 import { parsePin } from "@/lib/googleMaps";
 
@@ -525,13 +524,6 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
   const credsOk = !!(m.bot_phone_id && (m.bot_token || m.bot_connected_via === "embedded_signup" || m.bot_connected_via === "manual"));
   const botOn = m.bot_mode !== "manual";
 
-  function handleConnected(merchant) {
-    if (!merchant) return;
-    logActivity("bot", t("ow.log.connected", { shop: m.shop_name }));
-    onChanged(merchant);
-    setTimeout(testConnection, 800);
-  }
-
   async function restart() {
     try {
       await api("POST", `/admin/merchants/${m.id}/bot/restart`);
@@ -576,15 +568,13 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
     setTesting(false);
   }
 
-  const reconnect = () => document.getElementById(`wa-embedded-signup-${m.id}`)?.click();
   const metaStatus = { label: `↗ ${t("ow.wa.metaStatus")}`, action: () => window.open("https://metastatus.com", "_blank") };
   let quickFixes = [];
   if (isError) {
     const err = (m.bot_error || "").toLowerCase();
     if (err.match(/401|token|unauthorized|expired/)) {
       quickFixes = [
-        { label: `🔄 ${t("ow.wa.reconnect")}`, primary: true, action: reconnect },
-        { label: "↗ Meta Business Suite", action: () => window.open("https://business.facebook.com/settings/whatsapp-business-accounts", "_blank") },
+        { label: "↗ Meta Business Suite", primary: true, action: () => window.open("https://business.facebook.com/settings/whatsapp-business-accounts", "_blank") },
       ];
     } else if (err.match(/webhook|not responding|no messages/)) {
       quickFixes = [
@@ -592,7 +582,7 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
         { label: t("ow.wa.webhook"), action: reRegisterWebhook },
       ];
     } else if (err.match(/missing|credentials|phone number id/)) {
-      quickFixes = [{ label: t("ow.wa.connect"), primary: true, action: reconnect }];
+      quickFixes = [];
     } else if (err.match(/banned|disabled|spam/)) {
       quickFixes = [
         { label: t("ow.wa.switchNumber"), primary: true, action: () => onModal({ type: "switchNumber", merchant: m }) },
@@ -630,16 +620,7 @@ function BotTab({ t, m, api, toast, onChanged, onModal }) {
         {isError && m.bot_error && <div className="pc-note warn">{m.bot_error}</div>}
       </div>
 
-      {!credsOk && (
-        <WhatsAppEmbeddedSignup
-          merchantId={m.id}
-          api={api}
-          toast={toast}
-          connected={credsOk}
-          buttonId={`wa-embedded-signup-${m.id}`}
-          onConnected={handleConnected}
-        />
-      )}
+      {!credsOk && <div className="pc-note">{t("ow.wa.shopConnects")}</div>}
 
       {credsOk && isError && quickFixes.length > 0 && (
         <div className="pv-actions">

@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\PublicOnboardingController;
 use App\Http\Controllers\Api\V1\PublicPlanController;
 use App\Http\Controllers\Api\V1\ServiceProviderController;
 use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\ShopWhatsAppSignupController;
 use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
 use App\Support\Roles;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,8 @@ Route::prefix('v1')->group(function () {
             Route::patch('profile', [SettingsController::class, 'updateProfile'])->middleware("role:{$managerRoles}");
             Route::patch('mode', [SettingsController::class, 'updateMode'])->middleware("role:{$managerRoles}");
             Route::post('locate', [SettingsController::class, 'locate'])->middleware("role:{$managerRoles}");
+            Route::get('whatsapp/embedded-signup/config', [ShopWhatsAppSignupController::class, 'config'])->middleware("role:{$managerRoles}");
+            Route::post('whatsapp/embedded-signup', [ShopWhatsAppSignupController::class, 'connect'])->middleware("role:{$managerRoles}");
             Route::get('hours', [SettingsController::class, 'hours']);
             Route::put('hours', [SettingsController::class, 'replaceHours'])->middleware("role:{$managerRoles}");
             Route::get('zones', [SettingsController::class, 'zones']);

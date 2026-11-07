@@ -86,6 +86,8 @@ export default function WhatsAppEmbeddedSignup({
   // Where the signup result is sent; defaults to the shop's number. NeoTalab's own number uses
   // /admin/whatsapp/platform/embedded-signup.
   endpoint,
+  // Where the Facebook window's settings come from: the shop's own, or the owner portal's.
+  configEndpoint = "/admin/whatsapp/embedded-signup/config",
 }) {
   const { t } = useLang();
   // Callbacks below are memoised; read the translator through a ref so they always use the current language.
@@ -130,7 +132,7 @@ export default function WhatsAppEmbeddedSignup({
     let cancelled = false;
     (async () => {
       try {
-        const data = await api("GET", "/admin/whatsapp/embedded-signup/config");
+        const data = await api("GET", configEndpoint);
         if (cancelled) return;
         setConfig(data);
         if (data?.enabled && data?.appId) {
@@ -149,7 +151,7 @@ export default function WhatsAppEmbeddedSignup({
         listenerRef.current = null;
       }
     };
-  }, [api, clearSignupTimeout]);
+  }, [api, configEndpoint, clearSignupTimeout]);
 
   const finishSignup = useCallback(async () => {
     const { code, phoneNumberId, wabaId, coexistence } = signupRef.current;

@@ -2229,6 +2229,9 @@ button.wa-mic { border: 0; cursor: pointer; }
 .gs-banner.ok { border-color: #25d36655; background: linear-gradient(180deg, #25d3660f, var(--surface) 70%); }
 .gs-banner strong { display: block; font-size: 15px; margin-bottom: 4px; }
 .gs-wa { font-size: 13px; color: var(--text-muted); }
+.gs-connect { padding: 18px 20px; border-radius: 16px; border: 1px solid #25d36655; background: var(--surface); margin: -10px 0 26px; }
+.gs-connect h2 { font-size: 15px; margin: 0 0 4px; }
+.gs-connect p { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 14px; max-width: 560px; }
 .gs-wa.ok { color: var(--text); }
 .gs-plan { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: -14px 0 26px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
 .gs-plan.soon { border-color: #f59e0b55; background: #f59e0b0d; }

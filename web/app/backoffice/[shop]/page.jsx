@@ -9,6 +9,8 @@ import { ErrorBanner } from "@/components/owner/ui";
 import { formatMoney } from "@/lib/money";
 import { company } from "@/lib/company";
 import { daysUntil } from "@/lib/trial";
+import { useToast } from "@/components/ui";
+import WhatsAppEmbeddedSignup from "@/components/owner/WhatsAppEmbeddedSignup";
 
 /** Where each setup step is done in the dashboard (WhatsApp is connected by NeoTalab). */
 const WHERE = {
@@ -22,6 +24,7 @@ const WHERE = {
 export default function ShopHome() {
   const { api, shopSlug, shopName, shop } = useMerchant();
   const { t, locale } = useLang();
+  const toast = useToast();
   const [setup, setSetup] = useState(null);
   const [error, setError] = useState("");
 
@@ -76,6 +79,23 @@ export default function ShopHome() {
           </p>
         </div>
       </section>
+
+      {!setup.whatsapp_connected && (
+        <section className="gs-connect">
+          <h2>{t("db.step.whatsapp")}</h2>
+          <p>{t("db.step.whatsapp.desc")}</p>
+          <WhatsAppEmbeddedSignup
+            api={api}
+            toast={toast}
+            endpoint="/settings/whatsapp/embedded-signup"
+            configEndpoint="/settings/whatsapp/embedded-signup/config"
+            label={t("db.wa.connectBtn")}
+            buttonId="wa-embedded-signup-shop"
+            quiet
+            onConnected={load}
+          />
+        </section>
+      )}
 
       <Plan sub={shop.subscription} shopName={shopName} t={t} locale={locale} />
       <MetaFees url={setup.meta_payment_url} t={t} />
