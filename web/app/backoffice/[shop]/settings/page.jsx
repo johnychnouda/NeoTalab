@@ -15,6 +15,14 @@ import ZoneEditor from "@/components/ZoneEditor";
 import { JOIN_LEBANON_REGIONS } from "@/lib/joinFormOptions";
 
 const LBP_RATE = 89500;
+
+const iconProps = { viewBox: "0 0 24 24", width: 22, height: 22, fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+/** Drawn icons for the three ways customers get an order. */
+const FULFILLMENT_ICONS = {
+  delivery: <svg {...iconProps}><circle cx="6" cy="17" r="2.5" /><circle cx="18" cy="17" r="2.5" /><path d="M8.5 17h5l2-7h-3M15.5 10l1.5 7M6 17l-1-5h5" /></svg>,
+  pickup: <svg {...iconProps}><path d="M4 9l1.5-5h13L20 9M4 9v10h16V9M4 9h16M9 19v-5h6v5" /></svg>,
+  both: <svg {...iconProps}><path d="M7 7h12l-3-3M17 17H5l3 3" /></svg>,
+};
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
 /**
@@ -61,6 +69,7 @@ function Settings() {
   const [picked, pickTab] = useState(params.get("tab") || "shop");
   const setTab = (id) => { pickTab(id); writeUrlParam("tab", id, "shop"); };
   const [saved, setSaved] = useState(null);
+  const [editArea, setEditArea] = useState(false);
   const [p, setProfile] = useState(null);
   const [savedHours, setSavedHours] = useState([]);
   const [hours, setHours] = useState([]);
@@ -125,6 +134,9 @@ function Settings() {
   const delivers = !bookingsOnly && (p.fulfillment || "delivery") !== "pickup";
   const pickup = !bookingsOnly && ["pickup", "both"].includes(p.fulfillment);
   const unit = p.timing_unit || "minutes";
+  // Governorate and city come from the map pin: one line, with a way to change them.
+  const regionLabel = JOIN_LEBANON_REGIONS.find((o) => o.value === p.region)?.labelKey;
+  const areaKnown = !!(p.region || p.city);
   const lbpOn = Number(p.lbp_rate) > 0;
   const kind = p.business_kind || "other";
   const showQuotes = !["restaurant", "grocery", "water"].includes(kind) || !!p.quotes;
@@ -227,22 +239,43 @@ function Settings() {
         {p.business_mode && p.business_mode !== "orders" && <TeamCard api={api} t={t} toast={toast} />}
 
         {!bookingsOnly && (<>
-          <Card title={t("db.set.card.getting")}>
-            <Field id="o-ful" label={t("ops.fulfillment")}>
-              <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
-                options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: { delivery: "🛵", pickup: "🏪", both: "🔁" }[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
+          <Card title={t("ops.fulfillment")} desc={t("ops.fulfillmentDesc")}>
+            <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
+              options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: FULFILLMENT_ICONS[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
+            {delivers && (
+              <button type="button" className="sset-next" onClick={() => setTab("areas")}>{t("ops.nextAreas")}</button>
+            )}
+          </Card>
+
+          <Card title={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
+            desc={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupDesc" : "ops.shopLocationHint")}>
+            {pickup && (
+              <Field id="o-paddr" label={t("ops.pickupLine")}>
+                <input id="o-paddr" maxLength={300} value={p.pickup_address || ""} placeholder={t("ops.pickupLinePh")} onChange={(e) => setP("pickup_address", e.target.value)} />
+              </Field>
+            )}
+            <Field id="o-loc" label={t("ops.pinLabel")} hint={pickup && !delivers ? t("ops.pickupMapHint") : undefined}>
+              <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} compact />
             </Field>
-            <Field id="o-loc" label={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
-              hint={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupMapHint" : "ops.shopLocationHint")}>
-              <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} />
-            </Field>
-            <Field id="o-region" label={t("jn.region")} hint={t("ops.areaHint")}>
-              <FormSelect id="o-region" value={p.region || ""} onChange={(v) => setP("region", v)} aria-label={t("jn.region")}
-                options={[{ value: "", label: t("jn.ph.region") }, ...JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))]} />
-            </Field>
-            <Field id="o-city" label={t("jn.city")}>
-              <input id="o-city" value={p.city || ""} onChange={(e) => setP("city", e.target.value)} placeholder={t("jn.cityOther")} />
-            </Field>
+            {areaKnown && !editArea ? (
+              <div className="sset-area">
+                <span><span className="sset-area-k">{t("ops.areaLine")}</span> {[regionLabel && t(regionLabel), p.city].filter(Boolean).join(" · ")}</span>
+                <button type="button" className="set-link set-link-btn" onClick={() => setEditArea(true)}>{t("ops.changeArea")}</button>
+              </div>
+            ) : (
+              <>
+                <Field id="o-region" label={t("jn.region")} hint={t("ops.areaHint")}>
+                  <FormSelect id="o-region" value={p.region || ""} onChange={(v) => setP("region", v)} aria-label={t("jn.region")}
+                    options={[{ value: "", label: t("jn.ph.region") }, ...JOIN_LEBANON_REGIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))]} />
+                </Field>
+                <Field id="o-city" label={t("jn.city")}>
+                  <input id="o-city" value={p.city || ""} onChange={(e) => setP("city", e.target.value)} placeholder={t("jn.cityOther")} />
+                </Field>
+              </>
+            )}
+          </Card>
+
+          <Card title={t("ops.timing")} desc={t("ops.timingDesc")}>
             {unit === "minutes" && (
               <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>
                 <input id="o-prep" type="number" min="1" max="240" value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />

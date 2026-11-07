@@ -2626,6 +2626,10 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset-field input[aria-invalid="true"] { border-color: var(--red); }
 .sset-field input::placeholder { color: #93a59b80; }
 .sset-field.narrow input, .sset-field.narrow select { max-width: 160px; }
+.sset-next { display: block; margin-top: 12px; padding: 10px 12px; width: 100%; text-align: start; font-size: 13px; color: var(--text); cursor: pointer; border: 1px solid #25d36640; background: var(--green-dim); border-radius: 8px; transition: border-color 0.15s; }
+.sset-next:hover { border-color: var(--green); }
+.sset-area { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; }
+.sset-area-k { color: var(--text-muted); }
 .sset-hint { margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 .sset-inline { display: flex; align-items: center; gap: 10px; color: var(--text-muted); }
 .sset-inline input { max-width: 90px; }
