@@ -32,8 +32,8 @@ class NotifyDriverOfAssignment implements ShouldQueue
             return;
         }
 
-        $locale = $merchant->locale ?? 'en';
-        $body = __('whatsapp.driver.assigned', OrderMessage::forDriver($order, $merchant, $locale), $locale);
+        $locale = $order->driver->languageFor($merchant);
+        $body = __('whatsapp.driver.assigned', OrderMessage::forDriver($order, $merchant, $locale, $locale), $locale);
 
         try {
             $this->sendMessageAs($merchant, $to, [

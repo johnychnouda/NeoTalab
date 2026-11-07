@@ -15,6 +15,7 @@ class Driver extends Model
         'merchant_id',
         'name',
         'role',
+        'locale',
         'phone',
         'whatsapp_number',
         'password',
@@ -29,6 +30,12 @@ class Driver extends Model
     ];
 
     protected $hidden = ['password'];
+
+    /** The language this person reads WhatsApp in: their own choice, else the shop's. */
+    public function languageFor(Merchant $merchant): string
+    {
+        return in_array($this->locale, ['en', 'ar', 'fr'], true) ? $this->locale : ($merchant->locale ?? 'en');
+    }
 
     protected function casts(): array
     {

@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Merchant;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Services\AI\Contracts\TextTranslator;
 
 /**
  * Builds the placeholder values shared by order texts sent to shops and drivers.
@@ -11,9 +13,11 @@ use App\Models\Order;
 final class OrderMessage
 {
     /**
+     * @param  string|null  $translateTo  a team member's language: the customer's item notes are then shown translated into it,
+     *                                    with what the customer wrote beside it. Never used for messages to customers.
      * @return array<string, string>
      */
-    public static function params(Order $order, Merchant $merchant, ?string $locale = null): array
+    public static function params(Order $order, Merchant $merchant, ?string $locale = null, ?string $translateTo = null): array
     {
         $order->loadMissing(['items', 'customer']);
         $locale ??= $merchant->locale ?? 'en';
@@ -25,7 +29,7 @@ final class OrderMessage
             'currency' => (string) $merchant->currency,
             'payment' => __($order->payment_method === 'whish' ? 'whatsapp.staff.pay_whish' : 'whatsapp.staff.pay_cash', [], $locale),
             'items' => $order->items
-                ->map(fn ($i) => '• '.Quantity::line($i->quantity, $i->unit, $i->product_name).($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
+                ->map(fn ($i) => '• '.Quantity::line($i->quantity, $i->unit, self::lineName($i, $translateTo)).($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
                 ->implode("\n").self::extras($order, $merchant, $locale),
             'address' => self::addressWithPin($order),
             'phone' => self::phone($order->customer?->phone),
@@ -34,6 +38,23 @@ final class OrderMessage
                 ? __('whatsapp.checkout.lbp', ['amount' => number_format((float) $order->total_lbp)], $locale)
                 : '',
         ];
+    }
+
+    /**
+     * The item's name, with the customer's note translated when it is shown to someone who reads another language:
+     * "Shawarma — بدون بصل (no onions)". A note that is already in that language, or cannot be translated, stays as written.
+     */
+    private static function lineName(OrderItem $item, ?string $translateTo): string
+    {
+        $note = trim((string) $item->note);
+        $suffix = " — {$note}";
+        if ($translateTo === null || $note === '' || ! str_ends_with($item->product_name, $suffix)) {
+            return $item->product_name;
+        }
+
+        $translated = app(TextTranslator::class)->translate($note, $translateTo, $item->merchant_id);
+
+        return $translated === null ? $item->product_name : substr($item->product_name, 0, -strlen($suffix))." — {$translated} ({$note})";
     }
 
     /** Lines under the items: the time the customer chose. */
@@ -82,10 +103,10 @@ final class OrderMessage
      *
      * @return array<string, string>
      */
-    public static function forDriver(Order $order, Merchant $merchant, ?string $locale = null): array
+    public static function forDriver(Order $order, Merchant $merchant, ?string $locale = null, ?string $translateTo = null): array
     {
         $locale ??= $merchant->locale ?? 'en';
-        $params = self::params($order, $merchant, $locale);
+        $params = self::params($order, $merchant, $locale, $translateTo);
         $params['collect'] = $order->payment_method === 'whish'
             ? __('whatsapp.driver.paid_whish', [], $locale)
             : __('whatsapp.driver.collect_cash', ['amount' => $params['collect']], $locale);

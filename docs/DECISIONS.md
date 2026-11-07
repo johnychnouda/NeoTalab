@@ -303,3 +303,23 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
 - **Two limits fixed on the way:** the signup request used to run past PHP's 30 seconds because it also sent about a
   hundred templates to Meta (now a queued job, `SubmitShopTemplates`); the page gave up on the Facebook window after
   3 minutes (now 15), which lost the finish message.
+
+## Each team member's own language, and translated notes (7 November)
+
+- **Found with the first real shop:** the merchant and the driver read WhatsApp in Arabic but got English, because every
+  team message used one language for the whole shop (`merchants.locale`, which the dashboard's EN/AR/FR switch also
+  changes). The customer got Arabic because they typed Arabic: customers follow what they type (never the language of
+  their WhatsApp app, which Meta does not tell us), and that stays.
+- **Per person:** `drivers.locale` (en, ar, fr, or empty = the shop's language), chosen on the Team page. Order tickets,
+  delivery jobs, cancellations, booking tickets, alerts and the replies to a driver or staff member use it
+  (`Driver::languageFor`, `StaffMessenger::localeOf`). One ticket is built per recipient. Existing members keep the
+  shop's language until someone picks.
+- **Templates:** outside the 24-hour window a member gets the template in their language when it is approved, and the
+  English one when it is not. Only five English templates had reached Meta for the first shop (the signup request ran
+  out of time, see the previous entry); the Arabic and French ones follow with the hourly `templates:sync`.
+- **Translated notes:** a customer's note on an item ("no onions") is kept in `order_items.note` and shown to a team
+  member who reads another language as `Shawarma — بدون بصل (no onions)`: translation first, original beside it.
+  `TextTranslator` (`OpenAiTextTranslator`, `FakeTextTranslator` in tests) sends only the note, never names, addresses
+  or prices; an answer is kept for a week; a failure or a note already in that language leaves it as written. Never
+  used for messages to customers. Setting: `AI_TRANSLATE_MODEL` (empty = the chat model), `AI_TRANSLATE_TIMEOUT`.
+- **Not translated:** the typed delivery address and menu item names stay as written.

@@ -26,6 +26,12 @@ class StaffMessenger
         protected ShopTemplateService $templates,
     ) {}
 
+    /** The language this team member reads WhatsApp in: their own choice, else the shop's. */
+    public function localeOf(Merchant $merchant, Driver $member): string
+    {
+        return $member->languageFor($merchant);
+    }
+
     /** True when the staff member wrote to the shop number inside the 24-hour window. */
     public function inWindow(Merchant $merchant, Driver $member): bool
     {
@@ -133,7 +139,7 @@ class StaffMessenger
                     ], $buttons)],
                 ],
             ];
-        } elseif ($template !== null && ($approved = $this->templates->resolve($merchant, $template))) {
+        } elseif ($template !== null && ($approved = $this->templates->resolve($merchant, $template, $this->localeOf($merchant, $member)))) {
             $message = ShopTemplateService::message($approved['name'], $templateParams, array_column($buttons, 0), $approved['language']);
         } else {
             Log::info('Staff member outside the 24-hour window and the template is not approved yet', [

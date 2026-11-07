@@ -29,7 +29,7 @@ class NotifyDriverOfCancellation implements ShouldQueue
         }
 
         try {
-            $this->sendAs($merchant, $to, __('whatsapp.driver.cancelled', ['number' => $order->number], $merchant->locale ?? 'en'));
+            $this->sendAs($merchant, $to, __('whatsapp.driver.cancelled', ['number' => $order->number], $driver->languageFor($merchant)));
         } catch (\Throwable $e) {
             Log::warning('Driver cancellation message failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }

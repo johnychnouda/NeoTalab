@@ -46,6 +46,16 @@ return [
         'min_items' => (int) env('AI_CATALOG_MIN_ITEMS', 15),
     ],
 
+    /*
+    | A customer's note on an item ("no onions") is translated for team members who read another
+    | language. model: empty uses the chat model. fake: test texts as ['note' => ['ar' => 'translation']].
+    */
+    'translate' => [
+        'model' => env('AI_TRANSLATE_MODEL'),
+        'timeout' => (int) env('AI_TRANSLATE_TIMEOUT', 8),
+        'fake' => [],
+    ],
+
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),

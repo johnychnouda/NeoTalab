@@ -45,7 +45,7 @@ class DriverBotService
 
         return Driver::query()
             ->where('is_active', true)
-            ->get(['id', 'merchant_id', 'name', 'role', 'phone', 'whatsapp_number', 'status', 'active_order_id', 'shift_started_at'])
+            ->get(['id', 'merchant_id', 'name', 'role', 'locale', 'phone', 'whatsapp_number', 'status', 'active_order_id', 'shift_started_at'])
             ->first(fn (Driver $d) => in_array($digits, [
                 preg_replace('/\D+/', '', (string) $d->whatsapp_number),
                 preg_replace('/\D+/', '', (string) $d->phone),
@@ -57,7 +57,7 @@ class DriverBotService
      */
     public function handle(Merchant $merchant, Driver $driver, array $msg): void
     {
-        $locale = $merchant->locale ?? 'en';
+        $locale = $driver->languageFor($merchant);
         $to = $driver->whatsapp_number ?: $driver->phone;
 
         if ($driver->role === 'staff') {

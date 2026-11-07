@@ -27,16 +27,15 @@ class NotifyStaffOfAppointment implements ShouldQueue
             return;
         }
 
-        $locale = $merchant->locale ?? 'en';
-        $params = $this->appointmentParams($appointment, $merchant);
-        $body = __('whatsapp.appointment.staff_new', $params, $locale);
-        $buttons = [
-            ["stf:appt_completed:{$appointment->id}", __('whatsapp.appointment.button_done', [], $locale)],
-            ["stf:appt_no_show:{$appointment->id}", __('whatsapp.appointment.button_no_show', [], $locale)],
-            ["stf:appt_change:{$appointment->id}", __('whatsapp.appointment.button_change', [], $locale)],
-        ];
-
         foreach ($messenger->managers($merchant) as $member) {
+            $locale = $messenger->localeOf($merchant, $member);
+            $params = $this->appointmentParams($appointment, $merchant, $locale);
+            $body = __('whatsapp.appointment.staff_new', $params, $locale);
+            $buttons = [
+                ["stf:appt_completed:{$appointment->id}", __('whatsapp.appointment.button_done', [], $locale)],
+                ["stf:appt_no_show:{$appointment->id}", __('whatsapp.appointment.button_no_show', [], $locale)],
+                ["stf:appt_change:{$appointment->id}", __('whatsapp.appointment.button_change', [], $locale)],
+            ];
             $messenger->send($merchant, $member, $body, $buttons, ShopTemplateService::NEW_BOOKING, [
                 $params['shop'], $params['service'], $params['date'], $params['time'], $params['price'], $params['phone'],
             ]);

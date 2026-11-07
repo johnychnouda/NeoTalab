@@ -38,61 +38,20 @@ class NotifyStaffOfOrder implements ShouldQueue
             return;
         }
 
-        $locale = $merchant->locale ?? 'en';
-        $pickup = $order->fulfillment === 'pickup';
-        $params = OrderMessage::params($order, $merchant, $locale);
-
-        $body = __($pickup ? 'whatsapp.staff.new_order_pickup' : 'whatsapp.staff.new_order_delivery', $params, $locale);
-
-        $buttons = $pickup
-            ? [['stf:ready', __('whatsapp.staff.button_ready', [], $locale)], ['stf:delivered', __('whatsapp.staff.button_collected', [], $locale)]]
-            : [['stf:picked_up', __('whatsapp.staff.button_out', [], $locale)], ['stf:delivered', __('whatsapp.staff.button_delivered', [], $locale)]];
-        $template = null;
-        $templateParams = [];
-
-        // Waiting for the shop: Accept (with the shop's usual time) or Can't take it.
         $waiting = $order->status === 'placed';
-        if ($waiting) {
-            if ($this->reminder) {
-                $body = __('whatsapp.staff.still_waiting', ['number' => $order->number], $locale)."\n".$body;
-            }
-            $time = app(OrderTiming::class)->label($merchant, $locale);
-            $buttons = [
-                ['stf:accept', __('whatsapp.staff.button_accept', ['time' => $time], $locale)],
-                ['stf:reject', __('whatsapp.staff.button_reject', [], $locale)],
-            ];
-            $template = ShopTemplateService::NEW_ORDER;
-            // The ticket without its first line ("🔔 New order #12 — Shop"), which the template already says.
-            $details = implode("\n", array_slice(explode("\n", $body), $this->reminder ? 2 : 1));
-            $templateParams = [(string) $order->number, $merchant->name, StaffMessenger::oneLine($details), $time];
-        } elseif ($this->reminder) {
+        if (! $waiting && $this->reminder) {
             return;
-        } else {
-            // Accepted (and paid, for Whish): the ticket says it is time to prepare, and who delivers.
-            $paid = $order->payment_method === 'whish' && $order->payment_status === 'paid';
-            $lines = explode("\n", $body);
-            $lines[0] = __($paid ? 'whatsapp.staff.paid_go' : 'whatsapp.staff.confirmed_go', ['number' => $params['number']], $locale);
-            if ($pickup) {
-                $lines[] = __('whatsapp.staff.pickup_note', [], $locale);
-            } elseif ($order->driver) {
-                $lines[] = __('whatsapp.staff.driver_takes', ['driver' => $order->driver->name], $locale);
-            }
-            $body = implode("\n", $lines);
         }
 
-        $recipients = $messenger->staff($merchant);
-        if ($waiting || $this->reminder || ! app(JobStageService::class)->enabled($merchant)) {
-            $buttons = array_map(fn ($b) => ["{$b[0]}:{$order->id}", $b[1]], $buttons);
-        } else {
-            // A shop that works in stages gets a job card instead: where the job is, and buttons to move it on.
-            // With no staff the owner gets it (a lone owner works the job from their own phone).
-            $card = app(JobStageService::class)->card($merchant, $order, $locale);
-            [$body, $buttons, $template, $templateParams] = [$card['text'], $card['buttons'], ShopTemplateService::JOB_CARD, $card['template_params']];
-            $recipients = $messenger->managers($merchant);
-        }
+        // A shop that works in stages gets a job card instead: where the job is, and buttons to move it on.
+        // With no staff the owner gets it (a lone owner works the job from their own phone).
+        $stages = ! $waiting && ! $this->reminder && app(JobStageService::class)->enabled($merchant);
+        $recipients = $stages ? $messenger->managers($merchant) : $messenger->staff($merchant);
 
+        // One ticket per person, in the language that person reads WhatsApp in.
         $reached = false;
         foreach ($recipients as $member) {
+            [$body, $buttons, $template, $templateParams] = $this->ticket($order, $merchant, $messenger->localeOf($merchant, $member), $waiting, $stages);
             $reached = $messenger->send($merchant, $member, $body, $buttons, $template, $templateParams) || $reached;
         }
 
@@ -112,6 +71,60 @@ class NotifyStaffOfOrder implements ShouldQueue
             ]);
             $this->acceptForTheShop($merchant, $order);
         }
+    }
+
+    /**
+     * The ticket for one language: text, buttons and the template version.
+     *
+     * @return array{0: string, 1: list<array{0: string, 1: string}>, 2: ?string, 3: list<string>}
+     */
+    private function ticket($order, $merchant, string $locale, bool $waiting, bool $stages): array
+    {
+        $pickup = $order->fulfillment === 'pickup';
+        $params = OrderMessage::params($order, $merchant, $locale, translateTo: $locale);
+
+        $body = __($pickup ? 'whatsapp.staff.new_order_pickup' : 'whatsapp.staff.new_order_delivery', $params, $locale);
+
+        $buttons = $pickup
+            ? [['stf:ready', __('whatsapp.staff.button_ready', [], $locale)], ['stf:delivered', __('whatsapp.staff.button_collected', [], $locale)]]
+            : [['stf:picked_up', __('whatsapp.staff.button_out', [], $locale)], ['stf:delivered', __('whatsapp.staff.button_delivered', [], $locale)]];
+        $template = null;
+        $templateParams = [];
+
+        // Waiting for the shop: Accept (with the shop's usual time) or Can't take it.
+        if ($waiting) {
+            if ($this->reminder) {
+                $body = __('whatsapp.staff.still_waiting', ['number' => $order->number], $locale)."\n".$body;
+            }
+            $time = app(OrderTiming::class)->label($merchant, $locale);
+            $buttons = [
+                ['stf:accept', __('whatsapp.staff.button_accept', ['time' => $time], $locale)],
+                ['stf:reject', __('whatsapp.staff.button_reject', [], $locale)],
+            ];
+            $template = ShopTemplateService::NEW_ORDER;
+            // The ticket without its first line ("🔔 New order #12 — Shop"), which the template already says.
+            $details = implode("\n", array_slice(explode("\n", $body), $this->reminder ? 2 : 1));
+            $templateParams = [(string) $order->number, $merchant->name, StaffMessenger::oneLine($details), $time];
+        } else {
+            // Accepted (and paid, for Whish): the ticket says it is time to prepare, and who delivers.
+            $paid = $order->payment_method === 'whish' && $order->payment_status === 'paid';
+            $lines = explode("\n", $body);
+            $lines[0] = __($paid ? 'whatsapp.staff.paid_go' : 'whatsapp.staff.confirmed_go', ['number' => $params['number']], $locale);
+            if ($pickup) {
+                $lines[] = __('whatsapp.staff.pickup_note', [], $locale);
+            } elseif ($order->driver) {
+                $lines[] = __('whatsapp.staff.driver_takes', ['driver' => $order->driver->name], $locale);
+            }
+            $body = implode("\n", $lines);
+        }
+
+        if ($waiting || $this->reminder || ! $stages) {
+            return [$body, array_map(fn ($b) => ["{$b[0]}:{$order->id}", $b[1]], $buttons), $template, $templateParams];
+        }
+
+        $card = app(JobStageService::class)->card($merchant, $order, $locale);
+
+        return [$card['text'], $card['buttons'], ShopTemplateService::JOB_CARD, $card['template_params']];
     }
 
     private function remindInCustomerChat($merchant, $order): void

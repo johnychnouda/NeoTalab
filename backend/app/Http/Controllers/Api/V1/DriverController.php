@@ -21,6 +21,7 @@ class DriverController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'whatsappNumber' => ['nullable', 'string', 'max:30'],
             'role' => ['nullable', 'string', 'in:driver,staff'],
+            'locale' => ['nullable', 'string', 'in:en,ar,fr'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);
 
@@ -35,6 +36,7 @@ class DriverController extends Controller
             'name' => ['sometimes', 'string', 'max:120'],
             'phone' => ['sometimes', 'string', 'max:30'],
             'role' => ['sometimes', 'string', 'in:driver,staff'],
+            'locale' => ['sometimes', 'nullable', 'string', 'in:en,ar,fr'],
         ]);
 
         return response()->json(['driver' => $drivers->update($request->user()->merchant, $driver, $data)]);

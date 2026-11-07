@@ -410,6 +410,60 @@ class ShopAcceptanceTest extends TestCase
         Bus::assertNotDispatched(CheckUnacceptedOrder::class);
     }
 
+    public function test_each_team_member_gets_the_ticket_in_their_own_language(): void
+    {
+        $arabicStaff = '+96171555111';
+        Driver::query()->forceCreate([
+            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
+            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
+        ]);
+        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
+
+        $this->order();
+
+        $english = $this->lastTo(self::STAFF);
+        $arabic = $this->lastTo($arabicStaff);
+        $this->assertSame(__('whatsapp.staff.button_reject', [], 'en'), $english['titles'][1]);
+        $this->assertSame(__('whatsapp.staff.button_reject', [], 'ar'), $arabic['titles'][1]);
+        $this->assertNotSame($english['text'], $arabic['text']);
+    }
+
+    public function test_a_customers_item_note_is_translated_for_a_team_member_who_reads_another_language(): void
+    {
+        config(['ai.translate.fake' => ['no onions' => ['ar' => 'بدون بصل']]]);
+        $arabicStaff = '+96171555111';
+        Driver::query()->forceCreate([
+            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
+            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
+        ]);
+        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
+        $order = $this->order();
+        $order->items()->first()->forceFill(['product_name' => 'Shawarma — no onions', 'note' => 'no onions'])->save();
+
+        NotifyStaffOfOrder::dispatchSync($order->id);
+
+        // The Arabic reader gets the translation and the original; the English reader gets the note as written.
+        $this->assertStringContainsString('Shawarma — بدون بصل (no onions)', $this->lastTo($arabicStaff)['text']);
+        $this->assertStringContainsString('Shawarma — no onions', $this->lastTo(self::STAFF)['text']);
+        $this->assertStringNotContainsString('بدون بصل', $this->lastTo(self::STAFF)['text']);
+    }
+
+    public function test_a_note_that_cannot_be_translated_is_shown_as_written(): void
+    {
+        $arabicStaff = '+96171555111';
+        Driver::query()->forceCreate([
+            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
+            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
+        ]);
+        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
+        $order = $this->order();
+        $order->items()->first()->forceFill(['product_name' => 'Shawarma — extra garlic', 'note' => 'extra garlic'])->save();
+
+        NotifyStaffOfOrder::dispatchSync($order->id);
+
+        $this->assertStringContainsString('Shawarma — extra garlic', $this->lastTo($arabicStaff)['text']);
+    }
+
     public function test_silent_staff_get_the_ticket_as_a_template_and_can_accept_from_it(): void
     {
         $this->staffWroteAt(now()->subHours(30));

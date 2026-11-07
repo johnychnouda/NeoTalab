@@ -30,14 +30,14 @@ class NotifyStaffOfAppointmentCancelled implements ShouldQueue
             return;
         }
 
-        $body = __('whatsapp.appointment.staff_cancelled', $this->appointmentParams($appointment, $merchant), $merchant->locale ?? 'en');
-        // A booking cancelled after its deposit was paid: the shop decides whether to send the money back.
-        if ($appointment->deposit_paid_at) {
-            $body .= "\n".__('whatsapp.appointment.deposit_note', ['amount' => Money::format((float) $appointment->deposit_amount, $merchant->currency)], $merchant->locale ?? 'en');
-        }
-
-        $params = $this->appointmentParams($appointment, $merchant);
         foreach ($messenger->managers($merchant) as $member) {
+            $locale = $messenger->localeOf($merchant, $member);
+            $params = $this->appointmentParams($appointment, $merchant, $locale);
+            $body = __('whatsapp.appointment.staff_cancelled', $params, $locale);
+            // A booking cancelled after its deposit was paid: the shop decides whether to send the money back.
+            if ($appointment->deposit_paid_at) {
+                $body .= "\n".__('whatsapp.appointment.deposit_note', ['amount' => Money::format((float) $appointment->deposit_amount, $merchant->currency)], $locale);
+            }
             $messenger->send($merchant, $member, $body, [], ShopTemplateService::BOOKING_CANCELLED, [
                 $merchant->name, (string) $params['service'], (string) $params['date'], (string) $params['time'], (string) $appointment->customer?->phone,
             ]);

@@ -46,7 +46,7 @@ class DriverService
         }
         if ($existing) {
             $existing->forceFill([
-                'name' => $data['name'], 'role' => $data['role'] ?? 'driver', 'phone' => $phone, 'whatsapp_number' => $phone,
+                'name' => $data['name'], 'role' => $data['role'] ?? 'driver', 'locale' => $data['locale'] ?? null, 'phone' => $phone, 'whatsapp_number' => $phone,
                 'is_active' => true, 'status' => 'off_duty', 'availability' => 'available', 'cash_on_hand' => 0,
             ])->save();
 
@@ -57,6 +57,7 @@ class DriverService
             'merchant_id' => $merchant->id,
             'name' => $data['name'],
             'role' => $data['role'] ?? 'driver',
+            'locale' => $data['locale'] ?? null,
             'phone' => $phone,
             'whatsapp_number' => $phone,
             'password' => $data['password'] ?? 'changeme123',
@@ -80,6 +81,7 @@ class DriverService
         $driver->forceFill([
             'name' => $data['name'] ?? $driver->name,
             'role' => $data['role'] ?? $driver->role,
+            'locale' => array_key_exists('locale', $data) ? ($data['locale'] ?: null) : $driver->locale,
             'phone' => $phone,
             'whatsapp_number' => $phone,
         ])->save();

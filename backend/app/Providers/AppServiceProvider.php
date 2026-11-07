@@ -4,10 +4,13 @@ namespace App\Providers;
 
 use App\Services\AI\Contracts\ChatProvider;
 use App\Services\AI\Contracts\SpeechToText;
+use App\Services\AI\Contracts\TextTranslator;
 use App\Services\AI\Providers\FakeChatProvider;
 use App\Services\AI\Providers\OpenAiCompatibleChatProvider;
 use App\Services\AI\Speech\FakeSpeechToText;
 use App\Services\AI\Speech\OpenAiSpeechToText;
+use App\Services\AI\Translation\FakeTextTranslator;
+use App\Services\AI\Translation\OpenAiTextTranslator;
 use App\Services\SystemAlertService;
 use App\Support\CurrentTenant;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -39,6 +42,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SpeechToText::class, fn ($app) => config('ai.driver') === 'openai'
             ? $app->make(OpenAiSpeechToText::class)
             : $app->make(FakeSpeechToText::class));
+
+        $this->app->bind(TextTranslator::class, fn ($app) => config('ai.driver') === 'openai'
+            ? $app->make(OpenAiTextTranslator::class)
+            : $app->make(FakeTextTranslator::class));
     }
 
     /**

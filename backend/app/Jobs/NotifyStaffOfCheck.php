@@ -36,16 +36,15 @@ class NotifyStaffOfCheck implements ShouldQueue
             return;
         }
 
-        $locale = $merchant->locale ?? 'en';
-        $body = __('whatsapp.check.staff', ['phone' => OrderMessage::phone($customer->phone), 'item' => $product->name], $locale);
-        $buttons = [
-            ["stf:approve:{$customer->id}:{$product->id}", __('whatsapp.check.button_approve', [], $locale)],
-            ["stf:refuse:{$customer->id}:{$product->id}", __('whatsapp.check.button_refuse', [], $locale)],
-        ];
-        $why = __('whatsapp.check.alert', ['phone' => $customer->phone, 'item' => $product->name], 'en');
-
         $paused = false;
         foreach ($messenger->staff($merchant) as $member) {
+            $locale = $messenger->localeOf($merchant, $member);
+            $body = __('whatsapp.check.staff', ['phone' => OrderMessage::phone($customer->phone), 'item' => $product->name], $locale);
+            $buttons = [
+                ["stf:approve:{$customer->id}:{$product->id}", __('whatsapp.check.button_approve', [], $locale)],
+                ["stf:refuse:{$customer->id}:{$product->id}", __('whatsapp.check.button_refuse', [], $locale)],
+            ];
+            $why = __('whatsapp.check.alert', ['phone' => $customer->phone, 'item' => $product->name], $locale);
             $inWindow = $messenger->inWindow($merchant, $member);
             if ($messenger->send($merchant, $member, $body, $buttons, ShopTemplateService::STAFF_ALERT, [$merchant->name, $why]) && ! $inWindow) {
                 $paused = true;

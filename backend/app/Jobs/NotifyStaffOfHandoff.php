@@ -33,14 +33,13 @@ class NotifyStaffOfHandoff implements ShouldQueue
             return;
         }
 
-        $locale = $merchant->locale ?? 'en';
         $key = $this->reason === 'photo' ? 'photo' : 'handoff';
-        $body = __("whatsapp.staff.{$key}", ['phone' => OrderMessage::phone($customer->phone)], $locale);
-        $buttons = [["stf:resume:{$customer->id}", __('whatsapp.staff.button_resume', [], $locale)]];
-        // The template is in English, so its reason is too.
-        $why = __("whatsapp.staff.alert_{$key}", ['phone' => $customer->phone], 'en');
 
         foreach ($messenger->staff($merchant) as $member) {
+            $locale = $messenger->localeOf($merchant, $member);
+            $body = __("whatsapp.staff.{$key}", ['phone' => OrderMessage::phone($customer->phone)], $locale);
+            $buttons = [["stf:resume:{$customer->id}", __('whatsapp.staff.button_resume', [], $locale)]];
+            $why = __("whatsapp.staff.alert_{$key}", ['phone' => $customer->phone], $locale);
             $messenger->send($merchant, $member, $body, $buttons, ShopTemplateService::STAFF_ALERT, [$merchant->name, $why]);
         }
     }

@@ -6,6 +6,7 @@ import { useLang } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/live";
 import { Modal, ConfirmModal, useToast } from "@/components/ui";
 import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
+import Segmented from "@/components/Segmented";
 
 /**
  * The shop's team: drivers (get deliveries) and staff (accept orders, open/close the shop).
@@ -109,11 +110,13 @@ function MemberModal({ t, member, onClose, onSubmit }) {
   const [name, setName] = useState(member?.name || "");
   const [phone, setPhone] = useState(member?.whatsapp_number || member?.phone || "");
   const [role, setRole] = useState(member && member.role !== "staff" ? "driver" : "staff");
+  // "" means the shop's language; the person's own choice otherwise.
+  const [locale, setLocale] = useState(member?.locale || "");
   return (
     <Modal title={t(member ? "db.team.edit" : "db.team.add")} onClose={onClose} compact
       footer={<div className="modal-footer-actions">
         <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), role })}>{t(member ? "db.save" : "db.add")}</button>
+        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), role, locale: locale || null })}>{t(member ? "db.save" : "db.add")}</button>
       </div>}>
       <div className="field"><label>{t("db.team.role")}</label>
         <div className="tm-roles">
@@ -128,6 +131,10 @@ function MemberModal({ t, member, onClose, onSubmit }) {
       <div className="field"><label htmlFor="tm-name">{t("db.team.name")}</label><input id="tm-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Rami Khalil" /></div>
       <div className="field"><label htmlFor="tm-phone">{t("db.team.number")}</label><input id="tm-phone" dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="70 123 456" />
         <div className="mk-hint">{t("db.team.numberHint")}</div></div>
+      <div className="field"><label>{t("db.team.language")}</label>
+        <Segmented block value={locale} onChange={setLocale} aria-label={t("db.team.language")}
+          options={[{ value: "", label: t("db.team.langShop") }, { value: "en", label: "English" }, { value: "ar", label: "العربية" }, { value: "fr", label: "Français" }]} />
+        <div className="mk-hint">{t("db.team.languageHint")}</div></div>
     </Modal>
   );
 }

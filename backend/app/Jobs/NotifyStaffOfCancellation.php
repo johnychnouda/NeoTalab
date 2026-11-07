@@ -28,10 +28,9 @@ class NotifyStaffOfCancellation implements ShouldQueue
             return;
         }
 
-        $body = __('whatsapp.staff.cancelled', ['number' => $order->number], $merchant->locale ?? 'en');
-        $body .= "\n".OrderMessage::phone($order->customer?->phone);
-
         foreach ($messenger->staff($merchant) as $member) {
+            $body = __('whatsapp.staff.cancelled', ['number' => $order->number], $messenger->localeOf($merchant, $member))
+                ."\n".OrderMessage::phone($order->customer?->phone);
             $messenger->send($merchant, $member, $body, [], ShopTemplateService::CUSTOMER_CANCELLED, [
                 (string) $order->number, $merchant->name, (string) $order->customer?->phone,
             ]);

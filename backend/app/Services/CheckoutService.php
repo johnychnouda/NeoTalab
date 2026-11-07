@@ -178,6 +178,7 @@ class CheckoutService
                     'product_id' => $item->product_id,
                     'variant_id' => $item->variant_id,
                     'product_name' => $this->lineName($item),
+                    'note' => filled($item->notes) ? (string) $item->notes : null,
                     'quantity' => $item->quantity,
                     'unit' => Quantity::byWeight($item->product) ? $item->product->unit : null,
                     'unit_price' => $item->unit_price,
