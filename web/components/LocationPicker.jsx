@@ -16,24 +16,38 @@ export function mapPin(value) {
  * shop. Without a Maps key Google only allows a view-only map, so the pin comes from "Use my
  * location" or a pasted link and the map shows where it landed.
  */
-export default function LocationPicker({ value, onChange, t, inputId = "lp-link", place = "shop", compact = false }) {
+// onAddress(text): the address Google gives for the spot the owner picked (search, tap, drag, "use my location").
+export default function LocationPicker({ value, onChange, onAddress, t, inputId = "lp-link", place = "shop", compact = false }) {
   const { lang } = useLang();
   const box = useRef(null);
   const searchBox = useRef(null);
   const map = useRef(null);
   const pin = useRef(null);
   const onChangeRef = useRef(onChange);
+  const onAddressRef = useRef(onAddress);
   const [interactive, setInteractive] = useState(false);
   const [locating, setLocating] = useState(false);
   const [link, setLink] = useState(parsePin(value) ? "" : value || "");
   const point = parsePin(value);
 
-  useEffect(() => { onChangeRef.current = onChange; });
+  useEffect(() => { onChangeRef.current = onChange; onAddressRef.current = onAddress; });
+
+  // The street address of a spot, from Google; silent when the lookup is not available.
+  function addressOf(maps, latlng) {
+    if (!onAddressRef.current) return;
+    new maps.Geocoder().geocode({ location: latlng, language: lang })
+      .then((r) => onAddressRef.current?.(r.results?.[0]?.formatted_address || ""))
+      .catch(() => {});
+  }
 
   function setPin(maps, latlng, zoomIn) {
     if (!pin.current) {
       pin.current = new maps.Marker({ position: latlng, map: map.current, draggable: true, animation: maps.Animation.DROP });
-      pin.current.addListener("dragend", (e) => onChangeRef.current(formatPin({ lat: e.latLng.lat(), lng: e.latLng.lng() })));
+      pin.current.addListener("dragend", (e) => {
+        const here = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        onChangeRef.current(formatPin(here));
+        addressOf(maps, here);
+      });
     } else {
       pin.current.setPosition(latlng);
     }
@@ -51,6 +65,7 @@ export default function LocationPicker({ value, onChange, t, inputId = "lp-link"
         setPin(maps, here, map.current.getZoom() < 15);
         setLink("");
         onChangeRef.current(formatPin(here));
+        addressOf(maps, here);
       });
       if (point) setPin(maps, point, false);
       setInteractive(true);
@@ -62,12 +77,16 @@ export default function LocationPicker({ value, onChange, t, inputId = "lp-link"
         const search = new PlaceAutocompleteElement({ includedRegionCodes: ["lb"] });
         search.setAttribute("placeholder", t(place === "area" ? "db.loc.searchArea" : "db.loc.search"));
         const picked = async (where) => {
-          await where.fetchFields({ fields: ["location"] });
+          await where.fetchFields({ fields: ["location", "formattedAddress", "displayName"] });
           if (!where.location) return;
           const here = { lat: where.location.lat(), lng: where.location.lng() };
           setPin(maps, here, true);
           setLink("");
           onChangeRef.current(formatPin(here));
+          // The place's own address; a shop or landmark is named first ("Richeese, Mestita St, Byblos").
+          const full = where.formattedAddress || "";
+          const name = where.displayName || "";
+          onAddressRef.current?.(name && !full.startsWith(name) ? [name, full].filter(Boolean).join(", ") : full);
         };
         search.addEventListener("gmp-select", (e) => e.placePrediction && picked(e.placePrediction.toPlace()));
         search.addEventListener("gmp-placeselect", (e) => e.place && picked(e.place));
@@ -102,6 +121,7 @@ export default function LocationPicker({ value, onChange, t, inputId = "lp-link"
         if (interactive) setPin(window.google.maps, here, true);
         setLink("");
         onChange(formatPin(here));
+        if (interactive) addressOf(window.google.maps, here);
       },
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 10000 },

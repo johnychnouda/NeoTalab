@@ -2721,6 +2721,11 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset.sset-cards { max-width: 1180px; }
 .sset-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 14px; align-items: start; }
 .sset-cols > .sset-card { margin-bottom: 0; }
+.sset-steps { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+.sset-steps li { display: flex; gap: 10px; align-items: flex-start; }
+.sset-steps li span { width: 22px; height: 22px; border-radius: 50%; background: var(--green-dim); color: var(--green); font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sset-signs { margin: 0 0 14px; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 13px; line-height: 1.5; }
+.sset-readonly { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
 .sset-stack { display: grid; gap: 14px; align-content: start; min-width: 0; }
 .sset-stack > .sset-card { margin-bottom: 0; }
 .zn-layout { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -2982,6 +2987,15 @@ button.wa-mic { border: 0; cursor: pointer; }
 .menu-nav-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-nav-count { flex: none; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .menu-nav-item.is-on .menu-nav-count { color: var(--green); }
+.menu-more { position: relative; }
+.menu-more > summary { list-style: none; cursor: pointer; }
+.menu-more > summary::-webkit-details-marker { display: none; }
+.menu-more-pop { position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 20; min-width: 170px; padding: 6px; display: grid; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+.menu-more-pop button { text-align: start; padding: 8px 10px; background: none; border: none; border-radius: 6px; color: var(--text); font-size: 13px; cursor: pointer; }
+.menu-more-pop button:hover { background: var(--surface2); }
+.menu-more-pop button.is-danger { color: var(--red); }
+.tm-empty { border: 1px dashed var(--border); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tm-empty p { margin: 0; font-size: 13px; color: var(--text-muted); }
 .menu-clear { margin-top: 8px; padding: 9px 12px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; text-align: start; cursor: pointer; }
 .menu-clear:hover { color: var(--red); }
 .menu-clear-phone { display: none; }

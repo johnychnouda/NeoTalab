@@ -330,3 +330,19 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   link is gone, and `/backoffice/<shop>/analytics` sends an old link or bookmark to the shop's home.
 - **Kept:** the nightly report the shop gets on WhatsApp and its settings (Settings → Reports & chats), the server route
   `analytics/dashboard`, and all order data. Only the page was removed.
+
+## Shop dashboard polish: five screens (7 November)
+
+- **Pickup address follows the pin:** choosing a place on the map (search, tap, drag, "use my location") fills the
+  pickup address line with Google's address for it (`LocationPicker` `onAddress`, `lib/pickupAddress.js`), unless the owner
+  typed in that box during the same visit. The area line already followed the pin. The tap and drag lookup needs
+  Google's Geocoding API on the Maps key; if it is off, the box simply stays as it is.
+- **Payments:** Cash and lira (rate as "1 USD = [ ] LBP"), and Whish transfer with its three steps as a short numbered
+  list instead of a paragraph; "Wait for “I paid” for [15] minutes".
+- **Report & chats:** "Daily report" and "When you answer a chat yourself" (the ⏸ and ▶️ signs stay as written, they are the
+  actual commands the shop sends).
+- **Menu:** "1 item · 1 category"; Import, Export and Clear menu moved under a "More" button; Add item is the one main button.
+- **Team:** an empty Staff section says so and offers "Add staff"; "1 delivery"; a member with their own language shows it.
+- **Shop and account:** the number customers chat with is shown read-only with "Connected"; "Language for your team" is its
+  own setting. The sidebar EN/AR/FR buttons now change only what the owner reads in the dashboard; before, they silently
+  changed the language of every WhatsApp message to the team (the cause of the first shop's driver getting English).

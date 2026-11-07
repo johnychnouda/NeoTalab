@@ -237,12 +237,21 @@ export default function MenuPage() {
       <div className="page-header menu-head">
         <div>
           <h1>{t(`mk.title.${profile.word}`)}</h1>
-          {products.length > 0 && <p className="menu-sub">{products.length} {t("mk.itemsCount")} · {categories?.length || 0} {t("mk.categoriesCount")}</p>}
+          {products.length > 0 && <p className="menu-sub">{products.length} {t(products.length === 1 ? "mk.itemOne" : "mk.itemsCount")} · {categories?.length || 0} {t((categories?.length || 0) === 1 ? "mk.categoryOne" : "mk.categoriesCount")}</p>}
         </div>
         <div className="menu-head-actions">
-          {!services && <button className="btn-sm" onClick={() => setModal({ type: "import" })}>{t("mk.import")}</button>}
-          {products.length > 0 && <button className="btn-sm" onClick={exportCsv}>{t("mk.export")}</button>}
           <button className="btn-sm" onClick={() => setModal({ type: "category" })}>+ {t("mk.addCategory")}</button>
+          {(!services || products.length > 0) && (
+            // Rare actions live under one "More" button, so Add item stands out.
+            <details className="menu-more">
+              <summary className="btn-sm">{t("mk.more")}</summary>
+              <div className="menu-more-pop" onClick={(e) => e.currentTarget.parentElement.removeAttribute("open")}>
+                {!services && <button type="button" onClick={() => setModal({ type: "import" })}>{t("mk.import")}</button>}
+                {products.length > 0 && <button type="button" onClick={exportCsv}>{t("mk.export")}</button>}
+                {products.length > 0 && <button type="button" className="is-danger" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
+              </div>
+            </details>
+          )}
           <button className="btn-primary" onClick={() => setModal({ type: "item", categoryId: active !== "all" && active !== "none" ? active : undefined })}>+ {t(services ? "mk.addService" : "mk.addItem")}</button>
         </div>
       </div>
@@ -272,7 +281,6 @@ export default function MenuPage() {
                 <span className="menu-nav-name">{t("mk.noCategory")}</span><span className="menu-nav-count">{sec.items.length}</span>
               </button>
             ))}
-            {products.length > 0 && <button type="button" className="menu-clear" onClick={() => setModal({ type: "clear" })}>{t("mk.clear")}</button>}
           </aside>
 
           <div className="menu-main">

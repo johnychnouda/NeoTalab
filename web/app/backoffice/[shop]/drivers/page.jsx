@@ -50,7 +50,13 @@ export default function TeamPage() {
         <section key={role} className="tm-group">
           <h2 className="gs-h">{t(role === "staff" ? "db.team.staff" : "db.team.driver")}</h2>
           <p className="mk-hint" style={{ marginBottom: 12 }}>{t(role === "staff" ? "db.team.staffHow" : "db.team.driverHow")}</p>
-          {members.length === 0 && <p className="mk-hint">—</p>}
+          {members.length === 0 && role === "staff" && (
+            <div className="tm-empty">
+              <p>{t("db.team.noStaff")}</p>
+              <button type="button" className="btn-primary" onClick={() => setModal({ type: "add" })}>+ {t("db.team.addStaff")}</button>
+            </div>
+          )}
+          {members.length === 0 && role !== "staff" && <p className="mk-hint">—</p>}
           <div className="drivers-grid">
             {members.map((m) => (
               <div className="driver-card" key={m.id}>
@@ -71,7 +77,12 @@ export default function TeamPage() {
                   </div>
                 )}
                 {role === "driver" && (
-                  <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t("db.team.deliveries")}</div>
+                  <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t((m.total_deliveries || 0) === 1 ? "db.team.deliveryOne" : "db.team.deliveries")}</div>
+                )}
+                {m.locale && (
+                  <div className="tm-status">
+                    <span className="pill" title={t("db.team.speaks", { lang: LANG_NAMES[m.locale] })}>{LANG_NAMES[m.locale]}</span>
+                  </div>
                 )}
                 <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                   <button className="btn-sm" onClick={() => setModal({ type: "edit", member: m })}>{t("mk.edit")}</button>
@@ -105,6 +116,8 @@ export default function TeamPage() {
     </div>
   );
 }
+
+const LANG_NAMES = { en: "English", ar: "العربية", fr: "Français" };
 
 function MemberModal({ t, member, onClose, onSubmit }) {
   const [name, setName] = useState(member?.name || "");

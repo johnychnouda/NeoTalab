@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMerchant } from "../../layout";
 import { useLang } from "@/lib/i18n";
@@ -13,6 +13,7 @@ import LocationPicker, { mapPin } from "@/components/LocationPicker";
 import { ICONS } from "@/components/auth/AuthShell";
 import ZoneEditor from "@/components/ZoneEditor";
 import { JOIN_LEBANON_REGIONS } from "@/lib/joinFormOptions";
+import { addressAfterPin } from "@/lib/pickupAddress";
 
 const LBP_RATE = 89500;
 
@@ -30,7 +31,7 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
  * from the saved profile, and one Save sends every changed tab together.
  */
 const GROUPS = {
-  shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "" }),
+  shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "", defaultLocale: p.default_locale || "en" }),
   orders: (p) => ({
     appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
     fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
@@ -70,6 +71,10 @@ function Settings() {
   const setTab = (id) => { pickTab(id); writeUrlParam("tab", id, "shop"); };
   const [saved, setSaved] = useState(null);
   const [editArea, setEditArea] = useState(false);
+  // The number customers chat with (connected from the home page), shown read-only on the Shop tab.
+  const [waInfo, setWaInfo] = useState(null);
+  // Did the owner type the pickup address during this visit? Typed words are never replaced by the map's address.
+  const typedAddress = useRef(false);
   const [p, setProfile] = useState(null);
   const [savedHours, setSavedHours] = useState([]);
   const [hours, setHours] = useState([]);
@@ -78,11 +83,13 @@ function Settings() {
 
   const load = useCallback(async () => {
     try {
-      const [{ profile }, { hours: h }, { zones: z }] = await Promise.all([
+      const [{ profile }, { hours: h }, { zones: z }, setupRes] = await Promise.all([
         api("GET", "/settings/profile"),
         api("GET", "/settings/hours"),
         api("GET", "/settings/zones"),
+        api("GET", "/settings/setup").catch(() => null),
       ]);
+      setWaInfo(setupRes?.setup ? { connected: !!setupRes.setup.whatsapp_connected, number: setupRes.setup.whatsapp_number || "" } : null);
       const rows = (h || []).map((x) => ({
         dayOfWeek: x.day_of_week, opensAt: x.opens_at?.slice(0, 5) || "09:00", closesAt: x.closes_at?.slice(0, 5) || "23:00", isClosed: !!x.is_closed,
       }));
@@ -133,6 +140,11 @@ function Settings() {
   const bookingsOnly = p.business_mode === "appointments";
   const delivers = !bookingsOnly && (p.fulfillment || "delivery") !== "pickup";
   const pickup = !bookingsOnly && ["pickup", "both"].includes(p.fulfillment);
+  // Choosing a place on the map (search, tap, drag) fills the pickup address line with that place's address.
+  const onPinAddress = (picked) => setProfile((cur) => {
+    const next = cur && addressAfterPin({ current: cur.pickup_address, picked, touched: typedAddress.current });
+    return next ? { ...cur, pickup_address: next } : cur;
+  });
   const unit = p.timing_unit || "minutes";
   // Governorate and city come from the map pin: one line, with a way to change them.
   const regionLabel = JOIN_LEBANON_REGIONS.find((o) => o.value === p.region)?.labelKey;
@@ -208,11 +220,25 @@ function Settings() {
             <Field id="s-name" label={t("db.set.shopName")}>
               <input id="s-name" value={p.shop_name || ""} onChange={(e) => setP("shop_name", e.target.value)} placeholder="Foren Al Hara · فرن الحارة" />
             </Field>
+            {waInfo?.connected && (
+              <Field id="s-chat" label={t("db.set.chatNumber")}>
+                <div className="sset-readonly" id="s-chat">
+                  <span dir="ltr">{waInfo.number}</span>
+                  <span className="sset-badge ok">{t("db.set.chatNumberOk")}</span>
+                </div>
+              </Field>
+            )}
             <Field id="s-wa" label={t("db.set.contactWa")} hint={t("db.set.contactWaHint")}>
               <input id="s-wa" dir="ltr" inputMode="tel" value={p.ops_whatsapp || ""} onChange={(e) => setP("ops_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
             </Field>
           </Card>
+          <div className="sset-stack">
+            <Card title={t("db.set.card.lang")} desc={t("db.set.card.langDesc")}>
+              <Segmented id="s-lang" aria-label={t("db.set.card.lang")} value={p.default_locale || "en"} onChange={(v) => setP("default_locale", v)}
+                options={[{ value: "en", label: "English" }, { value: "ar", label: "العربية" }, { value: "fr", label: "Français" }]} />
+            </Card>
           <PasswordCard api={api} t={t} toast={toast} />
+          </div>
         </div>
       )}
 
@@ -295,11 +321,11 @@ function Settings() {
             desc={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupDesc" : "ops.shopLocationHint")}>
             {pickup && (
               <Field id="o-paddr" label={t("ops.pickupLine")}>
-                <input id="o-paddr" maxLength={300} value={p.pickup_address || ""} placeholder={t("ops.pickupLinePh")} onChange={(e) => setP("pickup_address", e.target.value)} />
+                <input id="o-paddr" maxLength={300} value={p.pickup_address || ""} placeholder={t("ops.pickupLinePh")} onChange={(e) => { typedAddress.current = true; setP("pickup_address", e.target.value); }} />
               </Field>
             )}
             <Field id="o-loc" label={t("ops.pinLabel")} hint={pickup && !delivers ? t("ops.pickupMapHint") : undefined}>
-              <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} t={t} compact />
+              <LocationPicker value={p.shop_location || ""} onChange={(v) => setP("shop_location", v)} onAddress={pickup ? onPinAddress : undefined} t={t} compact />
             </Field>
             {areaKnown && !editArea ? (
               <div className="sset-area">
@@ -357,31 +383,38 @@ function Settings() {
       )}
 
       {tab === "payments" && (<div className="sset-cols">
-        <Card title={t("db.set.card.money")}>
+        <Card title={t("db.set.card.money")} desc={t("db.set.card.moneyDesc")}>
           <Switch checked={lbpOn} onChange={(on) => setP("lbp_rate", on ? String(Number(saved.lbp_rate) > 0 ? saved.lbp_rate : LBP_RATE) : "")}
             label={t("db.set.lbpOn")} hint={t("db.set.lbpOnHint")} />
           {lbpOn && (
-            <Field id="o-lbp" label={t("ops.lbp")} narrow>
-              <input id="o-lbp" type="number" min="1" step="100" value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} />
+            <Field id="o-lbp" label={t("ops.lbp")}>
+              <div className="sset-inline">
+                <span>{t("db.lbp.prefix")}</span>
+                <input id="o-lbp" type="number" min="1" step="100" value={p.lbp_rate ?? ""} onChange={(e) => setP("lbp_rate", e.target.value)} />
+                <span>{t("db.lbp.suffix")}</span>
+              </div>
             </Field>
           )}
         </Card>
-        <Card title="Whish Pay" desc={t("db.whish.intro")}
+        <Card title={t("db.whish.title")} desc={t("db.whish.intro")}
           action={<span className={`sset-badge ${p.whish_connected ? "ok" : ""}`}>{p.whish_connected ? t("db.whish.ok") : t("db.whish.notConnected")}</span>}>
-          <p className="sset-hint" style={{ marginTop: 0, marginBottom: 14 }}>{t("db.whish.how")}</p>
-          <div className="sset-grid">
-            <Field id="w-no" label={t("db.whish.number")}>
-              <input id="w-no" dir="ltr" inputMode="numeric" value={p.whish_number || ""} onChange={(e) => setP("whish_number", e.target.value)} placeholder={t("db.whish.numberPh")} />
-            </Field>
-          </div>
-          <Field id="w-to" label={t("db.whish.timeout")} narrow>
-            <input id="w-to" type="number" min="5" max="120" value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} />
+          <ol className="sset-steps">
+            {["s1", "s2", "s3"].map((k, i) => <li key={k}><span aria-hidden="true">{i + 1}</span>{t(`db.whish.${k}`)}</li>)}
+          </ol>
+          <Field id="w-no" label={t("db.whish.number")}>
+            <input id="w-no" dir="ltr" inputMode="numeric" value={p.whish_number || ""} onChange={(e) => setP("whish_number", e.target.value)} placeholder={t("db.whish.numberPh")} />
+          </Field>
+          <Field id="w-to" label={t("db.whish.timeout")}>
+            <div className="sset-inline">
+              <input id="w-to" type="number" min="5" max="120" value={p.wish_timeout_mins || 15} onChange={(e) => setP("wish_timeout_mins", e.target.value)} />
+              <span>{t("db.unit.minutes")}</span>
+            </div>
           </Field>
         </Card>
       </div>)}
 
       {tab === "alerts" && (<div className="sset-cols">
-        <Card title={t("db.set.card.report")}>
+        <Card title={t("db.set.card.report")} desc={t("db.set.card.reportDesc")}>
           <div className="sset-grid wide-first">
             <Field id="a-rep" label={t("ops.report")} hint={t("ops.reportHint")}>
               <input id="a-rep" dir="ltr" inputMode="tel" value={p.report_whatsapp || ""} onChange={(e) => setP("report_whatsapp", e.target.value)} placeholder="+961 70 123 456" />
@@ -392,9 +425,16 @@ function Settings() {
             </Field>
           </div>
         </Card>
-        <Card title={t("db.set.card.chats")}>
-          <Field id="a-pause" label={t("ops.pause")} hint={t("ops.pauseHint")} narrow>
-            <input id="a-pause" type="number" min="1" max="1440" value={p.bot_pause_mins ?? 60} onChange={(e) => setP("bot_pause_mins", e.target.value)} />
+        <Card title={t("db.set.card.chats")} desc={t("db.set.card.chatsDesc")}>
+          <ul className="sset-signs">
+            <li>{t("ops.pauseSend")}</li>
+            <li>{t("ops.playSend")}</li>
+          </ul>
+          <Field id="a-pause" label={t("ops.pause")}>
+            <div className="sset-inline">
+              <input id="a-pause" type="number" min="1" max="1440" value={p.bot_pause_mins ?? 60} onChange={(e) => setP("bot_pause_mins", e.target.value)} />
+              <span>{t("db.unit.minutes")}</span>
+            </div>
           </Field>
         </Card>
       </div>)}
