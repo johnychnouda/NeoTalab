@@ -97,6 +97,7 @@ export default function BillingPage() {
   // The transfer shown in Whish must equal the fee to the cent before it can be recorded.
   const fee = paying ? merchantFee(paying) : 0;
   const amountWrong = received.trim() !== "" && Math.abs(Number(received) - fee) >= 0.005;
+  const amountMatches = received.trim() !== "" && !amountWrong;
   const canRecord = reference.trim() && senderPhone.trim() && senderName.trim() && received.trim() !== "" && !amountWrong && checked;
   const thisMonth = now.getMonth();
   const thisYear = now.getFullYear();
@@ -290,32 +291,44 @@ export default function BillingPage() {
       </div>
 
       {paying && (
-        <Modal title={`${t("ow.b.recordTitle")} · ${paying.shop_name}`}
-          onClose={closePaying}
-          footer={<button type="button" className="btn-primary" disabled={saving || !canRecord} onClick={recordPayment}>{t("ow.b.recordConfirm")}</button>}>
-          <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>{t("ow.b.recordHint")}</p>
-          <label style={{ display: "grid", gap: 6, fontSize: 13 }}>
-            {t("ow.b.referenceLabel")}
-            <input dir="ltr" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
-            {t("ow.b.senderPhoneLabel")}
-            <input dir="ltr" inputMode="tel" value={senderPhone} placeholder={t("ow.b.senderPhonePh")} onChange={(e) => setSenderPhone(e.target.value)} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
-            {t("ow.b.senderNameLabel")}
-            <input dir="ltr" value={senderName} placeholder={t("ow.b.senderNamePh")} onChange={(e) => setSenderName(e.target.value)} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 13, marginTop: 12 }}>
-            {t("ow.b.receivedLabel")}
-            <input dir="ltr" inputMode="decimal" value={received} onChange={(e) => setReceived(e.target.value)} />
-          </label>
-          {amountWrong && <p role="alert" style={{ fontSize: 13, marginTop: 8, color: "var(--danger, #f87171)" }}>{t("ow.b.amountMismatch", { received: Number(received).toFixed(2), fee: fee.toFixed(2) })}</p>}
-          <p style={{ fontSize: 13, marginTop: 12, fontWeight: 600 }}>
-            {t("ow.b.recordAmount", { amount: `${merchantFee(paying).toFixed(2)}$`, cycle: paying.billing_cycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly") })}
-          </p>
-          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginTop: 12 }}>
-            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} style={{ marginTop: 3 }} />
+        <Modal title={`${t("ow.b.recordTitle")} · ${paying.shop_name}`} onClose={closePaying}
+          footer={
+            <>
+              <button type="button" className="btn-sm" onClick={closePaying}>{t("ow.b.cancel")}</button>
+              <button type="button" className="btn-primary" disabled={saving || !canRecord} onClick={recordPayment}>
+                {saving ? t("ow.b.recording") : t("ow.b.recordConfirm")}
+              </button>
+            </>
+          }>
+          <p className="pay-hint">{t("ow.b.recordHint")}</p>
+          <div className="pay-expected">
+            <span>{t("ow.b.expected")}</span>
+            <strong>{fee.toFixed(2)}$ · {paying.billing_cycle === "yearly" ? t("ow.b.yearly") : t("ow.b.monthly")}</strong>
+          </div>
+
+          <div className="field">
+            <label htmlFor="pay-ref">{t("ow.b.referenceLabel")}</label>
+            <input id="pay-ref" dir="ltr" inputMode="numeric" autoComplete="off" value={reference} placeholder={t("ow.b.referencePh")} onChange={(e) => setReference(e.target.value)} />
+          </div>
+          <div className="pay-row">
+            <div className="field">
+              <label htmlFor="pay-name">{t("ow.b.senderNameLabel")}</label>
+              <input id="pay-name" dir="ltr" autoComplete="off" value={senderName} placeholder={t("ow.b.senderNamePh")} onChange={(e) => setSenderName(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="pay-phone">{t("ow.b.senderPhoneLabel")}</label>
+              <input id="pay-phone" dir="ltr" inputMode="tel" autoComplete="off" value={senderPhone} placeholder={t("ow.b.senderPhonePh")} onChange={(e) => setSenderPhone(e.target.value)} />
+            </div>
+          </div>
+          <div className={`field ${amountWrong ? "field-invalid" : ""}`}>
+            <label htmlFor="pay-amount">{t("ow.b.receivedLabel")}</label>
+            <input id="pay-amount" dir="ltr" inputMode="decimal" autoComplete="off" value={received} placeholder="0.00" aria-invalid={amountWrong} onChange={(e) => setReceived(e.target.value)} />
+            {amountWrong && <p className="pay-note bad" role="alert">{t("ow.b.amountMismatch", { received: Number(received).toFixed(2), fee: fee.toFixed(2) })}</p>}
+            {amountMatches && <p className="pay-note ok">{t("ow.b.amountOk")}</p>}
+          </div>
+
+          <label className="pay-check">
+            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
             <span>{t("ow.b.recordCheck")}</span>
           </label>
         </Modal>
