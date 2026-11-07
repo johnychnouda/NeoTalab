@@ -465,7 +465,7 @@ function OwnerSettingsContent() {
                 icon={SET_ICONS.whatsapp}
                 tone="green"
                 title={t("ow.set.waTitle")}
-                desc={t("ow.set.waDesc")}
+                desc={t("ow.wa.intro")}
                 badge={
                   <span className={`set-badge ${waLive?.state === "connected" ? "ok" : "warn"}`}>
                     <span className="set-badge-dot" />
@@ -477,27 +477,26 @@ function OwnerSettingsContent() {
                   </span>
                 }
               />
-              {waLive && waLive !== "checking" && (
-                <div className="set-card-body" style={{ paddingBottom: 0 }}>
-                  <p className="set-hint" role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-                    <span>
-                      {waLive.state === "problem" && `${waLive.message} `}
-                      {waLive.state === "connected" && waLive.name_status === "NON_EXISTS" && `${t("ow.wa.nameMissing")} `}
-                    </span>
-                    <button type="button" className="set-link set-link-btn" onClick={checkWa}>{t("ow.wa.recheck")}</button>
-                  </p>
-                </div>
-              )}
-              <SetNote tone="wa">{t("ow.set.waNote")}</SetNote>
+              {waLive && waLive !== "checking" && (() => {
+                const nameMissing = waLive.state === "connected" && waLive.name_status === "NON_EXISTS";
+                const bad = waLive.state !== "connected" || nameMissing;
+                const text = waLive.state === "problem" ? waLive.message
+                  : waLive.state !== "connected" ? t("ow.wa.notSetLong")
+                  : nameMissing ? t("ow.wa.nameMissing") : t("ow.wa.allGood");
+                return (
+                  <div className="set-card-body" style={{ paddingBottom: 0 }}>
+                    <div className={`set-status ${bad ? "warn" : "ok"}`} role="status">
+                      <p>{text}</p>
+                      <button type="button" className="btn-sm" onClick={checkWa}>{t("ow.wa.recheck")}</button>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="set-card-body">
-                <div className="set-form-block">
-                  <div className="set-form-block-title">{t("ow.set.waQrTitle")}</div>
-                  <p className="set-hint">
-                    {waQr.connected || waLive?.state === "connected" ? t("ow.set.waQrConnected", { phone: waQr.phone || waLive?.phone || s.waPhoneId }) : t("ow.set.waQrHint")}
-                  </p>
-                  {waLive?.state === "connected" && !showReconnect ? (
-                    <button type="button" className="set-link set-link-btn" onClick={() => setShowReconnect(true)}>{t("ow.wa.reconnectTrouble")}</button>
-                  ) : (
+                {waLive !== "checking" && (waLive?.state !== "connected" || showReconnect) && (
+                  <div className="set-form-block">
+                    <div className="set-form-block-title">{t("ow.wa.connectTitle")}</div>
+                    <p className="set-hint">{t("ow.set.waQrHint")}</p>
                     <WhatsAppEmbeddedSignup
                       api={api}
                       toast={toast}
@@ -508,8 +507,18 @@ function OwnerSettingsContent() {
                       buttonId="wa-embedded-signup-platform"
                       onConnected={() => { logActivity("bot", t("ow.set.waQrDone")); load(); }}
                     />
+                  </div>
+                )}
+                <details className="set-advanced" open={!!waLive && waLive !== "checking" && waLive.state !== "connected"}>
+                  <summary>
+                    <span>{t("ow.wa.advanced")}</span>
+                    <small>{t("ow.wa.advancedHint")}</small>
+                  </summary>
+                  {waLive?.state === "connected" && !showReconnect && (
+                    <p className="set-hint" style={{ margin: "0 0 14px" }}>
+                      <button type="button" className="set-link set-link-btn" onClick={() => setShowReconnect(true)}>{t("ow.wa.changeNumber")}</button>
+                    </p>
                   )}
-                </div>
                 <div className="set-grid">
                   <SetField label={t("ow.set.phoneId")} className="span-full" htmlFor="set-phone-id">
                     <input id="set-phone-id" dir="ltr" className="set-mono" value={s.waPhoneId} onChange={(e) => set("waPhoneId", e.target.value)} placeholder="1234567890" />
@@ -534,10 +543,11 @@ function OwnerSettingsContent() {
                     <input id="set-verify" dir="ltr" className="set-mono" value={s.waVerifyToken} onChange={(e) => set("waVerifyToken", e.target.value)} />
                   </SetField>
                 </div>
+                </details>
               </div>
               <div className="set-card-foot between">
                 <a href="https://business.facebook.com/settings/whatsapp-business-accounts" target="_blank" rel="noreferrer" className="set-link set-link-btn">
-                  Meta Business Suite ↗
+                  {t("ow.wa.openMeta")} ↗
                 </a>
               </div>
             </SetCard>
