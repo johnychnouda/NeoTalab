@@ -9,6 +9,8 @@ use App\Http\Resources\PlatformSettingsResource;
 use App\Services\AdminMerchantService;
 use App\Services\WhatsApp\WhatsAppEmbeddedSignupService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class WhatsAppEmbeddedSignupController extends Controller
 {
@@ -23,10 +25,16 @@ class WhatsAppEmbeddedSignupController extends Controller
         AdminMerchantService $adminMerchants,
         WhatsAppEmbeddedSignupService $signup,
     ): JsonResponse {
-        $merchant = $signup->complete(
-            $adminMerchants->find($id),
-            $request->validated(),
-        );
+        $merchant = $adminMerchants->find($id);
+
+        try {
+            $merchant = $signup->complete($merchant, $request->validated());
+        } catch (ValidationException $e) {
+            // The owner sees the reason for a few seconds on screen; this keeps it in Inbox → System.
+            Log::warning('WhatsApp signup did not finish: '.$this->reason($e), ['merchant_id' => $merchant->id]);
+
+            throw $e;
+        }
 
         return response()->json([
             'data' => new AdminMerchantResource($merchant),
@@ -38,11 +46,22 @@ class WhatsAppEmbeddedSignupController extends Controller
     /** NeoTalab's own WhatsApp number (owner portal → Settings → WhatsApp). */
     public function connectPlatform(ConnectEmbeddedSignupRequest $request, WhatsAppEmbeddedSignupService $signup): JsonResponse
     {
-        $setting = $signup->completePlatform($request->validated());
+        try {
+            $setting = $signup->completePlatform($request->validated());
+        } catch (ValidationException $e) {
+            Log::warning("WhatsApp signup did not finish for NeoTalab's own number: ".$this->reason($e));
+
+            throw $e;
+        }
 
         return response()->json([
             'settings' => new PlatformSettingsResource($setting, $request->user()->password_changed_at?->toIso8601String()),
             'message' => 'NeoTalab WhatsApp connected via Meta Embedded Signup.',
         ]);
+    }
+
+    private function reason(ValidationException $e): string
+    {
+        return collect($e->errors())->flatten()->first() ?: 'unknown reason';
     }
 }

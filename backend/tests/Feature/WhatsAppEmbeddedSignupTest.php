@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformSetting;
+use App\Models\SystemAlert;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\MerchantWhatsAppCredentials;
@@ -98,6 +99,27 @@ class WhatsAppEmbeddedSignupTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonFragment(['Meta could not register this number: Phone number not verified']);
+    }
+
+    public function test_a_signup_meta_refuses_leaves_a_record_in_the_owner_inbox(): void
+    {
+        Http::fake([
+            'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'EAAX_embedded_token'], 200),
+            'graph.facebook.com/*/123456789/subscribed_apps' => Http::response(['success' => true], 200),
+            'graph.facebook.com/*/987654321012345/register' => Http::response(['error' => ['message' => 'Two-step verification PIN mismatch']], 400),
+        ]);
+        [$merchant] = $this->merchantWithUser();
+
+        $this->withToken($this->tokenFor($this->platformAdmin()))
+            ->postJson("/api/v1/admin/merchants/{$merchant->id}/whatsapp/embedded-signup", [
+                'code' => 'oauth-code-from-meta', 'phoneNumberId' => '987654321012345', 'wabaId' => '123456789',
+            ])
+            ->assertUnprocessable();
+
+        $alert = SystemAlert::query()->sole();
+        $this->assertStringContainsString('WhatsApp signup did not finish', $alert->message);
+        $this->assertStringContainsString('Two-step verification PIN mismatch', $alert->message);
+        $this->assertSame($merchant->id, $alert->merchant_id);
     }
 
     public function test_business_app_coexistence_starts_both_meta_syncs(): void
