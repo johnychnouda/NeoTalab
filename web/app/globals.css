@@ -2721,6 +2721,8 @@ button.wa-mic { border: 0; cursor: pointer; }
 .sset.sset-cards { max-width: 1180px; }
 .sset-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 14px; align-items: start; }
 .sset-cols > .sset-card { margin-bottom: 0; }
+.sset-stack { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.sset-stack > .sset-card { margin-bottom: 0; }
 .zn-layout { display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 16px; align-items: start; }
 .zn-side, .zn-quick { min-width: 0; }
 .zn-map-wrap { position: relative; }

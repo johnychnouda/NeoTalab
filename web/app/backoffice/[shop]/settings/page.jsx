@@ -239,13 +239,57 @@ function Settings() {
         {p.business_mode && p.business_mode !== "orders" && <TeamCard api={api} t={t} toast={toast} />}
 
         {!bookingsOnly && (<>
-          <Card title={t("ops.fulfillment")} desc={t("ops.fulfillmentDesc")}>
-            <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
-              options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: FULFILLMENT_ICONS[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
-            {delivers && (
-              <button type="button" className="sset-next" onClick={() => setTab("areas")}>{t("ops.nextAreas")}</button>
+          {/* The short cards stack on the left and the tall location card sits beside them, so timing is never pushed below the map. */}
+          <div className="sset-stack">
+            <Card title={t("ops.fulfillment")} desc={t("ops.fulfillmentDesc")}>
+              <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
+                options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: FULFILLMENT_ICONS[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
+              {delivers && (
+                <button type="button" className="sset-next" onClick={() => setTab("areas")}>{t("ops.nextAreas")}</button>
+              )}
+            </Card>
+
+            <Card title={t("ops.timing")} desc={t("ops.timingDesc")}>
+              {unit === "minutes" && (
+                <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>
+                  <input id="o-prep" type="number" min="1" max="240" value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />
+                </Field>
+              )}
+              {unit === "hours" && (
+                <Field id="o-ph" label={t("ops.prepHours")} hint={t("ops.prepHint")} narrow>
+                  <input id="o-ph" type="number" min="1" max="72" value={p.prep_hours ?? 2} onChange={(e) => setP("prep_hours", e.target.value)} />
+                </Field>
+              )}
+              {unit === "days" && (
+                <Field id="o-dmin" label={t("ops.days")} hint={t("ops.daysHint")}>
+                  <div className="sset-inline">
+                    <input id="o-dmin" type="number" min="0" max="60" value={p.delivery_days_min ?? 1} onChange={(e) => setP("delivery_days_min", e.target.value)} />
+                    <span>{t("ops.daysTo")}</span>
+                    <input type="number" min="0" max="60" value={p.delivery_days_max ?? 2} onChange={(e) => setP("delivery_days_max", e.target.value)} aria-label={t("ops.daysTo")} />
+                  </div>
+                </Field>
+              )}
+              {unit !== "days" && (
+                <Switch checked={Number(p.late_alert_mins ?? 15) > 0} onChange={(on) => setP("late_alert_mins", on ? "15" : "0")}
+                  label={t("ops.late")} hint={t("ops.lateHint")} />
+              )}
+            </Card>
+
+            {(showQuotes || showJobs) && (
+              <Card title={t("db.set.card.repairs")}>
+                {showQuotes && (
+                  <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
+                    label={t("ops.quotes")} hint={t("ops.quotesHint")} />
+                )}
+                {showJobs && (
+                  <Field id="o-jobs" label={t("ops.jobsLabel")} hint={t("ops.jobsHint")}>
+                    <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
+                      placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
+                  </Field>
+                )}
+              </Card>
             )}
-          </Card>
+          </div>
 
           <Card title={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
             desc={t(pickup && delivers ? "ops.shopLocationBoth" : pickup ? "ops.pickupDesc" : "ops.shopLocationHint")}>
@@ -274,47 +318,6 @@ function Settings() {
               </>
             )}
           </Card>
-
-          <Card title={t("ops.timing")} desc={t("ops.timingDesc")}>
-            {unit === "minutes" && (
-              <Field id="o-prep" label={t("ops.prep")} hint={t("ops.prepHint")} narrow>
-                <input id="o-prep" type="number" min="1" max="240" value={p.prep_time_mins ?? ""} onChange={(e) => setP("prep_time_mins", e.target.value)} />
-              </Field>
-            )}
-            {unit === "hours" && (
-              <Field id="o-ph" label={t("ops.prepHours")} hint={t("ops.prepHint")} narrow>
-                <input id="o-ph" type="number" min="1" max="72" value={p.prep_hours ?? 2} onChange={(e) => setP("prep_hours", e.target.value)} />
-              </Field>
-            )}
-            {unit === "days" && (
-              <Field id="o-dmin" label={t("ops.days")} hint={t("ops.daysHint")}>
-                <div className="sset-inline">
-                  <input id="o-dmin" type="number" min="0" max="60" value={p.delivery_days_min ?? 1} onChange={(e) => setP("delivery_days_min", e.target.value)} />
-                  <span>{t("ops.daysTo")}</span>
-                  <input type="number" min="0" max="60" value={p.delivery_days_max ?? 2} onChange={(e) => setP("delivery_days_max", e.target.value)} aria-label={t("ops.daysTo")} />
-                </div>
-              </Field>
-            )}
-            {unit !== "days" && (
-              <Switch checked={Number(p.late_alert_mins ?? 15) > 0} onChange={(on) => setP("late_alert_mins", on ? "15" : "0")}
-                label={t("ops.late")} hint={t("ops.lateHint")} />
-            )}
-          </Card>
-
-          {(showQuotes || showJobs) && (
-            <Card title={t("db.set.card.repairs")}>
-              {showQuotes && (
-                <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
-                  label={t("ops.quotes")} hint={t("ops.quotesHint")} />
-              )}
-              {showJobs && (
-                <Field id="o-jobs" label={t("ops.jobsLabel")} hint={t("ops.jobsHint")}>
-                  <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
-                    placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
-                </Field>
-              )}
-            </Card>
-          )}
         </>)}
       </div>)}
 
