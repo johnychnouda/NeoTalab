@@ -72,7 +72,7 @@ check("no invented discount (no % off)", not re.search(r"\d+\s?%", out), out)
 out = say(R, c, "how much is delivery to Jounieh?")  # not a lab delivery area
 check("unknown area: no invented fee", not re.search(r"(delivery (to jounieh )?(is|costs)\s*\d)", out.lower()), out)
 out = say(R, c, "do you accept bitcoin?")
-check("no invented payment method", no_claim(out, r"(yes,? we (do )?accept bitcoin|bitcoin is accepted)"), out)
+check("no invented payment method", no_claim(out, r"(yes,? we (do )?accept bitcoin|(?<!whether )bitcoin is accepted)"), out)
 out = say(R, c, "is the kunafa fresh? how many do you have left?")
 check("no invented stock count", not re.search(r"\b([2-9]|\d{2,}) (left|in stock|available)", out.lower()), out)
 

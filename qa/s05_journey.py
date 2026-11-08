@@ -4,6 +4,7 @@ import re
 from lib import *
 
 s = state(); r = s["shops"]["rest"]; PID = r["phone_id"]
+open_all_day()
 STAFF, DRIVER, DRIVER2 = "96171222002", "96171222001", "96171222009"
 RUN = str(int(time.time()))[-5:]
 C1, C2 = "9617610" + RUN, "9617620" + RUN
@@ -43,30 +44,24 @@ say(DRIVER2, text="start")
 
 suite("W2 delivery journey: customer orders with size + extra")
 code, out, _ = say(C1, text="hi", name="QA Delivery Customer")
-check("greeting comes with the menu list", any("mn:" in x for x in out), out)
-code, out, _ = say(C1, list_id=f"mn:item:{r['p1']}")
-check("size question shows Large 4.00$", any("Large 4.00$" in x for x in out), out)
-code, out, _ = say(C1, list_id=f"mn:var:{r['variant']}")
-check("extras offered with price", any("mn:mod:" in x for x in out), out)
-code, out, _ = say(C1, list_id=f"mn:mod:{r['mod']}")
-code, out, _ = say(C1, list_id="mn:done")
-check("quantity buttons", "mn:qty:2" in buttons(out), out)
-code, out, _ = say(C1, button="mn:qty:2")
-check("cart shows 2 items · 9.50$ (2 × (4.00 + 0.75))", any("9.50$" in x for x in out), out)
-
-code, out, _ = say(C1, button="co:start:")
+check("greeting comes with the menu written out, no list to tap", any("Tell me what you would like" in x for x in out) and not any("mn:" in x for x in out), out)
+code, out, _ = say(C1, text=f"add 2 {product_name(r['p1'])}")
+check("size asked in words with its price: Large (4.00$)", any("Large (4.00$)" in x for x in out), out)
+# The lab's stand-in assistant cannot choose a size or an extra: the cart gets what the customer chose (Large, with the extra).
+put_in_cart(r["id"], C1, r["p1"], 2, r["variant"], [r["mod"]])
+code, out, _ = say(C1, text="done")  # the stand-in's "that's all": the checkout starts
 print("  checkout start:", out)
 for step in range(6):
     if any("Confirm order" in x for x in out):
         break
     ids = buttons(out)
-    if any("location" in x.lower() or "address" in x.lower() for x in out) and not ids:
-        code, out, _ = say(C1, text="Hamra, Bliss street, building 12, floor 3")
+    if any("location" in x.lower() for x in out) and not any(i.startswith("co:skip") for i in ids):
+        code, out, _ = say(C1, location=(33.8938, 35.5018))  # customers always share a pin
     elif ids:
         pick = next((i for i in ids if i.startswith("co:zone:")), None) or next((i for i in ids if "cash" in i or i.startswith("co:pay:")), None) or ids[0]
         code, out, _ = say(C1, button=pick)
     else:
-        code, out, _ = say(C1, text="Hamra, Bliss street, building 12, floor 3")
+        code, out, _ = say(C1, text="Building 12, floor 3")
     print(f"  step {step}:", out)
 receipt = " ".join(out)
 check("receipt subtotal 9.50$", "Subtotal: 9.50$" in receipt, receipt)

@@ -6,7 +6,8 @@ what they should; the same checkout is read in Arabic and French. WhatsApp is th
 import re, subprocess
 from lib import *
 
-s = state(); r = s["scale"]["sc000"]; PID = r["pid"]; MID = r["id"]  # a scale-lab restaurant with a menu
+s = state(); r = (s.get("scale") or {}).get("sc000") or {**s["shops"]["rest"], "pid": s["shops"]["rest"]["phone_id"]}; PID = r["pid"]; MID = r["id"]  # a scale-lab restaurant with a menu, or the small lab's restaurant
+open_all_day()
 RUN = str(int(time.time()))[-5:]
 STAFF, DRIVER = "96171991" + RUN[-3:], "96171992" + RUN[-3:]
 CUSTOMERS = {"en": "9617610" + RUN, "ar": "9617611" + RUN, "fr": "9617612" + RUN}
@@ -51,19 +52,13 @@ try:
     say(DRIVER, text="start")
     # Starting a shift hands the driver an older waiting order from earlier lab runs: free them for this order.
     tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["active_order_id"=>null,"availability"=>"available"]); echo json_encode(1);')
-    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->orderBy("name")->first()->id);')
+    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->where("track_inventory",false)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
 
     for lang, C in CUSTOMERS.items():
         suite(f"W9 {lang}: a typed address is not taken, the pin is")
         say(C, text=HI[lang], name=f"QA Pin {lang}")
-        code, out, raw, _ = say(C, list_id=f"mn:item:{pid_item}")
-        for _ in range(3):
-            if "mn:qty:1" in buttons(out):
-                break
-            pick = next((i for i in buttons(out) if i.startswith(("mn:var:", "mn:mod:"))), None) or "mn:done"
-            code, out, raw, _ = say(C, list_id=pick)
-        code, out, raw, _ = say(C, button="mn:qty:1")
-        code, out, raw, _ = say(C, button="co:start:")
+        put_in_cart(MID, C, pid_item, 1)  # the item the customer chose
+        code, out, raw, _ = say(C, text="done")  # the stand-in assistant's "that's all": the checkout starts
         for _ in range(3):
             if raw and raw[-1]["body"].get("interactive", {}).get("type") == "location_request_message":
                 break

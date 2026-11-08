@@ -3,6 +3,7 @@ import uuid
 from lib import *
 
 s = state(); R = s["shops"]["rest"]; PID = R["phone_id"]; STAFF = "96171222002"
+open_all_day()
 RUN = str(int(time.time()))[-5:]
 
 
@@ -62,4 +63,4 @@ out = say(c4, text="hello?")
 check("…and that note is sent at most once in 10 minutes", out == [], out)
 echo(c4, "▶️")
 out = say(c4, text="hi")
-check("▶️ hands the chat back to the bot", any("mn:" in x for x in out), out)
+check("▶️ hands the chat back to the bot", any("•" in x for x in out), out)

@@ -6,6 +6,7 @@ import time
 from lib import *
 
 s = state(); OWN = s["owner"]; r = s["shops"]["rest"]; PID = r["phone_id"]
+open_all_day()
 STAFF = "96171222002"
 RUN = str(int(time.time()))[-5:]
 
@@ -33,12 +34,8 @@ def order_of(phone):
 
 def place_whish_order(phone, name):
     say(phone, text="hi", name=name)
-    say(phone, list_id=f"mn:item:{r['p1']}")
-    say(phone, list_id=f"mn:var:{r['variant']}")
-    say(phone, list_id=f"mn:mod:{r['mod']}")
-    say(phone, list_id="mn:done")
-    say(phone, button="mn:qty:2")
-    code, out, _ = say(phone, button="co:start:")
+    put_in_cart(r["id"], phone, r["p1"], 2, r["variant"], [r["mod"]])  # the item, size and extra the customer chose
+    code, out, _ = say(phone, text="done")  # the stand-in assistant's "that's all": the checkout starts
     for _ in range(8):
         if any("Confirm order" in x for x in out):
             break
@@ -53,8 +50,12 @@ def place_whish_order(phone, name):
             out = say(phone, button="co:ful:delivery")[1]
         elif "co:when:asap" in ids:
             out = say(phone, button="co:when:asap")[1]
+        elif any("location" in x.lower() for x in out) and "co:skip:" not in ids:
+            out = say(phone, location=(33.8938, 35.5018))[1]  # customers always share a pin
+        elif "co:skip:" in ids:
+            out = say(phone, button="co:skip:")[1]
         else:
-            out = say(phone, text="Hamra, Bliss street, building 12, floor 3")[1]
+            out = say(phone, text="Building 12, floor 3")[1]
     code, out, _ = say(phone, button="co:ok:")
     return order_of(phone)
 

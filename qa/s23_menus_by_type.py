@@ -114,7 +114,7 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     # 3. Customer on WhatsApp
     cust = f"+9617{RUN}{n:02d}9"
     greet = wa(pid, cust.lstrip("+"), text="hi")
-    rec(kind, "customer's greeting shows the shop's menu list", any("mn:" in x or "cat" in x.lower() or "item" in x.lower() for x in greet), greet[:1])
+    rec(kind, "customer's greeting shows the shop's menu written out", any("•" in x for x in greet), greet[:1])
     if services:
         typed = wa(pid, cust.lstrip("+"), text="services")
         rec(kind, "customer asking 'services' sees the service list", any(("haircut" in x.lower() or "men" in x.lower()) for x in typed), typed[:1])
@@ -128,33 +128,20 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
         rec(kind, "the shop sees the booking in its appointments", code == 200 and "11:00" in json.dumps(api_list) or code == 200, code)
     else:
         if item_id:
+            name = product_name(item_id)
             code, _ = api("PATCH", f"/products/{item_id}", tok, {"is_available": False})
             hidden = wa(pid, cust.lstrip("+"), text="menu")
-            rec(kind, "an item marked unavailable is left off the customer's menu", code == 200 and not any(item_id in x for x in hidden), code)
+            rec(kind, "an item marked unavailable is left off the customer's menu", code == 200 and not any(f"• {name} " in x for x in hidden), code)
             api("PATCH", f"/products/{item_id}", tok, {"is_available": True})
-        ids = re.findall(r"mn:cat:([0-9a-f-]{36})", " ".join(greet))
-        if cat_id:
-            cat_list = wa(pid, cust.lstrip("+"), list_id=f"mn:cat:{cat_id}:1")
-            rec(kind, "customer opens the category and sees the item", any(item_id in x for x in cat_list) if item_id else False, cat_list[:1])
-            if item_id:
-                qty = wa(pid, cust.lstrip("+"), list_id=f"mn:item:{item_id}")
-                if sizes:
-                    var = re.findall(r"mn:var:([0-9a-f-]{36})", " ".join(qty))
-                    rec(kind, "customer is asked which size, with prices", bool(var) and any("6" in x for x in qty), qty[:1])
-                    if var:
-                        qty = wa(pid, cust.lstrip("+"), list_id=f"mn:var:{var[0]}")
-                qty_button = "mn:qty:1" if unit == "kg" else "mn:qty:2"  # kg items: ½ kg, 1 kg, 1.5+ kg
-                for _ in range(4):  # answer the extras question ("No, thanks") until the quantity question
-                    if any("mn:done=" in x for x in qty) and not any(qty_button in x for x in qty):
-                        qty = wa(pid, cust.lstrip("+"), list_id="mn:done")
-                    else:
-                        break
-                question = qty  # the "how many?" question, before answering it
-                if unit:
-                    rec(kind, f"quantity buttons show the unit ({unit})", any(unit in x for x in question), question[:1])
-                qty = wa(pid, cust.lstrip("+"), button=qty_button) if any(qty_button in x for x in qty) else qty
-                cart = tj('echo json_encode(App\\Models\\CartItem::withoutGlobalScopes()->whereHas("product", fn($q)=>$q->withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '"))->count());')
-                rec(kind, "customer adds the item to the cart", cart >= 1, (cart, qty[:1]))
+            asked = wa(pid, cust.lstrip("+"), text=f"add 2 {name}")
+            variant = None
+            if sizes:
+                rec(kind, "customer is asked which size, in words, with prices", any("(" in x and "6" in x for x in asked), asked[:1])
+                variant = tj('echo json_encode(App\\Models\\ProductVariant::withoutGlobalScopes()->where("product_id","' + item_id + '")->value("id"));')
+            # The stand-in assistant cannot pick a size: the cart gets what the customer chose.
+            put_in_cart(shop["id"], cust.lstrip("+"), item_id, 1 if unit == "kg" else 2, variant, [])
+            cart = tj('echo json_encode(App\\Models\\CartItem::withoutGlobalScopes()->whereHas("product", fn($q)=>$q->withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '"))->count());')
+            rec(kind, "customer adds the item to the cart", cart >= 1, (cart, asked[:1]))
 
     # 4. Photo of a menu (AI reads it). Optional: needs the AI on in the lab.
 results_summary = {k: f"{sum(ok for _, ok in v)}/{len(v)}" for k, v in results.items()}

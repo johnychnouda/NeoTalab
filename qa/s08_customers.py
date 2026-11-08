@@ -4,6 +4,7 @@ import re
 from lib import *
 
 s = state(); RUN = str(int(time.time()))[-5:]
+open_all_day()
 G = s["shops"]["grocer"]; P = s["shops"]["pharm"]; R = s["shops"]["rest"]
 
 
@@ -29,7 +30,7 @@ check("French greeting answered", out, out)
 out = say(G, c + "3", text="marhaba, shou fi?")
 check("Arabizi greeting answered", out, out)
 out = say(G, c + "1", text="قائمة")
-check("Arabic menu request shows the list", any("mn:" in x for x in out), out)
+check("Arabic menu request shows the menu in words", any("•" in x for x in out), out)
 out = say(G, c + "1", text="بدي 3 falafel")
 ct = cart(G, c + "1")
 check("Arabic 'بدي 3 falafel' → 3 in cart at 1.25 = 3.75", ct and ct["items"] and ct["items"][0][1] == 3 and ct["items"][0][2] == "3.75", (out, ct))
@@ -76,7 +77,7 @@ code, b = api("PATCH", "/settings/profile", P["token"], {"fulfillment": "pickup"
 check("pharmacy switches to pickup only", code == 200, (code, str(b)[:200]))
 p1 = c + "6"
 say(P, p1, text="add 2 shared item")
-out = say(P, p1, button="co:start:")
+out = say(P, p1, text="done")
 print("  pharmacy checkout:", out)
 check("pickup-only checkout never asks for a location", not any("location" in x.lower() for x in out), out)
 
@@ -89,7 +90,7 @@ out = say(R, c + "7", text="hi")
 check("customer told the shop is closed (any language)", any(w in x.lower() for x in out for w in ("closed", "fermé", "مغلق")), out)
 code, mid, t0 = wa_msg(R["phone_id"], STAFF, text="open"); settle(t0)
 out = say(R, c + "7", text="hi")
-check("after 'open' the menu is back", any("mn:" in x for x in out), out)
+check("after 'open' the menu is back, in words", any("•" in x for x in out), out)
 
 suite("Customers: blocked number, person request")
 b1 = c + "8"
@@ -111,12 +112,12 @@ out = say(R, b1, text="add 1 zaatar manousheh")
 check("bot stays quiet (short hold note at most) while paused", not cart(R, b1) or not cart(R, b1)["items"], out)
 code, mid, t0 = wa_msg(R["phone_id"], STAFF, button=f"stf:resume:{cid}"); settle(t0)
 out = say(R, b1, text="hi")
-check("after staff taps resume, bot answers again", any("mn:" in x for x in out), out)
+check("after staff taps resume, bot answers again", any("•" in x for x in out), out)
 
 suite("Customers: returning customer")
 out = say(G, g1, text="hi")
-check("returning customer greeted with menu", any("mn:" in x for x in out), out)
+check("returning customer greeted with the menu in words", any("•" in x for x in out), out)
 say(G, g1, text="add 9 falafel")
-out = say(G, g1, button="co:start:")
+out = say(G, g1, text="done")
 print("  returning checkout:", out)
 check("saved address offered at checkout", any("=Hamra" in x for x in out), out)

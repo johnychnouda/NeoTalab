@@ -80,6 +80,27 @@ def tj(php):
         raise RuntimeError(o)
 
 
+def put_in_cart(merchant_id, phone, product_id, qty=1, variant=None, mods=()):
+    """Puts an item in a customer's cart the way the assistant does (through CartService), for scripts about
+    what happens after the customer has chosen. The lab's stand-in assistant cannot pick a size or an extra."""
+    v = f'"{variant}"' if variant else "null"
+    m = "[" + ",".join(f'"{x}"' for x in mods) + "]"
+    return tj('app(App\\Support\\CurrentTenant::class)->set(App\\Models\\Merchant::find("' + merchant_id + '")); '
+              '$c=app(App\\Services\\ConversationService::class)->startOrResume(["phone"=>"+' + phone + '"],"whatsapp"); '
+              'echo json_encode(app(App\\Services\\CartService::class)->applyActions($c->cart,[new App\\Services\\AI\\DTO\\CartAction(action:"add",productId:"' + product_id + '",variantId:' + v + ',quantity:' + str(qty) + ',modifierIds:' + m + ')]));')
+
+
+def open_all_day():
+    """Opens every lab shop around the clock (00:00 to 00:00 counts as overnight, so always open): the checks
+    are about orders, not about the time of day the lab happens to run."""
+    tinker('foreach (App\\Models\\Merchant::all() as $m) { App\\Models\\ShopHour::withoutGlobalScopes()->where("merchant_id",$m->id)->delete(); '
+           'foreach (range(0,6) as $d) { App\\Models\\ShopHour::withoutGlobalScopes()->create(["merchant_id"=>$m->id,"day_of_week"=>$d,"opens_at"=>"00:00","closes_at"=>"00:00","is_closed"=>false]); } }')
+
+
+def product_name(product_id):
+    return tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->find("' + product_id + '")->name);')
+
+
 # ── WhatsApp (fake Meta) ─────────────────────────────────────
 def _sign(raw):
     return "sha256=" + hmac.new(ENV["WHATSAPP_APP_SECRET"].encode(), raw, hashlib.sha256).hexdigest()

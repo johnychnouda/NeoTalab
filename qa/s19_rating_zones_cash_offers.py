@@ -3,6 +3,7 @@ import datetime, re
 from lib import *
 
 s = state(); R = s["shops"]["rest"]; W = s["shops"]["whole"]; G = s["shops"]["grocer"]
+open_all_day()
 RUN = str(int(time.time()))[-5:]
 STAFF = "96171222002"
 
@@ -55,9 +56,9 @@ print("  low-rating reply:", out)
 c3 = "9617703" + RUN
 o, _ = delivered(G, c3)
 tinker('App\\Models\\Order::withoutGlobalScopes()->whereKey("' + o["id"] + '")->update(["rating_requested_at"=>now()]);')
-say(G, c3, list_id=f"mn:item:{G['p1']}")
+say(G, c3, text="add 1 falafel")
 out = say(G, c3, text="2")
-check("rating pending, but '2' typed while choosing a quantity is a quantity, not a rating",
+check("rating pending, but '2' typed in a new order is not a rating",
       last_order(G, c3)["rating"] is None, (last_order(G, c3), cart_qty(G, c3), out))
 print("  cart after typing 2:", cart_qty(G, c3), out)
 
@@ -80,7 +81,7 @@ for bad, label in (({"type": "circle", "center": shop, "radius": 50}, "50 m circ
 
 def pin_order(phone, lat, lng):
     say(W, phone, text="add 3 falafel")
-    say(W, phone, button="co:start:")
+    say(W, phone, text="done")
     out = say(W, phone, location=(lat, lng))
     return out
 

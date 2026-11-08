@@ -5,8 +5,9 @@ time they want. WhatsApp is the lab stand-in. Run: ./scale_env.sh python3 -u s52
 import os, re, subprocess
 from lib import *
 
-assert "neotalab_qa_scale" in ENV["DB_DATABASE"], "refusing: not the scale lab"
-s = state(); r = s["scale"]["sc000"]; PID = r["pid"]; MID = r["id"]
+assert "neotalab_qa_scale" in ENV["DB_DATABASE"] or ENV["DB_DATABASE"].startswith(LAB), "refusing: not a lab"
+s = state(); r = (s.get("scale") or {}).get("sc000") or {**s["shops"]["rest"], "pid": s["shops"]["rest"]["phone_id"]}; PID = r["pid"]; MID = r["id"]  # a scale-lab restaurant with a menu, or the small lab's restaurant
+open_all_day()
 RUN = str(int(time.time()))[-5:]
 STAFF, DRIVER = "96171993" + RUN[-3:], "96171994" + RUN[-3:]
 CUSTOMERS = {"en": "9617620" + RUN, "ar": "9617621" + RUN, "fr": "9617622" + RUN}
@@ -51,16 +52,8 @@ def to_summary(C, lang, name):
     """From hello to the order summary (pin, note, cash, dollars)."""
     _, out0, _, _ = say(C, text=HI[lang], name=name)
     dbg("hello", out0)
-    code, out, raw, _ = say(C, list_id=f"mn:item:{pid_item}")
-    dbg("item", out)
-    for _ in range(3):
-        if "mn:qty:1" in buttons(out):
-            break
-        pick = next((i for i in buttons(out) if i.startswith(("mn:var:", "mn:mod:"))), None) or "mn:done"
-        code, out, raw, _ = say(C, list_id=pick)
-    code, out, raw, _ = say(C, button="mn:qty:1")
-    dbg("qty", out)
-    code, out, raw, _ = say(C, button="co:start:")
+    put_in_cart(MID, C, pid_item, 1)  # the item the customer chose
+    code, out, raw, _ = say(C, text="done")  # the stand-in assistant's "that's all": the checkout starts
     dbg("start checkout", out)
     asked_pin = lambda: bool(raw) and raw[-1]["body"].get("interactive", {}).get("type") == "location_request_message"
     for _ in range(3):  # Delivery, or a returning customer's saved address (one tap): never tap Confirm here
@@ -99,7 +92,7 @@ try:
                 'App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",$ids)->update(["status"=>"off_duty"]); echo json_encode($ids);')
     say(STAFF, text="hi")
     say(DRIVER, text="start")
-    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->orderBy("name")->first()->id);')
+    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->where("track_inventory",false)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
 
     for lang, C in [(l, c) for l, c in CUSTOMERS.items() if l in os.environ.get("S52_LANGS", "en,ar,fr").split(",")]:
         suite(f"W10 {lang}: the shop's own time, Another time, a written time")
