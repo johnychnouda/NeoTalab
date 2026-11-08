@@ -15,16 +15,16 @@ use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Tests\Concerns\FillsTheCart;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
 /** Clothing and shoes: stock per size and colour (M in Red), set up in the dashboard, used on WhatsApp. */
 class OptionStockTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use FillsTheCart, InteractsWithTenants, RefreshDatabase;
 
     private Merchant $merchant;
 
@@ -71,25 +71,9 @@ class OptionStockTest extends TestCase
         ]]]]]]);
     }
 
-    private function tap(string $id, string $from = '96170123456'): void
-    {
-        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => $id, 'title' => 'x']]], $from);
-    }
-
-    /** @return list<string> */
-    private function lastIds(): array
-    {
-        $i = Http::recorded()->map(fn ($p) => $p[0])->filter(fn (Request $r) => str_ends_with($r->url(), '/messages'))->last()['interactive'] ?? [];
-
-        return array_merge(array_map(fn ($b) => $b['reply']['id'], $i['action']['buttons'] ?? []), array_map(fn ($r) => $r['id'], $i['action']['sections'][0]['rows'] ?? []));
-    }
-
     private function buy(string $from, ProductVariant $size, Modifier $colour): void
     {
-        $this->tap("mn:item:{$this->shirt->id}", $from);
-        $this->tap("mn:var:{$size->id}", $from);
-        $this->tap("mn:mod:{$colour->id}", $from);
-        $this->tap('mn:qty:1', $from);
+        $this->putInCart($this->merchant, $from, $this->shirt, 1, $size->id, [$colour->id]);
         $this->receive(['type' => 'text', 'text' => ['body' => 'confirm | | | cash']], $from);
     }
 
@@ -100,10 +84,10 @@ class OptionStockTest extends TestCase
         $this->assertSame(0, ProductStock::query()->withoutGlobalScopes()->sole()->stock_quantity);
         $this->assertSame(9, $this->shirt->fresh()->stock_quantity);
 
-        $this->tap("mn:item:{$this->shirt->id}", '96170000002');
-        $this->tap("mn:var:{$this->m->id}", '96170000002');
-        $this->assertNotContains("mn:mod:{$this->red->id}", $this->lastIds(), 'no Red left in M');
-        $this->assertContains("mn:mod:{$this->blue->id}", $this->lastIds());
+        // Red is no longer offered in M: the cart refuses it, and Blue is still fine.
+        $refused = $this->putInCart($this->merchant, '96170000002', $this->shirt, 1, $this->m->id, [$this->red->id]);
+        $this->assertCount(1, $refused['rejected'], 'no Red left in M');
+        $this->assertSame(1, $this->putInCart($this->merchant, '96170000002', $this->shirt, 1, $this->m->id, [$this->blue->id])['applied']);
 
         // Large has no own number for Red: the item's stock decides.
         $this->buy('96170000003', $this->l, $this->red);
@@ -115,10 +99,7 @@ class OptionStockTest extends TestCase
 
     public function test_a_sold_out_combination_stops_the_checkout_even_if_it_was_in_the_cart(): void
     {
-        $this->tap("mn:item:{$this->shirt->id}");
-        $this->tap("mn:var:{$this->m->id}");
-        $this->tap("mn:mod:{$this->red->id}");
-        $this->tap('mn:qty:1');
+        $this->putInCart($this->merchant, '96170123456', $this->shirt, 1, $this->m->id, [$this->red->id]);
         $this->assertSame(1, CartItem::query()->withoutGlobalScopes()->count());
 
         $this->buy('96170000009', $this->m, $this->red); // someone else takes the last one

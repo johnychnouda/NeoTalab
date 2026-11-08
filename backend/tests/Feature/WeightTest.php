@@ -18,16 +18,16 @@ use App\Support\Quantity;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Tests\Concerns\FillsTheCart;
 use Tests\Concerns\InteractsWithTenants;
 use Tests\TestCase;
 
 /** Groceries, butchers, laundries: items sold by the kilo, in quarter-kilo steps. */
 class WeightTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use FillsTheCart, InteractsWithTenants, RefreshDatabase;
 
     private Merchant $merchant;
 
@@ -58,21 +58,9 @@ class WeightTest extends TestCase
         ]]]]]]);
     }
 
-    private function tap(string $id): void
-    {
-        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => $id, 'title' => 'x']]]);
-    }
-
     private function say(string $text): void
     {
         $this->receive(['type' => 'text', 'text' => ['body' => $text]]);
-    }
-
-    private function lastText(): string
-    {
-        $last = Http::recorded()->map(fn ($p) => $p[0])->filter(fn (Request $r) => str_ends_with($r->url(), '/messages'))->last();
-
-        return $last['text']['body'] ?? ($last['interactive']['body']['text'] ?? '');
     }
 
     private function line(): ?CartItem
@@ -80,22 +68,12 @@ class WeightTest extends TestCase
         return CartItem::query()->withoutGlobalScopes()->where('product_id', $this->tomatoes->id)->latest('id')->first();
     }
 
-    public function test_half_a_kilo_from_the_buttons_and_a_typed_weight(): void
+    public function test_half_a_kilo_is_kept_and_priced_per_kilo(): void
     {
-        $this->tap("mn:item:{$this->tomatoes->id}");
-        $this->tap('mn:qty:0.5');
+        $this->putInCart($this->merchant, '96170123456', $this->tomatoes, 0.5);
+
         $this->assertSame(0.5, $this->line()->quantity);
         $this->assertSame('0.75', number_format((float) $this->line()->line_total, 2, '.', ''));
-        $this->assertStringContainsString('Added 0.5 kg Tomatoes', $this->lastText());
-
-        CartItem::query()->withoutGlobalScopes()->delete();
-        $this->tap("mn:item:{$this->tomatoes->id}");
-        $this->say('1,5 kg');
-        $this->assertSame(1.5, $this->line()->quantity);
-
-        $this->tap("mn:item:{$this->tomatoes->id}");
-        $this->tap('mn:qtymore');
-        $this->assertContains('mn:qty:2.5', collect(Http::recorded()->map(fn ($p) => $p[0])->last()['interactive']['action']['sections'][0]['rows'])->pluck('id')->all());
     }
 
     public function test_weights_round_to_a_quarter_kilo_and_pieces_stay_whole(): void
@@ -120,8 +98,7 @@ class WeightTest extends TestCase
     public function test_the_order_ticket_says_kg_and_stock_in_kilos_is_taken_and_given_back(): void
     {
         $this->tomatoes->update(['track_inventory' => true, 'stock_quantity' => 2]);
-        $this->tap("mn:item:{$this->tomatoes->id}");
-        $this->tap('mn:qty:1.5');
+        $this->putInCart($this->merchant, '96170123456', $this->tomatoes, 1.5);
         $this->say('confirm | | | cash');
 
         $order = Order::query()->withoutGlobalScopes()->sole();

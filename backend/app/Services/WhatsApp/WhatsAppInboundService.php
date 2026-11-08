@@ -338,7 +338,7 @@ class WhatsAppInboundService
 
         // Stickers, and photos when nobody can be alerted: never leave the customer without an answer.
         if ($unreadable) {
-            $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('media_unsupported', $locale, $merchant->name));
+            $this->reply($merchant, $fromPhone, $this->text('media_unsupported', $locale, $merchant->name));
 
             return;
         }
@@ -347,7 +347,7 @@ class WhatsAppInboundService
         if ($isVoice) {
             $text = $this->transcribeVoice($merchant, $msg);
             if ($text === null) {
-                $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('voice_failed', $locale, $merchant->name));
+                $this->reply($merchant, $fromPhone, $this->text('voice_failed', $locale, $merchant->name));
 
                 return;
             }
@@ -422,13 +422,8 @@ class WhatsAppInboundService
                 return;
             }
 
-            // The menu inside the chat (lists and buttons) and "Where's my order?".
-            $step = $buttonId === 'co:start:'
-                ? $this->checkoutFlow->start($merchant, $conversation, $locale)
-                : ($buttonId !== null ? $this->chatMenu->handle($merchant, $conversation, $locale, $buttonId) : null);
-
-            // "2" typed when the menu asks "how many?" counts like tapping 2.
-            $step ??= $buttonId === null ? $this->chatMenu->typedQuantity($merchant, $conversation, $locale, $text) : null;
+            // "Where's my order?" under a status message.
+            $step = $buttonId !== null ? $this->chatMenu->handle($merchant, $conversation, $locale, $buttonId) : null;
 
             // Checkout runs on buttons, without the AI: Delivery/Pickup → address → payment → receipt.
             $step ??= $this->checkoutFlow->handle($merchant, $conversation, $locale, $buttonId, $text, $location);
@@ -478,14 +473,6 @@ class WhatsAppInboundService
                 return;
             }
 
-            // The assistant may say "added" for an item the cart refused (a size still to choose, sold
-            // out): show that item's next step from the menu, or say it is unavailable, instead.
-            if (($refused = $this->refusedItem($merchant, $result, $locale)) !== null) {
-                $this->send($merchant, $fromPhone, $refused);
-
-                return;
-            }
-
             // The assistant says the customer is done choosing: hand over to the button checkout.
             if ($result['output']->recommendedAction === RecommendedAction::Checkout) {
                 if ($reply !== '') {
@@ -501,7 +488,11 @@ class WhatsAppInboundService
                 'wa_message_id' => $waMessageId,
                 'error' => $e->getMessage(),
             ]);
-            $this->reply($merchant, $fromPhone, $this->text('error', $locale, $merchant->name));
+            // No menu to fall back on: the customer is told a person will answer, and the team hears about it (once in ten minutes).
+            $this->reply($merchant, $fromPhone, $this->text('ai_down', $locale, $merchant->name));
+            if (isset($conversation) && Cache::add("ai-down-alert:{$merchant->id}:{$fromPhone}", 1, 600)) {
+                NotifyStaffOfHandoff::dispatch($conversation->customer_id, 'ai');
+            }
 
             return;
         }
@@ -512,35 +503,13 @@ class WhatsAppInboundService
 
         if ($reply !== '' && ($result['menu_link'] ?? false)) {
             // The greeting (or "show me the menu") comes with the menu list right in the chat.
-            $this->send($merchant, $fromPhone, $this->chatMenu->categories($merchant, $locale, 1, $reply));
+            $this->send($merchant, $fromPhone, $this->chatMenu->textMenu($merchant, $locale, $reply));
         } elseif ($reply !== '') {
             $this->reply($merchant, $fromPhone, $reply);
         } elseif ($result['output']->recommendedAction !== RecommendedAction::CancelOrder) {
             // The assistant had nothing to say (cancelling is answered by the status message).
-            $this->replyWithMenu($merchant, $fromPhone, $locale, $this->text('not_understood', $locale, $merchant->name));
+            $this->reply($merchant, $fromPhone, $this->text('not_understood', $locale, $merchant->name));
         }
-    }
-
-    /**
-     * The first item the customer asked for that the cart refused, as the message to send.
-     *
-     * @param  array<string, mixed>  $result
-     * @return array<string, mixed>|null
-     */
-    protected function refusedItem(Merchant $merchant, array $result, string $locale): ?array
-    {
-        $productId = collect($result['cart_result']['rejected'] ?? [])
-            ->first(fn ($r) => ($r['action'] ?? null) === 'add' && ! empty($r['product_id']))['product_id'] ?? null;
-        $product = $productId ? Product::query()->find($productId) : null;
-        if (! $product) {
-            return null;
-        }
-
-        if ($product->isOrderable() && ! $product->duration_mins) {
-            return $this->chatMenu->handle($merchant, $result['conversation'], $locale, "mn:item:{$product->id}");
-        }
-
-        return ['type' => 'text', 'text' => __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale)];
     }
 
     /** The shop's services with minutes and prices, and how to book; null when there are none. */
@@ -836,7 +805,7 @@ class WhatsAppInboundService
                     continue;
                 }
                 $locale = $customer?->locale ?? $merchant->locale ?? 'en';
-                $this->replyWithMenu($merchant, $from, $locale, $this->text('call_note', $locale, $merchant->name));
+                $this->reply($merchant, $from, $this->text('call_note', $locale, $merchant->name));
             }
         } finally {
             $this->tenant->forget();
@@ -880,19 +849,7 @@ class WhatsAppInboundService
                 $note .= "\n• ".Quantity::line($item->quantity, $item->product?->unit, (string) ($item->product?->name ?? '')).' — '.Money::format((float) $item->line_total, $merchant->currency);
             }
         }
-        $this->replyWithMenu($merchant, $fromPhone, $locale, $note);
-    }
-
-    protected function replyWithMenu(Merchant $merchant, string $toPhone, string $locale, string $note): void
-    {
-        try {
-            $menu = $this->chatMenu->categories($merchant, $locale, 1, $note);
-            $hasRows = ! empty($menu['interactive']['action']['sections'][0]['rows'] ?? []);
-        } catch (\Throwable) {
-            $hasRows = false;
-        }
-
-        $hasRows ? $this->send($merchant, $toPhone, $menu) : $this->reply($merchant, $toPhone, $note);
+        $this->reply($merchant, $fromPhone, $note);
     }
 
     /**

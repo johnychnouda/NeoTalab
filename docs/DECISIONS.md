@@ -346,3 +346,18 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
 - **Shop and account:** the number customers chat with is shown read-only with "Connected"; "Language for your team" is its
   own setting. The sidebar EN/AR/FR buttons now change only what the owner reads in the dashboard; before, they silently
   changed the language of every WhatsApp message to the team (the cause of the first shop's driver getting English).
+
+## The assistant leads the chat (7 November)
+
+- **The owner's decision:** customers talk to the assistant (`gpt-6-luna`); there is no menu list or item buttons to fall
+  back on. A greeting or "show me the menu" gets the menu written out (`ChatMenu::textMenu`: ten categories at most, or the
+  items when there is one category) and how to order. A first message that is a real question gets only its answer.
+- **Sizes and required extras are asked in words** (`ConversationService::refusalReply`): when `CartService` refuses an add
+  because a size or a required extra is missing, the reply is replaced with the choices and their prices, and that question is
+  what the conversation remembers. Sold-out items and items that need the team's check are answered in words too.
+- **Still taps, by decision:** Confirm, the payment choice and delivery or pickup (`CheckoutFlow`), "Where's my order?", the
+  cancel Yes/No, and the staff and driver buttons. They protect money and orders.
+- **When the assistant fails** the customer is told a team member will answer, and the staff get a handoff alert (`NotifyStaffOfHandoff`,
+  reason `ai`) at most once in ten minutes per customer. The bot is not paused.
+- **Removed:** the menu-list and item-button code in `ChatMenu` (`mn:` ids, `co:start:`, typed quantity), `BusinessKind::menuWord`,
+  and the menu translation keys only it used. The approval message for a team-checked item now says "just ask me for it".

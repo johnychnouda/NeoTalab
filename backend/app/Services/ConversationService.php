@@ -26,7 +26,9 @@ use App\Support\CheckoutException;
 use App\Support\ClockTime;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
+use App\Support\Conversation\ConversationIntent;
 use App\Support\Conversation\RecommendedAction;
+use App\Services\ChatMenu;
 use App\Support\CurrentTenant;
 use App\Support\Money;
 use App\Support\OrderMessage;
@@ -200,6 +202,11 @@ class ConversationService
             RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [$this->withoutMadeUpPrice(Money::fromAiText($output->assistantMessage), $message, $input, $cart, $language, $conversation), null],
         };
+        // The cart refused an item (a size or required extra missing, sold out, needs a check): the customer is told in words.
+        if (! in_array($output->recommendedAction, [RecommendedAction::PlaceOrder, RecommendedAction::CancelOrder, RecommendedAction::Handoff, RecommendedAction::CheckAvailability, RecommendedAction::BookAppointment, RecommendedAction::CancelAppointment], true)
+            && ($refusal = $this->refusalReply($conversation, $cartResult, in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en'))) !== null) {
+            $reply = $refusal;
+        }
         // A weight the cart cut to a quarter kilo: the customer is told the amount really in the cart, not the one asked.
         if (($cartResult['rounded'] ?? []) !== [] && $output->recommendedAction !== RecommendedAction::PlaceOrder) {
             $line = $cartResult['rounded'][0];
@@ -236,8 +243,11 @@ class ConversationService
             'reply' => $reply,
             'order' => $order,
             // First answer in a conversation, or the customer asked for the menu: attach the menu list.
+            // The menu is written out for a greeting (the first words of a chat) or when the customer asks for it,
+            // never under a real answer such as a price.
             'menu_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'appointments'
-                && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
+                && ($output->recommendedAction === RecommendedAction::ShowMenu
+                    || (($state['messages'] ?? []) === [] && $output->intent === ConversationIntent::Greeting)),
             // Salons: the first answer (or a request for the menu) lists the services.
             'services_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'orders'
                 && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
@@ -261,6 +271,47 @@ class ConversationService
 
         return $firstAdd === false ? $actions
             : array_values(array_filter($actions, fn ($a, $i) => ! ($a->action === 'clear' && $i > $firstAdd), ARRAY_FILTER_USE_BOTH));
+    }
+
+    /**
+     * What to say when the cart refused the first item the assistant tried to add: the choices of a size or of a
+     * required extra written out, "no longer available", or the wait for the team's check. Null when nothing was
+     * refused (or the refusal is not one the customer can fix by choosing).
+     *
+     * @param  array<string, mixed>  $cartResult
+     */
+    private function refusalReply(Conversation $conversation, array $cartResult, string $locale): ?string
+    {
+        $refused = collect($cartResult['rejected'] ?? [])->first(fn ($r) => ($r['action'] ?? null) === 'add' && ! empty($r['product_id']));
+        $product = $refused ? Product::with(['variants', 'modifierGroups.modifiers'])->find($refused['product_id']) : null;
+        if (! $product || $product->duration_mins) {
+            return null;
+        }
+        $merchant = app(CurrentTenant::class)->get();
+
+        if (! $product->isOrderable()) {
+            return __('whatsapp.checkout.unavailable', ['item' => $product->name], $locale);
+        }
+        if ($product->staff_check && ! $conversation->customer?->isApproved($product->id)) {
+            return app(ChatMenu::class)->checkRequest($conversation, $locale, $product)['text'];
+        }
+
+        $reason = (string) ($refused['reason'] ?? '');
+        $variants = $product->variants->filter(fn ($v) => $v->isOffered())->values();
+        if ($variants->isNotEmpty() && str_contains($reason, 'has sizes')) {
+            $options = $variants->map(fn ($v) => $v->name.' ('.Money::format((float) ($v->price ?? $product->price), $merchant->currency).')')->implode(', ');
+
+            return __('whatsapp.cart.choose_size', ['item' => $product->name, 'options' => $options], $locale);
+        }
+        if (preg_match('/^Option "(.+)" is required/', $reason, $m)
+            && ($group = $product->modifierGroups->firstWhere('name', $m[1]))) {
+            $options = $group->modifiers->filter(fn ($x) => ($x->is_active ?? true) && ($x->is_available ?? true))
+                ->map(fn ($x) => $x->name.((float) $x->price_delta > 0 ? ' (+'.Money::format((float) $x->price_delta, $merchant->currency).')' : ''))->implode(', ');
+
+            return __('whatsapp.cart.choose_option', ['item' => $product->name, 'group' => $group->name, 'options' => $options], $locale);
+        }
+
+        return null;
     }
 
     private function checkout(Conversation $conversation, StructuredTurnOutput $output): array

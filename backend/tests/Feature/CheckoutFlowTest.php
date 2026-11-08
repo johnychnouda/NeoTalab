@@ -10,7 +10,10 @@ use App\Models\DeliveryZone;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\CheckoutFlow;
+use App\Services\ConversationService;
 use App\Services\WhatsApp\WhatsAppInboundService;
+use App\Support\CurrentTenant;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -90,12 +93,11 @@ class CheckoutFlowTest extends TestCase
         return array_map(fn ($b) => $b['reply']['id'], $m['interactive']['action']['buttons'] ?? []);
     }
 
-    /** Orders through the menu inside the chat: item → quantity → Checkout. */
+    /** Orders by writing to the assistant: the item and quantity, then "done". */
     private function menuOrder(int $qty = 2): void
     {
-        $this->pickRow("mn:item:{$this->zaatar->id}");
-        $this->tap("mn:qty:{$qty}");
-        $this->tap('co:start:');
+        $this->say("add {$qty} zaatar");
+        $this->say('done');
     }
 
     private function order(): Order
@@ -202,7 +204,7 @@ class CheckoutFlowTest extends TestCase
         $this->menuOrder();
         $conversation = Conversation::query()->withoutGlobalScopes()->latest()->firstOrFail();
 
-        app(\App\Services\CheckoutFlow::class)->start($this->merchant, $conversation, 'en', ['fulfillment' => 'delivery', 'delivery_address' => 'Sassine street, bldg Rizk, 3rd floor']);
+        app(CheckoutFlow::class)->start($this->merchant, $conversation, 'en', ['fulfillment' => 'delivery', 'delivery_address' => 'Sassine street, bldg Rizk, 3rd floor']);
         $this->pickRow("co:zone:{$this->jbeil->id}");
 
         $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'a typed address never replaces the pin');
@@ -220,9 +222,9 @@ class CheckoutFlowTest extends TestCase
         $this->menuOrder();
         $conversation = Conversation::query()->withoutGlobalScopes()->latest()->firstOrFail();
 
-        app(\App\Support\CurrentTenant::class)->set($this->merchant);
+        app(CurrentTenant::class)->set($this->merchant);
 
-        [$reply, $order] = app(\App\Services\ConversationService::class)->placeOrderFromDetails($conversation, [
+        [$reply, $order] = app(ConversationService::class)->placeOrderFromDetails($conversation, [
             'fulfillment' => 'delivery', 'delivery_zone' => 'Jbeil', 'delivery_address' => 'Main Street, Building 4, 2nd floor',
         ]);
 
@@ -281,7 +283,7 @@ class CheckoutFlowTest extends TestCase
         // 1 × $2 is under Jbeil's $3 minimum: refused as soon as the saved Jbeil address is picked.
         $this->pickRow("co:addr:{$saved}");
         $this->assertSame(1, Order::query()->withoutGlobalScopes()->count(), 'below minimum: no second order');
-        $this->assertStringContainsString('minimum order for Jbeil', $this->last()['interactive']['body']['text']);
+        $this->assertStringContainsString('minimum order for Jbeil', $this->last()['text']['body']);
     }
 
     public function test_saved_address_goes_straight_to_payment(): void
@@ -304,8 +306,8 @@ class CheckoutFlowTest extends TestCase
         $this->menuOrder(1);
         $this->pickRow("co:zone:{$this->jbeil->id}");
 
-        $this->assertSame('list', $this->last()['interactive']['type'], 'back to the menu to add more');
-        $this->assertStringContainsString('minimum order for Jbeil is 3.00', $this->last()['interactive']['body']['text']);
+        $this->assertSame('text', $this->last()['type'], 'back to the menu, in words, to add more');
+        $this->assertStringContainsString('minimum order for Jbeil is 3.00', $this->last()['text']['body']);
     }
 
     public function test_whish_offers_dollars_and_lira_but_never_a_split(): void
@@ -394,7 +396,7 @@ class CheckoutFlowTest extends TestCase
         $this->assertStringContainsString('cancelled', $this->last()['text']['body']);
 
         $this->tap('co:ok:');
-        $this->assertStringContainsString('already done', $this->last()['interactive']['body']['text']);
+        $this->assertStringContainsString('already done', $this->last()['text']['body']);
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
     }
 }

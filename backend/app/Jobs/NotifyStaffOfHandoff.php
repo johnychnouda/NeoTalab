@@ -22,7 +22,7 @@ class NotifyStaffOfHandoff implements ShouldQueue
 
     public int $tries = 1;
 
-    /** @param  string  $reason  person | photo */
+    /** @param  string  $reason  person | photo | ai */
     public function __construct(public string $customerId, public string $reason = 'person') {}
 
     public function handle(StaffMessenger $messenger): void
@@ -33,7 +33,11 @@ class NotifyStaffOfHandoff implements ShouldQueue
             return;
         }
 
-        $key = $this->reason === 'photo' ? 'photo' : 'handoff';
+        $key = match ($this->reason) {
+            'photo' => 'photo',
+            'ai' => 'ai',
+            default => 'handoff',
+        };
 
         foreach ($messenger->staff($merchant) as $member) {
             $locale = $messenger->localeOf($merchant, $member);

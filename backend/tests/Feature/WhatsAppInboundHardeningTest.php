@@ -239,7 +239,7 @@ class WhatsAppInboundHardeningTest extends TestCase
 
     public function test_ai_failure_sends_fallback_message_instead_of_failing_the_job(): void
     {
-        $this->merchant('111');
+        $merchant = $this->merchant('111');
         $this->app->bind(ChatProvider::class, fn () => new class implements ChatProvider
         {
             public function processTurn(ConversationTurnInput $input): StructuredTurnOutput
@@ -250,7 +250,7 @@ class WhatsAppInboundHardeningTest extends TestCase
 
         app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.ERR')])]]]]);
 
-        $this->assertSame(['Sorry, we could not process your message right now. Please try again in a moment.'], $this->sentTexts());
+        $this->assertSame(["Sorry, I'm having trouble right now. A team member from ".$merchant->name.' will reply here shortly.'], $this->sentTexts());
     }
 
     public function test_idle_conversation_is_closed_and_a_new_one_started(): void

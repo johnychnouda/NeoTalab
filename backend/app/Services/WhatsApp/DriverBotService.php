@@ -537,7 +537,7 @@ class DriverBotService
 
     /**
      * The team approved or refused an item for a customer: the customer is told
-     * and, when approved, gets a button to add it (the approval lasts a day, for one order).
+     * and, when approved, is told to ask for it (the approval lasts a day, for one order).
      */
     public function answerCheck(Merchant $merchant, Customer $customer, Product $product, bool $approve, string $locale): string
     {
@@ -550,11 +550,7 @@ class DriverBotService
         $customer->forceFill(['bot_paused_until' => null])->save();
 
         $text = __($approve ? 'whatsapp.check.approved' : 'whatsapp.check.refused', ['item' => $product->name, 'shop' => $merchant->name], $customerLocale);
-        $message = $approve
-            ? ['type' => 'interactive', 'interactive' => ['type' => 'button', 'body' => ['text' => $text], 'action' => ['buttons' => [
-                ['type' => 'reply', 'reply' => ['id' => "mn:item:{$product->id}", 'title' => mb_substr(__('whatsapp.check.button_add', [], $customerLocale), 0, 20)]],
-            ]]]]
-            : ['type' => 'text', 'text' => $text];
+        $message = ['type' => 'text', 'text' => $text];
         try {
             $this->whatsapp->sendToCustomer($merchant, (string) $customer->phone, $message);
         } catch (\Throwable $e) {

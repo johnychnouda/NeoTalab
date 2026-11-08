@@ -136,11 +136,10 @@ class StaffCheckTest extends TestCase
 
         $told = $this->lastTo(self::CUSTOMER);
         $this->assertStringContainsString('approved', $this->body($told));
-        $this->assertSame("mn:item:{$this->antibiotic->id}", $told['interactive']['action']['buttons'][0]['reply']['id']);
+        $this->assertStringContainsString('Just ask me for it', $this->body($told));
         $this->assertStringContainsString('approved for', $this->body($this->lastTo(self::STAFF)));
 
-        $this->tap("mn:item:{$this->antibiotic->id}");
-        $this->tap('mn:qty:1');
+        $this->say('add 1 Cigarettes');
         $this->assertSame(1, $this->cartCount());
 
         $this->say('confirm | | | cash');
@@ -160,7 +159,6 @@ class StaffCheckTest extends TestCase
 
         $this->assertStringContainsString('could not approve', $this->body($this->lastTo(self::CUSTOMER)));
         $this->assertNull($this->customer()->hasPendingCheck());
-        $this->tap("mn:item:{$this->antibiotic->id}");
         $this->assertSame(0, $this->cartCount());
     }
 
@@ -178,8 +176,7 @@ class StaffCheckTest extends TestCase
         $this->staff();
         $this->say('add 1 Cigarettes');
         $this->tap("stf:approve:{$this->customer()->id}:{$this->antibiotic->id}", self::STAFF);
-        $this->tap("mn:item:{$this->antibiotic->id}");
-        $this->tap('mn:qty:1');
+        $this->say('add 1 Cigarettes');
 
         Carbon::setTestNow(now()->addHours(25));
         $this->say('confirm | | | cash');

@@ -7,10 +7,7 @@ use App\Jobs\CheckUnacceptedOrder;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Merchant;
-use App\Models\Modifier;
-use App\Models\ModifierGroup;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
@@ -50,9 +47,9 @@ class ChatMenuTest extends TestCase
         ]]]]]]);
     }
 
-    private function tap(string $id): void
+    private function say(string $text): void
     {
-        $this->inbound(['type' => 'interactive', 'interactive' => ['type' => 'list_reply', 'list_reply' => ['id' => $id, 'title' => 'x']]]);
+        $this->inbound(['type' => 'text', 'text' => ['body' => $text]]);
     }
 
     /** @return array<string, mixed> */
@@ -61,99 +58,24 @@ class ChatMenuTest extends TestCase
         return Http::recorded()->map(fn ($p) => $p[0])->filter(fn (Request $r) => str_ends_with($r->url(), '/messages'))->last()->data();
     }
 
-    /** @return list<string> */
-    private function ids(): array
-    {
-        $i = $this->last()['interactive'];
-
-        return $i['type'] === 'list'
-            ? array_column($i['action']['sections'][0]['rows'], 'id')
-            : array_map(fn ($b) => $b['reply']['id'], $i['action']['buttons']);
-    }
-
     private function cartItems()
     {
         return Conversation::query()->withoutGlobalScopes()->firstOrFail()->cart()->withoutGlobalScopes()->first()->items()->withoutGlobalScopes()->get();
     }
 
-    public function test_greeting_comes_with_the_menu_and_big_menus_page_with_more(): void
+    public function test_greeting_comes_with_the_menu_in_words(): void
     {
         foreach (range(1, 12) as $n) {
             $c = Category::factory()->forMerchant($this->merchant)->create(['name' => "Cat {$n}", 'sort_order' => $n]);
             Product::factory()->forMerchant($this->merchant)->create(['name' => "Item {$n}", 'price' => 1, 'category_id' => $c->id]);
         }
 
-        $this->inbound(['type' => 'text', 'text' => ['body' => 'marhaba']]);
-        $this->assertSame('list', $this->last()['interactive']['type']);
-        $ids = $this->ids();
-        $this->assertCount(10, $ids, '9 categories + More');
-        $this->assertSame('mn:cats:2', end($ids));
+        $this->say('marhaba');
 
-        $this->tap('mn:cats:2');
-        $this->assertCount(3, $this->ids(), 'categories 10–12');
-    }
-
-    public function test_choose_size_extras_and_quantity_then_checkout(): void
-    {
-        $pizza = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza', 'price' => 8]);
-        $large = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pizza->id, 'name' => 'Large', 'price' => 10, 'is_active' => true, 'is_available' => true]);
-        ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pizza->id, 'name' => 'Small', 'price' => 8, 'is_active' => true, 'is_available' => true]);
-        $group = ModifierGroup::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pizza->id, 'name' => 'Extras', 'required' => false, 'min_select' => 0, 'max_select' => 3]);
-        $olives = Modifier::query()->forceCreate(['merchant_id' => $this->merchant->id, 'modifier_group_id' => $group->id, 'name' => 'Olives', 'price_delta' => 0.5, 'is_active' => true, 'is_available' => true]);
-        Modifier::query()->forceCreate(['merchant_id' => $this->merchant->id, 'modifier_group_id' => $group->id, 'name' => 'Mushrooms', 'price_delta' => 0.5, 'is_active' => true, 'is_available' => true]);
-
-        $this->tap("mn:item:{$pizza->id}");
-        $this->assertContains("mn:var:{$large->id}", $this->ids(), 'size first');
-
-        $this->tap("mn:var:{$large->id}");
-        $this->assertContains("mn:mod:{$olives->id}", $this->ids());
-        $this->assertContains('mn:done', $this->ids());
-
-        $this->tap("mn:mod:{$olives->id}");
-        $this->assertNotContains("mn:mod:{$olives->id}", $this->ids(), 'can add another extra');
-        $this->tap('mn:done');
-        $this->assertSame(['mn:qty:1', 'mn:qty:2', 'mn:qtymore'], $this->ids());
-
-        $this->tap('mn:qtymore');
-        $this->tap('mn:qty:4');
-        $this->assertStringContainsString('Added 4× Pizza', $this->last()['interactive']['body']['text']);
-        $this->assertStringContainsString('Cart: 4 items · 42.00$', $this->last()['interactive']['body']['text']);
-        $this->assertSame(['mn:cats:1', 'co:start:'], $this->ids());
-
-        $item = $this->cartItems()->first();
-        $this->assertSame($large->id, $item->variant_id);
-        $this->assertSame([$olives->id], $item->modifier_ids);
-
-        $this->tap('co:start:');
-        // Delivery only, no areas: checkout asks for the location right away.
-        $this->assertSame('location_request_message', $this->last()['interactive']['type']);
-    }
-
-    public function test_a_size_saved_at_0_00_is_never_sold_free(): void
-    {
-        // Saved before sizes with an empty price box were stored as "same as the item".
-        $pack = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Water', 'price' => 3]);
-        $free = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pack->id, 'name' => 'Big pack', 'price' => 0, 'is_active' => true, 'is_available' => true]);
-        $small = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pack->id, 'name' => 'Small pack', 'price' => 2.83, 'is_active' => true, 'is_available' => true]);
-
-        $this->tap("mn:item:{$pack->id}");
-        $this->assertSame(["mn:var:{$small->id}"], $this->ids(), 'the 0.00 size is not offered');
-
-        $this->tap("mn:var:{$free->id}"); // an old button from before
-        $this->tap('mn:qty:2');
-        $this->assertSame(0, Conversation::query()->withoutGlobalScopes()->firstOrFail()->cart()->withoutGlobalScopes()->first()?->items()->withoutGlobalScopes()->count() ?? 0);
-    }
-
-    public function test_typed_item_that_needs_a_size_asks_for_it_instead_of_saying_added(): void
-    {
-        $pizza = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza', 'price' => 8]);
-        $large = ProductVariant::query()->forceCreate(['merchant_id' => $this->merchant->id, 'product_id' => $pizza->id, 'name' => 'Large', 'price' => 10, 'is_active' => true, 'is_available' => true]);
-
-        $this->inbound(['type' => 'text', 'text' => ['body' => 'add 2 pizza']]);
-
-        $this->assertContains("mn:var:{$large->id}", $this->ids(), 'the size question, not "Added 2 × Pizza"');
-        $this->assertStringNotContainsString('Added', $this->last()['interactive']['body']['text']);
-        $this->assertSame(0, $this->cartItems()->count());
+        $this->assertSame('text', $this->last()['type']);
+        $this->assertStringContainsString('Cat 10', $this->last()['text']['body']);
+        $this->assertStringNotContainsString('Cat 11', $this->last()['text']['body']);
+        $this->assertStringContainsString('2 more', $this->last()['text']['body']);
     }
 
     public function test_a_salon_greeting_lists_its_services_with_minutes_and_prices(): void
@@ -161,7 +83,7 @@ class ChatMenuTest extends TestCase
         $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings, ['business_mode' => 'appointments'])])->save();
         Product::factory()->forMerchant($this->merchant)->create(['name' => "Men's haircut", 'price' => 12, 'duration_mins' => 30]);
 
-        $this->inbound(['type' => 'text', 'text' => ['body' => 'hi']]);
+        $this->say('hi');
 
         $sent = $this->last();
         $text = $sent['text']['body'] ?? $sent['interactive']['body']['text'] ?? '';
@@ -171,51 +93,40 @@ class ChatMenuTest extends TestCase
 
     public function test_sold_out_items_are_not_in_the_menu(): void
     {
-        $gone = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);
-        $zaatar = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Zaatar', 'price' => 1]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Zaatar', 'price' => 1]);
 
-        $this->tap('mn:cats:1');
-        $this->assertSame(["mn:item:{$zaatar->id}"], $this->ids());
+        $this->say('hello');
 
-        // A tap on an older list after the item sold out: refused, with the current list.
-        $this->tap("mn:item:{$gone->id}");
-
-        $this->assertStringContainsString('Lahm is sold out', $this->last()['interactive']['body']['text']);
-        $this->assertSame('list', $this->last()['interactive']['type']);
+        $this->assertStringContainsString('Zaatar', $this->last()['text']['body']);
+        $this->assertStringNotContainsString('Lahm', $this->last()['text']['body']);
     }
 
     public function test_offers_come_first_with_the_discounted_price_in_the_cart(): void
     {
         $c = Category::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza']);
         Category::factory()->forMerchant($this->merchant)->create(['name' => 'Drinks']);
-        $deal = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Margherita', 'price' => 10, 'category_id' => $c->id,
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Margherita', 'price' => 10, 'category_id' => $c->id,
             'offer_percent' => 20, 'offer_starts_on' => now()->subDay()->toDateString(), 'offer_ends_on' => now()->addDay()->toDateString()]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Old deal', 'price' => 10, 'category_id' => $c->id,
             'offer_percent' => 50, 'offer_ends_on' => now()->subDays(2)->toDateString()]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cola', 'price' => 1, 'category_id' => Category::query()->withoutGlobalScopes()->where('name', 'Drinks')->value('id')]);
 
-        $this->tap('mn:cats:1');
-        $rows = $this->last()['interactive']['action']['sections'][0]['rows'];
-        $this->assertSame('mn:cat:offers:1', $rows[0]['id']);
-        $this->assertSame('🔥 Offers', $rows[0]['title']);
-        $this->assertSame('1 item', $rows[0]['description'], 'expired offers do not count');
+        $this->say('hello');
+        $lines = explode("\n", $this->last()['text']['body']);
+        $menu = array_values(array_filter($lines, fn ($l) => str_starts_with($l, '•')));
+        $this->assertSame('• 🔥 Offers — 1 item', $menu[0], 'expired offers do not count');
 
-        $this->tap('mn:cat:offers:1');
-        $this->assertSame('8.00$ (was 10.00$) 🔥', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
-
-        $this->tap("mn:item:{$deal->id}");
-        $this->tap('mn:qty:2');
+        $this->say('add 2 Margherita');
         $this->assertEquals(8, $this->cartItems()->first()->unit_price);
     }
 
     public function test_items_sold_by_weight_show_the_unit(): void
     {
-        $tomato = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Tomatoes', 'price' => 1.5, 'unit' => 'kg']);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Tomatoes', 'price' => 1.5, 'unit' => 'kg']);
 
-        $this->tap('mn:cats:1');
-        $this->assertSame('1.50$ / kg', $this->last()['interactive']['action']['sections'][0]['rows'][0]['description']);
+        $this->say('hello');
 
-        $this->tap("mn:item:{$tomato->id}");
-        $this->assertSame(['½ kg', '1 kg', '1.5+ kg'], array_map(fn ($b) => $b['reply']['title'], $this->last()['interactive']['action']['buttons']));
+        $this->assertStringContainsString('Tomatoes — 1.50$ / kg', $this->last()['text']['body']);
     }
 }

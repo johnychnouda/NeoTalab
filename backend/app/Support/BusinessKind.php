@@ -83,11 +83,6 @@ final class BusinessKind
             || (string) $merchant->business_type === 'Laundry / Dry cleaning';
     }
 
-    public static function menuWord(Merchant $merchant): string
-    {
-        return self::KINDS[self::of($merchant)][0];
-    }
-
     /**
      * Defaults written to merchants.settings when the kind is first set or changed.
      *
@@ -100,6 +95,7 @@ final class BusinessKind
         $settings['business_kind'] = $kind;
         $settings['timing_unit'] = $timing;
         $settings['business_mode'] = $mode;
+
         return $settings;
     }
 

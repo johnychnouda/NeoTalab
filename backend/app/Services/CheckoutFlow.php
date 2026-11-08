@@ -831,6 +831,6 @@ class CheckoutFlow
     {
         return ShopSettings::for($merchant)->businessMode() === 'appointments'
             ? $this->text($body)
-            : app(ChatMenu::class)->categories($merchant, $locale, 1, $body);
+            : app(ChatMenu::class)->textMenu($merchant, $locale, $body);
     }
 }

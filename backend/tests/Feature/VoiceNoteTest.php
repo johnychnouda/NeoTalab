@@ -107,11 +107,11 @@ class VoiceNoteTest extends TestCase
 
         $sent = $this->sent();
         $this->assertCount(1, $sent);
-        $this->assertSame('list', $sent[0]['interactive']['type'], 'greeting comes with the menu, same as typing "marhaba"');
+        $this->assertSame('text', $sent[0]['type'], 'greeting comes with the menu written out, same as typing "marhaba"');
         $this->assertSame('marhaba', WhatsAppMessage::query()->withoutGlobalScopes()->where('direction', 'inbound')->first()->payload['transcript']);
     }
 
-    public function test_an_unclear_voice_note_gets_a_polite_reply_and_the_menu(): void
+    public function test_an_unclear_voice_note_gets_a_polite_reply(): void
     {
         $this->fakeMeta();
         config(['ai.speech.fake_transcript' => null]);
@@ -121,7 +121,7 @@ class VoiceNoteTest extends TestCase
         $sent = $this->sent();
         $this->assertCount(1, $sent);
         $this->assertSame(__('whatsapp.voice_failed', [], 'en'), $this->body($sent[0]));
-        $this->assertSame('list', $sent[0]['interactive']['type']);
+        $this->assertSame('text', $sent[0]['type']);
     }
 
     public function test_a_voice_note_that_cannot_be_downloaded_still_gets_an_answer(): void
@@ -134,7 +134,7 @@ class VoiceNoteTest extends TestCase
         $this->assertSame(__('whatsapp.voice_failed', [], 'en'), $this->body($this->sent()[0]));
     }
 
-    public function test_photos_and_stickers_get_a_polite_reply_and_the_menu(): void
+    public function test_photos_and_stickers_get_a_polite_reply(): void
     {
         $this->fakeMeta();
 
@@ -145,7 +145,7 @@ class VoiceNoteTest extends TestCase
         $this->assertCount(2, $sent);
         foreach ($sent as $message) {
             $this->assertSame(__('whatsapp.media_unsupported', [], 'en'), $this->body($message));
-            $this->assertSame('list', $message['interactive']['type']);
+            $this->assertSame('text', $message['type']);
         }
     }
 
