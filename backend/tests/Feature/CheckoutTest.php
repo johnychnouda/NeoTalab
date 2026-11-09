@@ -167,6 +167,23 @@ class CheckoutTest extends TestCase
         $this->assertSame([1, 2], $this->orders()->orderBy('number')->pluck('number')->all());
     }
 
+    public function test_order_numbers_restart_after_the_shop_closes_and_opens_again(): void
+    {
+        $this->say('add 1 shawarma', '96170000001');
+        $this->say('confirm | | Address one 1', '96170000001');
+        $this->say('add 1 shawarma', '96170000002');
+        $this->say('confirm | | Address two 2', '96170000002');
+        $this->assertSame([1, 2], $this->orders()->orderBy('created_at')->pluck('number')->all());
+
+        // Next calendar day after close (default hours 09:00–23:00): numbering starts at 1 again.
+        Carbon::setTestNow(Carbon::parse('2026-10-07 12:00', 'Asia/Beirut'));
+        $this->say('add 1 shawarma', '96170000003');
+        $this->say('confirm | | Address three 3', '96170000003');
+
+        $this->assertSame(1, $this->orders()->latest('created_at')->value('number'));
+        $this->assertSame([1, 2, 1], $this->orders()->orderBy('created_at')->pluck('number')->all());
+    }
+
     public function test_empty_cart_cannot_be_ordered(): void
     {
         $this->say('confirm | | Bliss St, Building 4');

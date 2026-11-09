@@ -20,6 +20,7 @@ use App\Support\DeliverySchedule;
 use App\Support\Money;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -142,8 +143,10 @@ class CheckoutService
         return DB::transaction(function () use ($merchant, $conversation, $cart, $zone, $address, $payment, $subtotal, $deliveryFee, $notes, $extra) {
             // One checkout at a time per shop takes the next number. Locking the shop's row (not "max(number) for update", which
             // locks a gap in the index) lets 100 customers confirm together without MySQL deadlocking them against each other.
+            // Numbers restart at 1 each trading session (after close → next open).
             Merchant::query()->whereKey($merchant->id)->lockForUpdate()->value('id');
-            $number = (int) Order::query()->max('number') + 1;
+            $since = $this->sessionStartedAt($merchant);
+            $number = (int) Order::query()->where('created_at', '>=', $since)->max('number') + 1;
 
             $order = Order::create([
                 'merchant_id' => $merchant->id,
@@ -198,6 +201,37 @@ class CheckoutService
 
             return $order->load('items');
         }, 3);
+    }
+
+    /**
+     * When the current trading session began (shop timezone → UTC): today's open, or yesterday's
+     * open when still inside an overnight closing window. Order numbers count from here and restart
+     * after the shop closes and opens again.
+     */
+    public function sessionStartedAt(Merchant $merchant): Carbon
+    {
+        $tz = $merchant->timezone ?: config('app.timezone');
+        $now = now()->setTimezone($tz);
+        $time = $now->format('H:i');
+        $hours = ShopHour::week();
+
+        $yesterday = $hours->get($now->copy()->subDay()->dayOfWeek);
+        if ($yesterday && ! $yesterday->is_closed) {
+            $opens = substr($yesterday->opens_at, 0, 5);
+            $closes = substr($yesterday->closes_at, 0, 5);
+            if ($closes <= $opens && $time < $closes) {
+                return $now->copy()->subDay()->setTimeFromTimeString($opens)->utc();
+            }
+        }
+
+        $today = $hours->get($now->dayOfWeek);
+        if ($today && ! $today->is_closed) {
+            $opens = substr($today->opens_at, 0, 5);
+
+            return $now->copy()->setTimeFromTimeString($opens)->utc();
+        }
+
+        return $now->copy()->startOfDay()->utc();
     }
 
     /**
