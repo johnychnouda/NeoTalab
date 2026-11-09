@@ -196,6 +196,6 @@ class VoiceNoteTest extends TestCase
             && $r->isMultipart()
             && collect($r->data())->contains(fn ($part) => $part['name'] === 'model' && $part['contents'] === 'gpt-4o-mini-transcribe'));
         $row = DB::table('ai_usage')->where('merchant_id', $this->merchant->id)->first();
-        $this->assertEqualsWithDelta(0.0031, (float) $row->cost_usd, 0.0001, '1000 audio tokens × $3/M + 20 × $5/M');
+        $this->assertEqualsWithDelta(0.00135, (float) $row->cost_usd, 0.0001, '1000 audio tokens × $1.25/M + 20 × $5/M (OpenAI price page)');
     }
 }
