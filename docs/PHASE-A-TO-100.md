@@ -17,9 +17,11 @@ Score target after A: **~88–90 / 100** (safe for ~10–20 watched shops).
 - [x] Rewrite stale `qa/s16_shop_phone.py` (pin-for-delivery / shop-phone echoes)
 - [x] Re-run against local QA lab: **s16 11/11 PASS**, **s05 33/33 PASS** (9 Nov 2026)
 - [x] Document how to run scale/attack scripts once (below)
+- [x] Chat-100: shop order tickets + checkout unstick (branch `audit-full-operation`, commit `94c9cf3`) — **merge to `main` to deploy**
 
 ### Live proof (owner — you click; agent guides)
-- [ ] **A1 Live WhatsApp E2E** ← **do this next**
+- [ ] **A0 Deploy** — merge `audit-full-operation` → `main` (Railway auto-deploys)
+- [ ] **A1 Live WhatsApp E2E** ← **do this next after deploy**
 - [ ] **A2 Live Whish E2E**
 - [ ] **A3 Meta templates**
 - [ ] **A4 Production backup restore** (repeat with real shop data when shops exist; mechanism proven 30 Oct)
