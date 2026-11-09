@@ -25,7 +25,7 @@ Keep API and worker **always on** (paid). Sleeping API misses WhatsApp.
 1. **Add service** → **GitHub repo** → `NeoTalab`.
 2. **Settings → Root directory:** `backend`
 3. Railway will use `backend/Dockerfile`.
-4. **Variables** → add everything from [`secrets-for-railway.env.example`](secrets-for-railway.env.example).
+4. **Variables** → add everything from [`backend/.env.production.example`](../backend/.env.production.example).
 
 Link MySQL instead of typing host/password by hand:
 

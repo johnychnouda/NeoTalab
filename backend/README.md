@@ -8,8 +8,8 @@ retail, services, …). See [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
 
 Production runs on [Railway](https://railway.app). See [`../deploy/STEP-BY-STEP.md`](../deploy/STEP-BY-STEP.md).
 
-1. Copy [`../deploy/secrets-for-railway.env.example`](../deploy/secrets-for-railway.env.example) to
-   `../deploy/secrets-for-railway.env` (gitignored) and fill values (or reference Railway MySQL).
+1. Use [`.env.production.example`](.env.production.example) as the variable checklist for Railway
+   (reference the MySQL service for `DB_*`; never commit real secrets).
 2. API root directory: `backend`. Queue: same image/folder, start command `docker/queue.sh`.
 
 Migrations run on boot when `RUN_MIGRATIONS=true`.
