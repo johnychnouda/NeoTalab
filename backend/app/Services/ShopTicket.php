@@ -25,11 +25,12 @@ final class ShopTicket
         if ($order->status === 'placed') {
             $time = app(OrderTiming::class)->label($merchant, $locale);
 
+            // Short ids/titles: Meta (#100) rejects overlong button payloads on some numbers.
             return [
                 'body' => __('whatsapp.shop.ticket_new', $params, $locale),
                 'buttons' => [
-                    ["stf:accept:{$order->id}", __('whatsapp.shop.btn_accept', ['time' => $time], $locale)],
-                    ["stf:reject:{$order->id}", __('whatsapp.shop.btn_reject', [], $locale)],
+                    ["stf:accept:{$order->id}", mb_substr('✅ '.$time, 0, 20)],
+                    ["stf:reject:{$order->id}", mb_substr(__('whatsapp.shop.btn_reject', [], $locale), 0, 20)],
                 ],
             ];
         }
@@ -38,8 +39,8 @@ final class ShopTicket
             return [
                 'body' => __('whatsapp.shop.ticket_whish', $params, $locale),
                 'buttons' => [
-                    ["stf:wh_ok:{$order->id}", __('whatsapp.shop.btn_whish_ok', [], $locale)],
-                    ["stf:wh_no:{$order->id}", __('whatsapp.shop.btn_whish_no', [], $locale)],
+                    ["stf:wh_ok:{$order->id}", mb_substr(__('whatsapp.shop.btn_whish_ok', [], $locale), 0, 20)],
+                    ["stf:wh_no:{$order->id}", mb_substr(__('whatsapp.shop.btn_whish_no', [], $locale), 0, 20)],
                 ],
             ];
         }

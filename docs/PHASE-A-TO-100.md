@@ -20,10 +20,10 @@ Score target after A: **~88–90 / 100** (safe for ~10–20 watched shops).
 - [x] Chat-100: shop order tickets + checkout unstick (branch `audit-full-operation`, commit `94c9cf3`) — **merge to `main` to deploy**
 
 ### Live proof (owner — you click; agent guides)
-- [ ] **A0 Deploy** — merge `audit-full-operation` → `main` (Railway auto-deploys)
-- [ ] **A1 Live WhatsApp E2E** ← **do this next after deploy**
-- [ ] **A2 Live Whish E2E**
-- [ ] **A3 Meta templates**
+- [x] **A0 Deploy** — merged `audit-full-operation` → `main` (PR #1, 9 Nov 2026)
+- [x] **A1 Live WhatsApp E2E** — AlmalikaWalAmir order **#4** (9 Nov 2026)
+- [x] **A2 Live Whish E2E** — AlmalikaWalAmir (9 Nov 2026)
+- [ ] **A3 Meta templates** ← **do this next**
 - [ ] **A4 Production backup restore** (repeat with real shop data when shops exist; mechanism proven 30 Oct)
 - [ ] **A5 Uptime** — UptimeRobot on site + API `/up`
 - [ ] **A6 Money limits** — OpenAI auto-reload + Railway spend cap
