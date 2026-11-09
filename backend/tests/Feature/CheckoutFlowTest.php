@@ -415,4 +415,21 @@ class CheckoutFlowTest extends TestCase
         $this->assertStringContainsString('already done', $this->last()['text']['body']);
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
     }
+
+    public function test_arabic_continue_and_thumbs_up_open_checkout_when_the_cart_has_items(): void
+    {
+        $this->assertTrue(CheckoutFlow::looksLikeContinueCheckout('كمل'));
+        $this->assertTrue(CheckoutFlow::looksLikeContinueCheckout('👍'));
+        $this->assertFalse(CheckoutFlow::looksLikeContinueCheckout('2 manakish'));
+
+        $settings = $this->merchant->settings ?? [];
+        $settings['fulfillment'] = 'both';
+        $this->merchant->forceFill(['settings' => $settings])->save();
+
+        $this->say('add 2 zaatar');
+        $this->say('كمل');
+        $ids = $this->buttonIds();
+        $this->assertSame(['co:ful:delivery', 'co:ful:pickup'], $ids, 'checkout opens on كمل instead of an AI loop');
+        $this->assertArrayHasKey('checkout', Conversation::query()->withoutGlobalScopes()->firstOrFail()->state ?? []);
+    }
 }

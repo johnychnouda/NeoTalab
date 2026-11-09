@@ -29,7 +29,7 @@ Audit prompt lists pharmacies, clinics, salons, bookings and staff. These were r
 | 1 | Voice-note price in the usage table was $3.00 per million; OpenAI lists $1.25 | Low (owner's cost report overstated voice cost) | Fixed, test pins it |
 | 2 | Meta rate default in the usage report was $0.0091 (the pre-Oct-2026 card); current card shows $0.0105 | Low to medium (shop's Meta estimate about 15% low) | Fixed, test pins it; confirm in WhatsApp Manager |
 | 3 | `qa/s09_owner.py` expected the removed shop name "QA Water Wholesale" | QA only | Fixed |
-| 4 | `qa/s05_journey.py` and `qa/s16_shop_phone.py` are stale after the staff removal and the pin-for-delivery rule (s05 reads a missing variable; s16 places a delivery order without a pin) | QA only | **Not fixed.** Next step: rewrite both to use the pickup path or share a pin |
+| 4 | `qa/s05_journey.py` and `qa/s16_shop_phone.py` are stale after the staff removal and the pin-for-delivery rule (s05 reads a missing variable; s16 places a delivery order without a pin) | QA only | **Fixed 9 Nov.** Rewritten for shop-phone ✅ / pin checkout; lab pass s16 11/11, s05 33/33 |
 | 5 | `qa/s24` Arabizi check is a word filter that flags a safe refusal | QA only | Not changed (not weakened) |
 | 6 | `s03` "set-initial-password refused" fails on a fresh lab and passes after, because the lab admin never set a password first. The API rule is correct (`AuthService::setInitialPassword` refuses once `password_changed_at` is set) | None | Understood; make s01 set the password to remove the false alarm |
 

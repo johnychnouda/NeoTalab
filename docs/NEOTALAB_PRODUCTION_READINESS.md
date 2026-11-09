@@ -14,7 +14,7 @@ Ready for a **small, watched launch** (the first 10 to 20 shops). Not ready to p
 3. **OpenAI balance with auto-reload**, or the assistant stops.
 4. **Railway spending limit** (was $20 in the 4 Nov study; it stops the service when reached).
 5. **Run the scale and attack scripts** (s40 to s50) against a local scale database once. They were not part of this audit.
-6. Repair `qa/s05_journey.py` and `qa/s16_shop_phone.py`.
+6. ~~Repair `qa/s05_journey.py` and `qa/s16_shop_phone.py`.~~ Done 9 Nov (lab: s16 11/11, s05 33/33).
 
 ## Known limits
 - Whish payment check is manual (the shop types ✅).

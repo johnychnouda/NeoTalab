@@ -401,6 +401,16 @@ class WhatsAppInboundService
                 return;
             }
 
+            // "كمل" / "done" / 👍 with items already in the cart: open the button checkout. The AI sometimes
+            // only says "we'll continue with pickup" and never returns recommended_action checkout.
+            if ($text !== null && ! $this->checkoutFlow->active($conversation)
+                && CheckoutFlow::looksLikeContinueCheckout($text)
+                && $conversation->cart?->items()->exists()) {
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $conversation, $locale));
+
+                return;
+            }
+
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
             // The assistant has just recognised the customer's language: the buttons that follow use it too.

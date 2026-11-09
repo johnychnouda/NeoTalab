@@ -1,4 +1,6 @@
-"""The shop phone answering from the WhatsApp Business app in a customer's chat (coexistence echoes)."""
+"""The shop phone answering from the WhatsApp Business app in a customer's chat (coexistence echoes).
+Updated 9 Nov 2026: delivery orders include a location pin (FakeChatProvider confirm injects one
+when an address is given). Lab restaurant is delivery-only."""
 import uuid
 from lib import *
 
@@ -20,10 +22,11 @@ def echo(to, text, echo_id=None):
 
 
 def latest(phone):
-    return tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->where("merchant_id","' + R["id"] + '")->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + phone + '"))->latest("number")->first()?->only("id","number","status","accepted_at"));')
+    return tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->where("merchant_id","' + R["id"] + '")->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + phone + '"))->latest("number")->first()?->only("id","number","status","accepted_at","fulfillment","delivery_lat"));')
 
 
-def place(phone):
+def place_delivery(phone):
+    """Stand-in confirm command: address text also supplies the pin FakeChatProvider injects for labs."""
     say(phone, text="add 1 zaatar manousheh")
     say(phone, text="confirm | Hamra | Bliss street, building 12 | cash | USD | | delivery")
     return latest(phone)
@@ -31,23 +34,25 @@ def place(phone):
 
 suite("Shop phone: ✅ ❌ ⏸ ▶️ in a customer's chat")
 c1, c2, c3 = "9617971" + RUN, "9617972" + RUN, "9617973" + RUN
-o = place(c1)
-check("order waits for the shop", o and o["status"] == "placed", o)
+o = place_delivery(c1)
+check("delivery order waits for the shop (pin stored)", o and o["status"] == "placed" and o.get("delivery_lat"), o)
 echo(c1, "✅")
 o = latest(c1)
 check("shop phone ✅ accepts it", o["status"] == "confirmed" and o["accepted_at"], o)
 echo(c1, "❌")
 check("a later ❌ does not undo an accepted order", latest(c1)["status"] == "confirmed", latest(c1))
 
-o = place(c2)
+o = place_delivery(c2)
 echo(c2, "❌")
 check("shop phone ❌ refuses a waiting order", latest(c2)["status"] == "rejected", latest(c2))
 
 echo(c3, "✅")
 check("✅ with no waiting order changes nothing (no crash)", latest(c3) is None)
-o = place(c3)
+# Lab restaurant is delivery-only: use a pin (FakeChatProvider injects one with the address).
+o = place_delivery(c3)
+check("another delivery order waits for the shop", o and o["status"] == "placed" and o.get("delivery_lat"), o)
 echo(c3, "great, thanks ✅")
-check("✅ inside a sentence is just chat, not an accept", latest(c3)["status"] == "placed", latest(c3))
+check("✅ inside a sentence is just chat, not an accept", latest(c3) and latest(c3)["status"] == "placed", latest(c3))
 eid = "wamid.ECHO" + uuid.uuid4().hex
 echo(c3, "✅", eid)
 echo(c3, "✅", eid)  # Meta retries the same echo

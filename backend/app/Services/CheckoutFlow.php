@@ -75,6 +75,33 @@ class CheckoutFlow
     }
 
     /**
+     * Short "go on / finish / continue" (EN/AR/FR/Arabizi/👍): the customer wants the button checkout,
+     * not another AI sentence. Used when the cart already has items and checkout is not open yet.
+     */
+    public static function looksLikeContinueCheckout(string $text): bool
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        if ($text === '') {
+            return false;
+        }
+
+        // Thumbs-up / OK / check alone (WhatsApp often sends these when the customer means "go ahead").
+        if (preg_match('/^[\x{1F44D}\x{1F44C}\x{2705}\x{2714}\x{2611}]+\x{FE0F}?$/u', $text)) {
+            return true;
+        }
+
+        $lower = mb_strtolower($text);
+        if (mb_strlen($lower) > 40) {
+            return false;
+        }
+
+        return (bool) preg_match(
+            '/^(كمل|كمّل|كمل الطلب|تابع|تابعي|يلا|يلا كمل|خلص|خلصت|خلصنا|اكمل|أكمل|continue|go ahead|go on|checkout|check out|done|confirm|place (the )?order|c\'est tout|ok continue|kammel|kamel|kamml|yalla)$/u',
+            $lower
+        );
+    }
+
+    /**
      * A customer who typed "deliver to Sassine, bldg Rizk" is not asked Delivery or Pickup, nor
      * for the address again; the area, fee and minimum are still checked by the next steps.
      *
