@@ -32,7 +32,7 @@ class VoiceNoteTest extends TestCase
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'currency' => 'USD', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto']]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Chicken shawarma', 'price' => 5]);
     }

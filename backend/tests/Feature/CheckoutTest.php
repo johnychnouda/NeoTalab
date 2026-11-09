@@ -48,7 +48,7 @@ class CheckoutTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, \App\Jobs\NotifyShopOfOrder::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',
@@ -193,7 +193,8 @@ class CheckoutTest extends TestCase
         $this->say('confirm');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('location pin', $this->lastReply());
+        // "confirm" with items opens the button checkout, which asks for the location pin first.
+        $this->assertStringContainsString('location', mb_strtolower($this->lastReply()));
     }
 
     public function test_zone_minimum_order_is_enforced(): void

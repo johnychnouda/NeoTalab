@@ -239,10 +239,24 @@ When you have paid, tap the button below. You have :minutes minutes.',
         'trial_ended' => "Hello :shop, your NeoTalab free trial has ended, so WhatsApp ordering is paused. Pay your subscription and we'll switch it back on right away.",
     ],
 
-    // Staff numbers (owner's personal phone, employees) talk to the shop's number.
+    // Shop owner tickets (report WhatsApp) and coexistence typing cues.
     'shop' => [
         'pay_whish' => '💳 Whish',
         'pay_cash' => '💵 cash',
+        'ticket_new' => "🧾 New order #:number\n:items\nTotal: :total:lbp\n:payment\n📍 :address\n📞 :phone",
+        'ticket_whish' => "💳 Whish check #:number\nCustomer says they paid :collect.\nConfirm in your Whish app, then tap below.",
+        'ticket_go' => "👨‍🍳 Order #:number — :hint\n:items\n:collect\n📍 :address\n📞 :phone",
+        'hint_pickup' => 'pickup — tap Ready when packed, Collected when they take it',
+        'hint_delivery' => 'delivery — tap Out when it leaves, Delivered when done',
+        'hint_driver' => 'with :driver — tap Out when it leaves, Delivered when done',
+        'btn_accept' => '✅ Accept :time',
+        'btn_reject' => '❌ Can\'t take',
+        'btn_whish_ok' => '✅ Payment OK',
+        'btn_whish_no' => '❌ Not found',
+        'btn_ready' => '📦 Ready',
+        'btn_out' => '🛵 Out',
+        'btn_delivered' => '✅ Delivered',
+        'btn_collected' => '✅ Collected',
     ],
 
     'check' => [
