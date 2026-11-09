@@ -41,10 +41,22 @@ class NotifyShopOfOrder implements ShouldQueue
             return;
         }
 
+        // Prefer buttons; if Meta rejects them (#100 / outside the 24h window), fall back to plain text.
         try {
             $this->sendMessageAs($merchant, $to, $tickets->interactive($ticket['body'], $ticket['buttons']));
         } catch (\Throwable $e) {
-            Log::warning('Shop order ticket failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            try {
+                $this->sendAs($merchant, $to, $ticket['body']."\n\n".__('whatsapp.checkout.shop_reply', [
+                    'shop' => $merchant->name,
+                ], $merchant->locale ?? 'en'));
+            } catch (\Throwable $e2) {
+                // Report number often has no open WhatsApp window yet: the shop can still type ✅ in the customer chat.
+                Log::info('Shop order ticket not delivered (use ✅ in the customer chat)', [
+                    'order_id' => $order->id,
+                    'interactive' => $e->getMessage(),
+                    'text' => $e2->getMessage(),
+                ]);
+            }
         }
     }
 }
