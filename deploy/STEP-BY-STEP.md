@@ -78,7 +78,10 @@ seeder prints a generated password once; save it, then change it after first log
 The API service runs `php artisan migrate --force` every time it starts. Leave `RUN_MIGRATIONS`
 unset (or `true`) on the API service. Only the API service runs it, never the queue service.
 
-All migrations in this project only add tables or columns, so running them on start is safe.
+Almost all migrations only add tables or columns, so running them on start is safe. The exception is the
+release of 9 November 2026 (orders only, no staff): `remove_stock_tracking`, `remove_bookings_and_quotes` and
+`remove_staff_and_job_stages` delete tables, columns and staff rows for good. Take a database backup before
+deploying that release.
 Do not set `RUN_MIGRATIONS=false`: on 3 to 5 November 2026 production had it set to `false`, three
 migrations were not run, and the `/join` form failed with `Unknown column 'language'` (bug D50).
 
