@@ -56,7 +56,7 @@ class WhatsAppOperationsTest extends TestCase
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
         // Delayed jobs would run instantly on the sync queue; tests run them explicitly instead.
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',

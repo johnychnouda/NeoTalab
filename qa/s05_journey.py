@@ -1,11 +1,12 @@
-"""Workflow 2: a delivery order from first message to delivered, across customer, staff, driver,
-plus interference from a second customer and a second driver. WhatsApp is the lab stand-in."""
+"""Delivery order from first message to delivered: customer, shop phone (typed ✅), driver,
+plus interference from a second customer and a second driver. WhatsApp is the lab stand-in.
+Updated 9 Nov 2026 after staff buttons were removed (shop types in the customer's chat)."""
 import re
 from lib import *
 
 s = state(); r = s["shops"]["rest"]; PID = r["phone_id"]
 open_all_day()
-STAFF, DRIVER, DRIVER2 = "96171222002", "96171222001", "96171222009"
+DRIVER, DRIVER2 = "96171222001", "96171222009"
 RUN = str(int(time.time()))[-5:]
 C1, C2 = "9617610" + RUN, "9617620" + RUN
 
@@ -30,34 +31,53 @@ def order_of(phone):
               '->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + phone + '"))->latest()->first()?->only("id","number","status","subtotal","delivery_fee","total","driver_id","accepted_at","payment_status","fulfillment"));')
 
 
-suite("W2 delivery journey: team gets ready")
-# The second driver is created by the shop owner in the dashboard.
+def n_orders_for(phone):
+    return tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")'
+              '->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + phone + '"))->count());')
+
+
+suite("W2 delivery journey: drivers get ready")
 code, b = api("POST", "/drivers", r["token"], {"name": "QA Driver Two", "phone": "+" + DRIVER2, "role": "driver"})
 check("owner adds a second driver", code in (201, 422), code)
-code, out, _ = check("staff number gets a staff reply (not the customer bot)", out and "menu" not in " ".join(out).lower()[:40], out)
+# Earlier lab runs leave other drivers on duty / holding orders; "start" would hand those over.
+tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")'
+   '->whereNotIn("phone",["+' + DRIVER + '","+' + DRIVER2 + '"])->update(["status"=>"off_duty","active_order_id"=>null,"availability"=>"available"]);'
+   'App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")'
+   '->whereIn("phone",["+' + DRIVER + '","+' + DRIVER2 + '"])->update(["status"=>"off_duty","active_order_id"=>null,"availability"=>"available"]);'
+   'echo json_encode(1);')
 code, out, _ = say(DRIVER, text="start")
 check("driver starts shift", out, out)
 st = tj('echo json_encode(App\\Models\\Driver::withoutGlobalScopes()->where("phone","+' + DRIVER + '")->value("status"));')
 check("driver is on duty in the database", st == "on_duty", st)
 say(DRIVER2, text="start")
+# If "start" assigned an older waiting order, free both for this run's new order.
+tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")'
+   '->whereIn("phone",["+' + DRIVER + '","+' + DRIVER2 + '"])'
+   '->update(["active_order_id"=>null,"availability"=>"available","status"=>"on_duty"]); echo json_encode(1);')
 
 suite("W2 delivery journey: customer orders with size + extra")
 code, out, _ = say(C1, text="hi", name="QA Delivery Customer")
 check("greeting comes with the menu written out, no list to tap", any("Tell me what you would like" in x for x in out) and not any("mn:" in x for x in out), out)
 code, out, _ = say(C1, text=f"add 2 {product_name(r['p1'])}")
 check("size asked in words with its price: Large (4.00$)", any("Large (4.00$)" in x for x in out), out)
-# The lab's stand-in assistant cannot choose a size or an extra: the cart gets what the customer chose (Large, with the extra).
+# The lab's stand-in assistant cannot choose a size or an extra: the cart gets what the customer chose.
 put_in_cart(r["id"], C1, r["p1"], 2, r["variant"], [r["mod"]])
-code, out, _ = say(C1, text="done")  # the stand-in's "that's all": the checkout starts
+code, out, _ = say(C1, text="done")  # stand-in "that's all": button checkout starts
 print("  checkout start:", out)
-for step in range(6):
+for step in range(8):
     if any("Confirm order" in x for x in out):
         break
     ids = buttons(out)
     if any("location" in x.lower() for x in out) and not any(i.startswith("co:skip") for i in ids):
-        code, out, _ = say(C1, location=(33.8938, 35.5018))  # customers always share a pin
+        code, out, _ = say(C1, location=(33.8938, 35.5018))  # delivery always needs a pin
     elif ids:
-        pick = next((i for i in ids if i.startswith("co:zone:")), None) or next((i for i in ids if "cash" in i or i.startswith("co:pay:")), None) or ids[0]
+        pick = next((i for i in ids if i.startswith("co:zone:")), None) \
+            or next((i for i in ids if i.startswith("co:ful:delivery")), None) \
+            or next((i for i in ids if i.startswith("co:when:asap")), None) \
+            or next((i for i in ids if "cash" in i or i.startswith("co:pay:")), None) \
+            or next((i for i in ids if i.startswith("co:cur:USD")), None) \
+            or next((i for i in ids if i.startswith("co:skip")), None) \
+            or ids[0]
         code, out, _ = say(C1, button=pick)
     else:
         code, out, _ = say(C1, text="Building 12, floor 3")
@@ -71,14 +91,16 @@ code, out, allout = say(C1, button="co:ok:", wait=0.8)
 o = order_of(C1)
 check("order saved once, waiting for the shop (auto accept is off for this lab shop)", o and o["status"] == "placed", o)
 check("server totals: 9.50 + 1.50 = 11.00", o and (o["subtotal"], o["delivery_fee"], o["total"]) == ("9.50", "1.50", "11.00"), o)
+n_orders = n_orders_for(C1)
 check("exactly one order for the customer", n_orders == 1, n_orders)
 
 suite("W2 interference before acceptance")
 code, out, _ = say(C1, button="co:ok:")  # double tap on Confirm
-n2 = tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + C1 + '"))->count());')
+n2 = n_orders_for(C1)
 check("double tap on Confirm does not create a second order", n2 == 1, n2)
+# Old staff button ids must do nothing if a customer somehow sends them.
 code, out, _ = say(C2, button=f"stf:accept:{o['id']}", name="QA Other Customer")
-check("a customer sending the staff Accept id does not accept", order_of(C1)["status"] == "placed", order_of(C1))
+check("a customer sending an old staff Accept id does not accept", order_of(C1)["status"] == "placed", order_of(C1))
 code, out, _ = say(C2, button=f"trk:{o['id']}")
 check("another customer cannot track this order", not any(f"#{o['number']}" in x for x in out), out)
 code, out, _ = say(C2, button=f"cx:yes:{o['id']}")
@@ -87,6 +109,11 @@ code, out, _ = say(DRIVER2, button=f"drv:delivered:{o['id']}")
 check("a driver cannot complete an order that is not theirs", order_of(C1)["status"] == "placed", out)
 
 suite("W2 the shop accepts by typing, driver delivers")
+# Ensure both test drivers are free right before accept (start may have taken an older waiting order).
+tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")'
+   '->whereIn("phone",["+' + DRIVER + '","+' + DRIVER2 + '"])'
+   '->update(["active_order_id"=>null,"availability"=>"available","status"=>"on_duty"]); echo json_encode(1);')
+# shop_tap maps stf:accept → typed ✅ echo in the customer's chat (coexistence).
 code, allout = shop_tap(PID, f"stf:accept:{o['id']}"); out = texts(allout)
 o = order_of(C1)
 check("a tick typed by the shop confirms the order", o["status"] == "confirmed" and o["accepted_at"], o)
@@ -112,8 +139,6 @@ code, out, allout = say(drv_phone, button=f"drv:delivered:{o['id']}", wait=0.8)
 o = order_of(C1)
 check("Delivered → delivered", o["status"] == "delivered", o)
 free = tj('echo json_encode(App\\Models\\Driver::withoutGlobalScopes()->where("phone","+' + drv_phone + '")->first()->only("active_order_id","availability"));')
-# The driver may be given an older waiting order from an earlier run (the queue hands it over on purpose),
-# so the check is that they are no longer on THIS order.
 check("driver is no longer on this order", free["active_order_id"] != o["id"], free)
 code, out, _ = say(drv_phone, button=f"drv:delivered:{o['id']}")
 code, _out = shop_tap(PID, f"stf:reject:{o['id']}"); out = texts(_out)

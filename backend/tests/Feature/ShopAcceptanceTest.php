@@ -59,7 +59,7 @@ class ShopAcceptanceTest extends TestCase
                 ? Http::response('down', 503)
                 : Http::response(['routes' => [['duration' => $this->google.'s']]], 200),
         ]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
 
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites', 'currency' => 'USD', 'timezone' => 'Asia/Beirut',

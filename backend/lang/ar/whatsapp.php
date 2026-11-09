@@ -237,6 +237,20 @@ return [
     'shop' => [
         'pay_whish' => '💳 Whish',
         'pay_cash' => '💵 كاش',
+        'ticket_new' => "🧾 طلب جديد #:number\n:items\nالمجموع: :total:lbp\n:payment\n📍 :address\n📞 :phone",
+        'ticket_whish' => "💳 تحقق Whish #:number\nالزبون يقول إنه دفع :collect.\nأكد في تطبيق Whish ثم اضغط أدناه.",
+        'ticket_go' => "👨‍🍳 طلب #:number — :hint\n:items\n:collect\n📍 :address\n📞 :phone",
+        'hint_pickup' => 'استلام — اضغط جاهز عند التجهيز، وتم عند الاستلام',
+        'hint_delivery' => 'توصيل — اضغط طالع عند الخروج، وتم عند التسليم',
+        'hint_driver' => 'مع :driver — اضغط طالع عند الخروج، وتم عند التسليم',
+        'btn_accept' => '✅ قبول :time',
+        'btn_reject' => '❌ رفض',
+        'btn_whish_ok' => '✅ الدفع تمام',
+        'btn_whish_no' => '❌ غير موجود',
+        'btn_ready' => '📦 جاهز',
+        'btn_out' => '🛵 طالع',
+        'btn_delivered' => '✅ تم',
+        'btn_collected' => '✅ استلم',
     ],
 
     'check' => [

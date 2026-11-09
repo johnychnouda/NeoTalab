@@ -261,6 +261,18 @@ class WhatsAppInboundService
             return;
         }
 
+        // Shop owner taps Accept / Ready / Out / Done on a ticket sent to report_whatsapp.
+        $buttonId = $this->extractButtonId($msg);
+        if ($buttonId !== null && str_starts_with($buttonId, 'stf:')) {
+            if ($this->isShopOpsPhone($merchant, $fromPhone)
+                && app(ShopCommands::class)->handleButton($merchant, $buttonId)) {
+                return;
+            }
+            // Customer (or unknown) tapped a shop button: ignore — only the shop may use it.
+
+            return;
+        }
+
         $customer = Customer::query()->where('phone', $fromPhone)->first();
         if ($customer?->is_blocked) {
             return;
@@ -401,6 +413,16 @@ class WhatsAppInboundService
                 return;
             }
 
+            // "كمل" / "done" / 👍 with items already in the cart: open the button checkout. The AI sometimes
+            // only says "we'll continue with pickup" and never returns recommended_action checkout.
+            if ($text !== null && ! $this->checkoutFlow->active($conversation)
+                && CheckoutFlow::looksLikeContinueCheckout($text)
+                && $conversation->cart?->items()->exists()) {
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $conversation, $locale));
+
+                return;
+            }
+
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
             // The assistant has just recognised the customer's language: the buttons that follow use it too.
@@ -426,6 +448,17 @@ class WhatsAppInboundService
                     $this->reply($merchant, $fromPhone, $reply);
                 }
                 $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
+
+                return;
+            }
+
+            // Safety net: AI said "we'll continue pickup/checkout" but forgot recommended_action checkout.
+            if ($reply !== ''
+                && ! $this->checkoutFlow->active($result['conversation'])
+                && $result['conversation']->cart?->items()->exists()
+                && $this->aiPromisedCheckoutWithoutAction($reply)) {
+                $this->reply($merchant, $fromPhone, $reply);
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale));
 
                 return;
             }
@@ -709,6 +742,36 @@ class WhatsAppInboundService
             'name' => (string) ($loc['name'] ?? ''),
             'address' => trim(implode(', ', array_filter([(string) ($loc['name'] ?? ''), (string) ($loc['address'] ?? '')]))),
         ];
+    }
+
+    /** Owner's report WhatsApp (ops tickets), digit-matched against the inbound from number. */
+    protected function isShopOpsPhone(Merchant $merchant, string $fromPhone): bool
+    {
+        $report = ShopSettings::for($merchant)->reportWhatsapp();
+        if ($report === '') {
+            return false;
+        }
+        $a = preg_replace('/\D+/', '', $report) ?? '';
+        $b = preg_replace('/\D+/', '', $fromPhone) ?? '';
+
+        return $a !== '' && $a === $b;
+    }
+
+    /**
+     * The model wrote that checkout/pickup/delivery is continuing, without returning recommended_action checkout.
+     * Used so the customer still gets the button flow instead of a dead-end sentence.
+     */
+    protected function aiPromisedCheckoutWithoutAction(string $reply): bool
+    {
+        $t = mb_strtolower(trim($reply));
+
+        return (bool) preg_match(
+            '/(منكمل|نكمّل|نكمل|كمّل|كمل|نتابع|تابع).{0,60}(طلب|استلام|توصيل|checkout)|'
+            .'(continu(e|ing)|proceed).{0,40}(checkout|pickup|delivery|order)|'
+            .'(تمام[،,]?\s*)?(منكمل|نكمل).{0,40}(استلام|توصيل|طلب)|'
+            .'(on\s+proceed(?:s|ing)?\s+with|we(\'ll| will) (continue|proceed)).{0,40}(pickup|delivery|checkout|order)/iu',
+            $t
+        );
     }
 
     protected function reply(Merchant $merchant, string $toPhone, string $text): void

@@ -48,7 +48,7 @@ class WhishTransferTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token', 'app.url' => 'https://api.test', 'app.frontend_url' => 'https://neotalab.com']);
-        Bus::fake([CheckUnacceptedOrder::class, CheckWhishTransfer::class, RemindShopOfWhishCheck::class, CheckLateOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckWhishTransfer::class, RemindShopOfWhishCheck::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
 
         Http::fake([
             'graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200),

@@ -37,6 +37,35 @@ class ShopCommands
         protected WhatsAppService $whatsapp,
     ) {}
 
+    /**
+     * Button tap on a shop ticket (report WhatsApp): stf:accept:ORDER_ID / ready / picked_up / delivered / …
+     * Same outcomes as typing ✅ / ready / out / done in the customer chat.
+     */
+    public function handleButton(Merchant $merchant, string $buttonId): bool
+    {
+        if (! preg_match('/^stf:(accept|reject|wh_ok|wh_no|ready|picked_up|delivered|delay):([0-9a-f-]{36})$/i', $buttonId, $m)) {
+            return false;
+        }
+        $action = strtolower($m[1]);
+        $order = Order::query()->where('merchant_id', $merchant->id)->whereKey($m[2])->first();
+        if (! $order) {
+            return false;
+        }
+
+        $this->run(function () use ($merchant, $order, $action) {
+            match ($action) {
+                'accept' => $this->confirmation->accept($merchant, $order),
+                'reject' => $this->orders->transition($merchant, $order->id, 'reject'),
+                'wh_ok' => $this->confirmation->shopConfirms($merchant, $order),
+                'wh_no' => $this->confirmation->shopRefuses($merchant, $order),
+                'delay' => $this->confirmation->delay($merchant, $order),
+                default => $this->orders->transition($merchant, $order->id, $action),
+            };
+        }, $order);
+
+        return true;
+    }
+
     /** Whether the typed text was a shop command for this customer's chat (and has been carried out). */
     public function handle(Merchant $merchant, string $customerPhone, string $typed): bool
     {

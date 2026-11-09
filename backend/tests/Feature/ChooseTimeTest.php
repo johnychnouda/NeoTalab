@@ -51,7 +51,7 @@ class ChooseTimeTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
-        Bus::fake([StartScheduledOrder::class, CheckLateOrder::class, CheckUnacceptedOrder::class]);
+        Bus::fake([StartScheduledOrder::class, CheckLateOrder::class, CheckUnacceptedOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
 
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Rose Garden', 'currency' => 'USD', 'timezone' => 'Asia/Beirut', 'business_type' => 'Flowers / Gifts',

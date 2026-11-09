@@ -28,6 +28,16 @@ class UsageReportTest extends TestCase
         $this->assertEqualsWithDelta(0.0004 + 0.0005 + 0.0004, $cost, 1e-9);
     }
 
+    public function test_prices_match_the_providers_pages_checked_on_9_november_2026(): void
+    {
+        // Pinned so a silent edit of the price table fails here. Sources: OpenAI pricing page; the Oct 2026 Meta rate card.
+        $luna = config('usage.ai_models.gpt-6-luna');
+        $this->assertSame([0.10, 0.01, 0.50], [$luna['input'], $luna['cached'], $luna['output']]);
+        $this->assertSame(1.25, config('usage.ai_models.gpt-4o-mini-transcribe.input'));
+        $this->assertSame(0.0105, config('usage.whatsapp.service_rate'));
+        $this->assertSame(0.0105, config('usage.whatsapp.template_rate'));
+    }
+
     public function test_owner_sees_ai_and_whatsapp_usage_per_shop(): void
     {
         [$shop] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren']);
@@ -48,7 +58,7 @@ class UsageReportTest extends TestCase
         $this->assertEqualsWithDelta(0.0026, $row['ai_cost'], 0.0001);
         $this->assertSame(1003, $row['wa_messages'], 'inbound messages are free and not counted');
         $this->assertSame(1, $row['wa_templates']);
-        $this->assertEqualsWithDelta(4 * 0.0091, $row['meta_cost'], 0.001, '3 service messages over the free 1,000 + 1 template');
+        $this->assertEqualsWithDelta(4 * (float) config('usage.whatsapp.service_rate'), $row['meta_cost'], 0.001, '3 service messages over the free 1,000 + 1 template');
     }
 
     public function test_merchants_cannot_see_platform_usage(): void

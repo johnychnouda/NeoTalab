@@ -41,7 +41,7 @@ out = subprocess.run([f"{LAB}/lab.sh", "php", "artisan", "trials:expire"], captu
 st = tj(f'echo json_encode(App\\Models\\Merchant::find("{W["id"]}")->status);')
 check("trials:expire suspends the shop whose trial ended", st == "suspended", (st, out.stdout[-200:], out.stderr[-300:]))
 others = tj('echo json_encode(App\\Models\\Merchant::where("status","suspended")->pluck("name"));')
-check("only that shop was suspended", others == ["QA Water Wholesale"], others)
+check("only that shop was suspended", others == [W["name"]], others)
 cust = "96178100" + str(int(time.time()))[-5:]
 code, mid, t0 = wa_msg(W["phone_id"], cust, text="hi"); settle(t0, quiet=1.0)
 check("suspended shop's customers get no reply", len(outbox(to=cust, since=t0)) == 0)

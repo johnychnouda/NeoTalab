@@ -357,7 +357,7 @@ class ConversationService
             default => 'whatsapp.checkout.placed',
         };
 
-        return [__($key, [
+        $body = __($key, [
             'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
             'number' => $order->number,
             'total' => Money::format((float) $order->total, $merchant->currency),
@@ -370,7 +370,16 @@ class ConversationService
             'eta' => $order->eta_mins,
             'when' => $order->status === 'placed' ? '' : app(OrderTiming::class)->phrase($merchant, $order, $locale),
             'shop' => $merchant->name,
-        ], $locale).($order->payment_method === 'whish' ? "\n".__('whatsapp.checkout.whish_after_accept', [], $locale) : ''), $order];
+        ], $locale);
+        if ($order->payment_method === 'whish') {
+            $body .= "\n".__('whatsapp.checkout.whish_after_accept', [], $locale);
+        }
+        // Cue on the shop phone (same chat): type ✅ to accept when auto-accept is off.
+        if ($order->status === 'placed') {
+            $body .= "\n".__('whatsapp.checkout.shop_reply', ['shop' => $merchant->name], $locale);
+        }
+
+        return [$body, $order];
     }
 
     /**

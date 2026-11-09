@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
+use App\Jobs\NotifyShopOfOrder;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Merchant;
 use App\Models\Order;
@@ -44,6 +45,7 @@ class OrderConfirmation
         [$remind, $giveUp] = $this->timing->inDays($merchant) ? [30, 240] : [3, 10];
         CheckUnacceptedOrder::dispatch($order->id)->delay(now()->addMinutes($remind));
         CheckUnacceptedOrder::dispatch($order->id, true)->delay(now()->addMinutes($giveUp));
+        NotifyShopOfOrder::dispatch($order->id);
     }
 
     /**
@@ -90,6 +92,7 @@ class OrderConfirmation
         }
 
         $this->lateCheck($merchant, $order);
+        NotifyShopOfOrder::dispatch($order->id);
     }
 
     /** Food shops: the late check at the promised time . */
@@ -177,6 +180,7 @@ class OrderConfirmation
         $order = $order->fresh(['customer']);
 
         $this->tell($merchant, $order, 'whish_received');
+        NotifyShopOfOrder::dispatch($order->id);
     }
 
     /** The shop checked its Whish account and found the payment: the order goes ahead (or is refunded, if it was already cancelled). False if it was already decided. */

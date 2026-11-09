@@ -97,8 +97,6 @@ export default function ShopHome() {
         </section>
       )}
 
-      <Commands t={t} />
-
       <Plan sub={shop.subscription} shopName={shopName} t={t} locale={locale} />
       <MetaFees url={setup.meta_payment_url} t={t} />
 
@@ -118,22 +116,6 @@ export default function ShopHome() {
         </>
       )}
     </div>
-  );
-}
-
-/** What the shop types in a customer's chat on the shop phone to answer an order. */
-function Commands({ t }) {
-  const rows = [["✅", "db.cmd.accept"], ["❌", "db.cmd.refuse"], ["ready", "db.cmd.ready"], ["out", "db.cmd.out"], ["done", "db.cmd.done"], ["delay", "db.cmd.delay"], ["refunded 12", "db.cmd.refunded"]];
-  return (
-    <section className="gs-connect">
-      <h2>{t("db.cmd.title")}</h2>
-      <p>{t("db.cmd.intro")}</p>
-      <ul className="gs-list" style={{ listStyle: "none", padding: 0 }}>
-        {rows.map(([word, key]) => (
-          <li key={word} style={{ display: "flex", gap: 12, padding: "4px 0" }}><strong dir="ltr" style={{ minWidth: 96 }}>{word}</strong><span>{t(key)}</span></li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
