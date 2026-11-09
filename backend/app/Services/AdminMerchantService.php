@@ -115,7 +115,7 @@ class AdminMerchantService
             );
         }
 
-        // Fixing the type picked at sign-up also resets what depends on it (orders or bookings, time unit).
+        // Fixing the type picked at sign-up also resets what depends on it (time unit).
         $type = $this->pick($payload, 'businessType', 'business_type');
         if (is_string($type) && $type !== '' && $type !== $merchant->business_type) {
             $merchant->business_type = $type;
@@ -271,7 +271,7 @@ class AdminMerchantService
                 // A shop from the join form starts in the language its owner used there.
                 'locale' => in_array($payload['language'] ?? null, ['en', 'ar', 'fr'], true) ? $payload['language'] : $merchant->locale,
                 'trial_ends_at' => $trialEndsAt ? now()->parse($trialEndsAt) : ($subscriptionStatus === 'trial' ? now()->addDays(max(1, (int) (PlatformSetting::singleton()->trial_days ?: 3))) : null),
-                // On top of what provisioning set from the business type (orders or bookings, time unit).
+                // On top of what provisioning set from the business type (time unit).
                 'settings' => array_merge($merchant->settings ?? [], $settings),
             ])->save();
 
@@ -285,7 +285,7 @@ class AdminMerchantService
 
     /** Every table holding a shop's own data (there are no database foreign keys to cascade). */
     public const SHOP_TABLES = [
-        'order_items', 'orders', 'cart_items', 'carts', 'conversations', 'whatsapp_messages', 'appointments',
+        'order_items', 'orders', 'cart_items', 'carts', 'conversations', 'whatsapp_messages',
         'customers', 'modifiers', 'modifier_groups', 'product_variants', 'products', 'categories',
         'delivery_zones', 'shop_hours', 'drivers', 'ai_usage', 'onboarding_requests',
     ];

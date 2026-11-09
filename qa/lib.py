@@ -215,3 +215,12 @@ def wait_reply(t0, to, quiet=2.5, cap=60.0):
     while time.time() - t0 < cap and not [x for x in outbox(since=t0) if x["body"].get("to", "").lstrip("+") == to]:
         time.sleep(0.3)
     return settle(t0, quiet=quiet, cap=cap)
+
+
+def shop_tap(phone_id, stf_id, wait=1.0):
+    """What the old staff buttons did, now typed by the shop in the customer's chat: stf:accept:ID -> a tick, stf:ready:ID -> "ready", ..."""
+    action, target = stf_id.split(":")[1], stf_id.split(":")[2]
+    text = {"accept": "\u2705", "wh_ok": "\u2705", "reject": "\u274c", "wh_no": "\u274c", "ready": "ready", "picked_up": "out", "delivered": "done", "delay": "delay"}[action]
+    phone = tj('echo json_encode(App\\Models\\Order::withoutGlobalScopes()->find("' + target + '")?->customer?->phone);')
+    code, t0 = wa_echo(phone_id, str(phone).lstrip("+"), text)
+    return code, settle(t0, quiet=wait, cap=20)

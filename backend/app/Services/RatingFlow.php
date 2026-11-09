@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Order;
 
 /**
- * The questions after an order, one tap each: how was the order, how was the service and, for a delivery with a
- * driver, how the delivery person treated the customer. Great counts 5, Okay 3, Bad 1. A Bad answer alerts the shop.
+ * The one question after an order, one tap: Great (5), Okay (3) or Bad (1). Okay and Bad ask the customer what went wrong
+ * (typed or a voice note) and tell the shop; the message that follows reaches the shop.
  */
 final class RatingFlow
 {
@@ -22,7 +22,7 @@ final class RatingFlow
     /** @return list<string> */
     public function questions(Order $order): array
     {
-        return ['order', 'service', ...($order->fulfillment === 'delivery' && $order->driver_id ? ['delivery'] : [])];
+        return ['order'];
     }
 
     /** The first question without an answer, or null when the customer has answered them all. */

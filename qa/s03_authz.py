@@ -7,7 +7,6 @@ r = s["shops"]["rest"]; p = s["shops"]["pharm"]
 OWN, RO, AD, OTHER = s["owner"], r["token"], s["rest_admin"]["token"], p["token"]
 # Staff cannot sign in to the dashboard any more (team members work through WhatsApp), so the staff
 # token is minted fresh in the lab database; the sign-in refusal itself is checked below.
-ST = tj('$u=App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->first(); $t=$u->createToken("qa-s03")->plainTextToken; echo json_encode($t);')
 X = "00000000-0000-0000-0000-000000000000"
 
 # A customer and a conversation in the restaurant (via the typed test-conversation API).
@@ -16,7 +15,7 @@ conv = (b.get("data") or b).get("id") if isinstance(b, dict) else None
 cust = tj('echo json_encode(App\\Models\\Customer::withoutGlobalScopes()->where("merchant_id","' + r["id"] + '")->value("id"));')
 
 READ = ["GET /auth/me", "GET /merchant", "GET /settings/setup", "GET /settings/profile", "GET /settings/hours", "GET /settings/zones",
-        "GET /customers", "GET /drivers", "GET /appointments", "GET /analytics/dashboard", "GET /categories", "GET /products", f"GET /products/{r['p1']}"]
+        "GET /customers", "GET /drivers", "GET /analytics/dashboard", "GET /categories", "GET /products", f"GET /products/{r['p1']}"]
 MANAGER = [f"PATCH /merchant", "PATCH /settings/profile", "PATCH /settings/mode", "POST /settings/locate", "PUT /settings/hours",
            "POST /settings/zones", f"PATCH /settings/zones/{r['zone']}", f"DELETE /settings/zones/{r['zone']}",
            f"POST /customers/{cust}/block", f"POST /customers/{cust}/unblock",
@@ -55,7 +54,7 @@ for bad in ("garbage", "1|" + "a" * 40, OWN[:-3] + "zzz"):
     check(f"forged token -> 401 ({bad[:6]}…)", code == 401, code)
 
 suite("RBAC: shop roles cannot use platform-owner routes")
-for who, tok in (("shop-owner", RO), ("shop-admin", AD), ("shop-staff", ST)):
+for who, tok in (("shop-owner", RO), ("shop-admin", AD)):
     for spec in ADMIN:
         code, _ = call(spec, tok)
         check(f"{who} {spec} -> 403", code == 403, code)
@@ -64,14 +63,6 @@ suite("RBAC: platform owner has no shop routes bound to a shop")
 for spec in ["GET /merchant", "GET /settings/profile", "GET /products", "GET /customers"]:
     code, b = call(spec, OWN)
     check(f"platform owner {spec} -> 403", code == 403, (code, str(b)[:120]))
-
-suite("RBAC: shop staff reads but cannot change")
-for spec in READ:
-    code, _ = call(spec, ST)
-    check(f"staff {spec} -> 200", code == 200, code)
-for spec in MANAGER:
-    code, _ = call(spec, ST)
-    check(f"staff {spec} -> 403", code == 403, code)
 
 suite("RBAC: shop admin can manage (validation reached, not 403)")
 for spec in MANAGER:
@@ -130,7 +121,7 @@ code, b = api("POST", "/products", OTHER, {"name": "Sneaky", "price": 1, "catego
 check("product cannot be put in another shop's category", code == 422, (code, str(b)[:150]))
 
 # Lists never leak
-for spec in ["GET /products", "GET /categories", "GET /customers", "GET /drivers", "GET /settings/zones", "GET /appointments", "GET /analytics/dashboard"]:
+for spec in ["GET /products", "GET /categories", "GET /customers", "GET /drivers", "GET /settings/zones", "GET /analytics/dashboard"]:
     code, b = call(spec, OTHER)
     blob = json.dumps(b)
     leak = [i for i in (r["p1"], r["p2"], r["cat"], cust, r["driver"], r["zone"], "QA Iso Customer", "Manakish", "Karim") if i and i in blob]
@@ -162,8 +153,6 @@ row = tj('echo json_encode(App\\Models\\Driver::withoutGlobalScopes()->where("na
 check("driver merchant_id cannot be over-posted", row and row["merchant_id"] == r["id"], row)
 
 suite("Sessions: logout, password change, disabled user, deleted shop")
-code, b = login(s["rest_staff"]["email"], s["rest_staff"]["pw"])
-check("staff cannot sign in to the dashboard (WhatsApp only)", code == 422, code)
 code, b = login(s["rest_admin"]["email"], s["rest_admin"]["pw"])
 t2 = b["token"]
 code, _ = api("POST", "/auth/logout", t2)

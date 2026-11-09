@@ -28,7 +28,7 @@ use Tests\TestCase;
  */
 class BusinessKindsTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '+96170123456';
 
@@ -101,8 +101,10 @@ class BusinessKindsTest extends TestCase
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'add 1 life item']]);
         $this->receive($phoneId, ['type' => 'text', 'text' => ['body' => 'confirm | | | cash']]);
         $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $merchant->id)->firstOrFail();
-        // No staff are set up here, so the bot accepts the order itself (the designed behaviour for such shops).
-        $this->assertSame('confirmed', $order->status, "{$type}: a shop without staff is accepted by the bot");
+        $this->assertSame('placed', $order->status, "{$type}: the shop answers first");
+        $this->shopTypes(self::CUSTOMER, '✅', $phoneId);
+        $order->refresh();
+        $this->assertSame('confirmed', $order->status, "{$type}: ✅ from the shop phone accepts it");
         $orders->transition($merchant, $order->id, 'ready');
         $this->assertSame('ready', $order->fresh()->status, "{$type}: ready");
         $orders->transition($merchant, $order->id, 'delivered');

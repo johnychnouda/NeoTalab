@@ -7,7 +7,7 @@ import { preloadGoogleMaps } from "@/lib/googleMaps";
 import LocationPicker from "@/components/LocationPicker";
 import { getTrialDays, submitOnboardingApplication } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
-import { JOIN_BUSINESS_TYPES, JOIN_BUSINESS_TYPE_OTHER } from "@/lib/joinFormOptions";
+import { JOIN_BUSINESS_TYPES } from "@/lib/joinFormOptions";
 import { COUNTRIES, DEFAULT_COUNTRY, getCountry, mobileError, toWhatsapp, formatMobile } from "@/lib/countries";
 
 const STEPS = ["jn.step.shop", "jn.step.place", "jn.step.contact"];
@@ -16,23 +16,12 @@ const TYPE_ICONS = {
   "Restaurant / Café": "🍽️",
   "Bakery / Sweets": "🥐",
   "Supermarket / Grocery": "🛒",
-  "Butcher / Fruits & Vegetables": "🥩",
-  "Clothing / Shoes": "👕",
-  "Electronics / Phones": "📱",
-  "Flowers / Gifts": "💐",
-  "Water / Gas delivery": "💧",
-  "Laundry / Dry cleaning": "🧺",
-  "Salon / Barber / Beauty": "💇",
-  "Pet Shop": "🐾",
-  "Home & Furniture": "🛋️",
-  "General Retail": "🛍️",
-  Other: "➕",
+  "Online Shop / Retail": "🛍️",
 };
 
 const INITIAL = {
   shopName: "",
   businessType: "",
-  businessTypeOther: "",
   country: DEFAULT_COUNTRY,
   location: "",
   contactName: "",
@@ -48,7 +37,6 @@ function stepErrors(step, v) {
   if (step === 0) {
     if (!v.shopName.trim()) e.shopName = "jn.err.shopName";
     if (!v.businessType) e.businessType = "jn.err.businessType";
-    else if (v.businessType === JOIN_BUSINESS_TYPE_OTHER && !v.businessTypeOther.trim()) e.businessTypeOther = "jn.err.businessTypeOther";
   }
   if (step === 1 && !v.location.trim()) e.location = "jn.err.location";
   if (step === 2) {
@@ -115,7 +103,7 @@ export default function JoinPage() {
         shopName: vals.shopName.trim(),
         // The language the applicant is reading the page in: the WhatsApp answer comes in it too.
         language: lang,
-        businessType: vals.businessType === JOIN_BUSINESS_TYPE_OTHER ? vals.businessTypeOther.trim() : vals.businessType,
+        businessType: vals.businessType,
         country: vals.country,
         location: vals.location.trim(),
         contactName: vals.contactName.trim(),
@@ -183,12 +171,6 @@ export default function JoinPage() {
                   {errors.businessType && <p className="jn-error" role="alert">{t(errors.businessType)}</p>}
                 </fieldset>
 
-                {vals.businessType === JOIN_BUSINESS_TYPE_OTHER && (
-                  <Field id="businessTypeOther" label={t("jn.businessTypeOther")} error={errors.businessTypeOther} t={t}>
-                    <input id="jn-businessTypeOther" value={vals.businessTypeOther} maxLength={60}
-                      onChange={(e) => set("businessTypeOther", e.target.value)} placeholder={t("jn.ph.businessTypeOther")} />
-                  </Field>
-                )}
               </div>
             )}
 

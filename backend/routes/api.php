@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\V1\Admin\SystemAlertController as AdminSystemAlertC
 use App\Http\Controllers\Api\V1\Admin\UsageController as AdminUsageController;
 use App\Http\Controllers\Api\V1\Admin\WhatsAppEmbeddedSignupController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
-use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ConversationController;
@@ -22,7 +21,6 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductVariantController;
 use App\Http\Controllers\Api\V1\PublicOnboardingController;
 use App\Http\Controllers\Api\V1\PublicPlanController;
-use App\Http\Controllers\Api\V1\ServiceProviderController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\ShopWhatsAppSignupController;
 use App\Http\Controllers\Api\V1\WhatsAppWebhookController;
@@ -49,7 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/set-initial-password', [AuthController::class, 'setInitialPassword']);
         Route::post('auth/revoke-other-sessions', [AuthController::class, 'revokeOtherSessions']);
 
-        $merchantRoles = Roles::MERCHANT_OWNER.','.Roles::MERCHANT_ADMIN.','.Roles::MERCHANT_STAFF;
+        $merchantRoles = Roles::MERCHANT_OWNER.','.Roles::MERCHANT_ADMIN;
         $managerRoles = Roles::MERCHANT_OWNER.','.Roles::MERCHANT_ADMIN;
 
         Route::get('merchant', [MerchantController::class, 'show'])->middleware("role:{$merchantRoles}");
@@ -87,12 +85,6 @@ Route::prefix('v1')->group(function () {
             Route::patch('{driver}', [DriverController::class, 'update'])->middleware("role:{$managerRoles}");
             Route::delete('{driver}', [DriverController::class, 'destroy'])->middleware("role:{$managerRoles}");
         });
-
-        Route::get('appointments', [AppointmentController::class, 'index'])->middleware("role:{$merchantRoles}");
-        Route::get('providers', [ServiceProviderController::class, 'index'])->middleware("role:{$merchantRoles}");
-        Route::post('providers', [ServiceProviderController::class, 'store'])->middleware("role:{$managerRoles}");
-        Route::patch('providers/{provider}', [ServiceProviderController::class, 'update'])->middleware("role:{$managerRoles}");
-        Route::delete('providers/{provider}', [ServiceProviderController::class, 'destroy'])->middleware("role:{$managerRoles}");
 
         // ── Analytics ─────────────────────────────────────────
         Route::middleware("role:{$merchantRoles}")->prefix('analytics')->group(function () {
@@ -132,7 +124,6 @@ Route::prefix('v1')->group(function () {
             Route::delete('products/{product}', [ProductController::class, 'destroy']);
 
             Route::put('products/{product}/options', [ProductController::class, 'options']);
-            Route::put('products/{product}/stock', [ProductController::class, 'stock']);
             Route::post('products/{product}/variants', [ProductVariantController::class, 'store']);
             Route::patch('variants/{variant}', [ProductVariantController::class, 'update']);
             Route::delete('variants/{variant}', [ProductVariantController::class, 'destroy']);

@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Models\Merchant;
 use App\Models\Order;
-use App\Services\ChatMenu;
 use App\Services\OrderTiming;
 use App\Services\RatingFlow;
 use App\Services\WhatsApp\CustomerTemplates;
@@ -69,12 +68,10 @@ class NotifyCustomerOfOrderStatus implements ShouldQueue
                 'when' => $order->promised_at ? app(OrderTiming::class)->phrase($merchant, $order, $locale) : '',
             ]), $locale).($order->payment_status === 'refund_due' ? "\n".__('whatsapp.status.refund', ['shop' => $merchant->name], $locale) : '');
 
-            // Accepted / on the way: with the "Where's my order?" button. Days later, when the customer's
-            // 24 hours are over, the approved template for the event goes instead (the others are skipped).
+            // Days later, when the customer's 24 hours are over, the approved template for the event goes instead (the others are skipped).
             // The delivered message carries the first of the one-tap rating questions (Great / Okay / Bad).
             $message = match (true) {
                 $askRating => app(RatingFlow::class)->message($order, 'order', $locale, $text),
-                in_array($order->status, ['confirmed', 'picked_up'], true) => ChatMenu::withStatusButton($order, $text, $locale),
                 default => ['type' => 'text', 'text' => $text],
             };
             $sent = $this->sendCustomerAs($merchant, $order->customer->phone, $message, ...$this->template($key, $order, $merchant, $locale, $askRating));

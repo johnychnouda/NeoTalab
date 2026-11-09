@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Support\Roles;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
@@ -32,13 +31,6 @@ class AuthService
         if ($user->status === 'disabled') {
             throw ValidationException::withMessages([
                 'email' => ['This account is disabled.'],
-            ]);
-        }
-
-        // Shop staff work through WhatsApp only; the dashboard is for the owner and managers.
-        if ($user->hasRole(Roles::MERCHANT_STAFF)) {
-            throw ValidationException::withMessages([
-                'email' => ['Team members work through WhatsApp. Ask your manager for help.'],
             ]);
         }
 
@@ -145,7 +137,7 @@ class AuthService
     public function sendResetLink(string $email): void
     {
         $user = User::query()->where('email', strtolower(trim($email)))->first();
-        if (! $user || $user->status === 'disabled' || $user->hasRole(Roles::MERCHANT_STAFF)) {
+        if (! $user || $user->status === 'disabled') {
             return;
         }
 

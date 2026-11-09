@@ -9,9 +9,9 @@ s = state()
 code, b = login(ENV["OWNER_EMAIL"], ENV["OWNER_PASSWORD"])
 OWN = b["token"]; s["owner"] = OWN
 
-TYPES = ["Restaurant / Café", "Pharmacy", "Supermarket / Grocery", "Electronics / Phones", "Water / Gas delivery",
-         "Salon / Barber / Beauty", "Pet Shop", "Other", "Bakery", "Flowers", "Clothing", "Laundry", "Books",
-         "Hardware", "Cosmetics", "Jewelry", "Furniture", "Toys", "Optics", "Car parts"]
+TYPES = ["Restaurant / Café", "Bakery / Sweets", "Supermarket / Grocery", "Butcher / Fruits & Vegetables",
+         "Bakery / Sweets", "Restaurant / Café", "Bakery", "Flowers", "Clothing", "Supermarket / Grocery", "Books",
+         "Hardware", "Cosmetics", "Jewelry", "Furniture", "Toys", "Bakery / Sweets", "Car parts"]
 SIZES = [15] * 40 + [50] * 40 + [120] * 25 + [250] * 10 + [500] * 5
 random.shuffle(SIZES)
 LOCALES = ["en", "ar", "fr"] * 40

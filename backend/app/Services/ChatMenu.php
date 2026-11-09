@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\NotifyStaffOfCheck;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Merchant;
@@ -69,11 +68,61 @@ class ChatMenu
     }
 
     /**
+     * The menu section the customer named ("what's in the pizza section?", "shu 3indkon burgers"), or null.
+     * Matches the section's name in any language the shop wrote it in, singular or plural; the longest name wins.
+     */
+    public function categoryNamed(string $text): ?Category
+    {
+        $products = $this->orderable();
+        $found = null;
+        $length = 0;
+        foreach (Category::query()->where('is_active', true)->get() as $category) {
+            if (! $products->contains('category_id', $category->id)) {
+                continue;
+            }
+            foreach (array_filter([$category->name, $category->name_ar, $category->name_fr]) as $name) {
+                $stem = rtrim(trim((string) $name), 'sS');
+                if (mb_strlen($stem) < 3) {
+                    continue;
+                }
+                if (preg_match('/(?<![\p{L}\p{N}])'.preg_quote($stem, '/').'(?:s|es)?(?![\p{L}\p{N}])/iu', $text) && mb_strlen($stem) > $length) {
+                    $found = $category;
+                    $length = mb_strlen($stem);
+                }
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * One section's items with their prices, the answer to "what's in the pizza section?".
+     *
+     * @return array<string, mixed>
+     */
+    public function categoryMenu(Merchant $merchant, Category $category, string $locale, ?string $note = null): array
+    {
+        $items = $this->orderable()->where('category_id', $category->id)->values();
+        $more = $items->count() - 15;
+        $lines = $items->take(15)->map(fn (Product $p) => '• '.$this->name($p, $locale).' — '.$this->price($merchant, $p, $locale))->implode("\n")
+            .($more > 0 ? "\n".$this->t('more_entries', $locale, ['n' => $more]) : '');
+
+        return $this->text(trim(($note ?: $this->name($category, $locale).' 👇')."\n\n".$lines."\n\n"
+            .$this->t('type_hint', $locale, ['item' => $items->first() ? $this->name($items->first(), $locale) : ''])));
+    }
+
+    /**
      * The "Where's my order?" answer: status, time, driver.
      *
      * @return array<string, mixed>
      */
     public function status(Merchant $merchant, Order $order, string $locale): array
+    {
+        return $this->text($this->statusText($merchant, $order, $locale));
+    }
+
+    /** The status sentence for an order: where it is, when, and the driver. */
+    public function statusText(Merchant $merchant, Order $order, string $locale): string
     {
         $order->loadMissing('driver');
         $when = $order->promised_at ? $this->timing->phrase($merchant, $order, $locale) : '';
@@ -87,28 +136,7 @@ class ChatMenu
             default => __('whatsapp.track.preparing', ['number' => $order->number, 'when' => $when], $locale),
         };
 
-        if ($order->job_stage !== null && ! in_array($order->status, ['delivered', 'cancelled', 'rejected'], true)
-            && ($stage = app(JobStageService::class)->current($merchant, $order))) {
-            $text .= "\n".__('whatsapp.track.stage', ['stage' => $stage], $locale);
-        }
-
-        return in_array($order->status, ['delivered', 'cancelled', 'rejected'], true)
-            ? $this->text($text)
-            : self::withStatusButton($order, $text, $locale);
-    }
-
-    /**
-     * A message with the "📦 Where's my order?" button.
-     *
-     * @return array<string, mixed>
-     */
-    public static function withStatusButton(Order $order, string $body, string $locale): array
-    {
-        return ['type' => 'interactive', 'interactive' => [
-            'type' => 'button',
-            'body' => ['text' => mb_substr($body, 0, 1024)],
-            'action' => ['buttons' => [['type' => 'reply', 'reply' => ['id' => "trk:{$order->id}", 'title' => mb_substr(__('whatsapp.track.button', [], $locale), 0, 20)]]]],
-        ]];
+        return $text;
     }
 
     /**
@@ -123,7 +151,6 @@ class ChatMenu
         $customer = $conversation->customer;
         if ($customer->hasPendingCheck() !== $product->id) {
             $customer->markCheck($product->id, false);
-            NotifyStaffOfCheck::dispatch($customer->id, $product->id);
         }
 
         return $this->text(__('whatsapp.check.ask', ['item' => $this->name($product, $locale)], $locale));
@@ -131,7 +158,7 @@ class ChatMenu
 
     protected function orderable(): Collection
     {
-        return Product::query()->where('is_active', true)->whereNull('duration_mins')
+        return Product::query()->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get()
             ->filter(fn (Product $p) => $p->isOrderable())->values();
     }

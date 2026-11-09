@@ -29,8 +29,6 @@ class MenuImportService
         'description' => ['description', 'details', 'desc', 'الوصف', 'وصف', 'détails'],
         'name_ar' => ['name_ar', 'arabic', 'arabic name', 'الاسم بالعربي', 'بالعربي'],
         'name_fr' => ['name_fr', 'french', 'french name', 'nom fr'],
-        // Minutes a service takes (salons, barbers): "duration", "minutes", "mins"…
-        'duration' => ['duration', 'duration mins', 'duration min', 'duration_mins', 'minutes', 'mins', 'min', 'مدة', 'المدة', 'durée', 'duree'],
         // "yes" = the team checks it first (for example an age limit).
         'check' => ['needs check', 'check', 'staff check', 'team check'],
     ];
@@ -136,7 +134,6 @@ class MenuImportService
                 $fields = array_filter([
                     'category_id' => $category->id,
                     'price' => $item['price'],
-                    'duration_mins' => $item['duration_mins'] ?? null,
                     'staff_check' => $item['staff_check'] ?? null,
                     'description' => $item['description'],
                     'name_ar' => $item['name_ar'],
@@ -305,7 +302,6 @@ class MenuImportService
                 'name_ar' => $text($row['name_ar'] ?? null),
                 'name_fr' => $text($row['name_fr'] ?? null),
                 // Only a whole number of minutes is used; a service without one stays a plain item.
-                'duration_mins' => ($d = (int) preg_replace('/\D/', '', (string) ($row['duration'] ?? $row['duration_mins'] ?? ''))) >= 5 && $d <= 1440 ? $d : null,
                 'staff_check' => self::yesNo($row['check'] ?? $row['staff_check'] ?? null),
                 // As chosen in the preview.
                 'lbp' => filter_var($row['lbp'] ?? false, FILTER_VALIDATE_BOOL),

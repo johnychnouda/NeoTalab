@@ -21,7 +21,7 @@ use Tests\TestCase;
 
 class VoiceNoteTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private Merchant $merchant;
 
@@ -143,8 +143,9 @@ class VoiceNoteTest extends TestCase
 
         $sent = $this->sent();
         $this->assertCount(2, $sent);
+        $this->assertSame(__('whatsapp.media_unsupported', [], 'en'), $this->body($sent[0]), 'a sticker: cannot be read');
+        $this->assertSame(__('whatsapp.photo_received', ['shop' => 'Foren'], 'en'), $this->body($sent[1]), 'a photo: the shop answers personally');
         foreach ($sent as $message) {
-            $this->assertSame(__('whatsapp.media_unsupported', [], 'en'), $this->body($message));
             $this->assertSame('text', $message['type']);
         }
     }
@@ -154,7 +155,7 @@ class VoiceNoteTest extends TestCase
         $this->fakeMeta();
         Product::query()->withoutGlobalScopes()->delete();
 
-        $this->inbound(['type' => 'image', 'image' => ['id' => 'IMG1']]);
+        $this->inbound(['type' => 'sticker', 'sticker' => ['id' => 'ST1']]);
 
         $this->assertSame(__('whatsapp.media_unsupported', [], 'en'), $this->sent()[0]['text']['body']);
     }

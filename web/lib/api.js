@@ -25,7 +25,7 @@ export function announceChange() {
 }
 
 const OWNER_ROLE = "platform-super-admin";
-const MERCHANT_ROLES = ["merchant-owner", "merchant-admin", "merchant-staff"];
+const MERCHANT_ROLES = ["merchant-owner", "merchant-admin"];
 
 export function getToken(role) {
   if (typeof window === "undefined") return null;

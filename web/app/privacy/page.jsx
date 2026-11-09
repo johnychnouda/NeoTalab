@@ -5,7 +5,7 @@ import { company } from "@/lib/company";
 
 export function generateMetadata() {
   return pageMetadata("privacy", {
-    description: "How NeoTalab collects, uses, shares and deletes personal data when businesses use WhatsApp ordering and booking.",
+    description: "How NeoTalab collects, uses, shares and deletes personal data when businesses use WhatsApp ordering.",
     alternates: { canonical: "/privacy" },
   });
 }
@@ -25,7 +25,7 @@ function PrivacyPageEn() {
     <LegalPage title="Privacy Policy">
       <p>
         This policy explains how {company.brand} (&quot;we&quot;, &quot;us&quot;), operated by {who}, handles personal data. {company.brand} is
-        a software platform that lets businesses (&quot;merchants&quot;) take orders and bookings from their customers on WhatsApp using the
+        a software platform that lets businesses (&quot;merchants&quot;) take orders from their customers on WhatsApp using the
         WhatsApp Business Platform provided by Meta.
       </p>
 
@@ -39,7 +39,7 @@ function PrivacyPageEn() {
       <h2>2. Data we collect</h2>
       <ul>
         <li><strong>Merchant account data:</strong> business name, contact name, email, phone/WhatsApp numbers, address, business type, login credentials (stored hashed), subscription and billing records.</li>
-        <li><strong>Customer data received through WhatsApp:</strong> phone number, WhatsApp profile name, the messages exchanged with the merchant&apos;s number, order and booking details, delivery address or shared location, preferred language, payment method and status, and ratings.</li>
+        <li><strong>Customer data received through WhatsApp:</strong> phone number, WhatsApp profile name, the messages exchanged with the merchant&apos;s number, order details, delivery address or shared location, preferred language, payment method and status, and ratings.</li>
         <li><strong>Driver and staff data:</strong> name, WhatsApp number, shift times, deliveries completed and cash collected.</li>
         <li><strong>Technical data:</strong> log files and IP addresses needed to run and secure the service.</li>
       </ul>
@@ -47,7 +47,7 @@ function PrivacyPageEn() {
 
       <h2>3. How we use it</h2>
       <ul>
-        <li>To answer customers, take orders and bookings, calculate totals and send order updates on the merchant&apos;s behalf;</li>
+        <li>To answer customers, take orders, calculate totals and send order updates on the merchant&apos;s behalf;</li>
         <li>to dispatch orders to the merchant&apos;s drivers and staff;</li>
         <li>to provide merchants with reports and analytics about their own business;</li>
         <li>to operate, secure, support and bill the service; and to comply with legal obligations.</li>
@@ -75,7 +75,7 @@ function PrivacyPageEn() {
       <h2>6. How long we keep data</h2>
       <ul>
         <li>Conversation history used by the assistant is limited to the most recent messages of each chat.</li>
-        <li>Orders, bookings and customer records are kept while the merchant uses {company.brand} so the merchant can serve and support its customers, and deleted within 90 days after the merchant&apos;s account is closed.</li>
+        <li>Orders and customer records are kept while the merchant uses {company.brand} so the merchant can serve and support its customers, and deleted within 90 days after the merchant&apos;s account is closed.</li>
         <li>Login sessions expire after 30 days. Server logs are kept for a limited period for security.</li>
       </ul>
 
@@ -119,7 +119,7 @@ function PrivacyPageAr({ p }) {
   const who = `${company.legalName}${p.address ? `، ${p.address}` : ""}، ${p.country}`;
   return (
     <LegalPage title="سياسة الخصوصية">
-      <p>توضّح هذه السياسة كيف يتعامل {b} («نحن»)، الذي تشغّله {who}، مع البيانات الشخصية. {b} منصّة برمجية تتيح للأعمال («التجّار») تلقّي الطلبات والحجوزات من زبائنهم عبر واتساب باستخدام منصّة واتساب للأعمال المقدَّمة من Meta.</p>
+      <p>توضّح هذه السياسة كيف يتعامل {b} («نحن»)، الذي تشغّله {who}، مع البيانات الشخصية. {b} منصّة برمجية تتيح للأعمال («التجّار») تلقّي الطلبات من زبائنهم عبر واتساب باستخدام منصّة واتساب للأعمال المقدَّمة من Meta.</p>
 
       <h2>1. الجهة المسؤولة</h2>
       <p>بالنسبة لبيانات التجّار وموظفيهم، {company.legalName} هي الجهة المتحكّمة بالبيانات. أما بيانات زبائن التاجر، فالتاجر هو المتحكّم بها ويعالجها {b} نيابةً عنه لتقديم الخدمة. للتواصل: <a href={`mailto:${company.email}`}>{company.email}</a>{company.phone ? <>، <span dir="ltr">{company.phone}</span></> : null}.</p>
@@ -127,7 +127,7 @@ function PrivacyPageAr({ p }) {
       <h2>2. البيانات التي نجمعها</h2>
       <ul>
         <li><strong>بيانات حساب التاجر:</strong> اسم العمل، اسم المسؤول، البريد الإلكتروني، أرقام الهاتف/واتساب، العنوان، نوع العمل، بيانات الدخول (مخزّنة بشكل مُشفّر أحادي الاتجاه)، وسجلات الاشتراك والفوترة.</li>
-        <li><strong>بيانات الزبائن الواردة عبر واتساب:</strong> رقم الهاتف، اسم ملف واتساب، الرسائل المتبادلة مع رقم التاجر، تفاصيل الطلبات والحجوزات، عنوان التوصيل أو الموقع المُرسل، اللغة المفضّلة، طريقة الدفع وحالته، والتقييمات.</li>
+        <li><strong>بيانات الزبائن الواردة عبر واتساب:</strong> رقم الهاتف، اسم ملف واتساب، الرسائل المتبادلة مع رقم التاجر، تفاصيل الطلبات، عنوان التوصيل أو الموقع المُرسل، اللغة المفضّلة، طريقة الدفع وحالته، والتقييمات.</li>
         <li><strong>بيانات السائقين والموظفين:</strong> الاسم، رقم واتساب، أوقات الدوام، التوصيلات المنجزة والنقد المحصّل.</li>
         <li><strong>بيانات تقنية:</strong> ملفات السجلّ وعناوين IP اللازمة لتشغيل الخدمة وحمايتها.</li>
       </ul>
@@ -135,7 +135,7 @@ function PrivacyPageAr({ p }) {
 
       <h2>3. كيف نستخدمها</h2>
       <ul>
-        <li>للردّ على الزبائن وأخذ الطلبات والحجوزات وحساب المجاميع وإرسال تحديثات الطلبات نيابةً عن التاجر؛</li>
+        <li>للردّ على الزبائن وأخذ الطلبات وحساب المجاميع وإرسال تحديثات الطلبات نيابةً عن التاجر؛</li>
         <li>لإرسال الطلبات إلى سائقي التاجر وموظفيه؛</li>
         <li>لتزويد التجّار بتقارير وتحليلات عن أعمالهم؛</li>
         <li>لتشغيل الخدمة وحمايتها ودعمها وفوترتها، والالتزام بالموجبات القانونية.</li>
@@ -159,7 +159,7 @@ function PrivacyPageAr({ p }) {
       <h2>6. مدّة الاحتفاظ بالبيانات</h2>
       <ul>
         <li>يقتصر سجلّ المحادثة الذي يستخدمه المساعد على أحدث الرسائل في كل محادثة.</li>
-        <li>نحتفظ بالطلبات والحجوزات وسجلات الزبائن طوال استخدام التاجر لـ {b} ليتمكّن من خدمة زبائنه، ونحذفها خلال 90 يومًا من إغلاق حساب التاجر.</li>
+        <li>نحتفظ بالطلبات وسجلات الزبائن طوال استخدام التاجر لـ {b} ليتمكّن من خدمة زبائنه، ونحذفها خلال 90 يومًا من إغلاق حساب التاجر.</li>
         <li>تنتهي جلسات الدخول بعد 30 يومًا. ونحتفظ بسجلات الخادم لفترة محدودة لأغراض الأمان.</li>
       </ul>
 
@@ -189,7 +189,7 @@ function PrivacyPageFr({ p }) {
   const who = `${company.legalName}${p.address ? `, ${p.address}` : ""}, ${p.country}`;
   return (
     <LegalPage title="Politique de confidentialité">
-      <p>Cette politique explique comment {b} (« nous »), exploité par {who}, traite les données personnelles. {b} est une plateforme logicielle qui permet aux commerces (« commerçants ») de recevoir commandes et réservations de leurs clients sur WhatsApp grâce à la plateforme WhatsApp Business fournie par Meta.</p>
+      <p>Cette politique explique comment {b} (« nous »), exploité par {who}, traite les données personnelles. {b} est une plateforme logicielle qui permet aux commerces (« commerçants ») de recevoir commandes de leurs clients sur WhatsApp grâce à la plateforme WhatsApp Business fournie par Meta.</p>
 
       <h2>1. Responsable du traitement</h2>
       <p>Pour les données des commerçants et de leur équipe, {company.legalName} est responsable du traitement. Pour les données des clients d&apos;un commerçant, le commerçant est responsable du traitement et {b} les traite pour son compte afin de fournir le service. Contact : <a href={`mailto:${company.email}`}>{company.email}</a>{company.phone ? <>, <span dir="ltr">{company.phone}</span></> : null}.</p>
@@ -197,7 +197,7 @@ function PrivacyPageFr({ p }) {
       <h2>2. Données collectées</h2>
       <ul>
         <li><strong>Compte commerçant :</strong> nom du commerce, nom du contact, e-mail, numéros de téléphone/WhatsApp, adresse, type d&apos;activité, identifiants (stockés hachés), abonnement et facturation.</li>
-        <li><strong>Données clients reçues via WhatsApp :</strong> numéro de téléphone, nom de profil WhatsApp, messages échangés avec le numéro du commerçant, détails des commandes et réservations, adresse ou position partagée, langue préférée, mode et statut de paiement, évaluations.</li>
+        <li><strong>Données clients reçues via WhatsApp :</strong> numéro de téléphone, nom de profil WhatsApp, messages échangés avec le numéro du commerçant, détails des commandes, adresse ou position partagée, langue préférée, mode et statut de paiement, évaluations.</li>
         <li><strong>Livreurs et équipe :</strong> nom, numéro WhatsApp, horaires de service, livraisons effectuées et espèces encaissées.</li>
         <li><strong>Données techniques :</strong> journaux et adresses IP nécessaires au fonctionnement et à la sécurité du service.</li>
       </ul>
@@ -205,7 +205,7 @@ function PrivacyPageFr({ p }) {
 
       <h2>3. Utilisation</h2>
       <ul>
-        <li>Répondre aux clients, prendre commandes et réservations, calculer les totaux et envoyer les mises à jour pour le compte du commerçant ;</li>
+        <li>Répondre aux clients, prendre commandes, calculer les totaux et envoyer les mises à jour pour le compte du commerçant ;</li>
         <li>transmettre les commandes aux livreurs et à l&apos;équipe du commerçant ;</li>
         <li>fournir aux commerçants des rapports et statistiques sur leur propre activité ;</li>
         <li>exploiter, sécuriser, assister et facturer le service, et respecter nos obligations légales.</li>
@@ -229,7 +229,7 @@ function PrivacyPageFr({ p }) {
       <h2>6. Durée de conservation</h2>
       <ul>
         <li>L&apos;historique utilisé par l&apos;assistant se limite aux messages les plus récents de chaque discussion.</li>
-        <li>Commandes, réservations et fiches clients sont conservées tant que le commerçant utilise {b}, puis supprimées dans les 90 jours suivant la fermeture de son compte.</li>
+        <li>Commandes et fiches clients sont conservées tant que le commerçant utilise {b}, puis supprimées dans les 90 jours suivant la fermeture de son compte.</li>
         <li>Les sessions expirent après 30 jours. Les journaux serveur sont conservés pour une durée limitée à des fins de sécurité.</li>
       </ul>
 

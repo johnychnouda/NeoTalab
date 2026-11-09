@@ -86,14 +86,13 @@ test.describe("shop dashboard", () => {
       await expect(page.getByText(/Lebanese lira/i)).toHaveCount(0);
     });
 
-    test("repairs and custom work options show only for shops that need them", async ({ page }) => {
+    test("job steps show only for shops that need them", async ({ page }) => {
       await open(page, "Orders");
       const p = await profile(page);
-      const fixedPrice = ["restaurant", "grocery", "water"].includes(p.business_kind) && !p.quotes;
-      const quotes = page.getByText("Quote a price for each job");
+      const fixedPrice = ["restaurant", "grocery"].includes(p.business_kind) && !(p.job_stages || []).length;
       const steps = page.locator("#o-jobs");
-      if (fixedPrice) { await expect(quotes).toHaveCount(0); await expect(steps).toHaveCount(0); }
-      else { await expect(quotes).toBeVisible(); await expect(steps).toBeVisible(); }
+      if (fixedPrice) { await expect(steps).toHaveCount(0); }
+      else { await expect(steps).toBeVisible(); }
     });
 
     test("rating, delivery time and gifts are not settings any more: they are part of every order", async ({ page }) => {

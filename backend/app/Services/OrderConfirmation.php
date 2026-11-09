@@ -5,19 +5,15 @@ namespace App\Services;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
-use App\Jobs\NotifyStaffOfOrder;
-use App\Jobs\NotifyStaffOfRefund;
-use App\Jobs\RemindShopOfWhishCheck;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Services\WhatsApp\CustomerMessenger;
 use App\Services\WhatsApp\CustomerTemplates;
-use App\Services\WhatsApp\ShopTemplateService;
-use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppService;
 use App\Support\OrderMessage;
 use App\Support\ShopSettings;
+use App\Support\WhatsAppWindow;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -35,16 +31,6 @@ class OrderConfirmation
     ) {}
 
     /**
-     * Shops with staff accept each order themselves (Toters-style); shops without anyone who can
-     * get the Accept ticket (no staff, or none inside WhatsApp's 24-hour window and the ticket
-     * template not approved yet) keep the bot accepting straight away.
-     */
-    public function needsShopAcceptance(Merchant $merchant): bool
-    {
-        return app(StaffMessenger::class)->anyReachable($merchant, ShopTemplateService::NEW_ORDER);
-    }
-
-    /**
      * Right after the customer confirms (and pays, for Whish): either wait for the shop, or go.
      */
     public function afterPlaced(Merchant $merchant, Order $order): void
@@ -55,7 +41,6 @@ class OrderConfirmation
             return;
         }
 
-        NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
         [$remind, $giveUp] = $this->timing->inDays($merchant) ? [30, 240] : [3, 10];
         CheckUnacceptedOrder::dispatch($order->id)->delay(now()->addMinutes($remind));
         CheckUnacceptedOrder::dispatch($order->id, true)->delay(now()->addMinutes($giveUp));
@@ -95,7 +80,6 @@ class OrderConfirmation
         // Chosen for later (flowers for Friday): the driver and the late check wait until it is due.
         $due = $order->deliver_at && ! $this->timing->inDays($merchant) ? $order->deliver_at->copy()->subMinutes($this->timing->prepMins($merchant)) : null;
         if ($due && $due->isFuture()) {
-            NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
             StartScheduledOrder::dispatch($order->id)->delay($due);
 
             return;
@@ -105,15 +89,14 @@ class OrderConfirmation
             $this->dispatcher->assign($merchant, $order);
         }
 
-        NotifyStaffOfOrder::dispatch($order->id)->afterCommit();
         $this->lateCheck($merchant, $order);
     }
 
-    /** Food shops: the late check at the promised time (days shops use orders:due). */
+    /** Food shops: the late check at the promised time . */
     public function lateCheck(Merchant $merchant, Order $order): void
     {
         // Food shops: if the order is not at the door by the promised time, the customer gets a
-        // new time automatically (CheckLateOrder). Shops that count in days use orders:due.
+        // new time automatically (CheckLateOrder).
         $late = ShopSettings::for($merchant)->lateAlertMins();
         if ($late > 0 && ! $this->timing->inDays($merchant)) {
             CheckLateOrder::dispatch($order->id)->delay($this->timing->dueAt($order)->copy()->addMinutes(min($late, 5)));
@@ -168,7 +151,7 @@ class OrderConfirmation
         ], $locale);
 
         $this->sendWithPaidButton($merchant, $order, $body, $locale, CustomerTemplates::PAY_INSTRUCTIONS, [
-            $merchant->name, (string) $order->number, StaffMessenger::oneLine(OrderMessage::paymentLine($order, $merchant)),
+            $merchant->name, (string) $order->number, WhatsAppWindow::oneLine(OrderMessage::paymentLine($order, $merchant)),
             (string) ShopSettings::for($merchant)->whishNumber(), (string) $order->number, (string) $this->window($merchant),
         ]);
 
@@ -192,36 +175,8 @@ class OrderConfirmation
         }
 
         $order = $order->fresh(['customer']);
-        $this->alertShopToCheck($merchant, $order, $late);
-        RemindShopOfWhishCheck::dispatch($order->id)->delay(now()->addMinutes(30));
 
         $this->tell($merchant, $order, 'whish_received');
-    }
-
-    /**
-     * The shop is asked to check its Whish account: the Whish note and the amount identify the
-     * payment. Sent with the approved payment-check template outside WhatsApp's 24-hour window.
-     */
-    public function alertShopToCheck(Merchant $merchant, Order $order, bool $late = false): void
-    {
-        $order->loadMissing('customer');
-        $locale = $merchant->locale ?? 'en';
-        $amount = OrderMessage::paymentLine($order, $merchant).($late ? ' ('.__('whatsapp.staff.whish_late_note', ['number' => $order->number], $locale).')' : '');
-        $params = [
-            'number' => $order->number,
-            'amount' => $amount,
-            'phone' => OrderMessage::phone($order->customer?->phone),
-        ];
-        $text = __('whatsapp.staff.whish_check', $params, $locale);
-        $buttons = [
-            ["stf:wh_ok:{$order->id}", __('whatsapp.staff.btn_whish_received', [], $locale)],
-            ["stf:wh_no:{$order->id}", __('whatsapp.staff.btn_whish_missing', [], $locale)],
-        ];
-
-        $messenger = app(StaffMessenger::class);
-        foreach ($messenger->staff($merchant) as $member) {
-            $messenger->send($merchant, $member, $text, $buttons, ShopTemplateService::PAYMENT_CHECK, [(string) $order->number, StaffMessenger::oneLine($amount), (string) $order->customer?->phone, (string) $order->number]);
-        }
     }
 
     /** The shop checked its Whish account and found the payment: the order goes ahead (or is refunded, if it was already cancelled). False if it was already decided. */
@@ -231,7 +186,6 @@ class OrderConfirmation
             if (! $this->claim($order, 'awaiting_check', 'cancelled', ['payment_status' => 'refund_due'])) {
                 return false;
             }
-            NotifyStaffOfRefund::dispatch($order->id)->afterCommit();
             $this->tell($merchant, $order->fresh(), 'whish_late');
 
             return true;
@@ -291,7 +245,6 @@ class OrderConfirmation
             'number' => $order->number, 'eta' => $order->eta_mins, 'shop' => $merchant->name, 'when' => '',
         ], $locale), $locale, CustomerTemplates::PAY_EXPIRED, [(string) $order->number, $merchant->name]);
         if ($order->accepted_at) {
-            $this->tellStaffUnpaid($merchant, $order);
         }
     }
 
@@ -332,16 +285,6 @@ class OrderConfirmation
             ->where('payment_status', $paymentStatus)
             ->where('status', $status)
             ->update($changes + ['updated_at' => now()]) === 1;
-    }
-
-    /** The shop accepted the order, but the customer never paid: it must not be prepared. */
-    private function tellStaffUnpaid(Merchant $merchant, Order $order): void
-    {
-        $messenger = app(StaffMessenger::class);
-        $text = __('whatsapp.staff.whish_unpaid', ['number' => $order->number], $merchant->locale ?? 'en');
-        foreach ($messenger->staff($merchant) as $member) {
-            $messenger->send($merchant, $member, $text, [], ShopTemplateService::WHISH_UNPAID, [(string) $order->number, $merchant->name]);
-        }
     }
 
     private function tell(Merchant $merchant, Order $order, string $key): void

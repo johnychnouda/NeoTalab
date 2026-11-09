@@ -58,8 +58,7 @@ class MerchantSettingsService
     public function setup(Merchant $merchant): array
     {
         $s = ShopSettings::for($merchant);
-        $bookings = $s->businessMode() === 'appointments';
-        $delivers = ! $bookings && $s->fulfillment() !== 'pickup';
+        $delivers = $s->fulfillment() !== 'pickup';
         $team = Driver::query()->where('merchant_id', $merchant->id)->where('is_active', true)->get(['role']);
         $bot = ($merchant->settings ?? [])['bot'] ?? [];
 
@@ -73,11 +72,13 @@ class MerchantSettingsService
         if ($delivers) {
             $steps[] = ['key' => 'zones', 'done' => DeliveryZone::query()->where('merchant_id', $merchant->id)->where('is_active', true)->exists(), 'required' => true];
         }
-        if (! $bookings && $s->fulfillment() !== 'delivery') {
+        if ($s->fulfillment() !== 'delivery') {
             $pin = app(TravelTime::class)->shopLocation($merchant) !== null;
             $steps[] = ['key' => 'pickup', 'done' => $pin || $s->pickupAddress() !== '', 'required' => true];
         }
-        $steps[] = ['key' => 'team', 'done' => $team->isNotEmpty(), 'required' => false];
+        if ($delivers) {
+            $steps[] = ['key' => 'team', 'done' => $team->isNotEmpty(), 'required' => false]; // the delivery drivers
+        }
         $steps[] = ['key' => 'whish', 'done' => ShopSettings::for($merchant)->whishNumber() !== null, 'required' => false];
         $steps[] = ['key' => 'report', 'done' => $s->reportWhatsapp() !== '', 'required' => false];
 
@@ -88,7 +89,6 @@ class MerchantSettingsService
             'whatsapp_number' => $bot['display_phone_number'] ?? null,
             'meta_payment_url' => $connected ? $this->metaPaymentUrl($merchant) : null,
             'drivers' => $team->where('role', 'driver')->count(),
-            'staff' => $team->where('role', 'staff')->count(),
         ];
     }
 
@@ -205,11 +205,11 @@ class MerchantSettingsService
             $settings['wish_timeout_mins'] = (int) $minutes;
         }
 
-        // Changing the type of business resets its defaults (time unit, orders or bookings).
+        // Changing the type of business resets its defaults (time unit).
         if (isset($payload['business_kind']) && $payload['business_kind'] !== BusinessKind::of($merchant)
             && isset(BusinessKind::KINDS[$payload['business_kind']])) {
             $settings = BusinessKind::applyDefaults($settings, (string) $payload['business_kind']);
-            unset($payload['timing_unit'], $payload['business_mode']);
+            unset($payload['timing_unit']);
         }
 
         if (filled($payload['report_whatsapp'] ?? null)) {

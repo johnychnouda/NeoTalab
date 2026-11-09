@@ -5,18 +5,11 @@ namespace App\Services;
 use App\Jobs\NotifyCustomerOfOrderStatus;
 use App\Jobs\NotifyDriverOfAssignment;
 use App\Jobs\NotifyDriverOfCancellation;
-use App\Jobs\NotifyStaffOfCancellation;
-use App\Jobs\NotifyStaffOfRefund;
 use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
-use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Services\WhatsApp\ShopTemplateService;
-use App\Services\WhatsApp\StaffMessenger;
 use App\Support\CurrentTenant;
-use App\Support\OptionStock;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -60,11 +53,6 @@ class OrderService
 
         if (in_array($action, ['delivered', 'reject', 'cancel', 'failed'], true)) {
             $this->afterDriverFreed($merchant, $order, $action);
-        }
-
-        // The staff have the ticket: tell them the customer cancelled, so nobody prepares it.
-        if ($action === 'cancel' && ($payload['by'] ?? '') === 'customer' && empty($payload['silent'])) {
-            $this->notify(new NotifyStaffOfCancellation($order->id));
         }
 
         return $result;
@@ -291,16 +279,6 @@ class OrderService
      */
     protected function afterDriverFreed(Merchant $merchant, Order $order, string $action): void
     {
-        if ($action === 'failed') {
-            $messenger = app(StaffMessenger::class);
-            $body = __('whatsapp.staff.not_delivered', ['number' => $order->number, 'reason' => $order->cancel_reason], $merchant->locale ?? 'en');
-            foreach ($messenger->staff($merchant) as $member) {
-                $messenger->send($merchant, $member, $body, [], ShopTemplateService::NOT_DELIVERED, [
-                    (string) $order->number, $merchant->name, StaffMessenger::oneLine((string) $order->cancel_reason),
-                ]);
-            }
-        }
-
         try {
             app(DriverDispatcher::class)->dispatchWaiting($merchant);
         } catch (\Throwable $e) {
@@ -317,29 +295,13 @@ class OrderService
      * Orders count toward the customer's totals when placed; undo that when they never happen.
      */
     /**
-     * A cancelled or rejected order gives its tracked stock back, and a Whish payment that was
+     * A cancelled or rejected order: a Whish payment that was
      * already taken is flagged so the shop refunds it (the customer is told in the status message).
      */
     protected function releaseOrder(Order $order): void
     {
-        foreach ($order->items as $item) {
-            if ($item->product_id) {
-                $restored = Product::query()->whereKey($item->product_id)->where('track_inventory', true)
-                    ->increment('stock_quantity', $item->quantity);
-                if ($restored && ($product = Product::query()->find($item->product_id))) {
-                    OptionStock::giveBack($product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity);
-                }
-                if ($restored && $item->variant_id) {
-                    ProductVariant::query()->whereKey($item->variant_id)->whereNotNull('stock_quantity')
-                        ->increment('stock_quantity', $item->quantity);
-                }
-            }
-        }
-
         if ($order->payment_status === 'paid') {
             $order->forceFill(['payment_status' => 'refund_due'])->save();
-            // Cancelled or refused after the customer paid with Whish: the staff must refund it.
-            $this->notify(new NotifyStaffOfRefund($order->id));
         } elseif ($order->payment_status === 'pending') {
             // A Whish payment that still arrives later is then caught as refund_due.
             $order->forceFill(['payment_status' => 'failed'])->save();

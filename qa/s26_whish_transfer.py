@@ -7,7 +7,6 @@ from lib import *
 
 s = state(); OWN = s["owner"]; r = s["shops"]["rest"]; PID = r["phone_id"]
 open_all_day()
-STAFF = "96171222002"
 RUN = str(int(time.time()))[-5:]
 
 
@@ -72,7 +71,7 @@ suite("Whish transfer: paid by the customer, confirmed by the shop")
 C1 = "9617" + RUN + "01"
 o1 = place_whish_order(C1, "QA Whish Customer A")
 check("order waits for the shop (placed, payment pending)", o1 and o1["status"] == "placed" and o1["payment_method"] == "whish", o1)
-code, out, allout = say(STAFF, button=f"stf:accept:{o1['id']}", wait=0.8)
+code, allout = shop_tap(PID, f"stf:accept:{o1['id']}"); out = texts(allout)
 o1 = order_of(C1)
 check("accepting sends the Whish number and order number to the customer", o1["status"] == "pending_payment", o1)
 msgs = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == C1])
@@ -82,39 +81,37 @@ check("instructions show the shop's Whish number, the order number and a I-paid 
 code, out, allout = say(C1, button=f"wh:paid:{o1['id']}", wait=0.8)
 o1 = order_of(C1)
 check("I paid moves the order to awaiting_check (not paid)", o1["payment_status"] == "awaiting_check" and o1["status"] == "pending_payment", o1)
-staff_msgs = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == STAFF])
-check("shop gets the check with Received and Not received buttons",
-      f"stf:wh_ok:{o1['id']}" in buttons(staff_msgs) and f"stf:wh_no:{o1['id']}" in buttons(staff_msgs), staff_msgs)
+check("the customer is told the shop is checking the payment", any("checking" in x for x in texts(allout)), texts(allout))
 
 code, out, _ = say(C1, button=f"stf:wh_ok:{o1['id']}")
 check("a customer cannot confirm a payment with a shop button", order_of(C1)["payment_status"] == "awaiting_check", out)
-code, out, _ = say(STAFF, button=f"stf:wh_ok:{o1['id']}", wait=0.8)
+code, _out = shop_tap(PID, f"stf:wh_ok:{o1['id']}"); out = texts(_out)
 o1 = order_of(C1)
 check("the shop confirms: payment paid and order confirmed", o1["payment_status"] == "paid" and o1["status"] == "confirmed", o1)
 
 suite("Whish transfer: refused by the shop")
 C2 = "9617" + RUN + "02"
 o2 = place_whish_order(C2, "QA Whish Customer B")
-say(STAFF, button=f"stf:accept:{o2['id']}", wait=0.8)
+shop_tap(PID, f"stf:accept:{o2['id']}")
 say(C2, button=f"wh:paid:{o2['id']}", wait=0.8)
-code, out, _ = say(STAFF, button=f"stf:wh_no:{o2['id']}", wait=0.8)
+code, _out = shop_tap(PID, f"stf:wh_no:{o2['id']}"); out = texts(_out)
 o2 = order_of(C2)
 check("the shop refuses a payment it did not receive: order cancelled, payment failed",
       o2["status"] == "cancelled" and o2["payment_status"] == "failed", o2)
-code, out, _ = say(STAFF, button=f"stf:wh_ok:{o2['id']}")
+code, _out = shop_tap(PID, f"stf:wh_ok:{o2['id']}"); out = texts(_out)
 check("a refused payment cannot be confirmed later", order_of(C2)["status"] == "cancelled" and order_of(C2)["payment_status"] == "failed", out)
 
 suite("Whish transfer: no payment in the window expires the order")
 C3 = "9617" + RUN + "03"
 o3 = place_whish_order(C3, "QA Whish Customer C")
-say(STAFF, button=f"stf:accept:{o3['id']}", wait=0.8)
+shop_tap(PID, f"stf:accept:{o3['id']}")
 tj(f'(new \\App\\Jobs\\CheckWhishTransfer("{o3["id"]}"))->handle(app(\\App\\Services\\OrderConfirmation::class)); echo json_encode(true);')
 o3 = order_of(C3)
 check("unpaid at the end of the window: cancelled, payment failed", o3["status"] == "cancelled" and o3["payment_status"] == "failed", o3)
 code, out, allout = say(C3, button=f"wh:paid:{o3['id']}", wait=0.8)
 o3 = order_of(C3)
 check("a late 'I paid' on the cancelled order is taken for checking (still cancelled)", o3["payment_status"] == "awaiting_check" and o3["status"] == "cancelled", o3)
-code, out, _ = say(STAFF, button=f"stf:wh_ok:{o3['id']}", wait=0.8)
+code, _out = shop_tap(PID, f"stf:wh_ok:{o3['id']}"); out = texts(_out)
 o3 = order_of(C3)
 check("the shop received the late payment: refund flagged, order stays cancelled", o3["payment_status"] == "refund_due" and o3["status"] == "cancelled", o3)
 

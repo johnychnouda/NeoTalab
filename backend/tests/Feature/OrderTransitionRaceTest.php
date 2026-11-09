@@ -39,7 +39,7 @@ class OrderTransitionRaceTest extends TestCase
         Bus::fake();
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['currency' => 'USD']);
         app(CurrentTenant::class)->set($this->merchant);
-        $this->item = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cake', 'price' => 10, 'track_inventory' => true, 'stock_quantity' => 4]);
+        $this->item = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cake', 'price' => 10]);
         $customer = Customer::factory()->forMerchant($this->merchant)->create(['total_orders' => 1, 'total_spent' => 10]);
         $this->order = Order::create([
             'merchant_id' => $this->merchant->id, 'number' => 1, 'customer_id' => $customer->id, 'status' => 'confirmed',
@@ -70,7 +70,7 @@ class OrderTransitionRaceTest extends TestCase
         return null;
     }
 
-    public function test_a_cancel_and_a_refusal_at_the_same_moment_give_the_stock_back_once(): void
+    public function test_a_cancel_and_a_refusal_at_the_same_moment_change_the_order_once(): void
     {
         $orders = app(OrderService::class);
         $refused = $this->interleave(
@@ -80,7 +80,6 @@ class OrderTransitionRaceTest extends TestCase
 
         $this->assertNotNull($refused, 'the second change is refused, not applied on top');
         $this->assertSame('cancelled', $this->order->fresh()->status);
-        $this->assertSame(5, $this->item->fresh()->stock_quantity, 'one cake back, not two');
     }
 
     public function test_two_delivered_taps_at_the_same_moment_count_the_cash_once(): void

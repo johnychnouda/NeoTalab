@@ -4,20 +4,8 @@ export const JOIN_BUSINESS_TYPES = [
   { value: "Restaurant / Café", labelKey: "join.btype.restaurant" },
   { value: "Bakery / Sweets", labelKey: "join.btype.bakery" },
   { value: "Supermarket / Grocery", labelKey: "join.btype.grocery" },
-  { value: "Butcher / Fruits & Vegetables", labelKey: "join.btype.butcher" },
-  { value: "Clothing / Shoes", labelKey: "join.btype.clothing" },
-  { value: "Electronics / Phones", labelKey: "join.btype.electronics" },
-  { value: "Flowers / Gifts", labelKey: "join.btype.flower" },
-  { value: "Water / Gas delivery", labelKey: "join.btype.water" },
-  { value: "Laundry / Dry cleaning", labelKey: "join.btype.laundry" },
-  { value: "Salon / Barber / Beauty", labelKey: "join.btype.salon" },
-  { value: "Pet Shop", labelKey: "join.btype.pet" },
-  { value: "Home & Furniture", labelKey: "join.btype.furniture" },
-  { value: "General Retail", labelKey: "join.btype.retail" },
-  { value: "Other", labelKey: "join.btype.other" },
+  { value: "Online Shop / Retail", labelKey: "join.btype.online" },
 ];
-
-export const JOIN_BUSINESS_TYPE_OTHER = "Other";
 
 export const JOIN_CITY_OTHER = "Other";
 

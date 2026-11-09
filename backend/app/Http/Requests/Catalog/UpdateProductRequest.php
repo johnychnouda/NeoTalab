@@ -3,24 +3,11 @@
 namespace App\Http\Requests\Catalog;
 
 use App\Models\Category;
-use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateProductRequest extends FormRequest
 {
-    /** A bookable service (it has minutes, now or in this request) may be free. */
-    protected function isBookable(): bool
-    {
-        if ($this->filled('duration_mins')) {
-            return true;
-        }
-        $product = $this->route('product');
-        $id = is_object($product) ? $product->getKey() : $product;
-
-        return $id && Product::query()->whereKey($id)->whereNotNull('duration_mins')->exists();
-    }
-
     public function authorize(): bool
     {
         return true; // route is gated by role:merchant-owner,merchant-admin
@@ -44,18 +31,14 @@ class UpdateProductRequest extends FormRequest
                     ->ignore($this->route('product')),
             ],
             'image_url' => ['nullable', 'string', 'max:255'],
-            'price' => ['sometimes', 'numeric', $this->isBookable() ? 'min:0' : 'min:0.01'],
+            'price' => ['sometimes', 'numeric', 'min:0.01'],
             'unit' => ['nullable', 'string', 'max:20'],
             'offer_percent' => ['nullable', 'integer', 'min:1', 'max:90'],
             'offer_starts_on' => ['nullable', 'date'],
             'offer_ends_on' => ['nullable', 'date', 'after_or_equal:offer_starts_on'],
-            'duration_mins' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
             'staff_check' => ['sometimes', 'boolean'],
-            'track_inventory' => ['sometimes', 'boolean'],
-            'stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'prep_time_mins' => ['nullable', 'integer', 'min:0', 'max:1440'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'attributes' => ['nullable', 'array'],

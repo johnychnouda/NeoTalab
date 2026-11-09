@@ -10,7 +10,6 @@ use App\Models\Product;
 use App\Services\AI\DTO\CartAction;
 use App\Services\CartService;
 use App\Services\ConversationService;
-use App\Services\OrderService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\CurrentTenant;
 use App\Support\OrderMessage;
@@ -95,9 +94,8 @@ class WeightTest extends TestCase
         $this->assertSame('4.26', number_format((float) $cart->fresh()->subtotal, 2, '.', ''));
     }
 
-    public function test_the_order_ticket_says_kg_and_stock_in_kilos_is_taken_and_given_back(): void
+    public function test_the_order_ticket_says_kg(): void
     {
-        $this->tomatoes->update(['track_inventory' => true, 'stock_quantity' => 2]);
         $this->putInCart($this->merchant, '96170123456', $this->tomatoes, 1.5);
         $this->say('confirm | | | cash');
 
@@ -107,10 +105,6 @@ class WeightTest extends TestCase
         $this->assertSame('kg', $item->unit);
         $this->assertSame('2.25', number_format((float) $order->subtotal, 2, '.', ''));
         $this->assertStringContainsString('• 1.5 kg Tomatoes', OrderMessage::params($order, $this->merchant)['items']);
-        $this->assertSame(0.5, $this->tomatoes->fresh()->stock_quantity);
-
-        app(OrderService::class)->transition($this->merchant, $order->id, 'cancel', ['reason' => null, 'by' => 'shop']);
-        $this->assertSame(2, $this->tomatoes->fresh()->stock_quantity);
     }
 
     public function test_quantity_helper(): void

@@ -33,14 +33,11 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
 const GROUPS = {
   shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "", defaultLocale: p.default_locale || "en" }),
   orders: (p) => ({
-    appointment_capacity: num(p.appointment_capacity), slot_step_mins: num(p.slot_step_mins), reminder_mins: num(p.reminder_mins),
-    fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
+    auto_accept: p.auto_accept !== false, fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
     region: p.region || null, city: p.city || null,
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
     late_alert_mins: num(p.late_alert_mins),
-    quotes: !!p.quotes,
-    deposit_percent: num(p.deposit_percent) || 0, job_stages: stagesOf(p),
   }),
   payments: (p) => ({
     whish_number: p.whish_number || "", wishTimeoutMins: parseInt(p.wish_timeout_mins, 10) || 15, lbp_rate: num(p.lbp_rate),
@@ -48,7 +45,6 @@ const GROUPS = {
   alerts: (p) => ({ report_whatsapp: p.report_whatsapp || null, report_hour: num(p.report_hour), bot_pause_mins: num(p.bot_pause_mins) }),
 };
 // The job steps are typed one per line; empty lines are dropped, at most 8 are kept.
-const stagesOf = (p) => String(p.job_stages_text ?? (p.job_stages || []).join("\n")).split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // Lebanese numbers typed any way ("+961 70 123 456", "0096170123456", "70 123 456") compare equal.
 
@@ -137,9 +133,8 @@ function Settings() {
   if (!p) return <div className="loader">{t("db.loading")}</div>;
 
   const setP = (key, val) => setProfile((x) => ({ ...x, [key]: val }));
-  const bookingsOnly = p.business_mode === "appointments";
-  const delivers = !bookingsOnly && (p.fulfillment || "delivery") !== "pickup";
-  const pickup = !bookingsOnly && ["pickup", "both"].includes(p.fulfillment);
+  const delivers = (p.fulfillment || "delivery") !== "pickup";
+  const pickup = ["pickup", "both"].includes(p.fulfillment);
   // Choosing a place on the map (search, tap, drag) fills the pickup address line with that place's address.
   const onPinAddress = (picked) => setProfile((cur) => {
     const next = cur && addressAfterPin({ current: cur.pickup_address, picked, touched: typedAddress.current });
@@ -150,9 +145,6 @@ function Settings() {
   const regionLabel = JOIN_LEBANON_REGIONS.find((o) => o.value === p.region)?.labelKey;
   const areaKnown = !!(p.region || p.city);
   const lbpOn = Number(p.lbp_rate) > 0;
-  const kind = p.business_kind || "other";
-  const showQuotes = !["restaurant", "grocery", "water"].includes(kind) || !!p.quotes;
-  const showJobs = showQuotes || stagesOf(p).length > 0;
 
   async function saveAll() {
     setBusy(true);
@@ -185,7 +177,7 @@ function Settings() {
     ["orders", t("db.set.tab.orders"), changed.includes("orders")],
     ...(delivers ? [["areas", t("db.set.tab.areas"), false]] : []),
     ["hours", t("db.set.tab.hours"), hoursChanged],
-    ...(!bookingsOnly ? [["payments", t("db.set.tab.payments"), changed.includes("payments")]] : []),
+    ["payments", t("db.set.tab.payments"), changed.includes("payments")],
     ["alerts", t("db.set.tab.alerts"), changed.includes("alerts")],
   ];
   const tab = tabs.some(([id]) => id === picked) ? picked : "shop"; // a tab this shop doesn't have opens Shop
@@ -243,33 +235,14 @@ function Settings() {
       )}
 
       {tab === "orders" && (<div className="sset-cols">
-        {p.business_mode && p.business_mode !== "orders" && (
-          <Card title={t("db.set.card.bookings")}>
-            <div className="sset-grid three">
-              <Field id="o-cap" label={t("ops.capacity")}>
-                <input id="o-cap" type="number" min="1" max="50" value={p.appointment_capacity ?? 1} onChange={(e) => setP("appointment_capacity", e.target.value)} />
-              </Field>
-              <Field id="o-step" label={t("ops.slotStep")}>
-                <FormSelect id="o-step" value={p.slot_step_mins ?? 30} onChange={(v) => setP("slot_step_mins", v)}
-                  options={[10, 15, 20, 30, 45, 60].map((m) => ({ value: m, label: `${m} min` }))} />
-              </Field>
-              <Field id="o-rem" label={t("ops.reminder")}>
-                <input id="o-rem" type="number" min="0" max="2880" value={p.reminder_mins ?? 120} onChange={(e) => setP("reminder_mins", e.target.value)} />
-              </Field>
-            </div>
-            <Field id="o-dep" label={t("ops.deposit")} hint={p.whish_connected ? t("ops.depositHint") : t("ops.depositNoWhish")}>
-              <input id="o-dep" type="number" min="0" max="100" step="5" value={p.deposit_percent ?? 0} onChange={(e) => setP("deposit_percent", e.target.value)} />
-            </Field>
-          </Card>
-        )}
-        {p.business_mode && p.business_mode !== "orders" && <TeamCard api={api} t={t} toast={toast} />}
-
-        {!bookingsOnly && (<>
+        {(<>
           {/* The short cards stack on the left and the tall location card sits beside them, so timing is never pushed below the map. */}
           <div className="sset-stack">
             <Card title={t("ops.fulfillment")} desc={t("ops.fulfillmentDesc")}>
               <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
                 options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: FULFILLMENT_ICONS[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
+              <Switch checked={p.auto_accept !== false} onChange={(on) => setP("auto_accept", on)}
+                label={t("ops.autoAccept")} hint={t("ops.autoAcceptHint")} />
               {delivers && (
                 <button type="button" className="sset-next" onClick={() => setTab("areas")}>{t("ops.nextAreas")}</button>
               )}
@@ -301,20 +274,6 @@ function Settings() {
               )}
             </Card>
 
-            {(showQuotes || showJobs) && (
-              <Card title={t("db.set.card.repairs")}>
-                {showQuotes && (
-                  <Switch checked={!!p.quotes} onChange={(on) => setP("quotes", on)}
-                    label={t("ops.quotes")} hint={t("ops.quotesHint")} />
-                )}
-                {showJobs && (
-                  <Field id="o-jobs" label={t("ops.jobsLabel")} hint={t("ops.jobsHint")}>
-                    <textarea id="o-jobs" rows={5} maxLength={400} value={p.job_stages_text ?? (p.job_stages || []).join("\n")}
-                      placeholder={t("ops.jobsPlaceholder")} onChange={(e) => setP("job_stages_text", e.target.value)} />
-                  </Field>
-                )}
-              </Card>
-            )}
           </div>
 
           <Card title={t(pickup && !delivers ? "ops.pickupAddress" : "ops.shopLocation")}
@@ -520,63 +479,6 @@ function PwInput({ id, value, onChange, shown, onToggle, autoComplete, invalid, 
         </button>
       )}
     </div>
-  );
-}
-
-/**
- * Stylists and barbers customers can book with by name. Each has their own calendar; with
- * nobody listed the shop books by "customers at the same time". Saved right away.
- */
-function TeamCard({ api, t, toast }) {
-  const [team, setTeam] = useState(null);
-  const [services, setServices] = useState([]);
-  const [name, setName] = useState("");
-
-  const load = useCallback(async () => {
-    try {
-      const [{ providers }, res] = await Promise.all([api("GET", "/providers"), api("GET", "/products?per_page=200")]);
-      setTeam(providers || []);
-      setServices((res.products || []).filter((x) => x.duration_mins));
-    } catch (e) { toast(e.message, "error"); }
-  }, [api, toast]);
-  useEffect(() => { load(); }, [load]);
-
-  async function run(fn) {
-    try { await fn(); await load(); } catch (e) { toast(e.message, "error"); }
-  }
-  const add = (e) => { e.preventDefault(); if (name.trim()) run(async () => { await api("POST", "/providers", { name: name.trim() }); setName(""); }); };
-  const toggle = (person, id) => {
-    const all = services.map((x) => x.id);
-    const current = person.service_ids?.length ? person.service_ids : all;
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    run(() => api("PATCH", `/providers/${person.id}`, { service_ids: next.length === all.length ? null : next }));
-  };
-
-  return (
-    <Card title={t("ops.team.title")} desc={t("ops.team.desc")}>
-      {team === null ? <div className="loader">{t("db.loading")}</div> : (<>
-        {team.map((person) => (
-          <div className="sset-team-row" key={person.id}>
-            <strong>{person.name}</strong>
-            {services.length > 1 && (
-              <div className="sset-team-services">
-                {services.map((x) => (
-                  <label key={x.id} className="mk-check">
-                    <input type="checkbox" checked={!person.service_ids?.length || person.service_ids.includes(x.id)} onChange={() => toggle(person, x.id)} /> {x.name}
-                  </label>
-                ))}
-              </div>
-            )}
-            <button type="button" className="btn-sm" onClick={() => run(() => api("DELETE", `/providers/${person.id}`))} aria-label={`${t("mk.delete")} ${person.name}`}>✕</button>
-          </div>
-        ))}
-        <form className="sset-team-add" onSubmit={add}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("ops.team.namePh")} aria-label={t("ops.team.namePh")} maxLength={80} />
-          <button type="submit" className="btn-sm">{t("ops.team.add")}</button>
-        </form>
-        <p className="sset-hint">{t(team.length ? "ops.team.hintOn" : "ops.team.hintOff")}</p>
-      </>)}
-    </Card>
   );
 }
 

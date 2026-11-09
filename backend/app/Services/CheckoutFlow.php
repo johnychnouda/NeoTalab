@@ -439,9 +439,12 @@ class CheckoutFlow
             $conversation->customer->rememberAddress((string) ($state['zone'] ?? ''), (string) ($state['address'] ?? ''), $state['location'] ?? null);
         }
 
-        return $order && $order->status !== 'pending_payment'
-            ? ChatMenu::withStatusButton($order, $reply, $locale)
-            : ($order ? $this->text($reply) : $this->menuMessage($merchant, $reply, $locale));
+        // A Whish order accepted at once has already been sent its payment details: nothing more to say.
+        if ($order && $reply === '') {
+            return ['type' => 'none'];
+        }
+
+        return $order ? $this->text($reply) : $this->menuMessage($merchant, $reply, $locale);
     }
 
     /**
@@ -829,8 +832,6 @@ class CheckoutFlow
     /** The message with the menu list attached, so the customer can add more. */
     protected function menuMessage(Merchant $merchant, string $body, string $locale): array
     {
-        return ShopSettings::for($merchant)->businessMode() === 'appointments'
-            ? $this->text($body)
-            : app(ChatMenu::class)->textMenu($merchant, $locale, $body);
+        return app(ChatMenu::class)->textMenu($merchant, $locale, $body);
     }
 }

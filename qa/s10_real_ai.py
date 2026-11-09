@@ -3,7 +3,7 @@ cart in the database, not only the reply. Needs the queue worker started with la
 import datetime, re
 from lib import *
 
-s = state(); R = s["shops"]["rest"]; SL = s["shops"]["salon"]
+s = state(); R = s["shops"]["rest"]
 RUN = str(int(time.time()))[-5:]
 n = [0]
 
@@ -69,8 +69,3 @@ check("unknown item: says no, nothing added", qty(lines(R, c), "sushi") == 0 and
 out = say(R, c, "who won the world cup in 2022?")
 check("off-topic: brought back to the shop (no long sports answer)", len(out) < 600, out)
 
-suite("Real AI: booking in plain words")
-day = (datetime.date.today() + datetime.timedelta(days=3))
-c = fresh(); out = say(SL, c, f"Hi, can I book a haircut on {day.strftime('%A %d %B')} at 3pm?")
-b = tj('echo json_encode(App\\Models\\Appointment::withoutGlobalScopes()->where("merchant_id","' + SL["id"] + '")->whereHas("customer", fn($q)=>$q->withoutGlobalScopes()->where("phone","+' + c + '"))->get()->map(fn($a)=>$a->starts_at->setTimezone("Asia/Beirut")->format("Y-m-d H:i"))->all());')
-check("natural booking request: booked at 15:00 on that day, or free times offered", (b == [f"{day.isoformat()} 15:00"]) or ("15:00" in out or "3:00" in out or "free" in out.lower()), (out, b))

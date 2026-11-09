@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-int
 export const metadata = {
   metadataBase: new URL(company.siteUrl),
   title: "NeoTalab",
-  description: "AI WhatsApp ordering and booking for local businesses",
+  description: "AI WhatsApp ordering for local businesses",
   openGraph: { siteName: "NeoTalab", type: "website", images: ["/Logo1.png"] },
   ...(company.googleSiteVerification ? { verification: { google: company.googleSiteVerification } } : {}),
   // Meta Business Settings → Brand safety → Domains → meta-tag verification.

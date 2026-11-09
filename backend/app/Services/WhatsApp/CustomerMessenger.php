@@ -4,6 +4,7 @@ namespace App\Services\WhatsApp;
 
 use App\Models\Merchant;
 use App\Services\SystemAlertService;
+use App\Support\WhatsAppWindow;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -18,7 +19,6 @@ class CustomerMessenger
     public function __construct(
         protected WhatsAppService $whatsapp,
         protected ShopTemplateService $templates,
-        protected StaffMessenger $window,
         protected SystemAlertService $alerts,
     ) {}
 
@@ -35,7 +35,7 @@ class CustomerMessenger
             return false;
         }
 
-        if ($this->window->numberInWindow($merchant, $phone)) {
+        if (WhatsAppWindow::numberInWindow($merchant, $phone)) {
             $this->whatsapp->sendToCustomer($merchant, $phone, $message);
 
             return true;

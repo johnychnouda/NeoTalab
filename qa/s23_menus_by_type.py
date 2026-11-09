@@ -1,21 +1,15 @@
 """How each kind of shop builds its menu or services, then a customer uses it on WhatsApp.
-One shop per kind (9 kinds, the business types they stand for). Lab only."""
+One shop per kind (3 kinds: restaurant, grocery and the online shop). Lab only."""
 import csv, io, json, re, secrets, time, uuid, urllib.request
 from lib import *
 
 s = state(); OWN = s["owner"]
 RUN = str(int(time.time()))[-5:]
 KINDS = [
-    # kind, business type at sign-up, expected menu word, expects sizes/extras, unit label, is services
+    # kind, business type at sign-up, expected menu word, expects sizes/extras, unit label
     ("restaurant", "Restaurant / Café", "menu", True, None, False),
     ("grocery", "Supermarket / Grocery", "products", False, "kg", False),
-    ("pharmacy", "Pharmacy", "products", False, "box", False),
-    ("retail", "Electronics / Phones", "catalogue", True, None, False),
-    ("flowers", "Flowers / Gifts", "products", True, None, False),
-    ("water", "Water / Gas delivery", "products", False, "cylinder", False),
-    ("laundry", "Laundry / Dry cleaning", "price_list", True, "kg", False),
-    ("services", "Salon / Barber / Beauty", "services", False, None, True),
-    ("other", "Other", "products", False, None, False),
+    ("retail", "Online Shop / Retail", "catalogue", True, None, False),
 ]
 results = {}
 
@@ -65,7 +59,7 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
         continue
     code, prof = api("GET", "/settings/profile", tok)
     got = (prof.get("profile") or prof) if isinstance(prof, dict) else {}
-    expected_kind = "other" if kind == "pharmacy" else kind  # pharmacies were removed from the platform on 25 Oct
+    expected_kind = kind
     rec(kind, "the shop's type sets its menu wording and mode", got.get("business_kind") == expected_kind or (kind == "restaurant" and got.get("business_kind")), (got.get("business_kind"), got.get("menu_word")))
 
     # 1. Build the menu by hand: category, items (with unit where the trade sells by weight/count)
@@ -75,12 +69,10 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     item_body = {"name": "Hand item one", "price": 4.5, "category_id": cat_id}
     if unit:
         item_body["unit"] = unit
-    if services:
-        item_body.update(name="Men's haircut", price=12, duration_mins=30)
     code, it = api("POST", "/products", tok, item_body)
     item = (it.get("data") or it) if isinstance(it, dict) else {}
     item_id = item.get("id")
-    rec(kind, "adds an item" + (" as a service with minutes" if services else (f" sold per {unit}" if unit else "")), code in (200, 201) and item_id, (code, str(it)[:150]))
+    rec(kind, "adds an item" + (f" sold per {unit}" if unit else ""), code in (200, 201) and item_id, (code, str(it)[:150]))
     if sizes and item_id:
         code, v = api("POST", f"/products/{item_id}/variants", tok, {"name": "Large", "price": 6.0})
         rec(kind, "adds a size with its own price", code in (200, 201), (code, str(v)[:120]))
@@ -93,10 +85,10 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     # 2. Upload a file (Excel/CSV): category, name, price; a lira row; an empty price row is refused
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Category", "Name", "Price", "Description", "Duration"])
-    w.writerow(["Imported", f"{kind} file item A", "5", "from a file", "30" if services else ""])
-    w.writerow(["Imported", f"{kind} file item B", "250,000 LL", "lira price", ""])
-    w.writerow(["Imported", f"{kind} file item C", "7.25", "", ""])
+    w.writerow(["Category", "Name", "Price", "Description"])
+    w.writerow(["Imported", f"{kind} file item A", "5", "from a file"])
+    w.writerow(["Imported", f"{kind} file item B", "250,000 LL", "lira price"])
+    w.writerow(["Imported", f"{kind} file item C", "7.25", ""])
     path = f"{LAB}/menu_{kind}.csv"
     open(path, "w", encoding="utf-8").write(buf.getvalue())
     code, pv = multipart(path, tok, "menu.csv", "text/csv")
@@ -108,40 +100,26 @@ for n, (kind, btype, word, sizes, unit, services) in enumerate(KINDS):
     names = {p["name"]: p for p in (plist.get("data") or plist.get("products") or [])} if isinstance(plist, dict) else {}
     lira = names.get(f"{kind} file item B", {})
     rec(kind, "the lira row is saved in dollars (250,000 LL → about 2.79$)", lira and str(lira.get("price")) in ("2.79", "2.79"), lira.get("price"))
-    if services:
-        rec(kind, "a file row can set a service's minutes (30)", names.get(f"{kind} file item A", {}).get("duration_mins") == 30, names.get(f"{kind} file item A", {}).get("duration_mins"))
 
     # 3. Customer on WhatsApp
     cust = f"+9617{RUN}{n:02d}9"
     greet = wa(pid, cust.lstrip("+"), text="hi")
     rec(kind, "customer's greeting shows the shop's menu written out", any("•" in x for x in greet), greet[:1])
-    if services:
-        typed = wa(pid, cust.lstrip("+"), text="services")
-        rec(kind, "customer asking 'services' sees the service list", any(("haircut" in x.lower() or "men" in x.lower()) for x in typed), typed[:1])
-        d = (time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400)))
-        slots = wa(pid, cust.lstrip("+"), text=f"slots men's haircut {d}")
-        rec(kind, "customer asks for free times and gets them", any(re.search(r"\d{2}:\d{2}", x) for x in slots), slots[:1])
-        book = wa(pid, cust.lstrip("+"), text=f"book men's haircut {d} 11:00")
-        tkt = tj('echo json_encode(App\\Models\\Appointment::withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '")->where("status","booked")->count());')
-        rec(kind, "customer books a 30-minute service", tkt >= 1, (book[:1], tkt))
-        code, api_list = api("GET", "/appointments", tok)
-        rec(kind, "the shop sees the booking in its appointments", code == 200 and "11:00" in json.dumps(api_list) or code == 200, code)
-    else:
-        if item_id:
-            name = product_name(item_id)
-            code, _ = api("PATCH", f"/products/{item_id}", tok, {"is_available": False})
-            hidden = wa(pid, cust.lstrip("+"), text="menu")
-            rec(kind, "an item marked unavailable is left off the customer's menu", code == 200 and not any(f"• {name} " in x for x in hidden), code)
-            api("PATCH", f"/products/{item_id}", tok, {"is_available": True})
-            asked = wa(pid, cust.lstrip("+"), text=f"add 2 {name}")
-            variant = None
-            if sizes:
-                rec(kind, "customer is asked which size, in words, with prices", any("(" in x and "6" in x for x in asked), asked[:1])
-                variant = tj('echo json_encode(App\\Models\\ProductVariant::withoutGlobalScopes()->where("product_id","' + item_id + '")->value("id"));')
-            # The stand-in assistant cannot pick a size: the cart gets what the customer chose.
-            put_in_cart(shop["id"], cust.lstrip("+"), item_id, 1 if unit == "kg" else 2, variant, [])
-            cart = tj('echo json_encode(App\\Models\\CartItem::withoutGlobalScopes()->whereHas("product", fn($q)=>$q->withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '"))->count());')
-            rec(kind, "customer adds the item to the cart", cart >= 1, (cart, asked[:1]))
+    if item_id:
+        name = product_name(item_id)
+        code, _ = api("PATCH", f"/products/{item_id}", tok, {"is_available": False})
+        hidden = wa(pid, cust.lstrip("+"), text="menu")
+        rec(kind, "an item marked unavailable is left off the customer's menu", code == 200 and not any(f"• {name} " in x for x in hidden), code)
+        api("PATCH", f"/products/{item_id}", tok, {"is_available": True})
+        asked = wa(pid, cust.lstrip("+"), text=f"add 2 {name}")
+        variant = None
+        if sizes:
+            rec(kind, "customer is asked which size, in words, with prices", any("(" in x and "6" in x for x in asked), asked[:1])
+            variant = tj('echo json_encode(App\\Models\\ProductVariant::withoutGlobalScopes()->where("product_id","' + item_id + '")->value("id"));')
+        # The stand-in assistant cannot pick a size: the cart gets what the customer chose.
+        put_in_cart(shop["id"], cust.lstrip("+"), item_id, 1 if unit == "kg" else 2, variant, [])
+        cart = tj('echo json_encode(App\\Models\\CartItem::withoutGlobalScopes()->whereHas("product", fn($q)=>$q->withoutGlobalScopes()->where("merchant_id","' + shop["id"] + '"))->count());')
+        rec(kind, "customer adds the item to the cart", cart >= 1, (cart, asked[:1]))
 
     # 4. Photo of a menu (AI reads it). Optional: needs the AI on in the lab.
 results_summary = {k: f"{sum(ok for _, ok in v)}/{len(v)}" for k, v in results.items()}

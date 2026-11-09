@@ -2,7 +2,7 @@
 import uuid
 from lib import *
 
-s = state(); R = s["shops"]["rest"]; PID = R["phone_id"]; STAFF = "96171222002"
+s = state(); R = s["shops"]["rest"]; PID = R["phone_id"]
 open_all_day()
 RUN = str(int(time.time()))[-5:]
 
@@ -30,7 +30,6 @@ def place(phone):
 
 
 suite("Shop phone: ✅ ❌ ⏸ ▶️ in a customer's chat")
-say(STAFF, text="hi")  # a reachable staff member means orders wait for the shop
 c1, c2, c3 = "9617971" + RUN, "9617972" + RUN, "9617973" + RUN
 o = place(c1)
 check("order waits for the shop", o and o["status"] == "placed", o)

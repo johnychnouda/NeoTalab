@@ -22,7 +22,6 @@ class ProductFactory extends Factory
             'price' => fake()->randomFloat(2, 1, 100),
             'is_active' => true,
             'is_available' => true,
-            'track_inventory' => false,
             'sort_order' => 0,
         ];
     }
@@ -30,14 +29,5 @@ class ProductFactory extends Factory
     public function forMerchant(Merchant $merchant): static
     {
         return $this->state(fn () => ['merchant_id' => $merchant->id]);
-    }
-
-    public function tracked(int $stock, ?int $threshold = null): static
-    {
-        return $this->state(fn () => [
-            'track_inventory' => true,
-            'stock_quantity' => $stock,
-            'low_stock_threshold' => $threshold,
-        ]);
     }
 }

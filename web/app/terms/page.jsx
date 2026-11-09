@@ -5,7 +5,7 @@ import { company } from "@/lib/company";
 
 export function generateMetadata() {
   return pageMetadata("terms", {
-    description: "The terms that apply to businesses using NeoTalab for WhatsApp ordering and booking.",
+    description: "The terms that apply to businesses using NeoTalab for WhatsApp ordering.",
     alternates: { canonical: "/terms" },
   });
 }
@@ -30,7 +30,7 @@ function TermsPageEn() {
       <h2>1. The service</h2>
       <p>
         {company.brand} connects a merchant&apos;s WhatsApp business number to an automated assistant that answers customers, takes orders
-        and bookings, and coordinates the merchant&apos;s drivers and staff, together with a dashboard to manage the catalog and settings.
+        and coordinates the merchant&apos;s drivers and staff, together with a dashboard to manage the catalog and settings.
       </p>
 
       <h2>2. Accounts</h2>
@@ -108,7 +108,7 @@ function TermsPageAr({ p }) {
       </p>
 
       <h2>1. الخدمة</h2>
-      <p>يربط {b} رقم واتساب التجاري الخاص بالتاجر بمساعد آلي يردّ على الزبائن ويأخذ الطلبات والحجوزات وينسّق مع السائقين والموظفين، إلى جانب لوحة تحكّم لإدارة القائمة والإعدادات.</p>
+      <p>يربط {b} رقم واتساب التجاري الخاص بالتاجر بمساعد آلي يردّ على الزبائن ويأخذ الطلبات وينسّق مع السائقين والموظفين، إلى جانب لوحة تحكّم لإدارة القائمة والإعدادات.</p>
 
       <h2>2. الحسابات</h2>
       <p>على التاجر تقديم معلومات صحيحة والحفاظ على سرّية بيانات الدخول، وهو مسؤول عن كل ما يتم عبر حسابه ورقمه وصلاحيات موظفيه. قد نتحقّق من الأعمال قبل تفعيلها.</p>
@@ -162,7 +162,7 @@ function TermsPageFr({ p }) {
       </p>
 
       <h2>1. Le service</h2>
-      <p>{b} connecte le numéro WhatsApp professionnel du commerçant à un assistant automatisé qui répond aux clients, prend les commandes et réservations et coordonne les livreurs et l&apos;équipe du commerçant, avec un tableau de bord pour gérer le catalogue et les réglages.</p>
+      <p>{b} connecte le numéro WhatsApp professionnel du commerçant à un assistant automatisé qui répond aux clients, prend les commandes et coordonne les livreurs et l&apos;équipe du commerçant, avec un tableau de bord pour gérer le catalogue et les réglages.</p>
 
       <h2>2. Comptes</h2>
       <p>Le commerçant doit fournir des informations exactes, protéger ses identifiants et reste responsable de tout ce qui est fait avec son compte, son numéro et les accès de son équipe. Nous pouvons vérifier les commerces avant leur activation.</p>

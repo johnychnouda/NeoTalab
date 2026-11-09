@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\NotifyStaffOfAppointmentCancelled;
-use App\Jobs\NotifyStaffOfHandoff;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -11,7 +9,6 @@ use App\Models\DeliveryZone;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ServiceProvider;
 use App\Models\ShopHour;
 use App\Services\AI\CartEditsFromMessage;
 use App\Services\AI\CatalogResolver;
@@ -23,18 +20,15 @@ use App\Services\AI\MessageLanguage;
 use App\Services\AI\QuantityFromMessage;
 use App\Services\AI\ReplyFigures;
 use App\Support\CheckoutException;
-use App\Support\ClockTime;
 use App\Support\Conversation\CartStatus;
-use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\ConversationIntent;
+use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
-use App\Services\ChatMenu;
 use App\Support\CurrentTenant;
 use App\Support\Money;
 use App\Support\OrderMessage;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -51,9 +45,6 @@ class ConversationService
     /** Set when the customer asked to cancel: the order waits for the customer's Yes/No button. */
     private ?string $cancelAwaitingId = null;
 
-    /** The booking waiting for its deposit (the caller sends the "I paid" button under the instructions), or null. */
-    private ?string $depositAwaitingId = null;
-
     public function __construct(
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
@@ -64,7 +55,6 @@ class ConversationService
         protected DriverDispatcher $dispatcher,
         protected OrderService $orders,
         protected OrderConfirmation $confirmation,
-        protected AppointmentService $appointments,
     ) {}
 
     /**
@@ -192,20 +182,25 @@ class ConversationService
 
         $this->fulfillmentMissing = false;
         $this->cancelAwaitingId = null;
-        $this->depositAwaitingId = null;
         [$reply, $order] = match ($output->recommendedAction) {
             RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
             RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
+            RecommendedAction::TrackOrder => [$this->orderStatus($conversation), null],
             RecommendedAction::Handoff => [$this->handoff($conversation), null],
-            RecommendedAction::CheckAvailability => [$this->availabilityOrBooking($conversation, $output->appointment ?? [], $message), null],
-            RecommendedAction::BookAppointment => [$this->bookAppointment($conversation, $output->appointment ?? []), null],
-            RecommendedAction::CancelAppointment => [$this->cancelAppointment($conversation, $output->appointment ?? []), null],
             default => [$this->withoutMadeUpPrice(Money::fromAiText($output->assistantMessage), $message, $input, $cart, $language, $conversation), null],
         };
         // The cart refused an item (a size or required extra missing, sold out, needs a check): the customer is told in words.
-        if (! in_array($output->recommendedAction, [RecommendedAction::PlaceOrder, RecommendedAction::CancelOrder, RecommendedAction::Handoff, RecommendedAction::CheckAvailability, RecommendedAction::BookAppointment, RecommendedAction::CancelAppointment], true)
+        $refusal = null;
+        if (! in_array($output->recommendedAction, [RecommendedAction::PlaceOrder, RecommendedAction::CancelOrder, RecommendedAction::Handoff], true)
             && ($refusal = $this->refusalReply($conversation, $cartResult, in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en'))) !== null) {
             $reply = $refusal;
+        }
+        // After an add, change or removal the customer sees what is in the cart and what it costs (the AI's own words
+        // rarely include prices), unless the reply is a question, the menu, or the checkout taking over.
+        if (($cartResult['applied'] ?? 0) > 0 && $refusal === null && ($cartResult['rounded'] ?? []) === []
+            && ! in_array($output->recommendedAction, [RecommendedAction::PlaceOrder, RecommendedAction::CancelOrder, RecommendedAction::TrackOrder, RecommendedAction::Handoff,
+                RecommendedAction::Checkout, RecommendedAction::ShowMenu, RecommendedAction::CloseConversation], true)) {
+            $reply = $this->withCartRecap($reply, $cart, in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en'));
         }
         // A weight the cart cut to a quarter kilo: the customer is told the amount really in the cart, not the one asked.
         if (($cartResult['rounded'] ?? []) !== [] && $output->recommendedAction !== RecommendedAction::PlaceOrder) {
@@ -236,8 +231,6 @@ class ConversationService
             'fulfillment_choice' => $this->fulfillmentMissing,
             // The order the customer must confirm cancelling (buttons are sent for it), or null.
             'cancel_confirm' => $this->cancelAwaitingId,
-            // A booking that waits for its deposit: the instructions get the "I paid" button.
-            'deposit_appointment' => $this->depositAwaitingId,
             'cart_result' => $cartResult,
             'conversation' => $conversation,
             'reply' => $reply,
@@ -245,12 +238,9 @@ class ConversationService
             // First answer in a conversation, or the customer asked for the menu: attach the menu list.
             // The menu is written out for a greeting (the first words of a chat) or when the customer asks for it,
             // never under a real answer such as a price.
-            'menu_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'appointments'
+            'menu_link' => ! $order
                 && ($output->recommendedAction === RecommendedAction::ShowMenu
                     || (($state['messages'] ?? []) === [] && $output->intent === ConversationIntent::Greeting)),
-            // Salons: the first answer (or a request for the menu) lists the services.
-            'services_link' => ! $order && ShopSettings::for(app(CurrentTenant::class)->get())->businessMode() !== 'orders'
-                && ($output->recommendedAction === RecommendedAction::ShowMenu || ($state['messages'] ?? []) === []),
         ];
     }
 
@@ -284,7 +274,7 @@ class ConversationService
     {
         $refused = collect($cartResult['rejected'] ?? [])->first(fn ($r) => ($r['action'] ?? null) === 'add' && ! empty($r['product_id']));
         $product = $refused ? Product::with(['variants', 'modifierGroups.modifiers'])->find($refused['product_id']) : null;
-        if (! $product || $product->duration_mins) {
+        if (! $product) {
             return null;
         }
         $merchant = app(CurrentTenant::class)->get();
@@ -380,9 +370,7 @@ class ConversationService
             'eta' => $order->eta_mins,
             'when' => $order->status === 'placed' ? '' : app(OrderTiming::class)->phrase($merchant, $order, $locale),
             'shop' => $merchant->name,
-        ], $locale).($order->payment_method === 'whish' ? "\n".__('whatsapp.checkout.whish_after_accept', [], $locale) : '')
-            .($order->status === 'placed' && ! $this->confirmation->needsShopAcceptance($merchant)
-                ? "\n".__('whatsapp.checkout.shop_reply', ['shop' => $merchant->name], $locale) : ''), $order];
+        ], $locale).($order->payment_method === 'whish' ? "\n".__('whatsapp.checkout.whish_after_accept', [], $locale) : ''), $order];
     }
 
     /**
@@ -402,6 +390,18 @@ class ConversationService
         }
     }
 
+    /** "Where's my order?" asked in words: the real status of the customer's latest order (the assistant never guesses it). */
+    private function orderStatus(Conversation $conversation): string
+    {
+        $merchant = app(CurrentTenant::class)->get();
+        $locale = $conversation->customer->locale ?? 'en';
+        $order = Order::query()->where('customer_id', $conversation->customer_id)->latest()->first();
+
+        return $order
+            ? app(ChatMenu::class)->statusText($merchant, $order, $locale)
+            : __('whatsapp.track.none', [], $locale);
+    }
+
     private function cancelLatestOrder(Conversation $conversation): string
     {
         $merchant = app(CurrentTenant::class)->get();
@@ -414,11 +414,6 @@ class ConversationService
             ->first();
 
         if (! $order) {
-            // A booking shop's customer who says "cancel" (the assistant took it for an order) means the booking.
-            if ($this->appointments->allUpcomingFor($conversation->customer)->isNotEmpty()) {
-                return $this->cancelAppointment($conversation);
-            }
-
             return __('whatsapp.checkout.cancel_none', [], $locale);
         }
 
@@ -514,204 +509,33 @@ class ConversationService
         return $text;
     }
 
+    /** The reply followed by the cart lines with their prices and the subtotal. */
+    private function withCartRecap(string $reply, $cart, string $locale): string
+    {
+        $items = $cart->items()->with(['product', 'variant'])->get();
+        if ($items->isEmpty()) {
+            return $reply;
+        }
+        $currency = app(CurrentTenant::class)->get()?->currency;
+        $total = (float) $items->sum('line_total');
+        foreach ([$total, ...$items->map(fn ($i) => (float) $i->line_total)->all()] as $amount) {
+            if ($reply !== '' && str_contains($reply, Money::format($amount, $currency))) {
+                return $reply; // the assistant already gave the prices
+            }
+        }
+        $lines = $items->map(fn ($item) => '• '.Quantity::line($item->quantity, $item->product?->unit, trim((string) ($item->product?->name ?? '').($item->variant ? ' ('.$item->variant->name.')' : ''))).' — '.Money::format((float) $item->line_total, $currency))->implode("\n");
+
+        return trim($reply."\n\n".__('whatsapp.cart.your_cart', [], $locale)."\n".$lines."\n".__('whatsapp.flow.subtotal', [], $locale).': '.Money::format($total, $currency));
+    }
+
     private function handoff(Conversation $conversation): string
     {
         $merchant = app(CurrentTenant::class)->get();
         $conversation->customer->forceFill([
             'bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins()),
         ])->save();
-        NotifyStaffOfHandoff::dispatch($conversation->customer_id)->afterCommit();
 
         return __('whatsapp.checkout.handoff', ['shop' => $merchant->name], $conversation->customer->locale ?? 'en');
-    }
-
-    /**
-     * The assistant answers "book X tomorrow at 10:00" with a list of free times about half the time. A customer who
-     * names the service, the day and one time, without asking a question, is booked at once (the server still checks
-     * that the slot is free and says so when it is not); a question ("is 10:00 free?") still gets the list.
-     *
-     * @param  array<string, mixed>  $req  service_id, date
-     */
-    private function availabilityOrBooking(Conversation $conversation, array $req, string $message): string
-    {
-        $time = empty($req['time']) ? ClockTime::fromText($message) : null;
-        if ($time !== null && ! empty($req['service_id']) && ! str_contains($message, '?') && ! str_contains($message, '؟')) {
-            // The time read from the message goes first: the assistant's own request carries time: null.
-            return $this->bookAppointment($conversation, ['time' => $time] + $req);
-        }
-
-        return $this->availability($conversation, $req);
-    }
-
-    /**
-     * @param  array<string, mixed>  $req  service_id, date
-     */
-    private function availability(Conversation $conversation, array $req): string
-    {
-        $merchant = app(CurrentTenant::class)->get();
-        $locale = $conversation->customer->locale ?? 'en';
-        $service = $this->resolveService($req['service_id'] ?? null);
-        if (! $service) {
-            return $this->askService($locale);
-        }
-
-        $provider = $this->resolveProvider($req['provider_id'] ?? null, $service);
-        $label = $this->serviceLabel($service->name, $provider, $locale);
-        $tz = $this->appointments->tz($merchant);
-        $date = $this->localDate($req['date'] ?? null, $tz);
-        if ($date === null) {
-            return __('whatsapp.appointment.past_date', [], $locale)."\n".$this->availability($conversation, array_diff_key($req, ['date' => true]));
-        }
-        $slots = $this->appointments->availableSlots($merchant, $service, $date, $provider);
-
-        if ($slots !== []) {
-            return __('whatsapp.appointment.slots', [
-                'service' => $label, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($slots, 0, 24)),
-            ], $locale).$this->teamLine($service, $provider, $locale);
-        }
-
-        $next = $this->appointments->nextAvailableDay($merchant, $service, $date->copy()->addDay(), $provider);
-
-        return $next
-            ? __('whatsapp.appointment.none_that_day', [
-                'service' => $label, 'date' => $date->copy()->locale($locale)->isoFormat('ddd D MMM'),
-                'next' => $next[0]->copy()->locale($locale)->isoFormat('ddd D MMM'), 'slots' => implode(', ', array_slice($next[1], 0, 24)),
-            ], $locale)
-            : __('whatsapp.appointment.fully_booked', ['service' => $label], $locale);
-    }
-
-    /**
-     * @param  array<string, mixed>  $req  service_id, date, time
-     */
-    private function bookAppointment(Conversation $conversation, array $req): string
-    {
-        $merchant = app(CurrentTenant::class)->get();
-        $locale = $conversation->customer->locale ?? 'en';
-        $service = $this->resolveService($req['service_id'] ?? null);
-        if (! $service) {
-            return $this->askService($locale);
-        }
-
-        $tz = $this->appointments->tz($merchant);
-        $date = $this->localDate($req['date'] ?? null, $tz);
-        if ($date === null) {
-            return __('whatsapp.appointment.past_date', [], $locale)."\n".$this->availability($conversation, array_diff_key($req, ['date' => true]));
-        }
-        if (! preg_match('/^(\d{1,2}):(\d{2})$/', (string) ($req['time'] ?? ''), $m)) {
-            return $this->availability($conversation, $req);
-        }
-
-        $provider = $this->resolveProvider($req['provider_id'] ?? null, $service);
-        $appointment = $this->appointments->book($merchant, $conversation->customer, $service, $date->copy()->setTime((int) $m[1], (int) $m[2]), $provider);
-        if (! $appointment) {
-            return __('whatsapp.appointment.taken', [], $locale)."\n".$this->availability($conversation, $req);
-        }
-
-        if ($appointment->status === 'pending_deposit') {
-            $this->depositAwaitingId = $appointment->id;
-
-            return app(BookingDeposits::class)->instructions($merchant, $appointment, $locale);
-        }
-
-        $local = $appointment->starts_at->copy()->setTimezone($tz);
-
-        return __('whatsapp.appointment.booked', [
-            'service' => $this->serviceLabel($appointment->service_name, $appointment->provider, $locale), 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i'),
-            'price' => (float) $appointment->price > 0 ? Money::format((float) $appointment->price, $merchant->currency) : __('whatsapp.appointment.free', [], $locale),
-            'shop' => $merchant->name,
-            'address' => ShopSettings::for($merchant)->pickupAddress() ?: $merchant->name,
-        ], $locale);
-    }
-
-    /**
-     * Cancels the booking the customer means: the one on the day (and time) the assistant read, or
-     * the only upcoming one. With several and no day given, the customer is asked which one, so a
-     * Friday booking is never cancelled for a Thursday one. The staff are told, so nobody waits.
-     *
-     * @param  array<string, mixed>  $req  service_id, date, time
-     */
-    private function cancelAppointment(Conversation $conversation, array $req = []): string
-    {
-        $locale = $conversation->customer->locale ?? 'en';
-        $tz = $this->appointments->tz(app(CurrentTenant::class)->get());
-        $upcoming = $this->appointments->allUpcomingFor($conversation->customer);
-        if ($upcoming->isEmpty()) {
-            return __('whatsapp.appointment.cancel_none', [], $locale);
-        }
-
-        $matches = $upcoming;
-        if (is_string($req['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $req['date'])) {
-            $matches = $matches->filter(fn ($a) => $a->starts_at->copy()->setTimezone($tz)->toDateString() === $req['date']);
-        }
-        if (is_string($req['time'] ?? null) && preg_match('/^(\d{1,2}):(\d{2})$/', $req['time'], $t)) {
-            $hm = sprintf('%02d:%02d', $t[1], $t[2]);
-            $timed = $matches->filter(fn ($a) => $a->starts_at->copy()->setTimezone($tz)->format('H:i') === $hm);
-            $matches = $timed->isNotEmpty() ? $timed : $matches;
-        }
-
-        $label = fn ($a) => $a->service_name.' '.$a->starts_at->copy()->setTimezone($tz)->locale($locale)->isoFormat('ddd D MMM').' '
-            .$a->starts_at->copy()->setTimezone($tz)->format('H:i');
-        if ($matches->count() !== 1) {
-            return __('whatsapp.appointment.cancel_which', ['list' => $upcoming->map($label)->implode("\n")], $locale);
-        }
-
-        $appointment = $matches->first();
-        $neverReachedTheTeam = $appointment->status === 'pending_deposit'; // its ticket only comes once the deposit is confirmed
-        $appointment->forceFill(['status' => 'cancelled', 'cancelled_by' => 'customer'])->save();
-        if (! $neverReachedTheTeam) {
-            NotifyStaffOfAppointmentCancelled::dispatch($appointment->id)->afterCommit();
-        }
-        $local = $appointment->starts_at->copy()->setTimezone($tz);
-
-        return __('whatsapp.appointment.cancelled', ['service' => $appointment->service_name, 'date' => $local->copy()->locale($locale)->isoFormat('ddd D MMM'), 'time' => $local->format('H:i')], $locale);
-    }
-
-    /** The stylist or barber the customer asked for, if they do this service; null = anyone free. */
-    private function resolveProvider(?string $id, Product $service): ?ServiceProvider
-    {
-        $provider = $id ? ServiceProvider::query()->where('is_active', true)->find($id) : null;
-
-        return $provider && $provider->offers($service) ? $provider : null;
-    }
-
-    private function serviceLabel(string $service, ?ServiceProvider $provider, string $locale): string
-    {
-        return $provider ? __('whatsapp.appointment.with', ['service' => $service, 'provider' => $provider->name], $locale) : $service;
-    }
-
-    /** "With: Rami, Lea. Name one if you have a preference." when the shop lists its team. */
-    private function teamLine(Product $service, ?ServiceProvider $provider, string $locale): string
-    {
-        $team = $this->appointments->providersFor($service);
-
-        return $provider || $team->count() < 2 ? '' : "\n".__('whatsapp.appointment.team', ['names' => $team->pluck('name')->implode(', ')], $locale);
-    }
-
-    private function resolveService(?string $id): ?Product
-    {
-        $services = $this->appointments->services();
-
-        return ($id ? $services->firstWhere('id', $id) : null) ?? ($services->count() === 1 ? $services->first() : null);
-    }
-
-    private function askService(string $locale): string
-    {
-        return __('whatsapp.appointment.which_service', [
-            'services' => $this->appointments->services()->map(fn ($p) => "{$p->name} ({$p->duration_mins} min)")->implode(', '),
-        ], $locale);
-    }
-
-    /** The requested day (today when none was given); null for a day that has already passed. */
-    private function localDate(?string $date, string $tz): ?Carbon
-    {
-        $today = now()->setTimezone($tz)->startOfDay();
-        try {
-            $parsed = $date ? Carbon::createFromFormat('Y-m-d', $date, $tz)->startOfDay() : $today;
-        } catch (\Throwable) {
-            $parsed = $today;
-        }
-
-        return $parsed->lt($today) ? null : $parsed;
     }
 
     private function isStale(Conversation $conversation): bool
@@ -743,14 +567,7 @@ class ConversationService
             'lbp_rate' => ShopSettings::for($merchant)->lbpRate(),
             'fulfillment' => ShopSettings::for($merchant)->fulfillment(),
             'whish_enabled' => ShopSettings::for($merchant)->whishNumber() !== null,
-            'business_mode' => ShopSettings::for($merchant)->businessMode(),
             'now' => now()->setTimezone($merchant->timezone ?: config('app.timezone'))->format('Y-m-d H:i l'),
-            'services' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : $this->appointments->services()
-                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'duration_mins' => $p->duration_mins, 'price' => (string) $p->price])
-                ->values()->all(),
-            // Stylists and barbers the customer can ask for by name (empty: anyone).
-            'providers' => ShopSettings::for($merchant)->businessMode() === 'orders' ? [] : ServiceProvider::query()->where('is_active', true)->orderBy('sort_order')->get()
-                ->map(fn (ServiceProvider $p) => ['id' => $p->id, 'name' => $p->name, 'service_ids' => $p->service_ids ?: 'all'])->values()->all(),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),
             'opening_hours_today' => $this->todaysHours($merchant),
             'opening_hours' => ShopHour::week()

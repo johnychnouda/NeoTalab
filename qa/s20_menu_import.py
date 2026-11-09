@@ -88,9 +88,6 @@ print("  formula-looking category:", code)
 
 suite("Menu import: access")
 # Staff cannot sign in to the dashboard, so mint their token the way the lab set them up (see s03).
-STAFF_TOKEN = tj('$u=App\\Models\\User::where("email","' + s["rest_staff"]["email"] + '")->first(); echo json_encode($u->createToken("qa-s20")->plainTextToken);')
-code, b = upload(csv, "menu.csv", token=STAFF_TOKEN)
-check("shop staff cannot import", code == 403, code)
 code, b = api("POST", "/menu/import", s["shops"]["rest"]["token"], {"items": [{"name": "Gallon 19L", "price": 99, "category": "Water"}]})
 pr3 = {p[0]: p for p in products()}
 check("another shop's import never touches this shop's products", pr3["Gallon 19L"][1] == "3.25", pr3.get("Gallon 19L"))

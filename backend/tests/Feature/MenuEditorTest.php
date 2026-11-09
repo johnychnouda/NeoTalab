@@ -90,21 +90,19 @@ class MenuEditorTest extends TestCase
     public function test_business_type_sets_menu_wording_and_defaults(): void
     {
         $shop = app(TenantProvisioningService::class)->provision(
-            ['name' => 'Zara Jbeil', 'business_type' => 'Clothing / Shoes'],
+            ['name' => 'Zara Jbeil', 'business_type' => 'Supermarket / Grocery'],
             ['name' => 'Owner', 'email' => 'zara@example.com', 'password' => 'secret-password'],
         )['merchant'];
 
-        $this->assertSame('retail', $shop->settings['business_kind']);
-        $this->assertSame('days', $shop->settings['timing_unit'], 'clothes are delivered in days');
+        $this->assertSame('grocery', $shop->settings['business_kind']);
+        $this->assertSame('minutes', $shop->settings['timing_unit'], 'a grocery counts delivery in minutes');
 
         $profile = $this->withToken($this->token)->getJson('/api/v1/settings/profile')->assertOk();
         $profile->assertJsonPath('profile.business_kind', 'restaurant')->assertJsonPath('profile.menu_profile.word', 'menu');
 
-        // Switching to a salon: bookings, and the menu becomes "Services".
-        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['business_kind' => 'services', 'timing_unit' => 'minutes'])->assertOk();
-        $settings = $this->merchant->fresh()->settings;
-        $this->assertSame('appointments', $settings['business_mode']);
-        $this->withToken($this->token)->getJson('/api/v1/settings/profile')->assertJsonPath('profile.menu_profile.word', 'services');
+        // Switching to the retail setup: the menu becomes the "Catalogue".
+        $this->withToken($this->token)->patchJson('/api/v1/settings/profile', ['business_kind' => 'retail', 'timing_unit' => 'days'])->assertOk();
+        $this->withToken($this->token)->getJson('/api/v1/settings/profile')->assertJsonPath('profile.menu_profile.word', 'catalogue');
     }
 
     public function test_setup_checklist_shows_what_is_left(): void

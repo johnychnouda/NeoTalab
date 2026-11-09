@@ -30,27 +30,21 @@ for key in s["shops"]:
         continue
     sh["cat"] = mk(key, "/categories", {"name": "Main", "name_ar": "رئيسي"}, "category")
     # Same names in every shop (overlap for isolation checks), different prices.
-    base = {"rest": 2.5, "pharm": 4.0, "grocer": 1.25, "retail": 99.99, "whole": 3.0, "salon": 15.0}[key]
+    base = {"rest": 2.5, "pharm": 4.0, "grocer": 1.25, "retail": 99.99, "whole": 3.0}[key]
     body = {"name": "Falafel", "name_ar": "فلافل", "price": base, "category_id": sh["cat"]}
-    if key == "salon":
-        body.update(name="Haircut", duration_mins=30)
     sh["p1"] = mk(key, "/products", body, "product 1")
     body2 = {"name": "Zaatar Manousheh" if key == "rest" else "Shared Item", "price": round(base * 2 + 0.33, 2), "category_id": sh["cat"]}
-    if key == "salon":
-        body2.update(name="Beard trim", duration_mins=15, price=7.5)
     sh["p2"] = mk(key, "/products", body2, "product 2")
     save_state(s)
 
-# Restaurant: sizes and extras; a stocked item.
+# Restaurant: sizes and extras.
 r = s["shops"]["rest"]
 if not r.get("variant"):
     r["variant"] = mk("rest", f"/products/{r['p1']}/variants", {"name": "Large", "price": 4.0}, "variant")
     r["group"] = mk("rest", f"/products/{r['p1']}/modifier-groups", {"name": "Extras", "min_select": 0, "max_select": 3}, "modifier group")
     r["mod"] = mk("rest", f"/modifier-groups/{r['group']}/modifiers", {"name": "Cheese", "price_delta": 0.75}, "modifier")
-    r["stock"] = mk("rest", "/products", {"name": "Last Kunafa", "price": 3.5, "category_id": r["cat"], "track_inventory": True, "stock_quantity": 1}, "stocked product")
     r["zone"] = mk("rest", "/settings/zones", {"name": "Hamra", "deliveryFee": 1.5, "minimumOrder": 5, "deliveryMins": 30}, "zone")
     r["driver"] = mk("rest", "/drivers", {"name": "QA Driver Karim", "phone": "+96171222001", "role": "driver"}, "driver")
-    r["staff"] = mk("rest", "/drivers", {"name": "QA Staff Rami", "phone": "+96171222002", "role": "staff"}, "staff member")
     save_state(s)
 g = s["shops"]["grocer"]
 if not g.get("zone"):
@@ -58,10 +52,10 @@ if not g.get("zone"):
     g["driver"] = mk("grocer", "/drivers", {"name": "QA Driver Grocer", "phone": "+96171222101", "role": "driver"}, "driver")
     save_state(s)
 
-# Lab-only dashboard accounts for the roles the app defines but cannot create (merchant-admin, merchant-staff).
+# Lab-only dashboard accounts for the roles the app defines but cannot create (merchant-admin).
 if "rest_admin" not in s:
     import secrets
-    for role, k in (("merchant-admin", "rest_admin"), ("merchant-staff", "rest_staff")):
+    for role, k in (("merchant-admin", "rest_admin"),):
         pw = secrets.token_hex(8)
         email = f"{k}@qa.test"
         out = tinker(f'$u=App\\Models\\User::create(["merchant_id"=>"{r["id"]}","name"=>"{k}","email"=>"{email}","password"=>"{pw}","status"=>"active","password_changed_at"=>now()]); $u->assignRole("{role}"); echo "ok";')

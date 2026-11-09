@@ -96,7 +96,7 @@ class CatalogResolver
     {
         if ($variantId !== null) {
             $variant = $this->resolveVariant($product, $variantId);
-            if (! $variant || ! $variant->isOffered() || ! $variant->hasStockFor($product, 1)) {
+            if (! $variant || ! $variant->isOffered()) {
                 return false;
             }
         }
@@ -127,7 +127,7 @@ class CatalogResolver
             isOrderable: $product->isOrderable(),
             needsCheck: (bool) $product->staff_check,
             unit: $product->unit,
-            variants: $product->variants->filter(fn (ProductVariant $v) => $v->isOffered() && $v->hasStockFor($product, 1))->map(fn (ProductVariant $v) => [
+            variants: $product->variants->filter(fn (ProductVariant $v) => $v->isOffered())->map(fn (ProductVariant $v) => [
                 'id' => $v->id,
                 'name' => $v->name,
                 'price' => $v->price !== null ? number_format($product->priceAfterOffer((float) $v->price), 2, '.', '') : null,

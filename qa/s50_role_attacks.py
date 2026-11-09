@@ -35,8 +35,6 @@ try:
         b = setup[(i + 1) % len(setup)]
         press(a["pid"], a["d2"].lstrip("+"), f"drv:delivered:{a['order']}")          # other driver, same shop
         press(a["pid"], a["d2"].lstrip("+"), f"drv:picked_up:{a['order']}")
-        press(a["pid"], a["staff"].lstrip("+"), f"stf:delivered:{b['order']}")      # staff of A, B's order, A's number
-        press(b["pid"], a["staff"].lstrip("+"), f"stf:accept:{b['order']}")         # staff of A, on B's number
         press(b["pid"], a["d1"].lstrip("+"), f"drv:delivered:{b['order']}")         # driver of A, on B's number
         press(a["pid"], a["cust"].lstrip("+"), f"stf:delivered:{a['order']}")       # customer forges staff button
         press(a["pid"], a["cust"].lstrip("+"), f"drv:delivered:{a['order']}")       # customer forges driver button

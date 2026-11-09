@@ -13,30 +13,28 @@ $now = now()->toDateTimeString();
 
 $bank = [
  'Restaurant / Café' => ['Chicken Shawarma','Beef Burger','Margherita Pizza','Falafel Wrap','Hummus Plate','Fattoush Salad','Grilled Kebab','Mix Grill','French Fries','Lemonade','Turkish Coffee','Baklava'],
+ 'Bakery / Sweets' => ['Croissant','Baguette','Chocolate Cake','Cheese Manousheh','Zaatar Manousheh','Cookies Box','Birthday Cake','Cupcake','Donut','Muffin','Sourdough Loaf','Maamoul'],
+ 'Butcher / Fruits & Vegetables' => ['Beef Mince 1kg','Lamb Chops','Chicken Breast','Tomatoes 1kg','Cucumbers 1kg','Apples 1kg','Bananas 1kg','Potatoes 1kg','Onions 1kg','Lemons 1kg','Parsley Bunch','Oranges 1kg'],
  'Pharmacy' => ['Panadol 500mg','Vitamin C 1000mg','Cough Syrup','Band-Aid Pack','Baby Diapers','Face Mask Box','Hand Sanitizer','Ibuprofen 400mg','Multivitamin','Eye Drops','Thermometer','Antacid Tablets'],
  'Supermarket / Grocery' => ['Basmati Rice','Olive Oil','Fresh Milk','Eggs Tray','White Bread','Tomatoes','Cucumbers','Orange Juice','Pasta','Sugar','Tea Bags','Laundry Detergent'],
  'Electronics / Phones' => ['USB-C Cable','Phone Case','Screen Protector','Wireless Earbuds','Power Bank','Wall Charger','Bluetooth Speaker','Smart Watch','HDMI Cable','Memory Card','Car Charger','Laptop Mouse'],
  'Water / Gas delivery' => ['Water Bottle 19L','Gas Cylinder','Mineral Water Pack','Water Dispenser','Cup Pack','Gas Regulator','Gas Hose','Bottled Water 1.5L'],
- 'Salon / Barber / Beauty' => ['Haircut','Beard Trim','Hair Coloring','Manicure','Pedicure','Facial','Blow Dry','Keratin Treatment','Eyebrow Shaping','Hair Wash','Makeup','Waxing'],
  'Pet Shop' => ['Dog Food 5kg','Cat Food 2kg','Cat Litter','Dog Leash','Pet Shampoo','Fish Food','Bird Seed','Chew Toy','Pet Bed','Cat Scratcher','Dog Collar','Pet Carrier'],
  'Other' => ['Oil Change','Car Wash','Tire Rotation','Battery Check','Brake Inspection','Wheel Alignment','Engine Tune-up','AC Service','Window Tint','Detailing'],
  'Bakery' => ['Croissant','Baguette','Chocolate Cake','Cheese Manousheh','Zaatar Manousheh','Cookies Box','Birthday Cake','Cupcake','Donut','Muffin','Sourdough Loaf','Maamoul'],
  'Flowers' => ['Red Roses Bouquet','Tulips Bunch','Sunflower Bouquet','Orchid Plant','Mixed Bouquet','Lilies','Wedding Arrangement','Gift Basket','Succulent Pot','Carnations'],
  'Clothing' => ['Cotton T-Shirt','Denim Jeans','Summer Dress','Leather Belt','Winter Jacket','Sneakers','Wool Scarf','Polo Shirt','Hoodie','Socks Pack','Cap','Gloves'],
- 'Laundry' => ['Shirt Wash','Suit Dry Clean','Bedsheet Wash','Curtain Clean','Blanket Wash','Jacket Dry Clean','Ironing','Dress Dry Clean','Carpet Clean'],
  'Books' => ['Notebook A5','Ballpoint Pens Pack','Arabic Novel','French Dictionary','Kids Story Book','School Bag','Highlighters','Sketchbook','Calculator','Folder Pack'],
  'Hardware' => ['Hammer','Screwdriver Set','Paint 4L','Wall Plug Pack','Drill Bit Set','Measuring Tape','LED Bulb','Extension Cord','Pliers','Door Lock','Wood Glue','Sandpaper'],
  'Cosmetics' => ['Lipstick','Foundation','Mascara','Perfume 50ml','Nail Polish','Face Cream','Shampoo','Body Lotion','Eyeliner','Hair Mask','Sunscreen','Lip Balm'],
  'Jewelry' => ['Silver Ring','Gold Chain','Pearl Earrings','Charm Bracelet','Engagement Ring','Pendant','Watch Strap','Anklet','Brooch','Cufflinks'],
  'Furniture' => ['Office Chair','Dining Table','Bookshelf','Sofa Cushion','Bed Frame','Coffee Table','Wardrobe','TV Stand','Desk Lamp','Shoe Rack'],
  'Toys' => ['Lego Set','Puzzle 500pc','Toy Car','Doll House','Board Game','Soft Bear','Play Dough','Water Gun','Kite','Remote Car'],
- 'Optics' => ['Reading Glasses','Sunglasses','Contact Lenses','Lens Cleaner','Eyeglass Case','Blue Light Glasses','Frame Repair','Eye Exam'],
  'Car parts' => ['Engine Oil 5L','Brake Pads','Air Filter','Spark Plugs','Wiper Blades','Car Battery','Coolant','Headlight Bulb','Floor Mats','Seat Cover'],
 ];
 $variants = ['','Small','Large','Family','Premium','Mini','Classic','Deluxe','XL','Pack of 3','Plus','Lite','Organic','Special','Value'];
 $arNames = ['شاورما','برغر','بيتزا','فلافل','حمص','فتوش','كباب','عصير','قهوة','حلويات','خبز','جبنة','زيت','أرز','سكر','شاي','منظف','كابل','غطاء','سماعات'];
 $frNames = ['Poulet','Burger','Pizza','Falafel','Houmous','Salade','Brochette','Jus','Café','Gâteau','Pain','Fromage','Huile','Riz','Sucre','Thé','Lessive','Câble','Étui','Écouteurs'];
-$services = ['Salon / Barber / Beauty','Laundry','Optics','Other'];
 
 $hash = Illuminate\Support\Facades\Hash::make('123456');
 $totals = ['products' => 0, 'categories' => 0, 'customers' => 0, 'staff' => 0, 'orders' => 0, 'items' => 0];
@@ -63,12 +61,11 @@ foreach ($plan as $si => $shop) {
         $label = trim($base.' '.$var); if (intdiv($p, count($names) * count($variants)) > 0) { $label .= ' '.(intdiv($p, count($names) * count($variants)) + 1); }
         $price = round(1 + (crc32($shop['key'].$label) % 4500) / 100, 2);
         $pid = (string) Str::uuid();
-        $isService = in_array($type, $services, true);
         $prods[] = ['id' => $pid, 'price' => $price, 'name' => $label];
         $rows[] = ['id' => $pid, 'merchant_id' => $mid, 'category_id' => $cats[$p % $ncat], 'name' => $label,
             'name_ar' => $loc === 'ar' ? ($arNames[$p % count($arNames)].' '.($p + 1)) : null, 'name_fr' => $loc === 'fr' ? ($frNames[$p % count($frNames)].' '.($p + 1)) : null,
             'sku' => strtoupper(substr($shop['key'], 2)).'-'.str_pad((string) $p, 4, '0', STR_PAD_LEFT), 'price' => $price, 'unit' => 'piece',
-            'duration_mins' => $isService ? [30, 45, 60][$p % 3] : null, 'is_active' => 1, 'is_available' => 1, 'track_inventory' => 0,
+            'is_active' => 1, 'is_available' => 1,
             'sort_order' => $p, 'created_at' => $now, 'updated_at' => $now];
     }
     foreach (array_chunk($rows, 500) as $chunk) { DB::table('products')->insert($chunk); }

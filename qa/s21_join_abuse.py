@@ -45,7 +45,7 @@ check("the hidden bot field, when filled, is refused", code == 422, (code, str(b
 code, b = apply(acceptedTerms=False)
 check("without accepting the terms it is refused", code == 422, (code, str(b)[:150]))
 
-code, b = apply(shopName="<script>alert(1)</script>Shop", businessType="Other")
+code, b = apply(shopName="<script>alert(1)</script>Shop", businessType="Restaurant / Café")
 check("HTML in the shop name is accepted as plain text (shown escaped in the owner portal)", code in (200, 201), (code, str(b)[:150]))
 
 subprocess.run([os.environ["QA_LAB"] + "/lab.sh", "php", "artisan", "cache:clear"], capture_output=True)
@@ -63,6 +63,6 @@ check("a bad email is refused", code == 422, (code, str(b)[:150]))
 suite("Join form limits")
 subprocess.run([os.environ["QA_LAB"] + "/lab.sh", "php", "artisan", "cache:clear"], capture_output=True)
 fresh_visitor()
-codes = [api("POST", "/onboarding/apply", None, {"shopName": f"Flood {RUN} {i}", "contactName": "T", "businessType": "Other", "country": "LB", "whatsapp": f"+96170{secrets.randbelow(900000) + 100000}", "city": "Beirut", "street": "Hamra", "region": "Beirut", "acceptedTerms": True})[0] for i in range(7)]
+codes = [api("POST", "/onboarding/apply", None, {"shopName": f"Flood {RUN} {i}", "contactName": "T", "businessType": "Restaurant / Café", "country": "LB", "whatsapp": f"+96170{secrets.randbelow(900000) + 100000}", "city": "Beirut", "street": "Hamra", "region": "Beirut", "acceptedTerms": True})[0] for i in range(7)]
 _unused = [apply(shopName=f"Flood {RUN} {i}", whatsapp=f"+96170{secrets.randbelow(900000) + 100000}")[0] for i in range(7)]
 check("five applications per visitor per hour, the sixth is slowed down", codes[:5].count(429) == 0 and 429 in codes[5:], codes)

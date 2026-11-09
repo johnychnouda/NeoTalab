@@ -10,7 +10,7 @@ for path in ["/admin/merchants", "/admin/onboarding", "/admin/usage", "/admin/ac
     check(f"owner GET {path} -> 200", code == 200, (code, str(b)[:150]))
 code, b = api("GET", "/admin/merchants", OWN)
 names = json.dumps(b)
-check("merchant list shows the lab shops", all(n in names for n in ("QA Manakish", "QA Supermarket", "QA Phone Shop", "QA Salon")), names[:200])
+check("merchant list shows the lab shops", all(n in names for n in ("QA Manakish", "QA Supermarket", "QA Online Shop")), names[:200])
 code, b = api("GET", f"/admin/merchants/{s['shops']['rest']['id']}", OWN)
 blob = json.dumps(b)
 check("merchant detail never contains the shop's WhatsApp access token", "lab-shop-token" not in blob, blob[:200])
@@ -54,7 +54,7 @@ check("reactivated shop answers again", len(outbox(to=cust, since=t0)) >= 1)
 
 suite("Lifecycle: owner deletes a shop")
 pw = secrets.token_hex(6)
-code, b = api("POST", "/admin/merchants", OWN, {"shopName": "QA Throwaway Shop", "whatsappNumber": "+96170111077", "password": pw, "businessType": "Other"})
+code, b = api("POST", "/admin/merchants", OWN, {"shopName": "QA Throwaway Shop", "whatsappNumber": "+96170111077", "password": pw, "businessType": "Restaurant / Café"})
 tid = b["data"]["id"]
 code, lb = login("qa-throwaway-shop@merchant.neotalab", pw)
 ttok = lb.get("token") if isinstance(lb, dict) else None

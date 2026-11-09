@@ -5,8 +5,6 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\NotifyCustomerOfOrderStatus;
-use App\Jobs\NotifyStaffOfCancellation;
-use App\Jobs\NotifyStaffOfOrder;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
@@ -34,7 +32,7 @@ use Tests\TestCase;
 
 class ShopAcceptanceTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '+96170123456';
 
@@ -67,7 +65,7 @@ class ShopAcceptanceTest extends TestCase
             'name' => 'Beirut Bites', 'currency' => 'USD', 'timezone' => 'Asia/Beirut',
             'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto', 'prep_time_mins' => 25],
         ]);
-        $this->shawarma = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Shawarma', 'price' => 6, 'track_inventory' => true, 'stock_quantity' => 10]);
+        $this->shawarma = Product::factory()->forMerchant($this->merchant)->create(['name' => 'Shawarma', 'price' => 6]);
         Driver::query()->forceCreate([
             'merchant_id' => $this->merchant->id, 'name' => 'Owner', 'role' => 'staff', 'phone' => self::STAFF, 'whatsapp_number' => self::STAFF,
             'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
@@ -97,7 +95,19 @@ class ShopAcceptanceTest extends TestCase
 
     private function tap(string $id): void
     {
+        if (str_starts_with($id, 'stf:')) {
+            $this->shopTap($id);
+
+            return;
+        }
+
         $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => $id, 'title' => 'x']]], self::STAFF);
+    }
+
+    /** The customer asks in words; the assistant recognises it and the server answers with the real status. */
+    private function askWhereIsMyOrder(): void
+    {
+        $this->receive(['type' => 'text', 'text' => ['body' => 'where is my order']], self::CUSTOMER);
     }
 
     private function customerTaps(string $id): void
@@ -148,9 +158,6 @@ class ShopAcceptanceTest extends TestCase
 
         $this->assertSame('placed', $order->status);
         $this->assertStringContainsString('sent to Beirut Bites', $this->lastTo(self::CUSTOMER)['text']);
-        $ticket = $this->lastTo(self::STAFF);
-        $this->assertSame(["stf:accept:{$order->id}", "stf:reject:{$order->id}"], $ticket['buttons']);
-        $this->assertSame(['✅ Accept · 25 min', "❌ Can't take it"], $ticket['titles']);
         Bus::assertDispatched(CheckUnacceptedOrder::class, 2);
 
         $this->tap("stf:accept:{$order->id}");
@@ -159,7 +166,6 @@ class ShopAcceptanceTest extends TestCase
         $this->assertSame('confirmed', $order->fresh()->status);
         $this->assertSame('2026-10-14 10:45', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
         $this->assertSame('✅ Beirut Bites accepted your order #1 — preparing now, ready around 10:25 AM.', $this->lastTo(self::CUSTOMER)['text']);
-        $this->assertSame(["stf:picked_up:{$order->id}", "stf:delivered:{$order->id}"], $this->lastTo(self::STAFF)['buttons']);
     }
 
     public function test_google_maps_gives_the_driving_time_from_the_customers_pin(): void
@@ -200,17 +206,13 @@ class ShopAcceptanceTest extends TestCase
         $this->assertStringContainsString('arriving in about 20 min', $this->lastTo(self::CUSTOMER)['text']);
     }
 
-    public function test_shop_can_refuse_and_stock_comes_back(): void
+    public function test_shop_can_refuse(): void
     {
         $order = $this->order();
-        $this->assertSame(8, $this->shawarma->fresh()->stock_quantity);
-
         $this->tap("stf:reject:{$order->id}");
 
         $this->assertSame('rejected', $order->fresh()->status);
         $this->assertStringContainsString('could not accept your order #1', $this->lastTo(self::CUSTOMER)['text']);
-        $this->assertStringContainsString('refused', $this->lastTo(self::STAFF)['text']);
-        $this->assertSame(10, $this->shawarma->fresh()->stock_quantity);
     }
 
     public function test_unanswered_order_is_reminded_then_politely_declined(): void
@@ -218,7 +220,7 @@ class ShopAcceptanceTest extends TestCase
         $order = $this->order();
 
         app()->call([new CheckUnacceptedOrder($order->id), 'handle']);
-        $this->assertStringStartsWith('⏰ Still waiting — order #1', $this->lastTo(self::STAFF)['text']);
+        $this->assertStringContainsString('Order #1 is still waiting for Beirut Bites', $this->lastTo(self::CUSTOMER)['text'], 'the reminder shows in the chat on the shop phone');
 
         app()->call([new CheckUnacceptedOrder($order->id, true), 'handle']);
         $this->assertSame('rejected', $order->fresh()->status);
@@ -239,23 +241,16 @@ class ShopAcceptanceTest extends TestCase
         $this->assertSame('11:15', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'), '15 min drive from now');
     }
 
-    public function test_days_shop_promises_a_date_reminds_on_the_day_and_handles_delays(): void
+    public function test_days_shop_promises_a_date_and_handles_delays(): void
     {
         $this->settings(['timing_unit' => 'days', 'delivery_days_min' => 2, 'delivery_days_max' => 3]);
         $order = $this->order();
-        $this->assertSame(['✅ Accept · 2–3 days', "❌ Can't take it"], $this->lastTo(self::STAFF)['titles']);
 
         $this->tap("stf:accept:{$order->id}");
         // Wednesday + 3 working days (no Sundays set as closed → Sunday skipped) = Saturday 17 October.
         $this->assertSame('✅ Beirut Bites accepted your order #1 — delivered by Saturday 17 October.', $this->lastTo(self::CUSTOMER)['text']);
 
         Carbon::setTestNow(Carbon::parse('2026-10-17 09:30', 'Asia/Beirut'));
-        $this->staffWroteAt(now()->subHour());
-        Artisan::call('orders:due');
-        $due = $this->lastTo(self::STAFF);
-        $this->assertStringStartsWith('📦 Order #1 is due today', $due['text']);
-        $this->assertStringContainsString('(💵 cash)', $due['text'], 'the shop delivering itself knows what to collect');
-        $this->assertSame(["stf:picked_up:{$order->id}", "stf:delay:{$order->id}"], $due['buttons']);
 
         // Three days after the customer last wrote, WhatsApp only accepts the approved template.
         $this->approveCustomerTemplates(CustomerTemplates::DELAYED);
@@ -316,16 +311,6 @@ class ShopAcceptanceTest extends TestCase
         $this->assertSame('10:45', $order->fresh()->promised_at->setTimezone('Asia/Beirut')->format('H:i'));
     }
 
-    public function test_shop_without_staff_keeps_the_bot_accepting(): void
-    {
-        Driver::query()->withoutGlobalScopes()->where('role', 'staff')->delete();
-
-        $order = $this->order();
-
-        $this->assertSame('confirmed', $order->status);
-        $this->assertStringContainsString('confirmed — preparing now, ready around', $this->lastTo(self::CUSTOMER)['text']);
-    }
-
     public function test_driver_gets_im_outside_and_customer_can_track_the_order(): void
     {
         $rami = Driver::query()->forceCreate([
@@ -334,12 +319,12 @@ class ShopAcceptanceTest extends TestCase
         ]);
         $this->receive(['type' => 'location', 'location' => ['latitude' => 33.88, 'longitude' => 35.51]], self::CUSTOMER);
         $order = $this->order('| | cash');
-        $this->customerTaps("trk:{$order->id}");
+        $this->askWhereIsMyOrder();
         $this->assertStringContainsString('waiting for Beirut Bites to accept', $this->lastTo(self::CUSTOMER)['text']);
 
         $this->tap("stf:accept:{$order->id}");
         $this->assertSame($rami->id, $order->fresh()->driver_id);
-        $this->assertSame(["trk:{$order->id}"], $this->lastTo(self::CUSTOMER)['buttons'], "accepted message has Where's my order?");
+        $this->assertSame([], $this->lastTo(self::CUSTOMER)['buttons'], 'no status button: the customer asks in words');
         $pin = Http::recorded()->map(fn ($p) => $p[0])->first(fn (Request $r) => ($r['to'] ?? '') === '96176000001' && $r['type'] === 'location');
         $this->assertEquals(33.88, $pin['location']['latitude'], 'driver gets the customer location inside WhatsApp');
 
@@ -347,7 +332,7 @@ class ShopAcceptanceTest extends TestCase
         $card = $this->lastTo('+96176000001');
         $this->assertStringContainsString('on the way', $card['text']);
         $this->assertSame(["drv:outside:{$order->id}", "drv:delivered:{$order->id}", "drv:failed:{$order->id}"], $card['buttons']);
-        $this->customerTaps("trk:{$order->id}");
+        $this->askWhereIsMyOrder();
         $this->assertStringContainsString('is on its way', $this->lastTo(self::CUSTOMER)['text']);
         $this->assertStringContainsString('Rami · 📞 +96176000001', $this->lastTo(self::CUSTOMER)['text']);
 
@@ -373,12 +358,9 @@ class ShopAcceptanceTest extends TestCase
         $this->customerTaps("cx:yes:{$order->id}");
 
         $this->assertSame('cancelled', $order->fresh()->status);
-        $this->assertSame(10, $this->shawarma->fresh()->stock_quantity, 'stock is returned');
-        $this->assertStringContainsString("#{$order->number} was cancelled by the customer", $this->lastTo(self::STAFF)['text']);
 
-        // The ticket they still have must not be accepted now.
+        // A ✅ typed afterwards must not accept it now.
         $this->tap("stf:accept:{$order->id}");
-        $this->assertStringContainsString("#{$order->number} was cancelled by the customer", $this->lastTo(self::STAFF)['text']);
         $this->assertSame('cancelled', $order->fresh()->status);
     }
 
@@ -397,125 +379,6 @@ class ShopAcceptanceTest extends TestCase
     {
         return Http::recorded()->map(fn ($p) => $p[0])
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === ltrim($phone, '+') && $r['type'] === 'template')->last();
-    }
-
-    public function test_silent_staff_without_an_approved_template_means_the_bot_accepts(): void
-    {
-        $this->staffWroteAt(now()->subHours(30));
-
-        $order = $this->order();
-
-        $this->assertSame('confirmed', $order->status);
-        $this->assertSame([], Http::recorded()->filter(fn ($p) => str_ends_with($p[0]->url(), '/messages') && $p[0]['to'] === ltrim(self::STAFF, '+'))->all());
-        Bus::assertNotDispatched(CheckUnacceptedOrder::class);
-    }
-
-    public function test_each_team_member_gets_the_ticket_in_their_own_language(): void
-    {
-        $arabicStaff = '+96171555111';
-        Driver::query()->forceCreate([
-            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
-            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
-        ]);
-        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
-
-        $this->order();
-
-        $english = $this->lastTo(self::STAFF);
-        $arabic = $this->lastTo($arabicStaff);
-        $this->assertSame(__('whatsapp.staff.button_reject', [], 'en'), $english['titles'][1]);
-        $this->assertSame(__('whatsapp.staff.button_reject', [], 'ar'), $arabic['titles'][1]);
-        $this->assertNotSame($english['text'], $arabic['text']);
-    }
-
-    public function test_a_customers_item_note_is_translated_for_a_team_member_who_reads_another_language(): void
-    {
-        config(['ai.translate.fake' => ['no onions' => ['ar' => 'بدون بصل']]]);
-        $arabicStaff = '+96171555111';
-        Driver::query()->forceCreate([
-            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
-            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
-        ]);
-        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
-        $order = $this->order();
-        $order->items()->first()->forceFill(['product_name' => 'Shawarma — no onions', 'note' => 'no onions'])->save();
-
-        NotifyStaffOfOrder::dispatchSync($order->id);
-
-        // The Arabic reader gets the translation and the original; the English reader gets the note as written.
-        $this->assertStringContainsString('Shawarma — بدون بصل (no onions)', $this->lastTo($arabicStaff)['text']);
-        $this->assertStringContainsString('Shawarma — no onions', $this->lastTo(self::STAFF)['text']);
-        $this->assertStringNotContainsString('بدون بصل', $this->lastTo(self::STAFF)['text']);
-    }
-
-    public function test_a_note_that_cannot_be_translated_is_shown_as_written(): void
-    {
-        $arabicStaff = '+96171555111';
-        Driver::query()->forceCreate([
-            'merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'locale' => 'ar', 'phone' => $arabicStaff, 'whatsapp_number' => $arabicStaff,
-            'password' => 'x', 'status' => 'on_duty', 'availability' => 'available', 'is_active' => true,
-        ]);
-        $this->staffWroteToShop($this->merchant, $arabicStaff, now()->subHour());
-        $order = $this->order();
-        $order->items()->first()->forceFill(['product_name' => 'Shawarma — extra garlic', 'note' => 'extra garlic'])->save();
-
-        NotifyStaffOfOrder::dispatchSync($order->id);
-
-        $this->assertStringContainsString('Shawarma — extra garlic', $this->lastTo($arabicStaff)['text']);
-    }
-
-    public function test_silent_staff_get_the_ticket_as_a_template_and_can_accept_from_it(): void
-    {
-        $this->staffWroteAt(now()->subHours(30));
-        $this->approveTemplates();
-
-        $order = $this->order();
-
-        $this->assertSame('placed', $order->status);
-        $ticket = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame(ShopTemplateService::NEW_ORDER, $ticket['template']['name']);
-        $this->assertSame(['1', 'Beirut Bites'], array_slice(array_column($ticket['template']['components'][0]['parameters'], 'text'), 0, 2));
-        $this->assertStringNotContainsString("\n", $ticket['template']['components'][0]['parameters'][2]['text']);
-        $this->assertSame(["stf:accept:{$order->id}", "stf:reject:{$order->id}"], [
-            $ticket['template']['components'][1]['parameters'][0]['payload'],
-            $ticket['template']['components'][2]['parameters'][0]['payload'],
-        ]);
-
-        // A template's quick reply comes back as a "button" message with the payload.
-        $this->receive(['type' => 'button', 'button' => ['payload' => "stf:accept:{$order->id}", 'text' => 'Accept']], self::STAFF);
-
-        $this->assertSame('confirmed', $order->fresh()->status);
-        $this->assertStringContainsString('accepted your order #1', $this->lastTo(self::CUSTOMER)['text']);
-    }
-
-    public function test_bot_accepts_when_no_ticket_could_be_sent(): void
-    {
-        $order = $this->order();
-        $this->assertSame('placed', $order->status);
-
-        $this->approveCustomerTemplates(CustomerTemplates::ACCEPTED);
-        $this->travel(25)->hours();
-        NotifyStaffOfOrder::dispatchSync($order->id);
-
-        $this->assertSame('confirmed', $order->fresh()->status);
-        // The customer wrote 25 hours ago: plain text would be dropped, so the approved template goes.
-        $template = $this->lastTemplateTo(self::CUSTOMER);
-        $this->assertSame('neotalab_c_order_accepted_en', $template['template']['name']);
-        $this->assertSame(['Beirut Bites', '1'], array_slice(array_column($template['template']['components'][0]['parameters'], 'text'), 0, 2));
-    }
-
-    public function test_a_customer_out_of_the_window_without_an_approved_template_is_never_sent_plain_text(): void
-    {
-        $order = $this->order();
-        $this->travel(25)->hours();
-        NotifyStaffOfOrder::dispatchSync($order->id);
-
-        $this->assertSame('confirmed', $order->fresh()->status);
-        $this->assertStringStartsWith('🧾 Order #1 sent', $this->lastTo(self::CUSTOMER)['text'], 'nothing new reached the customer');
-        $this->assertNull($this->lastTemplateTo(self::CUSTOMER));
-        $alert = SystemAlert::query()->where('message', 'like', '%was not told about "order_accepted"%')->first();
-        $this->assertNotNull($alert, 'the owner is told, so the shop can write to the customer');
-        $this->assertSame($this->merchant->id, $alert->merchant_id);
     }
 
     public function test_a_customer_inside_the_window_still_gets_plain_text(): void
@@ -583,43 +446,6 @@ class ShopAcceptanceTest extends TestCase
         $this->settings(['bot' => $bot]);
     }
 
-    public function test_staff_out_of_the_window_are_told_the_customer_cancelled(): void
-    {
-        $order = $this->order();
-        $this->staffOutsideTheWindow(ShopTemplateService::CUSTOMER_CANCELLED);
-
-        NotifyStaffOfCancellation::dispatchSync($order->id);
-
-        $sent = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame(ShopTemplateService::CUSTOMER_CANCELLED, $sent['template']['name']);
-        $this->assertSame(['1', 'Beirut Bites', '+96170123456'], array_column($sent['template']['components'][0]['parameters'], 'text'));
-    }
-
-    public function test_staff_out_of_the_window_without_the_template_are_not_sent_plain_text(): void
-    {
-        $order = $this->order();
-        $this->staffOutsideTheWindow();
-
-        NotifyStaffOfCancellation::dispatchSync($order->id);
-
-        $this->assertNull($this->lastTemplateTo(self::STAFF));
-        $this->assertStringNotContainsString('cancelled by the customer', $this->lastTo(self::STAFF)['text'] ?? '');
-    }
-
-    public function test_a_scheduled_order_reaches_staff_out_of_the_window_by_template(): void
-    {
-        $order = $this->order();
-        $order->forceFill(['status' => 'confirmed', 'deliver_at' => now()->addHour(), 'promised_at' => now()->addHour(), 'fulfillment' => 'pickup'])->save();
-        $this->staffOutsideTheWindow(ShopTemplateService::SCHEDULED_DUE);
-
-        app()->call([new StartScheduledOrder($order->id), 'handle']);
-
-        $sent = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame(ShopTemplateService::SCHEDULED_DUE, $sent['template']['name']);
-        $this->assertSame('1', $sent['template']['components'][0]['parameters'][0]['text']);
-        $this->assertStringContainsString('is scheduled for', $this->lastTo(self::CUSTOMER)['text'] ?? '', 'the customer is reminded too (inside the window, as text)');
-    }
-
     public function test_a_scheduled_order_reminder_days_later_reaches_the_customer_by_template(): void
     {
         $this->approveCustomerTemplates(CustomerTemplates::SCHEDULED);
@@ -673,24 +499,6 @@ class ShopAcceptanceTest extends TestCase
         $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "drv:outside:{$order->id}", 'title' => 'x']]], '+96176000001');
 
         $this->assertSame(['neotalab_c_order_outside_en', ['Rami', '1', '+96176000001']], $this->customerTemplate());
-    }
-
-    public function test_arabic_staff_get_the_arabic_template_and_english_is_the_fallback(): void
-    {
-        $this->merchant->update(['locale' => 'ar']);
-        $order = $this->order();
-        $this->staffOutsideTheWindow(ShopTemplateService::CUSTOMER_CANCELLED);
-
-        NotifyStaffOfCancellation::dispatchSync($order->id);
-        $this->assertSame(ShopTemplateService::CUSTOMER_CANCELLED, $this->lastTemplateTo(self::STAFF)['template']['name'], 'only English is approved: English goes out');
-
-        $bot = $this->merchant->fresh()->settings['bot'];
-        $bot['templates'][ShopTemplateService::CUSTOMER_CANCELLED.'_ar'] = ['status' => 'APPROVED'];
-        $this->settings(['bot' => $bot]);
-        NotifyStaffOfCancellation::dispatchSync($order->id);
-        $sent = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame('neotalab_customer_cancelled_ar', $sent['template']['name']);
-        $this->assertSame('ar', $sent['template']['language']['code']);
     }
 
     public function test_a_thank_you_days_later_is_skipped_without_bothering_the_owner(): void
@@ -749,16 +557,13 @@ class ShopAcceptanceTest extends TestCase
 
     // ── photos ──────────────────────────────────────────────────────────────
 
-    public function test_a_photo_pauses_the_bot_and_alerts_the_staff(): void
+    public function test_a_photo_pauses_the_bot(): void
     {
         $this->receive(['type' => 'image', 'image' => ['id' => 'media-1', 'mime_type' => 'image/jpeg']], self::CUSTOMER);
 
         $this->assertStringContainsString('we got your photo', $this->lastTo(self::CUSTOMER)['text']);
         $customer = Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->sole();
         $this->assertTrue($customer->bot_paused_until->isFuture());
-        $alert = $this->lastTo(self::STAFF);
-        $this->assertStringContainsString('sent a photo', $alert['text']);
-        $this->assertSame(["stf:resume:{$customer->id}"], $alert['buttons']);
 
         // The bot does not answer the chat itself until the staff hand it back: the customer gets
         // one short note from the team, then nothing more for ten minutes (no flooding).
@@ -771,170 +576,10 @@ class ShopAcceptanceTest extends TestCase
         $this->assertSame($before + 1, Http::recorded()->count());
     }
 
-    public function test_silent_staff_get_the_photo_alert_as_a_template(): void
-    {
-        $this->staffWroteAt(now()->subHours(30));
-        $this->approveTemplates();
-
-        $this->receive(['type' => 'image', 'image' => ['id' => 'media-1', 'mime_type' => 'image/jpeg']], self::CUSTOMER);
-
-        $alert = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame(ShopTemplateService::STAFF_ALERT, $alert['template']['name']);
-        $this->assertSame(['Beirut Bites', self::CUSTOMER.' sent a photo'], array_column($alert['template']['components'][0]['parameters'], 'text'));
-    }
-
-    public function test_a_photo_gets_the_menu_when_no_staff_can_be_alerted(): void
-    {
-        $this->staffWroteAt(now()->subHours(30));
-
-        $this->receive(['type' => 'image', 'image' => ['id' => 'media-1', 'mime_type' => 'image/jpeg']], self::CUSTOMER);
-
-        $this->assertStringContainsString("can't open photos", $this->lastTo(self::CUSTOMER)['text']);
-        $this->assertNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->value('bot_paused_until'));
-    }
-
-    // ── job stages ──────────────────────────────────────────────────────────
-
-    private function stagedShop(): void
-    {
-        $this->settings(['job_stages' => ['Car received', 'Work in progress', 'Ready for pickup']]);
-    }
-
-    /** An order the shop accepted (the staff tapped Accept). */
-    private function acceptedOrder(): Order
-    {
-        $order = $this->order();
-        $this->tap("stf:accept:{$order->id}");
-
-        return $order->fresh();
-    }
-
     /** @return array<string, mixed> the last raw message sent to the phone */
     private function lastRaw(string $phone): array
     {
         return Http::recorded()->map(fn ($p) => $p[0])
             ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && $r['to'] === ltrim($phone, '+'))->last()?->data() ?? [];
-    }
-
-    public function test_a_shop_with_job_stages_gets_a_job_card_when_it_accepts(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-
-        $card = $this->lastRaw(self::STAFF);
-        $this->assertStringContainsString('Job #1', $card['interactive']['body']['text']);
-        $this->assertStringContainsString('Stage: not started', $card['interactive']['body']['text']);
-        $this->assertSame(["stf:job_next:{$order->id}", "stf:job_pick:{$order->id}", "stf:picked_up:{$order->id}"],
-            array_column(array_column($card['interactive']['action']['buttons'], 'reply'), 'id'));
-    }
-
-    public function test_next_stage_moves_the_job_on_tells_the_customer_and_shows_in_tracking(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-
-        $this->tap("stf:job_next:{$order->id}");
-        $this->assertSame(0, $order->fresh()->job_stage);
-        $this->assertStringContainsString('Update on your order #1 at Beirut Bites: Car received', $this->lastTo(self::CUSTOMER)['text']);
-        $this->assertStringContainsString('Stage: Car received', $this->lastRaw(self::STAFF)['interactive']['body']['text']);
-
-        $this->tap("stf:job_next:{$order->id}");
-        $this->assertSame(1, $order->fresh()->job_stage);
-
-        $this->customerTaps("trk:{$order->id}");
-        $this->assertStringContainsString('Job stage: Work in progress', $this->lastTo(self::CUSTOMER)['text']);
-    }
-
-    public function test_at_the_last_stage_next_stage_answers_that_there_is_none(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-        $order->forceFill(['job_stage' => 2])->save();
-
-        $this->tap("stf:job_next:{$order->id}");
-
-        $this->assertSame(2, $order->fresh()->job_stage);
-        $this->assertStringContainsString('already at its last stage', $this->lastTo(self::STAFF)['text']);
-    }
-
-    public function test_all_stages_lists_them_and_a_pick_moves_the_job_there(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-
-        $this->tap("stf:job_pick:{$order->id}");
-        $list = $this->lastRaw(self::STAFF);
-        $this->assertSame('list', $list['interactive']['type']);
-        $this->assertSame(["stf:job_set:{$order->id}:0", "stf:job_set:{$order->id}:1", "stf:job_set:{$order->id}:2"],
-            array_column($list['interactive']['action']['sections'][0]['rows'], 'id'));
-
-        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'list_reply', 'list_reply' => ['id' => "stf:job_set:{$order->id}:2", 'title' => 'x']]], self::STAFF);
-        $this->assertSame(2, $order->fresh()->job_stage);
-        $this->assertStringContainsString('Ready for pickup', $this->lastTo(self::CUSTOMER)['text']);
-    }
-
-    public function test_a_closed_order_cannot_be_moved_on(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-        $order->forceFill(['status' => 'delivered'])->save();
-
-        $this->tap("stf:job_next:{$order->id}");
-
-        $this->assertNull($order->fresh()->job_stage);
-        $this->assertStringContainsString('is closed', $this->lastTo(self::STAFF)['text']);
-    }
-
-    public function test_a_shop_without_stages_is_not_changed(): void
-    {
-        $order = $this->acceptedOrder();
-
-        $this->assertStringNotContainsString('Job #', $this->lastRaw(self::STAFF)['interactive']['body']['text'] ?? '');
-        $this->tap("stf:job_next:{$order->id}");
-        $this->assertNull($order->fresh()->job_stage);
-    }
-
-    public function test_the_stage_update_reaches_the_customer_by_template_after_two_days(): void
-    {
-        $this->stagedShop();
-        $this->approveCustomerTemplates(CustomerTemplates::JOB_STAGE);
-        $order = $this->acceptedOrder();
-        $this->travel(2)->days();
-        $this->staffWroteAt(now()->subMinute());
-
-        $this->tap("stf:job_next:{$order->id}");
-
-        $this->assertSame(['neotalab_c_job_stage_en', ['1', 'Beirut Bites', 'Car received']], $this->customerTemplate());
-    }
-
-    public function test_the_job_card_reaches_staff_out_of_the_window_as_the_template_with_three_buttons(): void
-    {
-        $this->stagedShop();
-        $order = $this->acceptedOrder();
-        WhatsAppMessage::query()->withoutGlobalScopes()->where('from_number', self::STAFF)->delete(); // the Accept tap was a recent message
-        $this->staffOutsideTheWindow(ShopTemplateService::JOB_CARD);
-
-        NotifyStaffOfOrder::dispatchSync($order->id);
-
-        $sent = $this->lastTemplateTo(self::STAFF);
-        $this->assertSame(ShopTemplateService::JOB_CARD, $sent['template']['name']);
-        $this->assertSame(['1', 'Beirut Bites'], array_slice(array_column($sent['template']['components'][0]['parameters'], 'text'), 0, 2));
-        $this->assertCount(3, array_filter($sent['template']['components'], fn ($c) => $c['type'] === 'button'));
-    }
-
-    public function test_a_shop_without_staff_gives_the_job_card_to_its_owner_who_moves_the_job_on(): void
-    {
-        $this->stagedShop();
-        Driver::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->delete();
-        $this->merchant->update(['whatsapp_number' => '+96171000999', 'phone' => '+96171000999', 'settings' => array_merge($this->merchant->fresh()->settings, ['ops_whatsapp' => '+96171000999'])]);
-        $this->staffWroteToShop($this->merchant, '+96171000999');
-
-        $order = $this->order(); // no staff: the bot accepts it itself, and the owner gets the job card
-        $card = $this->lastRaw('+96171000999');
-        $this->assertStringContainsString('Job #1', $card['interactive']['body']['text'] ?? '');
-
-        $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => "stf:job_next:{$order->id}", 'title' => 'x']]], '+96171000999');
-        $this->assertSame(0, $order->fresh()->job_stage);
-        $this->assertStringContainsString('Car received', $this->lastTo(self::CUSTOMER)['text']);
     }
 }

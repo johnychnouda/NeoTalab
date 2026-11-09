@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\CheckLateOrder;
+use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\CheckWhishTransfer;
 use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -21,6 +24,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use ReflectionMethod;
 use Tests\Concerns\InteractsWithTenants;
@@ -28,7 +32,7 @@ use Tests\TestCase;
 
 class CheckoutTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private Merchant $merchant;
 
@@ -44,6 +48,7 @@ class CheckoutTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',
@@ -85,16 +90,44 @@ class CheckoutTest extends TestCase
         return Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id);
     }
 
+    public function test_with_auto_accept_the_assistant_accepts_the_order_itself(): void
+    {
+        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true])]);
+        $this->zone('Hamra', 2);
+
+        $this->say('add 2 shawarma');
+        $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
+
+        $order = $this->orders()->sole();
+        $this->assertSame('confirmed', $order->status, 'nobody has to tap or type anything');
+        $this->assertNotNull($order->accepted_at);
+    }
+
+    public function test_with_auto_accept_a_whish_order_gets_its_payment_instructions_at_once(): void
+    {
+        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true, 'whish' => ['number' => '70123456']])]);
+        $this->zone('Hamra', 2);
+
+        $this->say('add 2 shawarma');
+        $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | whish | USD');
+
+        $order = $this->orders()->sole();
+        $this->assertSame('pending_payment', $order->status);
+        $this->assertStringNotContainsString('catch that', $this->lastReply(), 'no stray "not understood" after the order');
+    }
+
     public function test_customer_places_order_over_whatsapp(): void
     {
         $this->zone('Hamra', 2);
 
         $this->say('add 2 shawarma');
         $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
+        $this->assertSame('placed', $this->orders()->sole()->status, 'the shop accepts every order itself');
+        $this->shopTypes('96170123456', '✅');
 
         $order = $this->orders()->with('items')->sole();
         $this->assertSame(1, $order->number);
-        $this->assertSame('confirmed', $order->status, 'the bot accepts orders itself');
+        $this->assertSame('confirmed', $order->status);
         $this->assertSame(30, $order->eta_mins);
         $this->assertEquals(10.00, (float) $order->subtotal);
         $this->assertEquals(2.00, (float) $order->delivery_fee);
@@ -104,9 +137,7 @@ class CheckoutTest extends TestCase
         $this->assertSame('Shawarma', $order->items->sole()->product_name);
         $this->assertSame(2, $order->items->sole()->quantity);
 
-        $this->assertStringContainsString('Order #1 confirmed', $this->lastReply());
-        $this->assertStringContainsString('confirmed — preparing now, ready around', $this->lastReply());
-        $this->assertStringContainsString('12.00$', $this->lastReply());
+        $this->assertStringContainsString('accepted your order #1 — preparing now, ready around', $this->lastReply());
 
         $conversation = Conversation::query()->withoutGlobalScopes()->findOrFail($order->conversation_id);
         $this->assertSame(ConversationStatus::Closed, $conversation->status);
@@ -174,38 +205,6 @@ class CheckoutTest extends TestCase
 
         $this->assertSame(0, $this->orders()->count());
         $this->assertStringContainsString('minimum order for Hamra is 20.00$', $this->lastReply());
-    }
-
-    public function test_out_of_stock_item_blocks_checkout_and_stock_is_decremented(): void
-    {
-        $tracked = Product::factory()->forMerchant($this->merchant)->tracked(3)->create(['name' => 'Falafel', 'price' => 3]);
-
-        $this->say('add 2 falafel', '96170000001');
-        $this->say('add 2 falafel', '96170000002');
-        $this->say('confirm | | Address one 1', '96170000001');
-        $this->assertSame(1, $tracked->fresh()->stock_quantity);
-
-        $this->say('confirm | | Address two 2', '96170000002');
-        $this->assertSame(1, $this->orders()->count());
-        $this->assertStringContainsString('"Falafel" is no longer available', $this->lastReply());
-    }
-
-    public function test_last_item_taken_while_the_order_is_saved_is_not_sold_twice(): void
-    {
-        $tracked = Product::factory()->forMerchant($this->merchant)->tracked(1)->create(['name' => 'Kunafa', 'price' => 3]);
-        $this->say('add 1 kunafa');
-
-        // Another customer's checkout takes the last one after this checkout's stock check
-        // but before its order is written (what parallel workers can do on MySQL).
-        Order::creating(function () use ($tracked) {
-            Product::query()->withoutGlobalScopes()->whereKey($tracked->id)->update(['stock_quantity' => 0]);
-        });
-        $this->say('confirm | | Address one 1');
-
-        $this->assertSame(0, $this->orders()->count(), 'the order is rolled back');
-        // (the simulated buyer ran inside this transaction, so its change was rolled back too)
-        $this->assertGreaterThanOrEqual(0, $tracked->fresh()->stock_quantity, 'stock never goes below zero');
-        $this->assertStringContainsString('"Kunafa" is no longer available', $this->lastReply());
     }
 
     public function test_checkout_charges_todays_price_not_the_price_when_added(): void
@@ -303,6 +302,7 @@ class CheckoutTest extends TestCase
     {
         $this->say('add 1 shawarma');
         $this->say('confirm | | Bliss St, Building 4');
+        $this->shopTypes('96170123456', '✅');
         $order = $this->orders()->sole();
 
         $this->cancelFromShop($order, 'Out of bread');
@@ -317,6 +317,7 @@ class CheckoutTest extends TestCase
     {
         $this->say('add 1 shawarma');
         $this->say('confirm | | Bliss St, Building 4');
+        $this->shopTypes('96170123456', '✅');
         $order = $this->orders()->sole();
         $sentBefore = count(Http::recorded());
 

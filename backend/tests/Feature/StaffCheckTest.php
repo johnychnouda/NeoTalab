@@ -26,7 +26,7 @@ use Tests\TestCase;
  */
 class StaffCheckTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '+96170123456';
 
@@ -56,9 +56,7 @@ class StaffCheckTest extends TestCase
 
     private function staff(): void
     {
-        Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Cashier', 'role' => 'staff', 'phone' => self::STAFF,
-            'whatsapp_number' => self::STAFF, 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
-        $this->staffWroteToShop($this->merchant, self::STAFF);
+        // The shop phone needs no setup: it answers by typing ✅ or ❌ in the customer's chat.
     }
 
     private function receive(array $msg, string $from = self::CUSTOMER): void
@@ -76,6 +74,12 @@ class StaffCheckTest extends TestCase
 
     private function tap(string $id, string $from = self::CUSTOMER): void
     {
+        if (str_starts_with($id, 'stf:')) {
+            $this->shopTap($id);
+
+            return;
+        }
+
         $this->receive(['type' => 'interactive', 'interactive' => ['type' => 'button_reply', 'button_reply' => ['id' => $id, 'title' => 'x']]], $from);
     }
 
@@ -111,16 +115,13 @@ class StaffCheckTest extends TestCase
         return (int) $this->customer()->conversations()->withoutGlobalScopes()->latest()->first()?->cart?->items()->withoutGlobalScopes()->count();
     }
 
-    public function test_the_bot_asks_for_the_check_and_the_staff_get_approve_and_refuse(): void
+    public function test_the_bot_asks_the_customer_to_wait_for_the_shops_check(): void
     {
         $this->staff();
         $this->say('add 1 Cigarettes');
 
         $this->assertSame(0, $this->cartCount(), 'never added without the team');
         $this->assertStringContainsString('needs a check by our team', $this->body($this->lastTo(self::CUSTOMER)));
-        $ticket = $this->lastTo(self::STAFF);
-        $this->assertStringContainsString('Cigarettes', $this->body($ticket));
-        $this->assertSame("stf:approve:{$this->customer()->id}:{$this->antibiotic->id}", $ticket['interactive']['action']['buttons'][0]['reply']['id']);
         $this->assertSame((string) $this->antibiotic->id, $this->customer()->hasPendingCheck());
 
         // Ordinary items still go straight in.
@@ -137,7 +138,6 @@ class StaffCheckTest extends TestCase
         $told = $this->lastTo(self::CUSTOMER);
         $this->assertStringContainsString('approved', $this->body($told));
         $this->assertStringContainsString('Just ask me for it', $this->body($told));
-        $this->assertStringContainsString('approved for', $this->body($this->lastTo(self::STAFF)));
 
         $this->say('add 1 Cigarettes');
         $this->assertSame(1, $this->cartCount());

@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Customer;
+use App\Models\Merchant;
+use App\Models\Order;
+use App\Models\Product;
+use App\Services\WhatsApp\WhatsAppService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * The shop answers from the shop phone, in the customer's own chat, by typing: ✅ accepts (or confirms the Whish money),
+ * ❌ refuses, "ready", "out", "done" and "delay" move the order on, "refunded" closes a refund. Nothing to tap and
+ * nothing for the customer to see: the messages the customer already gets are the cue.
+ */
+class ShopCommands
+{
+    public const ACCEPT = ['✅', '✔', '✔️', '☑', '☑️', '👍'];
+
+    public const REFUSE = ['❌', '✖', '✖️', '👎'];
+
+    private const READY = ['ready', 'جاهز', 'prêt', 'pret'];
+
+    private const OUT = ['out', 'on the way', 'out for delivery', 'في الطريق', 'طالع', 'en route', 'parti'];
+
+    private const DONE = ['done', 'delivered', 'collected', 'تم', 'تم التسليم', 'livré', 'livre', 'récupéré', 'recupere'];
+
+    private const DELAY = ['delay', 'delay 1 day', 'تأجيل', 'reporter'];
+
+    private const OPEN = ['confirmed', 'preparing', 'ready', 'assigned', 'picked_up'];
+
+    public function __construct(
+        protected OrderConfirmation $confirmation,
+        protected OrderService $orders,
+        protected WhatsAppService $whatsapp,
+    ) {}
+
+    /** Whether the typed text was a shop command for this customer's chat (and has been carried out). */
+    public function handle(Merchant $merchant, string $customerPhone, string $typed): bool
+    {
+        $text = mb_strtolower(trim(preg_replace('/[.!]+$/u', '', $typed) ?? ''));
+        if ($text === '') {
+            return false;
+        }
+        $customer = Customer::query()->where('phone', $customerPhone)->first();
+        if (! $customer) {
+            return false;
+        }
+
+        if (preg_match('/^(?:refunded|refund done|مسترد|remboursé|rembourse)\s*#?\s*(\d+)?$/iu', $text, $m)) {
+            return $this->refunded($customer, isset($m[1]) ? (int) $m[1] : null);
+        }
+        if (in_array($text, self::ACCEPT, true) || in_array($text, self::REFUSE, true)) {
+            return $this->answer($merchant, $customer, in_array($text, self::ACCEPT, true));
+        }
+
+        $action = match (true) {
+            in_array($text, self::READY, true) => 'ready',
+            in_array($text, self::OUT, true) => 'picked_up',
+            in_array($text, self::DONE, true) => 'delivered',
+            in_array($text, self::DELAY, true) => 'delay',
+            default => null,
+        };
+
+        return $action !== null && $this->move($merchant, $customer, $action);
+    }
+
+    /** ✅ / ❌: the order waiting for the shop, else the Whish payment waiting to be checked, else an item waiting for the team's check. */
+    protected function answer(Merchant $merchant, Customer $customer, bool $yes): bool
+    {
+        $mine = Order::query()->where('customer_id', $customer->id);
+
+        $waiting = (clone $mine)->where('status', 'placed')->where('created_at', '>=', now()->subHours(6))->latest()->first();
+        if ($waiting) {
+            $this->run(fn () => $yes
+                ? $this->confirmation->accept($merchant, $waiting)
+                : $this->orders->transition($merchant, $waiting->id, 'reject'), $waiting);
+
+            return true;
+        }
+
+        $paying = (clone $mine)->where('payment_status', 'awaiting_check')->latest()->first();
+        if ($paying) {
+            $this->run(fn () => $yes
+                ? $this->confirmation->shopConfirms($merchant, $paying)
+                : $this->confirmation->shopRefuses($merchant, $paying), $paying);
+
+            return true;
+        }
+
+        $productId = $customer->hasPendingCheck();
+        $product = $productId ? Product::query()->find($productId) : null;
+        if ($product) {
+            $this->answerCheck($merchant, $customer, $product, $yes);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /** ready / out / done / delay on the customer's open order. */
+    protected function move(Merchant $merchant, Customer $customer, string $action): bool
+    {
+        $order = Order::query()->where('customer_id', $customer->id)->whereIn('status', self::OPEN)->latest()->first();
+        if (! $order) {
+            return false;
+        }
+
+        $this->run(fn () => $action === 'delay'
+            ? $this->confirmation->delay($merchant, $order)
+            : $this->orders->transition($merchant, $order->id, $action), $order);
+
+        return true;
+    }
+
+    protected function refunded(Customer $customer, ?int $number): bool
+    {
+        $order = Order::query()->where('customer_id', $customer->id)->where('payment_status', 'refund_due')
+            ->when($number !== null, fn ($q) => $q->where('number', $number))->latest()->first();
+        if (! $order) {
+            return false;
+        }
+        $order->forceFill(['payment_status' => 'refunded'])->save();
+
+        return true;
+    }
+
+    /** The shop approved or refused an item for a customer: the customer is told (an approval lasts a day, for one order). */
+    public function answerCheck(Merchant $merchant, Customer $customer, Product $product, bool $approve): void
+    {
+        if ($approve) {
+            $customer->markCheck($product->id, true);
+        } else {
+            $customer->useApproval($product->id);
+        }
+        $customer->forceFill(['bot_paused_until' => null])->save();
+
+        $text = __($approve ? 'whatsapp.check.approved' : 'whatsapp.check.refused', ['item' => $product->name, 'shop' => $merchant->name], $customer->locale ?? 'en');
+        try {
+            $this->whatsapp->sendToCustomer($merchant, (string) $customer->phone, ['type' => 'text', 'text' => $text]);
+        } catch (\Throwable $e) {
+            Log::warning('Check answer not delivered to the customer', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    private function run(\Closure $do, Order $order): void
+    {
+        try {
+            $do();
+        } catch (ValidationException $e) {
+            Log::info('Shop command refused', ['order_id' => $order->id, 'error' => collect($e->errors())->flatten()->first()]);
+        } catch (\Throwable $e) {
+            Log::warning('Shop command failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+        }
+    }
+}

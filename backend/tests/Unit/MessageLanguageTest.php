@@ -18,6 +18,13 @@ class MessageLanguageTest extends TestCase
         $this->assertNull(MessageLanguage::detect('2'));
     }
 
+    public function test_short_french_phrases_are_not_taken_for_arabizi(): void
+    {
+        $this->assertSame('fr', MessageLanguage::detect("C'est tout, merci"));
+        $this->assertSame('fr', MessageLanguage::detect('Merci beaucoup'));
+        $this->assertSame('arabizi', MessageLanguage::detect('baddi 2 shawarma merci'));
+    }
+
     public function test_a_reply_in_another_language_is_caught(): void
     {
         $this->assertTrue(MessageLanguage::mismatch('en', 'أحتاج أن أتحقق من القائمة لأخبرك'));

@@ -16,11 +16,10 @@ check("wrong password refused", code == 422, code)
 
 SHOPS = [
     ("rest", "QA Manakish Corner", "Restaurant / Café", "+96170111001"),
-    ("pharm", "QA Pharmacy Cedar", "Pharmacy", "+96170111002"),
+    ("pharm", "QA Bakery Cedar", "Bakery / Sweets", "+96170111002"),
     ("grocer", "QA Supermarket Hamra", "Supermarket / Grocery", "+96170111003"),
-    ("retail", "QA Phone Shop", "Electronics / Phones", "+96170111004"),
-    ("whole", "QA Water Wholesale", "Water / Gas delivery", "+96170111005"),
-    ("salon", "QA Salon Rose", "Salon / Barber / Beauty", "+96170111006"),
+    ("retail", "QA Online Shop", "Online Shop / Retail", "+96170111004"),
+    ("whole", "QA Produce Wholesale", "Butcher / Fruits & Vegetables", "+96170111005"),
 ]
 s.setdefault("shops", {})
 for key, name, btype, wa in SHOPS:
@@ -36,6 +35,9 @@ for key, name, btype, wa in SHOPS:
     m = b["data"]
     s["shops"][key] = {"id": m["id"], "name": name, "wa": wa, "pw": pw, "phone_id": f"PNID{wa[-6:]}", "raw": {k: m.get(k) for k in ("loginEmail", "email", "slug", "status")}}
     save_state(s)
+# The lab restaurant answers each order itself (auto accept off), so the typed shop commands are exercised.
+if "rest" in s["shops"]:
+    tinker('$m = App\\Models\\Merchant::find("' + s["shops"]["rest"]["id"] + '"); $m->forceFill(["settings" => array_merge($m->settings ?? [], ["auto_accept" => false])])->save();')
 print(json.dumps({k: v["raw"] for k, v in s["shops"].items()}, indent=1))
 
 # duplicate number refused

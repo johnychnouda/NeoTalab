@@ -10,16 +10,12 @@ use App\Models\Merchant;
  */
 final class BusinessKind
 {
-    /** kind => [menu word, timing unit, business mode, suggested option groups, units]; sizes have their own section, never an option group. */
+    /** kind => [menu word, timing unit, suggested option groups, units]; sizes have their own section, never an option group. */
     public const KINDS = [
-        'restaurant' => ['menu', 'minutes', 'orders', ['Extras'], []],
-        'grocery' => ['products', 'minutes', 'orders', [], ['piece', 'kg', 'pack']],
-        'retail' => ['catalogue', 'days', 'orders', ['Color'], []],
-        'flowers' => ['products', 'hours', 'orders', ['Color'], []],
-        'water' => ['products', 'hours', 'orders', [], ['gallon', 'cylinder', 'pack']],
-        'laundry' => ['price_list', 'days', 'orders', ['Service'], ['piece', 'kg']],
-        'services' => ['services', 'minutes', 'appointments', [], []],
-        'other' => ['products', 'minutes', 'orders', [], []],
+        'restaurant' => ['menu', 'minutes', ['Extras'], []],
+        'grocery' => ['products', 'minutes', [], ['piece', 'kg', 'pack']],
+        'retail' => ['catalogue', 'days', ['Color'], []],
+        'other' => ['products', 'minutes', [], []],
     ];
 
     /** Business types offered at sign-up (stored in merchants.business_type) and their kind. */
@@ -28,19 +24,7 @@ final class BusinessKind
         'Bakery / Sweets' => 'restaurant',
         'Supermarket / Grocery' => 'grocery',
         'Butcher / Fruits & Vegetables' => 'grocery',
-        'Clothing / Shoes' => 'retail',
-        'Boutique / Clothing' => 'retail',
-        'Electronics / Phones' => 'retail',
-        'Electronics' => 'retail',
-        'Flowers / Gifts' => 'flowers',
-        'Flower Shop' => 'flowers',
-        'Water / Gas delivery' => 'water',
-        'Laundry / Dry cleaning' => 'laundry',
-        'Salon / Barber / Beauty' => 'services',
-        'Pet Shop' => 'retail',
-        'Home & Furniture' => 'retail',
-        'General Retail' => 'retail',
-        'Other' => 'other',
+        'Online Shop / Retail' => 'retail',
     ];
 
     public static function of(Merchant $merchant): string
@@ -57,14 +41,14 @@ final class BusinessKind
      * Medical businesses are not on the platform (no clinics, dentists, doctors or pharmacies).
      * New sign-ups with these types are refused by the server, not only hidden on the website.
      */
-    public const BLOCKED_TYPES = ['Pharmacy', 'Clinic / Dentist'];
+    public const BLOCKED_TYPES = ['Pharmacy', 'Clinic / Dentist', 'Water / Gas delivery', 'Laundry / Dry cleaning', 'Other', 'Clothing / Shoes', 'Electronics / Phones', 'Flowers / Gifts', 'Salon / Barber / Beauty', 'Pet Shop', 'Home & Furniture', 'General Retail'];
 
-    /** A validation rule: the type must not be a medical business. */
+    /** A validation rule: the type must not be one NeoTalab does not support. */
     public static function notBlocked(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail) {
             if (is_string($value) && self::blocked($value)) {
-                $fail('Medical businesses (clinics, dentists, doctors, pharmacies) are not supported on NeoTalab.');
+                $fail('This type of business is not supported on NeoTalab.');
             }
         };
     }
@@ -75,14 +59,6 @@ final class BusinessKind
             || in_array(mb_strtolower(trim($type)), ['pharmacy', 'clinic', 'clinic / dentist', 'dentist', 'doctor', 'pharmacie', 'clinique'], true);
     }
 
-    /** Shops that quote a price for each job: repairs and custom work (laundry, tailoring, repairs). */
-    public static function quotes(Merchant $merchant): bool
-    {
-        // Laundry and any shop that switched it on in its settings (repairs, tailoring, custom work).
-        return (bool) (($merchant->settings ?? [])['quotes'] ?? false)
-            || (string) $merchant->business_type === 'Laundry / Dry cleaning';
-    }
-
     /**
      * Defaults written to merchants.settings when the kind is first set or changed.
      *
@@ -91,10 +67,9 @@ final class BusinessKind
      */
     public static function applyDefaults(array $settings, string $kind): array
     {
-        [, $timing, $mode] = self::KINDS[$kind] ?? self::KINDS['other'];
+        [, $timing] = self::KINDS[$kind] ?? self::KINDS['other'];
         $settings['business_kind'] = $kind;
         $settings['timing_unit'] = $timing;
-        $settings['business_mode'] = $mode;
 
         return $settings;
     }
@@ -102,7 +77,7 @@ final class BusinessKind
     /** @return array{word: string, option_suggestions: list<string>, units: list<string>} */
     public static function profile(Merchant $merchant): array
     {
-        [$word, , , $options, $units] = self::KINDS[self::of($merchant)];
+        [$word, , $options, $units] = self::KINDS[self::of($merchant)];
 
         return ['word' => $word, 'option_suggestions' => $options, 'units' => $units];
     }

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Casts\QuantityCast;
 use App\Models\Concerns\BelongsToTenant;
 use App\Support\CurrentTenant;
 use Database\Factories\ProductFactory;
@@ -30,13 +29,9 @@ class Product extends Model
         'offer_percent',
         'offer_starts_on',
         'offer_ends_on',
-        'duration_mins',
         'is_active',
         'is_available',
         'staff_check',
-        'track_inventory',
-        'stock_quantity',
-        'low_stock_threshold',
         'prep_time_mins',
         'sort_order',
         'attributes',
@@ -51,9 +46,6 @@ class Product extends Model
             'is_active' => 'boolean',
             'staff_check' => 'boolean',
             'is_available' => 'boolean',
-            'track_inventory' => 'boolean',
-            'stock_quantity' => QuantityCast::class,
-            'low_stock_threshold' => 'integer',
             'prep_time_mins' => 'integer',
             'sort_order' => 'integer',
             'attributes' => 'array',
@@ -63,12 +55,6 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
-    }
-
-    /** Stock per size and option (clothing), see App\Support\OptionStock. */
-    public function optionStocks(): HasMany
-    {
-        return $this->hasMany(ProductStock::class);
     }
 
     public function variants(): HasMany
@@ -81,9 +67,6 @@ class Product extends Model
         return $this->hasMany(ModifierGroup::class);
     }
 
-    /**
-     * Orderable right now: listed, not sold out, and (when counted) in stock.
-     */
     /**
      * The offer running today in the shop's timezone (percent off), or null.
      */
@@ -119,17 +102,6 @@ class Product extends Model
             return false;
         }
 
-        if ($this->track_inventory) {
-            return ($this->stock_quantity ?? 0) > 0;
-        }
-
         return true;
-    }
-
-    public function isLowStock(): bool
-    {
-        return $this->track_inventory
-            && $this->low_stock_threshold !== null
-            && ($this->stock_quantity ?? 0) <= $this->low_stock_threshold;
     }
 }

@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Driver;
 use App\Models\Merchant;
 use App\Models\Order;
-use App\Services\WhatsApp\StaffMessenger;
 use App\Support\Countries;
+use App\Support\WhatsAppWindow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -14,20 +14,18 @@ class DriverService
 {
     /**
      * Each member carries `reachable`: false when WhatsApp can't deliver new orders to them yet
-     * (outside the 24-hour window and no approved template), so the Team page can say so.
+     * (they have not messaged the shop number in the last 24 hours), so the Team page can say so.
      *
      * @return list<Driver>
      */
     public function list(Merchant $merchant): array
     {
-        $messenger = app(StaffMessenger::class);
-
         return Driver::query()
             ->where('merchant_id', $merchant->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->each(fn (Driver $d) => $d->setAttribute('reachable', $messenger->reachable($merchant, $d)))
+            ->each(fn (Driver $d) => $d->setAttribute('reachable', WhatsAppWindow::numberInWindow($merchant, $d->whatsapp_number, $d->phone)))
             ->all();
     }
 
@@ -46,7 +44,7 @@ class DriverService
         }
         if ($existing) {
             $existing->forceFill([
-                'name' => $data['name'], 'role' => $data['role'] ?? 'driver', 'locale' => $data['locale'] ?? null, 'phone' => $phone, 'whatsapp_number' => $phone,
+                'name' => $data['name'], 'role' => 'driver', 'locale' => $data['locale'] ?? null, 'phone' => $phone, 'whatsapp_number' => $phone,
                 'is_active' => true, 'status' => 'off_duty', 'availability' => 'available', 'cash_on_hand' => 0,
             ])->save();
 
@@ -56,7 +54,7 @@ class DriverService
         return Driver::create([
             'merchant_id' => $merchant->id,
             'name' => $data['name'],
-            'role' => $data['role'] ?? 'driver',
+            'role' => 'driver',
             'locale' => $data['locale'] ?? null,
             'phone' => $phone,
             'whatsapp_number' => $phone,
@@ -80,7 +78,6 @@ class DriverService
 
         $driver->forceFill([
             'name' => $data['name'] ?? $driver->name,
-            'role' => $data['role'] ?? $driver->role,
             'locale' => array_key_exists('locale', $data) ? ($data['locale'] ?: null) : $driver->locale,
             'phone' => $phone,
             'whatsapp_number' => $phone,

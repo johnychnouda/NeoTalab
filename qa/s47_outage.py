@@ -9,7 +9,7 @@ from lib import *
 assert "neotalab_qa_scale" in ENV["DB_DATABASE"], "refusing: not the scale lab"
 TARGET = sys.argv[1]; OUT = int(sys.argv[2]) if len(sys.argv) > 2 else 20
 LABD = os.path.join(QA, ".lab")
-PLAN = [p for p in json.load(open(f"{LAB}/scale/plan.json")) if p["type"] not in ("Salon / Barber / Beauty", "Laundry", "Optics", "Other")]
+PLAN = json.load(open(f"{LAB}/scale/plan.json"))
 RUN = int(time.time()) % 10000
 SH = os.path.join(LABD, "scale.sh")
 MYSQLD = ["/opt/homebrew/bin/mysqld", f"--datadir={LABD}/mysql/data", "--port=3399", f"--socket={LABD}/mysql/m.sock", "--mysqlx=OFF",
@@ -61,7 +61,7 @@ def kill_all(procs):
 
 
 for p in PLAN:
-    r = sql(f"select name from products where merchant_id='{p['id']}' and is_active=1 and is_available=1 and (track_inventory=0 or stock_quantity>0) and price>0 order by sort_order limit 1")
+    r = sql(f"select name from products where merchant_id='{p['id']}' and is_active=1 and is_available=1 and price>0 order by sort_order limit 1")
     p["item"] = r[0][0] if r else None
 PLAN = [p for p in PLAN if p["item"]]
 sql("delete from jobs; delete from failed_jobs")

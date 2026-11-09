@@ -21,7 +21,6 @@ class ProductVariantResource extends JsonResource
             'price' => $this->price,
             'is_active' => $this->is_active,
             'is_available' => $this->is_available,
-            'stock_quantity' => $this->stock_quantity,
             'sort_order' => $this->sort_order,
         ];
     }

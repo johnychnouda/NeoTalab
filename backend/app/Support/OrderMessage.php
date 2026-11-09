@@ -27,7 +27,7 @@ final class OrderMessage
             'number' => (string) ($order->number ?? strtoupper(substr($order->id, -6))),
             'total' => Money::format((float) $order->total, $merchant->currency),
             'currency' => (string) $merchant->currency,
-            'payment' => __($order->payment_method === 'whish' ? 'whatsapp.staff.pay_whish' : 'whatsapp.staff.pay_cash', [], $locale),
+            'payment' => __($order->payment_method === 'whish' ? 'whatsapp.shop.pay_whish' : 'whatsapp.shop.pay_cash', [], $locale),
             'items' => $order->items
                 ->map(fn ($i) => '• '.Quantity::line($i->quantity, $i->unit, self::lineName($i, $translateTo)).($i->modifiers ? ' ('.implode(', ', $i->modifiers).')' : ''))
                 ->implode("\n").self::extras($order, $merchant, $locale),

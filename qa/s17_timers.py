@@ -1,7 +1,7 @@
 """Timers on the real lab queue, fired early: order nobody accepts, late order."""
 from lib import *
 
-s = state(); R = s["shops"]["rest"]; PID = R["phone_id"]; STAFF = "96171222002"
+s = state(); R = s["shops"]["rest"]; PID = R["phone_id"]
 RUN = str(int(time.time()))[-5:]
 
 
@@ -24,7 +24,6 @@ def fire(job, order_id, final=None):
 
 
 suite("Timers: order nobody accepts")
-say(STAFF, text="hi")
 c = "9617981" + RUN
 say(c, text="add 1 zaatar manousheh")
 say(c, text="confirm | Hamra | Bliss street, building 12 | cash | USD | | delivery")
@@ -35,7 +34,7 @@ check("two timers queued (reminder, give up)", queued == 2, queued)
 t0 = time.time()
 fire("CheckUnacceptedOrder", o["id"], final=False)
 out = settle(t0, quiet=2.0, cap=20)
-check("reminder goes to the staff", any(x["body"].get("to", "").lstrip("+") == STAFF for x in out), texts(out))
+check("the reminder shows in the customer's chat on the shop phone", any("still waiting" in x for x in texts([y for y in out if y["body"].get("to", "").lstrip("+") == c])), texts(out))
 check("order still waiting after the reminder", order(c)["status"] == "placed")
 t0 = time.time()
 fire("CheckUnacceptedOrder", o["id"], final=True)
@@ -50,8 +49,8 @@ c2 = "9617982" + RUN
 say(c2, text="add 1 zaatar manousheh")
 say(c2, text="confirm | Hamra | Bliss street, building 12 | cash | USD | | delivery")
 o2 = order(c2)
-code, mid, t0 = wa_msg(PID, STAFF, button=f"stf:accept:{o2['id']}"); settle(t0)
-check("staff accepted", order(c2)["status"] == "confirmed")
+shop_tap(PID, f"stf:accept:{o2['id']}")
+check("the shop accepted", order(c2)["status"] == "confirmed")
 t0 = time.time(); fire("CheckUnacceptedOrder", o2["id"]); settle(t0, quiet=2.0, cap=15)
 check("timers after acceptance change nothing", order(c2)["status"] == "confirmed", order(c2))
 

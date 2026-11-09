@@ -14,7 +14,7 @@ class ShopHour extends Model
 
     /**
      * A shop that never saved its hours is open every day between these: what the dashboard shows
-     * is what the bot does (orders, bookings, the AI's answers).
+     * is what the bot does (orders, the AI's answers).
      */
     public const DEFAULT_OPEN = '09:00';
 

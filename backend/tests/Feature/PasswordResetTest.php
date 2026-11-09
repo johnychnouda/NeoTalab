@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,18 +43,6 @@ class PasswordResetTest extends TestCase
 
         $this->postJson('/api/v1/auth/forgot-password', ['email' => 'nobody@example.com'])
             ->assertOk()->assertJsonPath('message', 'If that email has an account, a reset link is on its way.');
-
-        Notification::assertNothingSent();
-    }
-
-    public function test_team_members_get_no_reset_link(): void
-    {
-        Notification::fake();
-        [$merchant] = $this->merchantWithUser();
-        $staff = User::factory()->forMerchant($merchant)->create();
-        $staff->assignRole(Roles::MERCHANT_STAFF);
-
-        $this->postJson('/api/v1/auth/forgot-password', ['email' => $staff->email])->assertOk();
 
         Notification::assertNothingSent();
     }

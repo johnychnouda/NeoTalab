@@ -11,7 +11,6 @@ use App\Services\AI\CatalogResolver;
 use App\Services\AI\DTO\CartAction;
 use App\Services\AI\DTO\CartLineSnapshot;
 use App\Support\Conversation\CartStatus;
-use App\Support\OptionStock;
 use App\Support\Quantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -121,10 +120,6 @@ class CartService
             throw new InvalidArgumentException('Product is not orderable.');
         }
 
-        if ($product->duration_mins) {
-            throw new InvalidArgumentException('Services are booked as appointments, not added to the cart.');
-        }
-
         // Items the team must check first (age-limited): only once the team approved it for this customer.
         if ($product->staff_check && ! $cart->conversation?->customer?->isApproved($product->id)) {
             throw new InvalidArgumentException(self::NEEDS_CHECK);
@@ -134,7 +129,7 @@ class CartService
         if ($action->variantId && ! $variant) {
             throw new InvalidArgumentException('Variant not found for this product.');
         }
-        if ($variant && (! $variant->isOffered() || ! $variant->hasStockFor($product, 1))) {
+        if ($variant && ! $variant->isOffered()) {
             throw new InvalidArgumentException('This size is not available.');
         }
 
@@ -144,9 +139,6 @@ class CartService
         }
 
         $this->requireChoices($product, $variant, $modifiers);
-        if (! OptionStock::has($product, $variant?->id, $modifiers->pluck('id')->all(), 1)) {
-            throw new InvalidArgumentException('This size and option is sold out: offer another one.');
-        }
 
         $qty = Quantity::normalize($action->quantity, $product);
         $this->noteRounding($product->name, $action->quantity, $qty, $product);

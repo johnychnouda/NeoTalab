@@ -10,7 +10,6 @@ use App\Models\Order;
 use App\Services\MerchantSettingsService;
 use App\Support\CurrentTenant;
 use App\Support\Roles;
-use App\Support\ShopSettings;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
@@ -100,13 +99,12 @@ class BackofficeWiringTest extends TestCase
 
         $this->withToken($this->tokenFor($this->platformAdmin()))
             ->patchJson("/api/v1/admin/merchants/{$merchant->id}", [
-                'businessType' => 'Salon / Barber / Beauty', 'region' => 'Beirut', 'city' => 'Hamra', 'street' => 'Bliss St',
+                'businessType' => 'Supermarket / Grocery', 'region' => 'Beirut', 'city' => 'Hamra', 'street' => 'Bliss St',
             ])->assertOk();
 
         $merchant->refresh();
-        $this->assertSame('Salon / Barber / Beauty', $merchant->business_type);
-        $this->assertSame('services', $merchant->settings['business_kind']);
-        $this->assertSame('appointments', $merchant->settings['business_mode']);
+        $this->assertSame('Supermarket / Grocery', $merchant->business_type);
+        $this->assertSame('grocery', $merchant->settings['business_kind']);
         $this->assertSame('Hamra', $merchant->settings['city']);
     }
 
@@ -201,7 +199,7 @@ class BackofficeWiringTest extends TestCase
         [, $owner] = $this->merchantWithUser();
         $token = $this->tokenFor($owner);
 
-        $id = $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '70 123 456', 'role' => 'staff'])
+        $id = $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '70 123 456'])
             ->assertCreated()->json('driver.id');
         $this->assertDatabaseHas('drivers', ['id' => $id, 'phone' => '+96170123456', 'whatsapp_number' => '+96170123456']);
 
@@ -211,8 +209,8 @@ class BackofficeWiringTest extends TestCase
         $this->assertDatabaseHas('drivers', ['id' => $id, 'name' => 'Rami K.', 'phone' => '+9613123456', 'role' => 'driver']);
 
         $this->withToken($token)->deleteJson("/api/v1/drivers/{$id}")->assertOk();
-        $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '03123456', 'role' => 'staff'])->assertCreated();
-        $this->assertDatabaseHas('drivers', ['id' => $id, 'is_active' => true, 'role' => 'staff']);
+        $this->withToken($token)->postJson('/api/v1/drivers', ['name' => 'Rami', 'phone' => '03123456'])->assertCreated();
+        $this->assertDatabaseHas('drivers', ['id' => $id, 'is_active' => true, 'role' => 'driver']);
     }
 
     public function test_admin_onboarding_flow(): void
@@ -338,25 +336,5 @@ class BackofficeWiringTest extends TestCase
             'country' => 'LB',
             'acceptedTerms' => true,
         ])->assertUnprocessable();
-    }
-
-    public function test_job_steps_and_the_deposit_are_saved_cleaned_and_limited(): void
-    {
-        [$merchant, $owner] = $this->merchantWithUser();
-        $token = $this->tokenFor($owner);
-
-        $this->withToken($token)->patchJson('/api/v1/settings/profile', ['job_stages' => ['  Car   received ', '', 'Work in progress'], 'deposit_percent' => 30])->assertOk();
-        $profile = $this->withToken($token)->getJson('/api/v1/settings/profile')->json('profile');
-        $this->assertSame(['Car   received', null, 'Work in progress'], $profile['job_stages'], 'trimmed by the server, empty lines kept as nothing');
-        $this->assertSame(['Car received', 'Work in progress'], ShopSettings::for($merchant->fresh())->jobStages(), 'read back trimmed, without empty lines');
-        $this->assertSame(30, ShopSettings::for($merchant->fresh())->depositPercent());
-
-        $this->withToken($token)->patchJson('/api/v1/settings/profile', ['job_stages' => array_fill(0, 9, 'Step')])->assertStatus(422)->assertJsonValidationErrorFor('job_stages');
-        $this->withToken($token)->patchJson('/api/v1/settings/profile', ['job_stages' => [str_repeat('x', 41)]])->assertStatus(422);
-        $this->withToken($token)->patchJson('/api/v1/settings/profile', ['deposit_percent' => 150])->assertStatus(422)->assertJsonValidationErrorFor('deposit_percent');
-
-        // A percent below 5 means no deposit rather than a tiny one.
-        $this->withToken($token)->patchJson('/api/v1/settings/profile', ['deposit_percent' => 3])->assertOk();
-        $this->assertSame(0, ShopSettings::for($merchant->fresh())->depositPercent());
     }
 }

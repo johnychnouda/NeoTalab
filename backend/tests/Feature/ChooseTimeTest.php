@@ -13,7 +13,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShopHour;
 use App\Services\OrderConfirmation;
-use App\Services\WhatsApp\StaffMessenger;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\CurrentTenant;
 use App\Support\DeliverySchedule;
@@ -34,7 +33,7 @@ use Tests\TestCase;
  */
 class ChooseTimeTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '+96170123456';
 
@@ -63,7 +62,6 @@ class ChooseTimeTest extends TestCase
         DeliveryZone::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Hamra', 'delivery_fee' => 3, 'minimum_order' => 0, 'is_active' => true]);
         Driver::query()->forceCreate(['merchant_id' => $this->merchant->id, 'name' => 'Sami', 'role' => 'driver', 'phone' => self::DRIVER,
             'whatsapp_number' => self::DRIVER, 'password' => 'x', 'status' => 'on_duty', 'availability' => 'available']);
-        $this->staffWroteToShop($this->merchant, self::DRIVER);
     }
 
     /** The shop counts its preparation in minutes (30), hours (2) or days (2 to 3). */
@@ -140,6 +138,7 @@ class ChooseTimeTest extends TestCase
         $this->assertStringContainsString('just write what you want', $this->body());
 
         $this->tap('co:ok:');
+        $this->shopTypes(self::CUSTOMER, '✅');
         $order = Order::query()->withoutGlobalScopes()->sole();
         $this->assertNull($order->deliver_at);
         $this->assertNotNull($order->driver_id);
@@ -161,6 +160,7 @@ class ChooseTimeTest extends TestCase
         $this->assertSame(['co:ok:', 'co:when:asap', 'co:cancel:'], $this->ids());
 
         $this->tap('co:ok:');
+        $this->shopTypes(self::CUSTOMER, '✅');
         $order = Order::query()->withoutGlobalScopes()->sole();
         $this->assertSame('2026-10-07 11:00', $order->deliver_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
         $this->assertSame('2026-10-07 13:00', $order->promised_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
@@ -170,7 +170,7 @@ class ChooseTimeTest extends TestCase
 
         // Wednesday, when it is time to prepare it: a driver.
         Carbon::setTestNow(Carbon::parse('2026-10-07 08:45', 'Asia/Beirut'));
-        (new StartScheduledOrder($order->id))->handle(app(OrderConfirmation::class), app(StaffMessenger::class));
+        (new StartScheduledOrder($order->id))->handle(app(OrderConfirmation::class));
         $this->assertNotNull($order->fresh()->driver_id);
     }
 
@@ -196,6 +196,7 @@ class ChooseTimeTest extends TestCase
         $this->assertStringContainsString('⏱', $this->body());
         $this->assertSame(['co:ok:', 'co:time:', 'co:cancel:'], $this->ids());
         $this->tap('co:ok:');
+        $this->shopTypes(self::CUSTOMER, '✅');
         $this->assertNull(Order::query()->withoutGlobalScopes()->sole()->deliver_at);
     }
 
@@ -218,6 +219,7 @@ class ChooseTimeTest extends TestCase
         $this->assertStringContainsString('🗓 Wed 7 Oct, 21:00–22:00', $this->body());
 
         $this->tap('co:ok:');
+        $this->shopTypes(self::CUSTOMER, '✅');
         $this->assertSame('2026-10-07 21:00', Order::query()->withoutGlobalScopes()->sole()->deliver_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'));
     }
 
@@ -281,6 +283,7 @@ class ChooseTimeTest extends TestCase
 
         $this->say('Saturday');
         $this->tap('co:ok:');
+        $this->shopTypes(self::CUSTOMER, '✅');
         $order = Order::query()->withoutGlobalScopes()->sole();
         $this->assertSame('2026-10-10', $order->deliver_at->setTimezone('Asia/Beirut')->format('Y-m-d'));
         $this->assertSame('2026-10-10 23:59', $order->promised_at->setTimezone('Asia/Beirut')->format('Y-m-d H:i'), 'promised by the end of that day');

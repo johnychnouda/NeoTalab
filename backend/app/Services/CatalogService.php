@@ -99,7 +99,7 @@ class CatalogService
      */
     public function listProducts(array $filters = []): LengthAwarePaginator
     {
-        return Product::with(['category', 'variants', 'modifierGroups.modifiers', 'optionStocks'])
+        return Product::with(['category', 'variants', 'modifierGroups.modifiers'])
             ->when($filters['q'] ?? null, function ($query, $q) {
                 $query->where(fn ($w) => $w
                     ->where('name', 'like', "%{$q}%")

@@ -26,7 +26,6 @@ class UpdateVariantRequest extends FormRequest
             'price' => ['nullable', 'numeric', 'min:0.01'],
             'is_active' => ['sometimes', 'boolean'],
             'is_available' => ['sometimes', 'boolean'],
-            'stock_quantity' => ['nullable', 'integer', 'min:0'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];
     }

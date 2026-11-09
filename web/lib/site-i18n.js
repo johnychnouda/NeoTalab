@@ -6,7 +6,7 @@ export const SITE = {
     nav: { demo: "Live demo", features: "Features", pricing: "Pricing", faq: "FAQ", start: "Get started", sections: "Page sections", menu: "Menu", login: "Merchant login" },
     place: { country: "Lebanon" },
     footer: {
-      tagline: "AI WhatsApp ordering and booking for local businesses.",
+      tagline: "AI WhatsApp ordering for local businesses.",
       company: "Company", contact: "Contact", legal: "Legal",
       privacy: "Privacy policy", terms: "Terms of service", deletion: "Data deletion",
       rights: "All rights reserved.", updated: "Last updated:", productOf: "is a product of",
@@ -17,7 +17,7 @@ export const SITE = {
     },
     home: {
       h1a: "Your WhatsApp, now an ", h1b: "AI sales assistant",
-      intro: "Customers order, pay and book on your WhatsApp, day and night. You just tap ✅.",
+      intro: "Customers order and pay on your WhatsApp, day and night. You just tap ✅.",
       badge: "Official WhatsApp Business Platform",
       trust: ["Arabic, English and French", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
@@ -29,7 +29,7 @@ export const SITE = {
       featuresTitle: "Everything runs on WhatsApp",
       featuresLead: "No app for your customers, no laptop for you.",
       features: [
-        ["chat", "Answers day and night", "Orders and bookings any time, even in Arabizi and with typos."],
+        ["chat", "Answers day and night", "Orders any time, even in Arabizi and with typos."],
         ["store", "You stay in charge", "See every chat in your WhatsApp Business app and step in any time."],
         ["scooter", "Drivers and staff, one tap", "Orders reach your team with a Maps link. Picked up, delivered: one tap."],
         ["cash", "Cash or Whish", "Cash on delivery or at the shop, in $, lira or both, or a secure Whish link."],
@@ -40,7 +40,7 @@ export const SITE = {
       pricingTitle: "Simple pricing",
       pricingLead: "One plan with every feature. Try it free for {n} days.",
       monthly: "Monthly", yearly: "Yearly", perMonth: "/ month", perYear: "/ year", save: "Save {pct}%",
-      included: ["AI assistant that answers day and night", "Orders, bookings and payments on WhatsApp", "Drivers and staff on WhatsApp", "Menu import and nightly sales report"],
+      included: ["AI assistant that answers day and night", "Orders and payments on WhatsApp", "Drivers and staff on WhatsApp", "Menu import and nightly sales report"],
       metaFees: "Not included: WhatsApp's own message fees. Meta bills them to the card you add in WhatsApp Manager. Replying to customers who message you is free.",
       faqTitle: "Questions",
       faq: [
@@ -61,7 +61,7 @@ export const SITE = {
     nav: { demo: "عرض مباشر", features: "المزايا", pricing: "الأسعار", faq: "أسئلة شائعة", start: "ابدأ الآن", sections: "أقسام الصفحة", menu: "القائمة", login: "دخول التاجر" },
     place: { country: "لبنان" },
     footer: {
-      tagline: "طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
+      tagline: "طلبات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية.",
       company: "الشركة", contact: "التواصل", legal: "قانوني",
       privacy: "سياسة الخصوصية", terms: "شروط الخدمة", deletion: "حذف البيانات",
       rights: "جميع الحقوق محفوظة.", updated: "آخر تحديث:", productOf: "هو منتج من",
@@ -72,7 +72,7 @@ export const SITE = {
     },
     home: {
       h1a: "واتساب الخاص بك، أصبح الآن ", h1b: "مساعد مبيعات ذكي",
-      intro: "يطلب زبائنك ويدفعون ويحجزون على واتساب محلك، ليلًا ونهارًا. وأنت تضغط ✅ فقط.",
+      intro: "يطلب زبائنك ويدفعون على واتساب محلك، ليلًا ونهارًا. وأنت تضغط ✅ فقط.",
       badge: "منصّة واتساب للأعمال الرسمية",
       trust: ["العربية والإنجليزية والفرنسية", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
@@ -84,7 +84,7 @@ export const SITE = {
       featuresTitle: "كل شيء يعمل على واتساب",
       featuresLead: "لا تطبيق لزبائنك، ولا حاسوب لك.",
       features: [
-        ["chat", "يردّ ليلًا ونهارًا", "طلبات وحجوزات في أي وقت، حتى بالعربيزي ومع الأخطاء."],
+        ["chat", "يردّ ليلًا ونهارًا", "طلبات في أي وقت، حتى بالعربيزي ومع الأخطاء."],
         ["store", "القرار لك", "ترى كل محادثة في تطبيق واتساب للأعمال وتتدخّل متى شئت."],
         ["scooter", "السائقون والموظفون بضغطة", "تصل الطلبات إلى فريقك مع رابط الخريطة. تم الاستلام، تم التسليم: بضغطة واحدة."],
         ["cash", "نقدًا أو Whish", "نقدًا عند التسليم أو في المحل، بالدولار أو بالليرة أو بالاثنين معًا، أو رابط Whish آمن."],
@@ -95,7 +95,7 @@ export const SITE = {
       pricingTitle: "أسعار واضحة",
       pricingLead: "خطة واحدة بكل الميزات. جرّبها مجانًا لمدة {days}.",
       monthly: "شهري", yearly: "سنوي", perMonth: "/ شهر", perYear: "/ سنة", save: "وفّر {pct}%",
-      included: ["مساعد ذكي يردّ ليلًا ونهارًا", "طلبات وحجوزات ودفع عبر واتساب", "السائقون والموظفون على واتساب", "استيراد القائمة وتقرير مبيعات يومي"],
+      included: ["مساعد ذكي يردّ ليلًا ونهارًا", "طلبات ودفع عبر واتساب", "السائقون والموظفون على واتساب", "استيراد القائمة وتقرير مبيعات يومي"],
       metaFees: "غير مشمول: رسوم رسائل واتساب نفسها، تقتطعها Meta من البطاقة التي تضيفها في WhatsApp Manager. الردّ على الزبائن الذين يراسلونك مجاني.",
       faqTitle: "أسئلة شائعة",
       faq: [
@@ -116,7 +116,7 @@ export const SITE = {
     nav: { demo: "Démo", features: "Fonctionnalités", pricing: "Tarifs", faq: "FAQ", start: "Démarrer", sections: "Sections de la page", menu: "Menu", login: "Connexion" },
     place: { country: "Liban" },
     footer: {
-      tagline: "Commandes et réservations WhatsApp par IA pour les commerces locaux.",
+      tagline: "Commandes WhatsApp par IA pour les commerces locaux.",
       company: "Société", contact: "Contact", legal: "Mentions légales",
       privacy: "Politique de confidentialité", terms: "Conditions d'utilisation", deletion: "Suppression des données",
       rights: "Tous droits réservés.", updated: "Dernière mise à jour :", productOf: "est un produit de",
@@ -127,7 +127,7 @@ export const SITE = {
     },
     home: {
       h1a: "Votre WhatsApp, désormais un ", h1b: "assistant de vente IA",
-      intro: "Vos clients commandent, paient et réservent sur votre WhatsApp, jour et nuit. Vous n'avez qu'à appuyer sur ✅.",
+      intro: "Vos clients commandent et paient sur votre WhatsApp, jour et nuit. Vous n'avez qu'à appuyer sur ✅.",
       badge: "Plateforme officielle WhatsApp Business",
       trust: ["Arabe, anglais et français", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
@@ -139,7 +139,7 @@ export const SITE = {
       featuresTitle: "Tout se passe sur WhatsApp",
       featuresLead: "Aucune application pour vos clients, aucun ordinateur pour vous.",
       features: [
-        ["chat", "Répond jour et nuit", "Commandes et réservations à toute heure, même en arabizi et avec des fautes."],
+        ["chat", "Répond jour et nuit", "Commandes à toute heure, même en arabizi et avec des fautes."],
         ["store", "Vous gardez la main", "Voyez chaque discussion dans WhatsApp Business et intervenez à tout moment."],
         ["scooter", "Livreurs et équipe, un geste", "Les commandes arrivent avec un lien Maps. Récupérée, livrée : un seul geste."],
         ["cash", "Espèces ou Whish", "À la livraison ou au commerce, en $, en livres ou les deux, ou un lien Whish sécurisé."],
@@ -150,7 +150,7 @@ export const SITE = {
       pricingTitle: "Des tarifs simples",
       pricingLead: "Une seule formule, toutes les fonctionnalités. Essayez gratuitement pendant {n} jours.",
       monthly: "Mensuel", yearly: "Annuel", perMonth: "/ mois", perYear: "/ an", save: "Économisez {pct} %",
-      included: ["Assistant IA qui répond jour et nuit", "Commandes, réservations et paiements sur WhatsApp", "Livreurs et équipe sur WhatsApp", "Import du menu et rapport des ventes chaque soir"],
+      included: ["Assistant IA qui répond jour et nuit", "Commandes et paiements sur WhatsApp", "Livreurs et équipe sur WhatsApp", "Import du menu et rapport des ventes chaque soir"],
       metaFees: "Non inclus : les frais de messages de WhatsApp. Meta les prélève sur la carte que vous ajoutez dans WhatsApp Manager. Répondre aux clients qui vous écrivent est gratuit.",
       faqTitle: "Questions fréquentes",
       faq: [

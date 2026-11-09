@@ -74,17 +74,6 @@ class CatalogTest extends TestCase
             ->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.total', 4);
     }
 
-    public function test_inventory_flags_drive_orderable_state(): void
-    {
-        [$merchant, $owner] = $this->merchantWithUser();
-        $product = Product::factory()->forMerchant($merchant)->tracked(stock: 0, threshold: 5)->create();
-
-        $this->withToken($this->tokenFor($owner))->getJson("/api/v1/products/{$product->id}")
-            ->assertOk()
-            ->assertJsonPath('data.is_orderable', false)
-            ->assertJsonPath('data.is_low_stock', true);
-    }
-
     public function test_a_zero_price_cannot_be_saved_and_is_never_orderable(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();
@@ -102,20 +91,6 @@ class CatalogTest extends TestCase
             ->assertOk()->assertJsonPath('data.is_orderable', false);
     }
 
-    public function test_a_bookable_service_may_be_free_but_a_product_may_not(): void
-    {
-        [$merchant, $owner] = $this->merchantWithUser();
-        $token = $this->tokenFor($owner);
-
-        $id = $this->withToken($token)->postJson('/api/v1/products', ['name' => 'Table for four', 'price' => 0, 'duration_mins' => 90])
-            ->assertCreated()->json('data.id');
-        $this->withToken($token)->postJson('/api/v1/products', ['name' => 'Free sample', 'price' => 0])->assertStatus(422)->assertJsonValidationErrorFor('price');
-
-        $this->withToken($token)->patchJson("/api/v1/products/{$id}", ['price' => 0])->assertOk();
-        $other = Product::factory()->forMerchant($merchant)->create(['price' => 4.5]);
-        $this->withToken($token)->patchJson("/api/v1/products/{$other->id}", ['price' => 0])->assertStatus(422)->assertJsonValidationErrorFor('price');
-    }
-
     public function test_validation_rules(): void
     {
         [$merchant, $owner] = $this->merchantWithUser();
@@ -124,11 +99,6 @@ class CatalogTest extends TestCase
         // price required
         $this->withToken($token)->postJson('/api/v1/products', ['name' => 'X'])
             ->assertStatus(422)->assertJsonValidationErrorFor('price');
-
-        // counted inventory requires a stock quantity
-        $this->withToken($token)->postJson('/api/v1/products', [
-            'name' => 'X', 'price' => 1, 'track_inventory' => true,
-        ])->assertStatus(422)->assertJsonValidationErrorFor('stock_quantity');
 
         // max_select must be >= min_select
         $product = Product::factory()->forMerchant($merchant)->create();

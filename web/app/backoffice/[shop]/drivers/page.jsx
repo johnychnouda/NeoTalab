@@ -9,8 +9,8 @@ import { EmptyState, ErrorBanner, EMPTY_ICONS } from "@/components/owner/ui";
 import Segmented from "@/components/Segmented";
 
 /**
- * The shop's team: drivers (get deliveries) and staff (accept orders, open/close the shop).
- * Everyone works from their own WhatsApp; this page only adds or removes them.
+ * The shop's delivery drivers. Each works from their own WhatsApp; this page only adds or removes them.
+ * The shop itself answers from the shop phone, so there is no other team member.
  */
 export default function TeamPage() {
   const { api } = useMerchant();
@@ -28,11 +28,6 @@ export default function TeamPage() {
   useEffect(() => { load(); }, [load]);
   useLiveRefresh(load);
 
-  const groups = [
-    ["staff", (team || []).filter((m) => m.role === "staff")],
-    ["driver", (team || []).filter((m) => m.role !== "staff")],
-  ];
-
   return (
     <div>
       <div className="page-header">
@@ -46,19 +41,11 @@ export default function TeamPage() {
         <EmptyState icon={EMPTY_ICONS.team} title={t("db.team.empty")} actionLabel={`+ ${t("db.team.add")}`} actionClassName="btn-primary" onAction={() => setModal({ type: "add" })} />
       )}
 
-      {team && team.length > 0 && groups.map(([role, members]) => (
-        <section key={role} className="tm-group">
-          <h2 className="gs-h">{t(role === "staff" ? "db.team.staff" : "db.team.driver")}</h2>
-          <p className="mk-hint" style={{ marginBottom: 12 }}>{t(role === "staff" ? "db.team.staffHow" : "db.team.driverHow")}</p>
-          {members.length === 0 && role === "staff" && (
-            <div className="tm-empty">
-              <p>{t("db.team.noStaff")}</p>
-              <button type="button" className="btn-primary" onClick={() => setModal({ type: "add" })}>+ {t("db.team.addStaff")}</button>
-            </div>
-          )}
-          {members.length === 0 && role !== "staff" && <p className="mk-hint">—</p>}
+      {team && team.length > 0 && (
+        <section className="tm-group">
+          <p className="mk-hint" style={{ marginBottom: 12 }}>{t("db.team.driverHow")}</p>
           <div className="drivers-grid">
-            {members.map((m) => (
+            {team.map((m) => (
               <div className="driver-card" key={m.id}>
                 <div className="tm-head">
                   <div className="driver-avatar">{m.name.charAt(0).toUpperCase()}</div>
@@ -67,18 +54,11 @@ export default function TeamPage() {
                     <div className="mk-hint" style={{ margin: 0 }} dir="ltr">{m.whatsapp_number || m.phone}</div>
                   </div>
                 </div>
-                {role === "staff" && m.reachable === false && (
-                  <p className="tm-warn" role="status">⚠️ {t("db.team.unreachable", { name: m.name, number: `\u2066${m.whatsapp_number || m.phone}\u2069` })}</p>
-                )}
-                {role === "driver" && (
-                  <div className="tm-status">
-                    <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>{t(m.status === "on_duty" ? "db.team.onShift" : "db.team.offShift")}</span>
-                    {m.status === "on_duty" && m.availability === "busy" && <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>}
-                  </div>
-                )}
-                {role === "driver" && (
-                  <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t((m.total_deliveries || 0) === 1 ? "db.team.deliveryOne" : "db.team.deliveries")}</div>
-                )}
+                <div className="tm-status">
+                  <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>{t(m.status === "on_duty" ? "db.team.onShift" : "db.team.offShift")}</span>
+                  {m.status === "on_duty" && m.availability === "busy" && <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>}
+                </div>
+                <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t((m.total_deliveries || 0) === 1 ? "db.team.deliveryOne" : "db.team.deliveries")}</div>
                 {m.locale && (
                   <div className="tm-status">
                     <span className="pill" title={t("db.team.speaks", { lang: LANG_NAMES[m.locale] })}>{LANG_NAMES[m.locale]}</span>
@@ -92,7 +72,7 @@ export default function TeamPage() {
             ))}
           </div>
         </section>
-      ))}
+      )}
 
       {(modal?.type === "add" || modal?.type === "edit") && (
         <MemberModal t={t} member={modal.member} onClose={() => setModal(null)} onSubmit={async (vals) => {
@@ -122,25 +102,14 @@ const LANG_NAMES = { en: "English", ar: "العربية", fr: "Français" };
 function MemberModal({ t, member, onClose, onSubmit }) {
   const [name, setName] = useState(member?.name || "");
   const [phone, setPhone] = useState(member?.whatsapp_number || member?.phone || "");
-  const [role, setRole] = useState(member && member.role !== "staff" ? "driver" : "staff");
   // "" means the shop's language; the person's own choice otherwise.
   const [locale, setLocale] = useState(member?.locale || "");
   return (
     <Modal title={t(member ? "db.team.edit" : "db.team.add")} onClose={onClose} compact
       footer={<div className="modal-footer-actions">
         <button type="button" className="btn-sm" onClick={onClose}>{t("db.cancel")}</button>
-        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), role, locale: locale || null })}>{t(member ? "db.save" : "db.add")}</button>
+        <button type="button" className="btn-primary" onClick={() => onSubmit({ name: name.trim(), phone: phone.trim(), locale: locale || null })}>{t(member ? "db.save" : "db.add")}</button>
       </div>}>
-      <div className="field"><label>{t("db.team.role")}</label>
-        <div className="tm-roles">
-          {["staff", "driver"].map((r) => (
-            <button key={r} type="button" className={`tm-role ${role === r ? "on" : ""}`} onClick={() => setRole(r)}>
-              <strong>{t(r === "staff" ? "db.team.staff" : "db.team.driver")}</strong>
-              <span>{t(r === "staff" ? "db.team.staffHow" : "db.team.driverHow")}</span>
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="field"><label htmlFor="tm-name">{t("db.team.name")}</label><input id="tm-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Rami Khalil" /></div>
       <div className="field"><label htmlFor="tm-phone">{t("db.team.number")}</label><input id="tm-phone" dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="70 123 456" />
         <div className="mk-hint">{t("db.team.numberHint")}</div></div>

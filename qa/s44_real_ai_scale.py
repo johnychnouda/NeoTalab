@@ -6,8 +6,7 @@ import concurrent.futures as cf, re, subprocess, sys
 from lib import *
 assert "neotalab_qa_scale" in ENV["DB_DATABASE"]
 PLAN = json.load(open(f"{LAB}/scale/plan.json")); N = int(sys.argv[1]); RUN = str(int(time.time()))[-5:]
-SERVICE = ("Salon / Barber / Beauty", "Laundry", "Optics", "Other")
-SHOPS = [p for p in PLAN if p["type"] not in SERVICE]
+SHOPS = list(PLAN)
 
 
 def sql(q):

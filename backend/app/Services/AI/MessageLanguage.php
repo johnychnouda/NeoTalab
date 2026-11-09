@@ -12,7 +12,7 @@ final class MessageLanguage
 {
     private const FRENCH = ['bonjour', 'bonsoir', 'salut', 'merci', 'je', 'voudrais', 'veux', 'vous', 'votre', 'nous', 'avec', 'pour',
         'combien', 'est', 'quelle', 'quel', 'heure', 'oui', 'non', 'svp', 'stp', 'plait', 'commande', 'livraison', 'fermez', 'ouvert',
-        'avez', 'pouvez', 'moi', 'une', 'des', 'les', 'du', 'au', 'aux', 'et', 'mais', 'aussi', 'encore', 'plutôt', 'désolé'];
+        'avez', 'pouvez', 'moi', 'une', 'des', 'les', 'du', 'au', 'aux', 'et', 'mais', 'aussi', 'encore', 'plutôt', 'désolé', "c'est", 'tout', "d'accord", "s'il", 'ça'];
 
     private const ENGLISH = ['hi', 'hello', 'hey', 'thanks', 'thank', 'please', 'want', 'would', 'like', 'i', "i'd", "i'm", 'my', 'you',
         'your', 'the', 'and', 'with', 'what', 'how', 'much', 'when', 'where', 'do', 'does', 'have', 'can', 'is', 'are', 'time', 'close',
@@ -20,7 +20,7 @@ final class MessageLanguage
 
     private const ARABIZI = ['marhaba', 'mar7aba', 'baddi', 'bade', 'badde', 'bddi', 'shou', 'shu', 'chou', 'kifak', 'kifik', 'keefak',
         'ahla', 'yalla', 'yislamo', 'yeslamo', 'tayeb', 'mnih', 'kteer', 'ktir', 'hal2', 'halla2', 'wen', 'wein', 'fi', 'ma3', 'la2',
-        'eh', 'ya3ne', 'ya3ni', 'lyom', 'bukra', 'shukran', 'merci', 'habibi', 'baddak', 'baddik', 'kam', 'adesh', 'addesh', 'ade'];
+        'eh', 'ya3ne', 'ya3ni', 'lyom', 'bukra', 'shukran', 'habibi', 'baddak', 'baddik', 'kam', 'adesh', 'addesh', 'ade'];
 
     /** @return 'ar'|'fr'|'en'|'arabizi'|null */
     public static function detect(string $text): ?string

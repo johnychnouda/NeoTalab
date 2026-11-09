@@ -236,21 +236,20 @@ class AdminMerchantManagementTest extends TestCase
         $token = $this->tokenFor($this->platformAdmin());
 
         $this->withToken($token)->postJson('/api/v1/admin/merchants', [
-            'shopName' => 'Rose Salon', 'whatsappNumber' => '+96171112234', 'password' => '123456', 'businessType' => 'Salon / Barber / Beauty',
+            'shopName' => 'Rose Bakery', 'whatsappNumber' => '+96171112234', 'password' => '123456', 'businessType' => 'Bakery / Sweets',
         ])->assertCreated();
-        $salon = Merchant::query()->where('name', 'Rose Salon')->sole();
-        $this->assertSame('appointments', $salon->settings['business_mode'], 'a salon takes bookings from day one');
-        $this->assertSame('services', $salon->settings['business_kind']);
-        $this->assertSame('auto', $salon->settings['mode'], 'owner-portal settings are kept too');
+        $bakery = Merchant::query()->where('name', 'Rose Bakery')->sole();
+        $this->assertSame('restaurant', $bakery->settings['business_kind']);
+        $this->assertSame('auto', $bakery->settings['mode'], 'owner-portal settings are kept too');
 
         $request = OnboardingRequest::query()->forceCreate([
-            'shop_name' => 'Cedar Phones', 'contact_name' => 'Joe', 'whatsapp' => '+96171112235',
-            'business_type' => 'Electronics / Phones', 'country' => 'LB', 'city' => 'Beirut', 'street' => 'Hamra', 'status' => 'pending',
+            'shop_name' => 'Cedar Market', 'contact_name' => 'Joe', 'whatsapp' => '+96171112235',
+            'business_type' => 'Supermarket / Grocery', 'country' => 'LB', 'city' => 'Beirut', 'street' => 'Hamra', 'status' => 'pending',
         ]);
         $this->withToken($token)->postJson("/api/v1/admin/onboarding/{$request->id}/approve", ['password' => 'secret-123'])->assertSuccessful();
-        $shop = Merchant::query()->where('name', 'Cedar Phones')->sole();
-        $this->assertSame('days', $shop->settings['timing_unit'], 'retail counts delivery in days');
-        $this->assertSame('orders', $shop->settings['business_mode']);
+        $shop = Merchant::query()->where('name', 'Cedar Market')->sole();
+        $this->assertSame('grocery', $shop->settings['business_kind']);
+        $this->assertSame('minutes', $shop->settings['timing_unit'], 'a grocery counts delivery in minutes');
     }
 
     public function test_admin_can_delete_merchant(): void
@@ -267,15 +266,14 @@ class AdminMerchantManagementTest extends TestCase
 
     public function test_existing_shops_get_their_missing_business_settings_once(): void
     {
-        $salon = Merchant::factory()->create(['business_type' => 'Salon / Barber / Beauty', 'settings' => ['mode' => 'auto']]);
-        $shop = Merchant::factory()->create(['business_type' => 'Electronics / Phones', 'settings' => ['timing_unit' => 'hours']]);
+        $bakery = Merchant::factory()->create(['business_type' => 'Bakery / Sweets', 'settings' => ['mode' => 'auto']]);
+        $shop = Merchant::factory()->create(['business_type' => 'Supermarket / Grocery', 'settings' => ['timing_unit' => 'hours']]);
 
         (require database_path('migrations/2026_10_23_000000_fill_missing_business_kind_settings.php'))->up();
 
-        $this->assertSame('appointments', $salon->fresh()->settings['business_mode']);
-        $this->assertSame('auto', $salon->fresh()->settings['mode'], 'other settings are kept');
+        $this->assertSame('restaurant', $bakery->fresh()->settings['business_kind']);
+        $this->assertSame('auto', $bakery->fresh()->settings['mode'], 'other settings are kept');
         $this->assertSame('hours', $shop->fresh()->settings['timing_unit'], "a shop's own choice is kept");
-        $this->assertSame('orders', $shop->fresh()->settings['business_mode']);
     }
 
     public function test_deleting_a_shop_removes_all_its_data_and_nothing_else(): void

@@ -10,7 +10,6 @@ use App\Services\AI\DTO\CartAction;
 use App\Services\CartService;
 use App\Services\ConversationService;
 use App\Support\CurrentTenant;
-use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\InteractsWithTenants;
@@ -59,23 +58,6 @@ class ConversationTest extends TestCase
         $this->withToken($token)->getJson("/api/v1/conversations/{$conversationId}")
             ->assertOk()
             ->assertJsonPath('data.cart.subtotal', '10.00');
-    }
-
-    public function test_menu_inquiry_lists_available_products(): void
-    {
-        [$merchant, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);
-        Product::factory()->forMerchant($merchant)->create(['name' => 'Labneh Plate']);
-        $token = $this->tokenFor($staff);
-
-        $id = $this->withToken($token)->postJson('/api/v1/conversations', [
-            'phone' => '+96170999999',
-        ])->json('data.id');
-
-        $this->withToken($token)->postJson("/api/v1/conversations/{$id}/turns", [
-            'message' => 'show menu',
-        ])->assertOk()
-            ->assertJsonPath('data.ai.intent', 'inquiry')
-            ->assertJsonPath('data.ai.entities.available_products.0', 'Labneh Plate');
     }
 
     public function test_cart_rejects_unknown_product_from_fake_driver(): void
@@ -251,5 +233,22 @@ class ConversationTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         $this->assertSame($first, $second);
+    }
+
+    public function test_menu_inquiry_lists_available_products(): void
+    {
+        [$merchant, $staff] = $this->merchantWithUser();
+        Product::factory()->forMerchant($merchant)->create(['name' => 'Labneh Plate']);
+        $token = $this->tokenFor($staff);
+
+        $id = $this->withToken($token)->postJson('/api/v1/conversations', [
+            'phone' => '+96170999999',
+        ])->json('data.id');
+
+        $this->withToken($token)->postJson("/api/v1/conversations/{$id}/turns", [
+            'message' => 'show menu',
+        ])->assertOk()
+            ->assertJsonPath('data.ai.intent', 'inquiry')
+            ->assertJsonPath('data.ai.entities.available_products.0', 'Labneh Plate');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\BusinessKind;
 use App\Support\Countries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,7 @@ class OwnerStoreMerchantRequest extends FormRequest
             'whatsappNumber' => ['required_without:whatsapp_number', 'string', 'max:30'],
             'whatsapp_number' => ['required_without:whatsappNumber', 'string', 'max:30'],
             'password' => ['required', 'string', 'min:6', 'max:64'],
-            'businessType' => ['nullable', 'string', 'max:60'],
+            'businessType' => ['nullable', 'string', 'max:60', BusinessKind::notBlocked()],
             'street' => ['nullable', 'string', 'max:190'],
             'city' => ['nullable', 'string', 'max:80'],
             'region' => ['nullable', 'string', 'max:80'],

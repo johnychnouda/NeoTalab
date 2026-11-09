@@ -1,7 +1,7 @@
 """Scale lab: many customers order at the same moment. Each customer is a WhatsApp number that says "add 2 <item>", then
 "confirm | Hamra | address | cash | USD | | delivery" (all customers' messages released together). Checked in the database:
-one order per customer, unique order numbers, every line priced from the catalog, totals add up, stock never oversold.
-usage: s42_concurrency.py one N [stock]   |   s42_concurrency.py all PER_SHOP"""
+one order per customer, unique order numbers, every line priced from the catalog, totals add up.
+usage: s42_concurrency.py one N   |   s42_concurrency.py all PER_SHOP"""
 import concurrent.futures as cf, statistics, subprocess, sys, threading
 from lib import *
 assert "neotalab_qa_scale" in ENV["DB_DATABASE"]
@@ -67,16 +67,14 @@ def verify(label, mids, phones, expect_orders, run_tag):
 mode = sys.argv[1]; RUN = str(int(time.time()))[-6:]
 failed0 = int(one("select count(*) from failed_jobs"))
 if mode == "one":
-    N = int(sys.argv[2]); stock = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    N = int(sys.argv[2])
     shop = next(p for p in PLAN if p["products"] == 120 and p["type"] == "Restaurant / Café") if any(p["products"] == 120 and p["type"] == "Restaurant / Café" for p in PLAN) else next(p for p in PLAN if p["products"] == 120)
     prods = products_of(shop["id"], 12); suite(f"One shop, {N} customers at once ({shop['type']}, {shop['products']} items)")
-    sql(f"update products set track_inventory=0, stock_quantity=null, is_available=1 where merchant_id='{shop['id']}'")  # an earlier stock test leaves the first item at 0
-    if stock:
-        sql(f"update products set track_inventory=1, stock_quantity={stock}, is_available=1 where id='{prods[0][0]}'")
+    sql(f"update products set is_available=1 where merchant_id='{shop['id']}'")
     phones = [f"9617{int(RUN[-5:]) % 100000:05d}{i:04d}"[:13] for i in range(N)]
     phones = [f"96179{RUN[-4:]}{i:04d}" for i in range(N)]
-    # step 1: carts (stock test: everybody wants 1 of the limited item)
-    adds = [(shop["pid"], ph, f"add 1 {prods[0][1]}" if stock else f"add {1 + i % 3} {prods[i % len(prods)][1]}") for i, ph in enumerate(phones)]
+    # step 1: carts
+    adds = [(shop["pid"], ph, f"add {1 + i % 3} {prods[i % len(prods)][1]}") for i, ph in enumerate(phones)]
     codes, secs = blast(adds, min(N, 80))
     check(f"all {N} 'add to cart' messages accepted by the webhook (200)", all(c == 200 for c in codes), set(codes))
     filled = wait_for(lambda: int(one(f"select count(distinct c.id) from carts c join customers cu on cu.id=c.customer_id join cart_items ci on ci.cart_id=c.id where cu.merchant_id='{shop['id']}' and cu.phone like '+96179{RUN[-4:]}%'")) >= N, 240) if False else None
@@ -88,22 +86,17 @@ if mode == "one":
     codes, secs = blast(confirm, min(N, 80))
     check(f"all {N} 'confirm' messages accepted by the webhook (200)", all(c == 200 for c in codes), set(codes))
     print(f"  webhook accepted {N} confirms in {secs:.1f}s")
-    ok = wait_for(lambda: int(one(f"select count(*) from orders o join customers c on c.id=o.customer_id where o.merchant_id='{shop['id']}' and c.phone like '+96179{RUN[-4:]}%'")) >= (min(N, stock) if stock else N), 600)
+    ok = wait_for(lambda: int(one(f"select count(*) from orders o join customers c on c.id=o.customer_id where o.merchant_id='{shop['id']}' and c.phone like '+96179{RUN[-4:]}%'")) >= N, 600)
     wait_for(lambda: int(one("select count(*) from jobs where available_at <= unix_timestamp()")) == 0, 300); time.sleep(3)
     lat = sql(f"set time_zone='+00:00'; select unix_timestamp(o.created_at) from orders o join customers c on c.id=o.customer_id where o.merchant_id='{shop['id']}' and c.phone like '+96179{RUN[-4:]}%'")
     lat = [[float(x[0]) - t_send] for x in lat]
     lats = sorted(float(x[0]) for x in lat) if lat else []
     if lats: print(f"  confirm -> order saved: p50 {statistics.median(lats):.1f}s  p95 {lats[int(len(lats)*0.95)-1]:.1f}s  p99 {lats[int(len(lats)*0.99)-1]:.1f}s  max {lats[-1]:.1f}s")
-    got = verify(f"{N} at once", [shop["id"]], phones, min(N, stock) if stock else N, RUN)
-    if stock:
-        left = float(one(f"select stock_quantity from products where id='{prods[0][0]}'"))
-        sold = float(one(f"select coalesce(sum(i.quantity),0) from order_items i join orders o on o.id=i.order_id where i.product_id='{prods[0][0]}' and o.status not in ('cancelled')"))
-        check(f"limited item: {stock} in stock, {N} customers want 1 each: exactly {stock} orders, stock ends at 0, never negative", left == 0 and got == stock, (left, got, sold))
+    got = verify(f"{N} at once", [shop["id"]], phones, N, RUN)
 else:
     PER = int(sys.argv[2]); suite(f"All 120 shops at once, {PER} customers each ({120 * PER} orders)")
     jobs_add = []; jobs_conf = []; phones = []; mids = [p["id"] for p in PLAN]
-    SERVICE = ("Salon / Barber / Beauty", "Laundry", "Optics", "Other")  # these book appointments: nothing to "add" to a cart
-    PLAN = [p for p in PLAN if p["type"] not in SERVICE]; mids = [p["id"] for p in PLAN]; suite_note = len(PLAN)
+    mids = [p["id"] for p in PLAN]; suite_note = len(PLAN)
     for si, shop in enumerate(PLAN):
         prods = products_of(shop["id"], 10)
         for k in range(PER):

@@ -71,18 +71,6 @@ class ShopWhatsAppSignupTest extends TestCase
             ->assertJsonMissingPath('app_secret');
     }
 
-    public function test_staff_cannot_connect_the_number(): void
-    {
-        $this->metaAnswers();
-        [$merchant, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);
-
-        $this->withToken($this->tokenFor($staff))
-            ->postJson('/api/v1/settings/whatsapp/embedded-signup', self::PAYLOAD)
-            ->assertForbidden();
-
-        $this->assertNull(($merchant->fresh()->settings['bot'] ?? [])['phone_id'] ?? null);
-    }
-
     public function test_a_shop_that_is_already_connected_cannot_switch_its_own_number(): void
     {
         $this->metaAnswers();

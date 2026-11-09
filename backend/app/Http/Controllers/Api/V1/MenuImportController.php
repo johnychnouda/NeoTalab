@@ -34,7 +34,6 @@ class MenuImportController extends Controller
             'items.*.category' => ['nullable', 'string', 'max:120'],
             'items.*.description' => ['nullable', 'string', 'max:500'],
             'items.*.lbp' => ['sometimes', 'boolean'],
-            'items.*.duration_mins' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'items.*.name_ar' => ['nullable', 'string', 'max:190'],
             'items.*.name_fr' => ['nullable', 'string', 'max:190'],
             'items.*.staff_check' => ['nullable', 'boolean'],

@@ -13,8 +13,10 @@ STAFF, DRIVER = "96171993" + RUN[-3:], "96171994" + RUN[-3:]
 CUSTOMERS = {"en": "9617620" + RUN, "ar": "9617621" + RUN, "fr": "9617622" + RUN}
 HI = {"en": "hi", "ar": "مرحبا", "fr": "bonjour"}
 WRITTEN = {"en": "tomorrow at 7 pm", "ar": "بكرا الساعة 7 مساء", "fr": "demain à 19h"}
-FIRST_Q = {"en": "1 of 3", "ar": "1 من 3", "fr": "1 sur 3"}
-BAD_WORD = {"en": "rated Bad", "ar": "سيء", "fr": "mauvaise note"}
+FIRST_Q = {"en": "How was your order?", "ar": "كيف كان طلبك؟", "fr": "Comment était votre commande ?"}
+BAD_WORD = {"en": "👎 Bad", "ar": "سيء", "fr": "Mauvais"}
+ASK_ISSUE = {"en": "Tell us what went wrong", "ar": "قل لنا", "fr": "Dites-nous ce qui"}
+ISSUE_TEXT = {"en": "The fries were cold", "ar": "البطاطا كانت باردة", "fr": "Les frites étaient froides"}
 SHOP_LANG = tj('echo json_encode(App\\Models\\Merchant::find("' + MID + '")->locale ?: "en");')
 workers = [subprocess.Popen([LABSH, "php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=75"],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True) for _ in range(3)]
@@ -83,16 +85,15 @@ def to_summary(C, lang, name):
 try:
     suite("W10 setup: a staff phone and a driver, zones switched off for the run")
     tj('$m=App\\Models\\Merchant::find("' + MID + '"); '
-       'foreach([["+' + STAFF + '","staff","QA Time Staff"],["+' + DRIVER + '","driver","QA Time Driver"]] as [$p,$role,$n]) '
+       'foreach([["+' + DRIVER + '","driver","QA Time Driver"]] as [$p,$role,$n]) '
        '{ App\\Models\\Driver::withoutGlobalScopes()->updateOrCreate(["merchant_id"=>$m->id,"phone"=>$p],'
        '["name"=>$n,"role"=>$role,"whatsapp_number"=>$p,"password"=>"secret123","status"=>"off_duty","availability"=>"available","is_active"=>true]); } '
        'App\\Models\\DeliveryZone::withoutGlobalScopes()->where("merchant_id",$m->id)->update(["is_active"=>false]); echo json_encode(["ok"=>true]);')
     # Other drivers left on duty by earlier lab runs would be handed these orders: off duty for the run, restored after.
     OTHERS = tj('$ids=App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("role","driver")->where("phone","!=","+' + DRIVER + '")->where("status","on_duty")->pluck("id")->all(); '
                 'App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",$ids)->update(["status"=>"off_duty"]); echo json_encode($ids);')
-    say(STAFF, text="hi")
     say(DRIVER, text="start")
-    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->where("track_inventory",false)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
+    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
 
     for lang, C in [(l, c) for l, c in CUSTOMERS.items() if l in os.environ.get("S52_LANGS", "en,ar,fr").split(",")]:
         suite(f"W10 {lang}: the shop's own time, Another time, a written time")
@@ -115,11 +116,11 @@ try:
         check(f"{lang}: Soonest possible goes back to the shop's own time", "⏱" in " ".join(out) and "🗓" not in " ".join(out), out)
 
         code, out, raw, _ = say(C, button="co:ok:")
-        suite(f"W10 {lang}: delivered, then three one-tap questions")
+        suite(f"W10 {lang}: delivered, then one rating question")
         o = orders_of(C)[-1]
         # Starting a shift hands the driver an older waiting order from earlier lab runs: free them for this order.
         tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["active_order_id"=>null,"availability"=>"available"]); echo json_encode(1);')
-        say(STAFF, button=f"stf:accept:{o['id']}")
+        shop_tap(PID, f"stf:accept:{o['id']}")
         say(DRIVER, button=f"drv:picked_up:{o['id']}")
         code, out, raw, allout = say(DRIVER, quiet=4, cap=40, button=f"drv:delivered:{o['id']}")
         mine = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == C])
@@ -128,16 +129,13 @@ try:
             print("      · outbound to customer in the last 2 min:", tj('echo json_encode(App\\Models\\WhatsAppMessage::withoutGlobalScopes()->where("direction","outbound")->where("to_number","+' + C + '")->where("created_at",">",now()->subMinutes(3))->orderBy("created_at")->get()->map(fn($m)=>mb_substr(json_encode($m->payload, JSON_UNESCAPED_UNICODE),0,140))->all());'))
         q1 = next((x for x in mine if FIRST_Q[lang] in x), "")
         print(f"   [{lang}] after delivery ->", q1[-200:])
-        check(f"{lang}: the delivered message carries question 1 of 3 with Great / Okay / Bad", FIRST_Q[lang] in q1 and f"rt:{o['id']}:order:5" in q1, mine)
-        say(C, button=f"rt:{o['id']}:order:5")
-        code, out, raw, allout = say(C, button=f"rt:{o['id']}:service:3")
-        check(f"{lang}: question 3 names the delivery person", "QA Time Driver" in " ".join(out), out)
-        code, out, raw, allout = say(C, button=f"rt:{o['id']}:delivery:1")
-        staff_msgs = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == STAFF])
-        print(f"   [{lang}] staff alert ->", staff_msgs[-1][:160] if staff_msgs else None)
-        check(f"{lang}: a Bad answer alerts the staff, in the shop's language ({SHOP_LANG}), and says what", any(BAD_WORD[SHOP_LANG] in m and "QA Time Driver" in m for m in staff_msgs), staff_msgs)
+        check(f"{lang}: the delivered message carries the one rating question with Great / Okay / Bad", FIRST_Q[lang] in q1 and f"rt:{o['id']}:order:5" in q1 and f"rt:{o['id']}:order:1" in q1, mine)
+        code, out, raw, allout = say(C, button=f"rt:{o['id']}:order:1")
+        mine = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == C])
+        check(f"{lang}: a Bad answer asks what went wrong (type it or send a voice note)", any(ASK_ISSUE[lang] in m for m in mine), mine)
+        code, out, raw, allout = say(C, text=ISSUE_TEXT[lang])
         done = orders_of(C)[-1]
-        check(f"{lang}: the three answers are saved (5, 3, 1)", [done["rating"], done["rating_service"], done["rating_delivery"]] == [5, 3, 1], done)
+        check(f"{lang}: the answer and the issue are saved", done["rating"] == 1 and ISSUE_TEXT[lang] in (done.get("rating_issue") or ""), done)
 
         suite(f"W10 {lang}: the customer writes the time")
         out = to_summary(C, lang, f"QA Time {lang}")

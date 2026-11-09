@@ -64,8 +64,8 @@ class ShopTemplateSyncTest extends TestCase
         $this->artisan('templates:sync')->assertSuccessful();
 
         $templates = $merchant->fresh()->settings['bot']['templates'];
-        $this->assertSame('PENDING', $templates['neotalab_new_order']['status']);
-        $this->assertSame('PENDING', $templates['neotalab_new_order_ar']['status']);
+        $this->assertSame('PENDING', $templates['neotalab_billing_reminder']['status']);
+        $this->assertSame('PENDING', $templates['neotalab_billing_reminder_ar']['status']);
         $this->assertSame('PENDING', $templates['neotalab_c_order_accepted_fr']['status']);
     }
 }

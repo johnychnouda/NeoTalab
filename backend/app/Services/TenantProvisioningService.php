@@ -38,7 +38,7 @@ class TenantProvisioningService
                 'trial_ends_at' => now()->addDays(max(1, (int) (PlatformSetting::singleton()->trial_days ?: config('neotalab.trial_days', 3)))),
             ]);
 
-            // The type of business sets how the shop works: menu wording, time unit, orders or bookings.
+            // The type of business sets how the shop works: menu wording, time unit.
             $merchant->forceFill(['settings' => BusinessKind::applyDefaults($merchant->settings ?? [], BusinessKind::of($merchant))])->save();
 
             // Registration runs with no bound tenant, so set merchant_id explicitly.

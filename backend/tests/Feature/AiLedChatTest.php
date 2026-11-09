@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
-use App\Jobs\NotifyStaffOfHandoff;
 use App\Models\Category;
 use App\Models\Merchant;
 use App\Models\Product;
@@ -29,7 +28,7 @@ use Tests\TestCase;
  */
 class AiLedChatTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private Merchant $merchant;
 
@@ -93,7 +92,7 @@ class AiLedChatTest extends TestCase
         $this->assertStringContainsString('2 more', $body);
     }
 
-    public function test_when_the_assistant_fails_the_customer_hears_a_person_will_answer_and_the_team_is_alerted_once(): void
+    public function test_when_the_assistant_fails_the_customer_hears_a_person_will_answer(): void
     {
         $this->menu(2);
         $this->app->bind(ChatProvider::class, fn () => new class implements ChatProvider
@@ -111,7 +110,5 @@ class AiLedChatTest extends TestCase
         $this->assertSame('text', $first['type']);
         $this->assertStringContainsString('team member from Foren', $first['text']['body']);
         $this->assertStringNotContainsString('Cat 1', $first['text']['body']);
-        Bus::assertDispatchedTimes(NotifyStaffOfHandoff::class, 1);
-        Bus::assertDispatched(NotifyStaffOfHandoff::class, fn ($job) => $job->reason === 'ai');
     }
 }

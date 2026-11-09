@@ -11,7 +11,7 @@ export async function getSiteLang() {
 // Browser-tab titles of the public pages. Descriptions stay in English for search engines.
 const PAGE_TITLES = {
   en: {
-    home: "NeoTalab — AI WhatsApp ordering & booking for local businesses",
+    home: "NeoTalab — AI WhatsApp ordering for local businesses",
     join: "Join NeoTalab — Start Your Free Trial",
     contact: "Contact — NeoTalab",
     privacy: "Privacy Policy — NeoTalab",
@@ -21,7 +21,7 @@ const PAGE_TITLES = {
     reset: "Choose a new password · NeoTalab",
   },
   ar: {
-    home: "NeoTalab — طلبات وحجوزات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية",
+    home: "NeoTalab — طلبات عبر واتساب بالذكاء الاصطناعي للأعمال المحلية",
     join: "انضم إلى NeoTalab — ابدأ تجربتك المجانية",
     contact: "التواصل — NeoTalab",
     privacy: "سياسة الخصوصية — NeoTalab",
@@ -31,7 +31,7 @@ const PAGE_TITLES = {
     reset: "اختر كلمة سر جديدة · NeoTalab",
   },
   fr: {
-    home: "NeoTalab — Commandes et réservations WhatsApp par IA pour les commerces locaux",
+    home: "NeoTalab — Commandes WhatsApp par IA pour les commerces locaux",
     join: "Rejoindre NeoTalab — Commencez votre essai gratuit",
     contact: "Contact — NeoTalab",
     privacy: "Politique de confidentialité — NeoTalab",

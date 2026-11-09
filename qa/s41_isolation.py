@@ -27,7 +27,7 @@ def call(method, path, token=None, body=None, headers=None):
 
 def snapshot(mid):
     q = lambda t, extra="": sql(f"select count(*), coalesce(sum(crc32(concat_ws('|',id,{extra}))),0) from {t} where merchant_id='{mid}'")[0]
-    return {"products": q("products", "name,price,is_active,is_available,stock_quantity"), "categories": q("categories", "name,is_active"),
+    return {"products": q("products", "name,price,is_active,is_available"), "categories": q("categories", "name,is_active"),
             "zones": q("delivery_zones", "name,delivery_fee,is_active"), "customers": q("customers", "phone,is_blocked"),
             "drivers": q("drivers", "name,phone,is_active,status"), "orders": q("orders", "status,total"), "merchant": sql(f"select crc32(concat_ws('|',name,status,plan,whatsapp_number,settings)) from merchants where id='{mid}'")[0]}
 
@@ -40,7 +40,7 @@ for i, A in enumerate(IDS):
     row = lambda t: (sql(f"select id from {t} where merchant_id='{B}' limit 1") or [[None]])[0][0]
     prod, cat, zone, cust, drv = row("products"), row("categories"), row("delivery_zones"), row("customers"), row("drivers")
     before = snapshot(B)
-    tests = [("GET", f"/products/{prod}", None), ("PATCH", f"/products/{prod}", {"price": 0.01, "name": "HACKED"}), ("PUT", f"/products/{prod}/stock", {"track_inventory": True, "stock_quantity": 0}),
+    tests = [("GET", f"/products/{prod}", None), ("PATCH", f"/products/{prod}", {"price": 0.01, "name": "HACKED"}), 
              ("DELETE", f"/products/{prod}", None), ("PATCH", f"/categories/{cat}", {"name": "HACKED"}), ("DELETE", f"/categories/{cat}", None),
              ("PATCH", f"/settings/zones/{zone}", {"name": "HACKED", "deliveryFee": 99}), ("DELETE", f"/settings/zones/{zone}", None),
              ("POST", f"/customers/{cust}/block", {"reason": "x"}), ("PATCH", f"/drivers/{drv}", {"name": "HACKED"}), ("POST", f"/drivers/{drv}/status", {"status": "on_duty"}),
@@ -107,7 +107,7 @@ check(f"{tried} attempts by shop logins at the platform owner's pages and action
 alive = sql("select count(*) from merchants where name like '%HACKED%'")[0][0]
 check("no shop was renamed or removed by those attempts", alive == "0" and sql("select count(*) from merchants")[0][0] == "126", alive)
 anon = []
-for p in ("/products", "/customers", "/drivers", "/analytics/dashboard", "/settings/zones", "/merchant", "/appointments"):
+for p in ("/products", "/customers", "/drivers", "/analytics/dashboard", "/settings/zones", "/merchant"):
     code, txt = call("GET", p)
     if code != 401: anon.append((p, code))
 check("every shop page refuses a request with no login (401)", not anon, anon)

@@ -2,8 +2,6 @@
 
 namespace App\Services\WhatsApp;
 
-use App\Jobs\NotifyStaffOfHandoff;
-use App\Models\Appointment;
 use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -11,27 +9,21 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\PlatformSetting;
 use App\Models\Product;
-use App\Models\Quote;
 use App\Models\WhatsAppMessage;
 use App\Services\AI\Contracts\SpeechToText;
-use App\Services\AppointmentService;
-use App\Services\BookingDeposits;
 use App\Services\ChatMenu;
 use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\RatingFlow;
-use App\Services\OrderService;
-use App\Services\QuoteService;
+use App\Services\ShopCommands;
 use App\Services\SystemAlertService;
-use App\Support\BusinessKind;
 use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
 use App\Support\MerchantWhatsAppCredentials;
 use App\Support\Money;
-use App\Support\OrderMessage;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -53,7 +45,6 @@ class WhatsAppInboundService
         protected ChatMenu $chatMenu,
         protected CheckoutFlow $checkoutFlow,
         protected SpeechToText $speech,
-        protected StaffMessenger $staff,
     ) {}
 
     /** WhatsApp profile names in the payload being handled, by number (digits only). */
@@ -270,13 +261,6 @@ class WhatsAppInboundService
             return;
         }
 
-        // A shop with no staff is run by its owner: their number manages bookings here (and only bookings).
-        if ($owner = $this->drivers->ownerForBookings($merchant, $fromPhone, $msg)) {
-            $this->drivers->handle($merchant, $owner, $msg);
-
-            return;
-        }
-
         $customer = Customer::query()->where('phone', $fromPhone)->first();
         if ($customer?->is_blocked) {
             return;
@@ -325,18 +309,17 @@ class WhatsAppInboundService
             return;
         }
 
-        // A photo or file is usually a question the bot can't read: hand the chat to the staff
-        // (the owner sees the photo in the WhatsApp Business app) when someone can be alerted.
-        if (in_array($type, self::PHOTO_TYPES, true) && $this->staff->anyReachable($merchant, ShopTemplateService::STAFF_ALERT)) {
+        // A photo or file is usually a question the bot can't read: the shop sees it in its WhatsApp Business app
+        // and answers personally, so the bot steps back in this chat.
+        if (in_array($type, self::PHOTO_TYPES, true)) {
             $customer ??= Customer::query()->firstOrCreate(['phone' => $fromPhone], ['locale' => $locale]);
             $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
-            NotifyStaffOfHandoff::dispatch($customer->id, 'photo');
             $this->reply($merchant, $fromPhone, $this->text('photo_received', $locale, $merchant->name));
 
             return;
         }
 
-        // Stickers, and photos when nobody can be alerted: never leave the customer without an answer.
+        // Stickers: never leave the customer without an answer.
         if ($unreadable) {
             $this->reply($merchant, $fromPhone, $this->text('media_unsupported', $locale, $merchant->name));
 
@@ -352,6 +335,11 @@ class WhatsAppInboundService
                 return;
             }
             $record->update(['payload' => array_merge($msg, ['transcript' => $text])]);
+        }
+
+        // What the customer wrote or said after an Okay or Bad rating goes to the shop.
+        if ($customer && $text !== null && $this->handleRatingIssue($merchant, $customer, $fromPhone, $text, $locale)) {
+            return;
         }
 
         // The message is already recorded, so a job retry would skip it, failures are handled
@@ -394,34 +382,6 @@ class WhatsAppInboundService
                 return;
             }
 
-            // "I paid" under a booking's deposit instructions: the shop checks its Whish account next.
-            if ($buttonId !== null && preg_match('/^wh:dpaid:(.+)$/', $buttonId, $dm)) {
-                $appointment = Appointment::query()->where('merchant_id', $merchant->id)
-                    ->where('customer_id', $conversation->customer_id)->whereKey($dm[1])->first();
-                if ($appointment && $appointment->status === 'pending_deposit') {
-                    app(BookingDeposits::class)->customerPaid($merchant, $appointment);
-                } elseif ($appointment && $appointment->status !== 'deposit_check') {
-                    $this->reply($merchant, $fromPhone, __('whatsapp.appointment.deposit_already', [], $locale));
-                }
-
-                return;
-            }
-
-            // Accept / No thanks under a repair quote.
-            if ($buttonId !== null && preg_match('/^qt:(yes|no):(.+)$/', $buttonId, $qm)) {
-                [$text, $order] = app(QuoteService::class)->answer($merchant, $conversation->customer, $qm[2], $qm[1] === 'yes');
-                $this->reply($merchant, $fromPhone, $text);
-
-                return;
-            }
-
-            // "I need a quote" (repair shops): the request goes to the staff, the customer waits for the price.
-            if ($buttonId === null && $text !== null && $this->wantsQuote($merchant, $text)) {
-                $this->reply($merchant, $fromPhone, app(QuoteService::class)->request($merchant, $conversation, $text));
-
-                return;
-            }
-
             // "Where's my order?" under a status message.
             $step = $buttonId !== null ? $this->chatMenu->handle($merchant, $conversation, $locale, $buttonId) : null;
 
@@ -453,22 +413,9 @@ class WhatsAppInboundService
                 return;
             }
 
-            // A booking that holds its time until the deposit is paid: the instructions come with the "I paid" button.
-            if ($result['deposit_appointment'] !== null) {
-                $this->send($merchant, $fromPhone, ['type' => 'interactive', 'interactive' => [
-                    'type' => 'button', 'body' => ['text' => mb_substr($reply, 0, 1024)],
-                    'action' => ['buttons' => [['type' => 'reply', 'reply' => [
-                        'id' => "wh:dpaid:{$result['deposit_appointment']}",
-                        'title' => mb_substr(__('whatsapp.checkout.btn_whish_paid', [], $locale), 0, 20),
-                    ]]]],
-                ]]);
-
-                return;
-            }
-
             // Typed "checkout" without a delivery or pickup choice: the same buttons as the menu checkout.
             if ($result['fulfillment_choice']) {
-                $this->send($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
 
                 return;
             }
@@ -478,7 +425,7 @@ class WhatsAppInboundService
                 if ($reply !== '') {
                     $this->reply($merchant, $fromPhone, $reply);
                 }
-                $this->send($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
 
                 return;
             }
@@ -488,41 +435,25 @@ class WhatsAppInboundService
                 'wa_message_id' => $waMessageId,
                 'error' => $e->getMessage(),
             ]);
-            // No menu to fall back on: the customer is told a person will answer, and the team hears about it (once in ten minutes).
+            // No menu to fall back on: the customer is told a person will answer; the message is on the shop phone.
             $this->reply($merchant, $fromPhone, $this->text('ai_down', $locale, $merchant->name));
-            if (isset($conversation) && Cache::add("ai-down-alert:{$merchant->id}:{$fromPhone}", 1, 600)) {
-                NotifyStaffOfHandoff::dispatch($conversation->customer_id, 'ai');
-            }
 
             return;
         }
 
-        if ($reply !== '' && ($result['services_link'] ?? false) && ($block = $this->servicesBlock($merchant, $locale)) !== null) {
-            $reply .= "\n\n".$block;
-        }
-
         if ($reply !== '' && ($result['menu_link'] ?? false)) {
-            // The greeting (or "show me the menu") comes with the menu list right in the chat.
-            $this->send($merchant, $fromPhone, $this->chatMenu->textMenu($merchant, $locale, $reply));
+            // The greeting (or "show me the menu") comes with the menu list right in the chat; a customer who named a
+            // section ("what's in the pizza section?") gets that section's items, not the list of sections again.
+            $section = $text !== null ? $this->chatMenu->categoryNamed($text) : null;
+            $this->send($merchant, $fromPhone, $section
+                ? $this->chatMenu->categoryMenu($merchant, $section, $locale, $reply)
+                : $this->chatMenu->textMenu($merchant, $locale, $reply));
         } elseif ($reply !== '') {
             $this->reply($merchant, $fromPhone, $reply);
-        } elseif ($result['output']->recommendedAction !== RecommendedAction::CancelOrder) {
+        } elseif ($result['output']->recommendedAction !== RecommendedAction::CancelOrder && empty($result['order'])) {
             // The assistant had nothing to say (cancelling is answered by the status message).
             $this->reply($merchant, $fromPhone, $this->text('not_understood', $locale, $merchant->name));
         }
-    }
-
-    /** The shop's services with minutes and prices, and how to book; null when there are none. */
-    protected function servicesBlock(Merchant $merchant, string $locale): ?string
-    {
-        $services = app(AppointmentService::class)->services();
-        if ($services->isEmpty()) {
-            return null;
-        }
-
-        $lines = $services->map(fn (Product $p) => '• '.$p->name.' — '.$p->duration_mins.' min — '.Money::format((float) $p->price, $merchant->currency))->implode("\n");
-
-        return __('whatsapp.appointment.services_intro', [], $locale)."\n".$lines."\n\n".__('whatsapp.appointment.services_book', [], $locale);
     }
 
     /** "Cancel order #N?" with the two buttons, the buttons carry the order id. */
@@ -543,10 +474,6 @@ class WhatsAppInboundService
     public const RESUME_COMMANDS = ['▶', '▶️', '🤖', '#bot', '#resume'];
 
     /** Typed by the shop in a customer's chat: accept / refuse the order waiting for the shop. */
-    public const ACCEPT_COMMANDS = ['✅', '✔', '✔️', '☑', '☑️', '👍'];
-
-    public const REFUSE_COMMANDS = ['❌', '✖', '✖️', '👎'];
-
     /**
      * The merchant typed in a customer's chat from the WhatsApp Business app (coexistence echo).
      * Normal replies leave the bot running; "⏸" pauses it in this chat and "▶️" hands the chat
@@ -583,63 +510,14 @@ class WhatsAppInboundService
             $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
         } elseif (in_array($command, self::RESUME_COMMANDS, true)) {
             Customer::query()->where('phone', $to)->update(['bot_paused_until' => null]);
-        } elseif (in_array($command, self::ACCEPT_COMMANDS, true) || in_array($command, self::REFUSE_COMMANDS, true)) {
-            $this->answerFromShopPhone($merchant, $to, in_array($command, self::ACCEPT_COMMANDS, true));
-        } elseif (($price = QuoteService::parse($command, false)) !== null) {
-            $this->quoteFromShopPhone($merchant, $to, $price);
-        }
-    }
-
-    /** "quote 45 Screen replacement" typed in a customer's chat from the shop phone: the price for their open request. */
-    protected function quoteFromShopPhone(Merchant $merchant, string $customerPhone, array $price): void
-    {
-        $customer = Customer::query()->where('phone', $customerPhone)->first();
-        $quote = $customer ? Quote::query()->where('customer_id', $customer->id)->whereIn('status', ['requested', 'sent'])->latest()->first() : null;
-        if ($quote && ! app(QuoteService::class)->send($merchant, $quote, $price['price'], $price['title'])) {
-            Log::info('Shop-phone quote not sent (price out of range)', ['quote_id' => $quote->id]);
+        } else {
+            app(ShopCommands::class)->handle($merchant, $to, $command);
         }
     }
 
     /**
      * A lone 1–5 shortly after we asked for a rating. Returns true when the message was a rating.
      */
-    /**
-     * Whoever holds the shop phone answers the order waiting in this customer's chat: ✅ accepts it
-     * (a Whish order then gets its payment link), ❌ refuses it. Only an order placed in the last
-     * few hours counts, so a ✅ sent in an ordinary conversation changes nothing.
-     */
-    protected function answerFromShopPhone(Merchant $merchant, string $customerPhone, bool $accept): void
-    {
-        $order = Order::query()
-            ->where('status', 'placed')
-            ->where('created_at', '>=', now()->subHours(6))
-            ->whereHas('customer', fn ($q) => $q->where('phone', $customerPhone))
-            ->latest()
-            ->first();
-
-        if (! $order) {
-            // No order waiting: ✅ / ❌ answers a check the customer is waiting for.
-            $customer = Customer::query()->where('phone', $customerPhone)->first();
-            $productId = $customer?->hasPendingCheck();
-            $product = $productId ? Product::query()->find($productId) : null;
-            if ($product) {
-                app(DriverBotService::class)->answerCheck($merchant, $customer, $product, $accept, $merchant->locale ?? 'en');
-            }
-
-            return;
-        }
-
-        try {
-            if ($accept) {
-                app(OrderConfirmation::class)->accept($merchant, $order);
-            } else {
-                app(OrderService::class)->transition($merchant, $order->id, 'reject');
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Shop answer to an order failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
-        }
-    }
-
     protected function handleRating(Merchant $merchant, Customer $customer, string $fromPhone, string $text, string $locale): bool
     {
         $digit = strtr(trim($text), ['١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5']);
@@ -667,92 +545,54 @@ class WhatsAppInboundService
         }
 
         $order->forceFill(['rating' => (int) $digit, 'rated_at' => now()])->save();
-        // A low rating promises a follow-up only when someone at the shop was actually told.
-        $key = (int) $digit > 3 ? 'thanks' : ($this->alertLowRating($merchant, $order, $fromPhone) ? 'sorry' : 'sorry_noted');
+        $key = (int) $digit > 3 ? 'thanks' : 'sorry';
         $this->reply($merchant, $fromPhone, __("whatsapp.rating.{$key}", ['shop' => $merchant->name], $locale));
 
         return true;
     }
 
     /**
-     * A tap on Great / Okay / Bad. The answer is kept once (a second tap on the same question changes nothing), a Bad
-     * one tells the shop, and the next question follows until the customer has answered them all.
+     * A tap on Great / Okay / Bad. The answer is kept once (a second tap changes nothing). Great is thanked. Okay or Bad
+     * is told to the shop and the customer is asked what went wrong, typed or as a voice note (see handleRatingIssue).
      */
     protected function answerRating(Merchant $merchant, string $fromPhone, string $orderId, string $question, int $value, string $locale): void
     {
         $order = Order::query()->whereKey($orderId)->whereHas('customer', fn ($q) => $q->where('phone', $fromPhone))->first();
         $flow = app(RatingFlow::class);
-        if (! $order || ! in_array($question, $flow->questions($order), true)) {
+        if (! $order || ! in_array($question, $flow->questions($order), true) || $order->{RatingFlow::COLUMNS[$question]} !== null) {
             return;
         }
 
-        if ($order->{RatingFlow::COLUMNS[$question]} === null) {
-            $flow->save($order, $question, $value);
-            if ($value === RatingFlow::BAD && $this->alertBadRating($merchant, $order, $question, $fromPhone)) {
-                Cache::put("rating-alerted:{$order->id}", true, now()->addDay());
-            }
-            $order->refresh();
-        }
-
-        if ($next = $flow->next($order)) {
-            $this->send($merchant, $fromPhone, $flow->message($order, $next, $locale));
+        $flow->save($order, $question, $value);
+        if ($value === RatingFlow::GREAT) {
+            $this->reply($merchant, $fromPhone, __('whatsapp.rating.thanks', ['shop' => $merchant->name], $locale));
 
             return;
         }
 
-        $bad = collect([$order->rating, $order->rating_service, $order->rating_delivery])->contains(RatingFlow::BAD);
-        $key = ! $bad ? 'thanks' : (Cache::get("rating-alerted:{$order->id}") ? 'sorry' : 'sorry_noted');
-        $this->reply($merchant, $fromPhone, __("whatsapp.rating.{$key}", ['shop' => $merchant->name], $locale));
-    }
-
-    /** Tells the shop that one of the three was rated Bad, and which. Returns whether anyone got it. */
-    protected function alertBadRating(Merchant $merchant, Order $order, string $question, string $customerPhone): bool
-    {
-        $shopLocale = $merchant->locale ?? 'en';
-        $body = __('whatsapp.staff.bad_rating', [
-            'number' => $order->number,
-            'what' => __("whatsapp.rating.what_{$question}", ['driver' => $order->driver?->name ?? ''], $shopLocale),
-            'phone' => OrderMessage::phone($customerPhone),
-        ], $shopLocale);
-
-        return $this->tellTheShop($merchant, $body, [(string) $order->number, $merchant->name, (string) RatingFlow::BAD, $customerPhone]);
+        // The customer's next message (or voice note) is about the problem, for two hours.
+        Cache::put("rating-issue:{$merchant->id}:{$fromPhone}", $order->id, now()->addHours(2));
+        $this->reply($merchant, $fromPhone, __('whatsapp.rating.ask_issue', ['shop' => $merchant->name], $locale));
     }
 
     /**
-     * Tells the shop about a 1–3 rating typed as a number (the old way, after a message sent by template): every
-     * staff member inside the 24-hour window, else the report number if it wrote to the shop number in the last 24
-     * hours (there is no template for this, and plain text outside the window is dropped). Returns whether anyone got it.
+     * The customer's message after an Okay or Bad rating is kept on the order. The shop reads it in its own chat (the
+     * customer wrote it there) and the bot stays out of this chat so the shop can answer personally.
      */
-    protected function alertLowRating(Merchant $merchant, Order $order, string $customerPhone): bool
+    protected function handleRatingIssue(Merchant $merchant, Customer $customer, string $fromPhone, string $text, string $locale): bool
     {
-        $body = __('whatsapp.staff.low_rating', [
-            'number' => $order->number, 'rating' => $order->rating, 'phone' => OrderMessage::phone($customerPhone),
-        ], $merchant->locale ?? 'en');
-
-        return $this->tellTheShop($merchant, $body, [(string) $order->number, $merchant->name, (string) $order->rating, $customerPhone]);
-    }
-
-    /**
-     * @param  list<string>  $templateParams  number, shop, rating, customer phone (the approved low-rating template)
-     */
-    protected function tellTheShop(Merchant $merchant, string $body, array $templateParams): bool
-    {
-        $told = false;
-        foreach ($this->staff->staff($merchant) as $member) {
-            $told = $this->staff->send($merchant, $member, $body, [], ShopTemplateService::LOW_RATING, $templateParams) || $told;
+        $orderId = Cache::pull("rating-issue:{$merchant->id}:{$fromPhone}");
+        $order = $orderId ? Order::query()->whereKey($orderId)->where('customer_id', $customer->id)->first() : null;
+        if (! $order || trim($text) === '') {
+            return false;
         }
 
-        $report = ShopSettings::for($merchant)->reportWhatsapp();
-        if (! $told && $report !== '' && $this->staff->numberInWindow($merchant, $report)) {
-            try {
-                $this->whatsapp->sendToCustomer($merchant, $report, ['type' => 'text', 'text' => $body]);
-                $told = true;
-            } catch (\Throwable $e) {
-                Log::info('Low rating alert not delivered', ['merchant_id' => $merchant->id, 'error' => $e->getMessage()]);
-            }
-        }
+        $order->forceFill(['rating_issue' => mb_substr(trim($text), 0, 2000)])->save();
+        $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
 
-        return $told;
+        $this->reply($merchant, $fromPhone, __('whatsapp.rating.issue_received', ['shop' => $merchant->name], $locale));
+
+        return true;
     }
 
     /**
@@ -871,20 +711,6 @@ class WhatsAppInboundService
         ];
     }
 
-    /**
-     * A customer asks for a price ("quote", "devis", "سعر") in a shop that takes repair or custom work.
-     * Other shops answer the same words as before (their menu).
-     */
-    protected function wantsQuote(Merchant $merchant, string $text): bool
-    {
-        // "quote", "devis", "عرض سعر" mean a price request wherever they stand ("Bonjour, je voudrais un devis pour…");
-        // "price" and "how much" only when the message starts with them, because they are everyday words.
-        return BusinessKind::quotes($merchant)
-            && mb_strlen(trim($text)) >= 12
-            && (bool) (preg_match('/\b(quote|quotation|estimate|devis|estimation|تسعيرة|عرض سعر|تقدير)\b/iu', $text)
-                || preg_match('/^\s*(price|how much to (fix|repair|make)|combien pour|سعر)\b/iu', $text));
-    }
-
     protected function reply(Merchant $merchant, string $toPhone, string $text): void
     {
         try {
@@ -914,9 +740,33 @@ class WhatsAppInboundService
         return is_string($id) && $id !== '' ? $id : null;
     }
 
+    /**
+     * The checkout question is not sent twice in a row: when the customer's last message was only "nothing else"
+     * and the question is already on their screen, the same buttons would just repeat it.
+     *
+     * @param  array<string, mixed>  $message
+     */
+    protected function sendUnlessRepeated(Merchant $merchant, string $toPhone, array $message): void
+    {
+        $body = $message['interactive']['body']['text'] ?? null;
+        if ($body !== null) {
+            $last = WhatsAppMessage::query()->where('merchant_id', $merchant->id)->where('direction', 'outbound')
+                ->where('to_number', $toPhone)->where('message_type', 'interactive')->latest('created_at')->latest('id')->first();
+            if (($last?->payload['interactive']['body']['text'] ?? null) === $body) {
+                return;
+            }
+        }
+
+        $this->send($merchant, $toPhone, $message);
+    }
+
     /** @param array<string, mixed> $message */
     protected function send(Merchant $merchant, string $toPhone, array $message): void
     {
+        if (($message['type'] ?? '') === 'none') {
+            return;
+        }
+
         try {
             $this->whatsapp->sendToCustomer($merchant, $toPhone, $message);
         } catch (\Throwable $e) {

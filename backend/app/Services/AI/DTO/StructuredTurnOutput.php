@@ -28,7 +28,6 @@ final readonly class StructuredTurnOutput
         public RecommendedAction $recommendedAction,
         public string $assistantMessage,
         public ?array $checkout = null,
-        public ?array $appointment = null,
     ) {}
 
     public static function fromArray(array $data): self
@@ -48,7 +47,6 @@ final readonly class StructuredTurnOutput
             recommendedAction: RecommendedAction::tryFrom($data['recommended_action'] ?? '') ?? RecommendedAction::None,
             assistantMessage: (string) ($data['assistant_message'] ?? ''),
             checkout: is_array($data['checkout'] ?? null) ? $data['checkout'] : null,
-            appointment: is_array($data['appointment'] ?? null) ? $data['appointment'] : null,
         );
     }
 
@@ -64,7 +62,6 @@ final readonly class StructuredTurnOutput
             'recommended_action' => $this->recommendedAction->value,
             'assistant_message' => $this->assistantMessage,
             'checkout' => $this->checkout,
-            'appointment' => $this->appointment,
         ];
     }
 }

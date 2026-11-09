@@ -31,7 +31,7 @@ export default async function DataDeletionPage() {
         <p>بعد ذلك نحذف محادثاتك وملفك كزبون ومواقعك المحفوظة وتقييماتك لدى هذا العمل، ونُخفي هويتك في طلباتك السابقة بحيث يحتفظ العمل فقط بالمجاميع المحاسبية التي يُلزمه القانون بالاحتفاظ بها.</p>
 
         <h2>إذا كنت صاحب عمل (تاجر)</h2>
-        <p>أرسل بريدًا إلكترونيًا إلى {mail("Close my account")} من البريد المسجّل في حسابك لإغلاقه. نفصل رقم واتساب الخاص بك ونحذف حسابك وقائمتك وزبائنك وطلباتك وحجوزاتك خلال 90 يومًا، باستثناء السجلات التي يُلزمنا القانون بالاحتفاظ بها.</p>
+        <p>أرسل بريدًا إلكترونيًا إلى {mail("Close my account")} من البريد المسجّل في حسابك لإغلاقه. نفصل رقم واتساب الخاص بك ونحذف حسابك وقائمتك وزبائنك وطلباتك خلال 90 يومًا، باستثناء السجلات التي يُلزمنا القانون بالاحتفاظ بها.</p>
 
         <h2>تسجيل الدخول عبر فيسبوك / Meta</h2>
         <p>إذا ربطت حساب واتساب للأعمال عبر تسجيل الدخول بفيسبوك، يمكنك أيضًا إزالة {b} من إعدادات فيسبوك ضمن <em>الإعدادات والخصوصية ← الإعدادات ← عمليات تكامل الأعمال</em>. هذا يوقف وصولنا؛ ولحذف البيانات التي نحتفظ بها، أرسل طلبًا كما هو موضّح أعلاه.</p>
@@ -53,7 +53,7 @@ export default async function DataDeletionPage() {
         <p>Nous supprimons alors vos conversations, votre profil client, vos adresses enregistrées et vos évaluations pour ce commerce, et anonymisons vos commandes passées afin que le commerce ne conserve que les totaux comptables qu&apos;il est légalement tenu de garder.</p>
 
         <h2>Si vous êtes un commerce (commerçant)</h2>
-        <p>Écrivez à {mail("Close my account")} depuis l&apos;adresse e-mail de votre compte pour le fermer. Nous déconnectons votre numéro WhatsApp et supprimons votre compte, catalogue, clients, commandes et réservations sous 90 jours, sauf les données que la loi nous oblige à conserver.</p>
+        <p>Écrivez à {mail("Close my account")} depuis l&apos;adresse e-mail de votre compte pour le fermer. Nous déconnectons votre numéro WhatsApp et supprimons votre compte, catalogue, clients, commandes sous 90 jours, sauf les données que la loi nous oblige à conserver.</p>
 
         <h2>Connexion Facebook / Meta</h2>
         <p>Si vous avez connecté votre compte WhatsApp Business via Facebook Login, vous pouvez aussi retirer {b} dans vos paramètres Facebook sous <em>Paramètres et confidentialité → Paramètres → Intégrations professionnelles</em>. Cela arrête notre accès ; pour supprimer les données déjà détenues, envoyez une demande comme indiqué ci-dessus.</p>
@@ -86,7 +86,7 @@ export default async function DataDeletionPage() {
       <h2>If you are a business (merchant)</h2>
       <p>
         Email {mail("Close my account")} from your account email to close your
-        account. We disconnect your WhatsApp number and delete your account, catalog, customers, orders and bookings within 90 days,
+        account. We disconnect your WhatsApp number and delete your account, catalog, customers, orders within 90 days,
         except records we must keep by law.
       </p>
 

@@ -11,8 +11,6 @@ use App\Models\Merchant;
 use App\Models\Modifier;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\ShopHour;
 use App\Services\AI\CatalogResolver;
 use App\Support\CheckoutException;
@@ -20,7 +18,6 @@ use App\Support\Conversation\CartStatus;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\DeliverySchedule;
 use App\Support\Money;
-use App\Support\OptionStock;
 use App\Support\Quantity;
 use App\Support\ShopSettings;
 use Illuminate\Support\Facades\DB;
@@ -85,10 +82,7 @@ class CheckoutService
         foreach ($cart->items as $item) {
             $product = $item->product;
             if (! $product || ! $product->isOrderable() || (float) $item->line_total < 0.01
-                || ($product->track_inventory && ($product->stock_quantity ?? 0) < $item->quantity)
                 || ! app(CatalogResolver::class)->choicesStillOffered($product, $item->variant_id, $item->modifier_ids ?? [])
-                || ($item->variant && ! $item->variant->hasStockFor($product, $item->quantity))
-                || ! OptionStock::has($product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity)
                 || ($product->staff_check && ! $conversation->customer?->isApproved($product->id))) {
                 throw new CheckoutException('unavailable', ['item' => $product?->name ?? '?']);
             }
@@ -125,7 +119,8 @@ class CheckoutService
         $split = $payment === 'cash' && $currency === 'MIXED' && $lbpOk && $cashMain !== null && $cashMain > 0 && $cashMain < $total;
         $inLbp = $currency === 'LBP' && $lbpOk;
 
-        $waitForShop = app(OrderConfirmation::class)->needsShopAcceptance($merchant);
+        // The assistant accepts orders itself unless the shop chose to answer each one (✅ typed in the customer's chat).
+        $waitForShop = ! $shop->autoAccept();
         $extra = [
             'delivery_lat' => $hasPin ? (float) $location['lat'] : null,
             'delivery_lng' => $hasPin ? (float) $location['lng'] : null,
@@ -133,11 +128,9 @@ class CheckoutService
             'cash_main' => $split ? $cashMain : null,
             'exchange_rate' => ($inLbp || $split) ? $shop->lbpRate() : null,
             'total_lbp' => $split ? $shop->toLbp($total - $cashMain) : ($inLbp ? $shop->toLbp($total) : null),
-            // A Whish order is always accepted by the shop first ('placed') and gets its payment
-            // instructions only then, so a refused order never has to be refunded: by staff with the Accept
-            // button, or by whoever holds the shop phone typing ✅ in the customer's chat. Cash orders
-            // wait for staff when the shop has some; otherwise the bot accepts them.
-            'status' => $waitForShop || $payment === 'whish' ? 'placed' : 'confirmed',
+            // A shop that answers each order gets it as 'placed'; a Whish order then gets its payment instructions
+            // only once accepted, so a refused order never has to be refunded. Otherwise the assistant accepts it now.
+            'status' => $waitForShop ? 'placed' : ($payment === 'whish' ? 'pending_payment' : 'confirmed'),
             'payment_status' => $payment === 'whish' ? 'pending' : 'cash',
             'fulfillment' => $fulfillment,
             'accepted_at' => $payment === 'whish' || $waitForShop ? null : now(),
@@ -145,7 +138,7 @@ class CheckoutService
             'deliver_at' => $deliverAt?->copy()->utc(),
         ];
 
-        // Retried on a deadlock: two checkouts that take stock of the same items in a different order can still collide.
+        // Retried on a deadlock: two checkouts that write the same rows in a different order can still collide.
         return DB::transaction(function () use ($merchant, $conversation, $cart, $zone, $address, $payment, $subtotal, $deliveryFee, $notes, $extra) {
             // One checkout at a time per shop takes the next number. Locking the shop's row (not "max(number) for update", which
             // locks a gap in the index) lets 100 customers confirm together without MySQL deadlocking them against each other.
@@ -186,29 +179,6 @@ class CheckoutService
                     'modifier_ids' => $item->modifier_ids ?: null,
                     'modifiers' => collect($item->modifier_ids ?? [])->map(fn ($id) => $modifierNames[$id] ?? null)->filter()->values()->all(),
                 ]);
-
-                // Only take stock that is still there: a parallel checkout may have taken the last
-                // one since the check above. Throwing here rolls the whole order back.
-                if ($item->product->track_inventory) {
-                    $taken = Product::query()->whereKey($item->product_id)
-                        ->where('stock_quantity', '>=', $item->quantity)
-                        ->decrement('stock_quantity', $item->quantity);
-                    if ($taken === 0) {
-                        throw new CheckoutException('unavailable', ['item' => $item->product->name]);
-                    }
-                    if (! OptionStock::take($item->product, $item->variant_id, $item->modifier_ids ?? [], $item->quantity)) {
-                        throw new CheckoutException('unavailable', ['item' => $this->lineName($item)]);
-                    }
-                    // A size with its own stock number: the same conditional take, for that size.
-                    if ($item->variant_id !== null && $item->variant?->stock_quantity !== null) {
-                        $sizeTaken = ProductVariant::query()->whereKey($item->variant_id)
-                            ->where('stock_quantity', '>=', $item->quantity)
-                            ->decrement('stock_quantity', $item->quantity);
-                        if ($sizeTaken === 0) {
-                            throw new CheckoutException('unavailable', ['item' => $this->lineName($item)]);
-                        }
-                    }
-                }
             }
 
             $cart->update(['status' => CartStatus::Converted]);

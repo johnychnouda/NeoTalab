@@ -19,7 +19,7 @@ const readTime = (msg) => Math.min(READ_MAX, (msg?.text?.length || 0) * READ_MS_
 // A chat opens already started (the customer's hello and the bot's first answer), so the phone
 // is never blank; the visitor's next tap then glows.
 const opening = (messages) => messages.findIndex((m) => m.chat === "c" && !m.out) + 1;
-const messagesFor = (shop, mode, pay) => (shop.booking || shop[mode][pay]).messages;
+const messagesFor = (shop, mode, pay) => shop[mode][pay].messages;
 
 const icons = {
   back: "M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z",
@@ -94,8 +94,7 @@ export default function OrderDemo({ demo }) {
   const shop = demo.scenarios[scenarioIndex];
   const [mode, setMode] = useState(shop.defaultMode);
   const [pay, setPay] = useState("whish");
-  // Salons take bookings, so there is nothing to pick.
-  const scenario = shop.booking || shop[mode][pay];
+  const scenario = shop[mode][pay];
   const { messages, chats } = scenario;
 
   // Start when the demo scrolls into view; with reduced motion, show the whole conversation instead.
@@ -220,12 +219,6 @@ export default function OrderDemo({ demo }) {
             ))}
           </div>
         </div>
-        {shop.booking ? (
-          <div className="wa-pick">
-            <span className="wa-pick-label">{demo.choose.booking}</span>
-            <p className="wa-booking-note">{demo.bookingNote}</p>
-          </div>
-        ) : (
           <>
             <div className="wa-pick">
               <span className="wa-pick-label" id="wa-mode-label">{demo.choose.mode}</span>
@@ -248,7 +241,6 @@ export default function OrderDemo({ demo }) {
               </div>
             </div>
           </>
-        )}
       </div>
 
       <p className="wa-members">{shop.members}</p>

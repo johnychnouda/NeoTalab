@@ -6,9 +6,9 @@ The choices behind NeoTalab, and the rules the code follows. How it is built in 
 ## What NeoTalab is
 
 A WhatsApp commerce platform for local businesses: WhatsApp is the shop's storefront, an AI
-assistant takes orders and bookings in the chat, and web dashboards are used to set the shop up.
-It is a multi-tenant SaaS and stays business-type agnostic (restaurants, bakeries, pharmacies,
-groceries, retail, salons, clinics, services).
+assistant takes orders in the chat, and web dashboards are used to set the shop up.
+It is a multi-tenant SaaS. Sign-up is open to restaurants and cafés, bakeries and sweets,
+supermarkets and groceries (butchers and fruit and vegetable shops included), and online shops.
 
 ## Stack
 
@@ -361,3 +361,44 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
   reason `ai`) at most once in ten minutes per customer. The bot is not paused.
 - **Removed:** the menu-list and item-button code in `ChatMenu` (`mn:` ids, `co:start:`, typed quantity), `BusinessKind::menuWord`,
   and the menu translation keys only it used. The approval message for a team-checked item now says "just ask me for it".
+
+## Orders only (8 Nov 2026)
+
+- **Removed:** bookings (appointments, stylists, reminders, deposits) and price quotes, with their WhatsApp messages,
+  Meta templates, API routes, settings and web screens. The migration `remove_bookings_and_quotes` drops the tables and
+  `products.duration_mins`; a second one, `remove_stock_tracking`, drops stock counting. Shops confirm availability
+  themselves when they accept an order.
+- **Kept:** job steps (made-to-order progress).
+- **Online Shop / Retail** is the fourth sign-up type (clothes, beauty, electronics, toys, home): the retail setup (catalogue, sizes, colours, delivery in days). The shop confirms availability when it accepts the order.
+- **Sign-up types** are only the ones in `web/lib/joinFormOptions.js`; the server refuses the removed ones (`BusinessKind::BLOCKED_TYPES`).
+
+## Four chat fixes found with the real AI (8 Nov 2026)
+
+- **A named section shows its items:** when the assistant answers a menu request and the customer named a section
+  ("what's in the pizza section?"), the chat shows that section's items with prices (`ChatMenu::categoryNamed`, `categoryMenu`),
+  not the list of sections again.
+- **The cart is shown after every change:** after an add, change or removal the reply ends with "Your cart:", the lines with prices
+  and the subtotal (`ConversationService::withCartRecap`), unless the assistant already gave the prices.
+- **French is French:** "merci" is no longer an Arabizi word, so "C'est tout, merci" is French and the checkout stays in French.
+- **No repeated question:** the delivery, pickup or payment buttons are not sent again when they are already the last message.
+
+## A shorter chat (8 Nov 2026)
+
+- **One rating message:** the delivered message carries one question, Great / Okay / Bad. Great is thanked. Okay or Bad
+  tells the shop and asks the customer what went wrong, typed or as a voice note; that message is kept on the order
+  (`orders.rating_issue`), sent to the shop, and the bot stays out of the chat for the pause time so the shop answers
+  personally (`WhatsAppInboundService::handleRatingIssue`). The service and delivery-person questions are gone; old answers
+  stay in the reports.
+- **No "Where's my order?" button:** the customer asks in words. The assistant recognises it in any language
+  (`track_order`) and the server answers with the real status (`ConversationService::orderStatus`); the assistant never
+  guesses a status or a time. Old buttons in existing chats still work.
+
+## No staff, and the assistant runs the shop (9 Nov 2026)
+
+- **The team is the delivery drivers only.** There are no staff members, staff buttons, staff templates or job steps. The shop
+  answers from the shop phone by typing in the customer's chat: ✅ / ❌ (accept, or Whish money arrived), "ready", "out",
+  "done", "delay", "refunded" (`ShopCommands`). The customer sees no prompts.
+- **Auto accept is on by default** (`auto_accept`, Settings): the assistant accepts every order itself, so the business runs even
+  when the shop is not watching. A shop that wants to answer each order switches it off. A Whish payment still needs the shop to
+  type ✅ once the money arrived, because only the shop can see its Whish account.
+

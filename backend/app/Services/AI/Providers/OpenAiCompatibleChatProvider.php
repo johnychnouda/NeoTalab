@@ -54,13 +54,7 @@ Checkout: when the customer has finished choosing items (they say that's all, do
 At checkout the customer can pick another delivery or pickup time with the "Another time" button on the order summary: say so if asked, never take the time yourself.
 If the customer wants to see the menu or prices of many items, return "show_menu" with a short assistant_message: the server attaches the menu as a WhatsApp list in the chat. Never send links.
 
-Appointments — when shop.business_mode is "appointments" or "both", shop.services lists bookable services (id, name, duration_mins, price) and "now" is the current local date/time:
-- When the customer wants to book or asks for free times, return recommended_action "check_availability" with appointment {service_id, date: "YYYY-MM-DD" (interpret "today", "tomorrow", weekday names relative to "now"; default today), time: null}. The server replies with the real free times.
-- When the customer picks a time (and service and date are known), return "book_appointment" with appointment {service_id, date, time: "HH:MM"}. The server confirms or offers other times. A customer who asks to book and already names the service, the day and the time in one message ("book a haircut on Friday at 10:00") is picking a time: return "book_appointment" at once, never "check_availability" first. Use "check_availability" only when they ask for free times or the service, the day or the time is missing.
-- To cancel an upcoming booking, after the customer confirms, return "cancel_appointment" with appointment {service_id: null, date and time of the booking they mean, or null when they did not say}. The server cancels it, or asks which one when they have several.
-- shop.providers lists the team (stylists, barbers) with the services each one does. When the customer names a person, set appointment.provider_id to that id in every appointment action; otherwise null (anyone free). Never invent a person.
-Services are booked, never added to the cart. "appointment" must be null for every other action.
-
+Order status: when the customer asks where their order is, how long it will take or what is happening with it (in any language, for example "wein talabe", "où est ma commande", "how long?"), return recommended_action "track_order" with an empty assistant_message; the server answers with the real status. Never guess a time or a status yourself.
 Cancelling: if the customer wants to cancel an order they already placed, ask them to confirm; once they confirm, return recommended_action "cancel_order" (the server checks whether it is still possible and replies).
 Talking to a person: if the customer asks for a human, the owner, a manager, or is upset/complaining, return recommended_action "handoff" — the bot then steps back and the shop answers personally. With "handoff" set handoff_reason to "customer_asked_for_person" or "complaint"; every other action has handoff_reason "none". A question you cannot answer is not a reason to hand off: say so and ask if they want the team.
 
@@ -69,7 +63,7 @@ For "add" actions set quantity >= 1 (weight items >= 0.25); set unused fields to
 Quantities: a number written before or after a product name is its quantity, in any language and script ("2 shawarma beef", "shawarma beef x2", "٢ شاورما", "2 chawarma beef", "deux falafels" = 2). The quantity is the number the customer wrote next to that product, never 1 by default. If a single message names several products, add each one with its own quantity.
 
 Intents: greeting, order, modify_cart, inquiry, cancel, unknown.
-Recommended actions: show_menu, ask_clarification, confirm_cart, checkout, place_order, cancel_order, handoff, check_availability, book_appointment, cancel_appointment, close_conversation, await_customer, none.
+Recommended actions: show_menu, ask_clarification, confirm_cart, checkout, place_order, cancel_order, track_order, handoff, close_conversation, await_customer, none.
 PROMPT;
 
         // Order matters for cost: OpenAI caches the longest repeated prefix (75% cheaper), so the
@@ -204,7 +198,7 @@ PROMPT;
             'additionalProperties' => false,
             'required' => [
                 'intent', 'confidence', 'cart_actions', 'conversation_state',
-                'missing_fields', 'recommended_action', 'handoff_reason', 'assistant_message', 'checkout', 'appointment',
+                'missing_fields', 'recommended_action', 'handoff_reason', 'assistant_message', 'checkout',
             ],
             'properties' => [
                 'intent' => [
@@ -241,26 +235,10 @@ PROMPT;
                 'missing_fields' => ['type' => 'array', 'items' => ['type' => 'string']],
                 'recommended_action' => [
                     'type' => 'string',
-                    'enum' => ['show_menu', 'ask_clarification', 'confirm_cart', 'checkout', 'place_order', 'cancel_order', 'handoff', 'check_availability', 'book_appointment', 'cancel_appointment', 'close_conversation', 'await_customer', 'none'],
+                    'enum' => ['show_menu', 'ask_clarification', 'confirm_cart', 'checkout', 'place_order', 'cancel_order', 'track_order', 'handoff', 'close_conversation', 'await_customer', 'none'],
                 ],
                 'handoff_reason' => ['type' => 'string', 'enum' => ['customer_asked_for_person', 'complaint', 'none']],
                 'assistant_message' => ['type' => 'string'],
-                'appointment' => [
-                    'anyOf' => [
-                        [
-                            'type' => 'object',
-                            'additionalProperties' => false,
-                            'required' => ['service_id', 'date', 'time', 'provider_id'],
-                            'properties' => [
-                                'service_id' => $nullableString,
-                                'date' => $nullableString,
-                                'time' => $nullableString,
-                                'provider_id' => $nullableString,
-                            ],
-                        ],
-                        ['type' => 'null'],
-                    ],
-                ],
                 'checkout' => [
                     'anyOf' => [
                         [

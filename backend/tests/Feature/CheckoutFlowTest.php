@@ -26,7 +26,7 @@ use Tests\TestCase;
 
 class CheckoutFlowTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '96170123456';
 
@@ -115,6 +115,22 @@ class CheckoutFlowTest extends TestCase
             'area' => ['type' => 'circle', 'center' => [34.1210, 35.6480], 'radius' => 6000]]);
     }
 
+    public function test_the_same_checkout_question_is_not_sent_twice_in_a_row(): void
+    {
+        $this->menuOrder();
+        $before = $this->questionsSent();
+
+        $this->say('done'); // nothing else: the question is already on the screen
+
+        $this->assertSame($before, $this->questionsSent());
+    }
+
+    private function questionsSent(): int
+    {
+        return Http::recorded()->map(fn ($p) => $p[0])
+            ->filter(fn (Request $r) => str_ends_with($r->url(), '/messages') && isset($r['interactive']['action']['buttons']))->count();
+    }
+
     public function test_zones_on_the_map_ask_for_the_pin_and_pick_the_zone_from_it(): void
     {
         $this->drawRings();
@@ -171,13 +187,13 @@ class CheckoutFlowTest extends TestCase
 
         $this->tap('co:ok:');
         $order = $this->order();
-        $this->assertSame('confirmed', $order->status);
+        $this->assertSame('placed', $order->status, 'the shop answers from its phone');
         $this->assertSame($this->jbeil->id, $order->delivery_zone_id);
         $this->assertSame('LBP', $order->payment_currency);
         $this->assertEquals(34.12, $order->delivery_lat);
         $this->assertStringContainsString('Building 4, 2nd floor', $order->delivery_address);
-        $this->assertStringContainsString('Order #1 confirmed', $this->last()['interactive']['body']['text']);
-        $this->assertSame(["trk:{$order->id}"], $this->buttonIds(), "with a Where's my order? button");
+        $this->assertStringContainsString('Order #1 sent to Foren', $this->last()['text']['body']);
+        $this->assertSame([], $this->buttonIds(), 'no status button: the customer asks in words');
 
         $saved = Customer::query()->withoutGlobalScopes()->where('phone', '+'.self::CUSTOMER)->first()->addresses;
         $this->assertSame('Jbeil', $saved[0]['zone']);

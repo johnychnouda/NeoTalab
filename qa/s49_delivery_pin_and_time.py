@@ -40,7 +40,7 @@ ZONES = tj('echo json_encode(App\\Models\\DeliveryZone::withoutGlobalScopes()->w
 try:
     suite("W9 setup: a staff phone and a driver for the shop, zones switched off for the run")
     tj('$m=App\\Models\\Merchant::find("' + MID + '"); '
-       'foreach([["+' + STAFF + '","staff","QA Pin Staff"],["+' + DRIVER + '","driver","QA Pin Driver"]] as [$p,$role,$n]) '
+       'foreach([["+' + DRIVER + '","driver","QA Pin Driver"]] as [$p,$role,$n]) '
        '{ App\\Models\\Driver::withoutGlobalScopes()->updateOrCreate(["merchant_id"=>$m->id,"phone"=>$p],'
        '["name"=>$n,"role"=>$role,"whatsapp_number"=>$p,"password"=>"secret123","status"=>"off_duty","availability"=>"available","is_active"=>true]); } '
        'App\\Models\\DeliveryZone::withoutGlobalScopes()->where("merchant_id",$m->id)->update(["is_active"=>false]); '
@@ -48,11 +48,10 @@ try:
     # Other drivers left on duty by earlier lab runs would be handed these orders: off duty for the run, restored after.
     OTHERS = tj('$ids=App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("role","driver")->where("phone","!=","+' + DRIVER + '")->where("status","on_duty")->pluck("id")->all(); '
                 'App\\Models\\Driver::withoutGlobalScopes()->whereIn("id",$ids)->update(["status"=>"off_duty"]); echo json_encode($ids);')
-    say(STAFF, text="hi")
     say(DRIVER, text="start")
     # Starting a shift hands the driver an older waiting order from earlier lab runs: free them for this order.
     tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["active_order_id"=>null,"availability"=>"available"]); echo json_encode(1);')
-    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->where("track_inventory",false)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
+    pid_item = tj('echo json_encode(App\\Models\\Product::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("is_active",true)->where("is_available",true)->doesntHave("variants")->doesntHave("modifierGroups")->orderBy("name")->first()->id);')
 
     for lang, C in CUSTOMERS.items():
         suite(f"W9 {lang}: a typed address is not taken, the pin is")
@@ -99,7 +98,7 @@ try:
         suite(f"W9 {lang}: the shop accepts, the driver picks up")
         tj('App\\Models\\Driver::withoutGlobalScopes()->where("merchant_id","' + MID + '")->where("phone","+' + DRIVER + '")->update(["active_order_id"=>null,"availability"=>"available"]); echo json_encode(1);')
         o = o[0]
-        code, out, raw, allout = say(STAFF, button=f"stf:accept:{o['id']}")
+        code, allout = shop_tap(PID, f"stf:accept:{o['id']}"); out = texts(allout)
         mine = texts([x for x in allout if x["body"].get("to", "").lstrip("+") == C])
         print(f"   [{lang}] customer after accept ->", mine)
         if lang == "en":

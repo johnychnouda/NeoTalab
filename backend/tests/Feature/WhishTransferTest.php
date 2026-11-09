@@ -12,7 +12,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\OrderConfirmation;
 use App\Services\WhatsApp\CustomerTemplates;
-use App\Services\WhatsApp\ShopTemplateService;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
@@ -30,7 +29,7 @@ use Tests\TestCase;
  */
 class WhishTransferTest extends TestCase
 {
-    use InteractsWithTenants, RefreshDatabase;
+    use InteractsWithTenants, RefreshDatabase, \Tests\Concerns\ShopPhone;
 
     private const CUSTOMER = '+96170123456';
 
@@ -75,6 +74,12 @@ class WhishTransferTest extends TestCase
     /** A button tap, from the customer or from staff. */
     private function tap(string $buttonId, string $from): void
     {
+        if (str_starts_with($buttonId, 'stf:')) {
+            $this->shopTap($buttonId);
+
+            return;
+        }
+
         app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [['value' => [
             'metadata' => ['phone_number_id' => '555'],
             'messages' => [['id' => 'wamid.IN'.(++$this->seq), 'from' => ltrim($from, '+'), 'type' => 'interactive',
@@ -151,6 +156,7 @@ class WhishTransferTest extends TestCase
         $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->latest('number')->firstOrFail();
 
         $this->travel(2)->days();
+        $order->forceFill(['created_at' => now()])->save(); // the shop answers a little late: the customer's window is closed
         $this->tap("stf:accept:{$order->id}", self::STAFF);
 
         [$name, $params, $buttons] = $this->lastTemplateToCustomer();
@@ -226,10 +232,6 @@ class WhishTransferTest extends TestCase
         $this->assertSame('awaiting_check', $order->fresh()->payment_status);
         $this->assertSame('pending_payment', $order->fresh()->status, 'the customer cannot make the order go ahead');
         $this->assertStringContainsString('checking', $this->lastTo(self::CUSTOMER));
-        $this->assertSame([
-            "stf:wh_ok:{$order->id}",
-            "stf:wh_no:{$order->id}",
-        ], $this->lastButtonsTo(self::STAFF));
     }
 
     public function test_typing_paid_changes_nothing(): void
@@ -306,12 +308,12 @@ class WhishTransferTest extends TestCase
         $this->assertSame('failed', $order->fresh()->payment_status);
     }
 
-    public function test_a_customer_cannot_confirm_their_own_payment_with_a_staff_button(): void
+    public function test_a_customer_cannot_confirm_their_own_payment_by_typing_a_tick(): void
     {
         $order = $this->acceptedWhishOrder();
         $this->tap("wh:paid:{$order->id}", self::CUSTOMER);
 
-        $this->tap("stf:wh_ok:{$order->id}", self::CUSTOMER);
+        $this->say('✅');
 
         $this->assertSame('awaiting_check', $order->fresh()->payment_status);
         $this->assertSame('pending_payment', $order->fresh()->status);
@@ -387,35 +389,6 @@ class WhishTransferTest extends TestCase
     public function test_the_old_whish_callback_is_gone(): void
     {
         $this->postJson('/api/v1/webhooks/whish/1/success')->assertNotFound();
-    }
-
-    public function test_the_payment_check_reaches_the_shop_outside_the_24_hour_window_by_the_approved_template(): void
-    {
-        $settings = $this->merchant->fresh()->settings;
-        $settings['bot']['templates'][ShopTemplateService::PAYMENT_CHECK] = ['status' => 'APPROVED'];
-        $this->merchant->forceFill(['settings' => $settings])->save();
-        $order = $this->acceptedWhishOrder();
-        // Days later the shop's staff has not written: only a template can reach them.
-        Carbon::setTestNow(Carbon::parse('2026-10-08 12:00', 'Asia/Beirut'));
-
-        $this->tap("wh:paid:{$order->id}", self::CUSTOMER);
-
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/messages')
-            && ($r['template']['name'] ?? null) === ShopTemplateService::PAYMENT_CHECK
-            && $r['to'] === ltrim(self::STAFF, '+'));
-    }
-
-    public function test_the_shop_is_asked_again_half_an_hour_after_i_paid_if_it_has_not_checked(): void
-    {
-        $order = $this->acceptedWhishOrder();
-        $this->tap("wh:paid:{$order->id}", self::CUSTOMER);
-        Bus::assertDispatched(RemindShopOfWhishCheck::class, fn ($job) => $job->orderId === $order->id);
-
-        $before = count($this->sentTo(self::STAFF));
-        (new RemindShopOfWhishCheck($order->id))->handle(app(OrderConfirmation::class));
-
-        $this->assertGreaterThan($before, count($this->sentTo(self::STAFF)));
-        $this->assertSame('awaiting_check', $order->fresh()->payment_status);
     }
 
     public function test_the_expired_message_offers_i_paid_for_a_customer_who_paid_late(): void

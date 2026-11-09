@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\SystemAlert;
 use App\Services\WhatsApp\CustomerTemplates;
 use App\Services\WhatsApp\ShopTemplateService;
-use App\Services\WhatsApp\StaffTemplateTexts;
 use App\Services\WhatsApp\WhatsAppInboundService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,11 +17,9 @@ class CustomerTemplatesTest extends TestCase
 
     public function test_every_event_has_a_template_in_each_language(): void
     {
-        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::BOOKING, CustomerTemplates::REFUND,
-            CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::QUOTE, CustomerTemplates::SCHEDULED,
-            CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED,
-            CustomerTemplates::BOOKING_CANCELLED_SHOP, CustomerTemplates::BOOKING_MOVED, CustomerTemplates::JOB_STAGE,
-            CustomerTemplates::DEPOSIT_INSTRUCTIONS, CustomerTemplates::DEPOSIT_CONFIRMED, CustomerTemplates::DEPOSIT_NOT_FOUND, CustomerTemplates::DEPOSIT_EXPIRED];
+        $events = [CustomerTemplates::ACCEPTED, CustomerTemplates::READY, CustomerTemplates::ON_THE_WAY, CustomerTemplates::DELAYED, CustomerTemplates::CANCELLED, CustomerTemplates::REFUND,
+            CustomerTemplates::OUTSIDE, CustomerTemplates::DELIVERED, CustomerTemplates::DELIVERED_RATE, CustomerTemplates::SCHEDULED,
+            CustomerTemplates::PAY_INSTRUCTIONS, CustomerTemplates::PAY_CONFIRMED, CustomerTemplates::PAY_NOT_RECEIVED, CustomerTemplates::PAY_EXPIRED];
         $defs = CustomerTemplates::definitions();
 
         $this->assertCount(count($events) * count(CustomerTemplates::LANGUAGES), $defs);
@@ -57,24 +54,11 @@ class CustomerTemplatesTest extends TestCase
     public function test_the_shop_template_set_includes_them_and_they_are_submitted_in_their_own_language(): void
     {
         $this->assertArrayHasKey('neotalab_c_order_ready_fr', ShopTemplateService::definitions());
-        $this->assertArrayHasKey(ShopTemplateService::NEW_ORDER, ShopTemplateService::definitions());
+        $this->assertArrayHasKey(ShopTemplateService::BILLING_REMINDER.'_ar', ShopTemplateService::definitions());
 
         $message = ShopTemplateService::message('neotalab_c_order_ready_fr', ['128', 'Beirut Bites', 'Hamra'], [], 'fr');
         $this->assertSame('fr', $message['template']['language']['code']);
         $this->assertSame('en', ShopTemplateService::message(ShopTemplateService::BILLING_REMINDER, ['x', 'y'])['template']['language']['code']);
-    }
-
-    public function test_every_staff_template_exists_in_arabic_and_french_with_matching_buttons(): void
-    {
-        $defs = ShopTemplateService::definitions();
-        foreach (array_keys(StaffTemplateTexts::all()) as $base) {
-            foreach (['ar', 'fr'] as $language) {
-                $this->assertArrayHasKey("{$base}_{$language}", $defs);
-                $this->assertSame($language, $defs["{$base}_{$language}"]['language']);
-                $this->assertSame(count($defs[$base]['buttons'] ?? []), count($defs["{$base}_{$language}"]['buttons'] ?? []), "{$base}_{$language}: same buttons as the English one");
-            }
-        }
-        $this->assertCount(17, StaffTemplateTexts::all(), 'all seventeen staff and owner templates are translated');
     }
 
     public function test_the_name_falls_back_to_english_for_an_unknown_language(): void

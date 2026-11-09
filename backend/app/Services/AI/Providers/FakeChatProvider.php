@@ -33,45 +33,12 @@ class FakeChatProvider implements ChatProvider
             return $checkout;
         }
 
-        // "slots haircut 2026-10-06", "book haircut 2026-10-06 10:30 with rami", "cancel appointment"
-        if (preg_match('/^(slots|book) (.+?) (\d{4}-\d{2}-\d{2})(?: (\d{1,2}:\d{2}))?(?: with (.+))?$/u', $text, $m)) {
-            $service = collect($input->shop['services'] ?? [])->first(fn ($s) => mb_strtolower($s['name']) === trim($m[2]));
-            $provider = isset($m[5]) ? collect($input->shop['providers'] ?? [])->first(fn ($p) => mb_strtolower($p['name']) === trim($m[5])) : null;
-
-            return new StructuredTurnOutput(
-                intent: ConversationIntent::Order, confidence: 0.9, entities: [], cartActions: [],
-                conversationState: ['phase' => $input->conversationPhase], missingFields: [],
-                recommendedAction: $m[1] === 'book' ? RecommendedAction::BookAppointment : RecommendedAction::CheckAvailability,
-                assistantMessage: '',
-                appointment: ['service_id' => $service['id'] ?? null, 'date' => $m[3], 'time' => ($m[4] ?? '') ?: null, 'provider_id' => $provider['id'] ?? null],
-            );
-        }
-
-        // "ask haircut 2026-10-06 at 10:30 please": the real model's habit of answering a booking with the list of free times
-        // (check_availability, no time) even when the customer named one.
-        if (preg_match('/^ask (.+?) (\d{4}-\d{2}-\d{2})\b/u', $text, $m)) {
-            $service = collect($input->shop['services'] ?? [])->first(fn ($s) => mb_strtolower($s['name']) === trim($m[1]));
-
-            return new StructuredTurnOutput(
-                intent: ConversationIntent::Order, confidence: 0.9, entities: [], cartActions: [],
-                conversationState: ['phase' => $input->conversationPhase], missingFields: [],
-                recommendedAction: RecommendedAction::CheckAvailability, assistantMessage: '',
-                appointment: ['service_id' => $service['id'] ?? null, 'date' => $m[2], 'time' => null, 'provider_id' => null],
-            );
-        }
-
         if (preg_match('/^(checkout|done|that\'s all)$/u', $text)) {
             return $this->action($input, RecommendedAction::Checkout, ConversationIntent::Order);
         }
 
-        // "cancel appointment", "cancel appointment 2026-10-06" (the day the customer named)
-        if (preg_match('/^cancel (my )?appointment\b(?: (\d{4}-\d{2}-\d{2}))?/u', $text, $m)) {
-            return new StructuredTurnOutput(
-                intent: ConversationIntent::Cancel, confidence: 0.9, entities: [], cartActions: [],
-                conversationState: ['phase' => $input->conversationPhase], missingFields: [],
-                recommendedAction: RecommendedAction::CancelAppointment, assistantMessage: '',
-                appointment: isset($m[2]) ? ['service_id' => null, 'date' => $m[2], 'time' => null] : null,
-            );
+        if (preg_match('/^(where(\'s| is) my order|order status|track my order|wein talabe|où est ma commande)\b/u', $text)) {
+            return $this->action($input, RecommendedAction::TrackOrder, ConversationIntent::Inquiry);
         }
 
         if (preg_match('/^(cancel (my )?order|الغي الطلب|annuler (ma )?commande)\b/u', $text)) {

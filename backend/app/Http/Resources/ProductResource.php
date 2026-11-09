@@ -27,15 +27,10 @@ class ProductResource extends JsonResource
             'offer_starts_on' => $this->offer_starts_on?->toDateString(),
             'offer_ends_on' => $this->offer_ends_on?->toDateString(),
             'offer_active' => $this->activeOfferPercent() !== null,
-            'duration_mins' => $this->duration_mins,
             'is_active' => $this->is_active,
             'is_available' => $this->is_available,
             'staff_check' => (bool) $this->staff_check,
-            'track_inventory' => $this->track_inventory,
-            'stock_quantity' => $this->stock_quantity,
-            'low_stock_threshold' => $this->low_stock_threshold,
             'is_orderable' => $this->isOrderable(),
-            'is_low_stock' => $this->isLowStock(),
             'prep_time_mins' => $this->prep_time_mins,
             'sort_order' => $this->sort_order,
             // Explicit accessor: the column is named `attributes`, which shadows
@@ -43,9 +38,6 @@ class ProductResource extends JsonResource
             'attributes' => $this->resource->getAttribute('attributes'),
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
             'modifier_groups' => ModifierGroupResource::collection($this->whenLoaded('modifierGroups')),
-            'option_stocks' => $this->whenLoaded('optionStocks', fn () => $this->optionStocks->map(fn ($r) => [
-                'variant_id' => $r->variant_id, 'modifier_id' => $r->modifier_id, 'stock_quantity' => $r->stock_quantity,
-            ])->values()),
             'created_at' => $this->created_at,
         ];
     }

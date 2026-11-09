@@ -14,8 +14,6 @@ final class Roles
 
     public const MERCHANT_ADMIN = 'merchant-admin';
 
-    public const MERCHANT_STAFF = 'merchant-staff';
-
     public const DRIVER = 'driver'; // drivers work through WhatsApp, not the dashboard
 
     /** Roles that manage a merchant's own users. */
@@ -25,7 +23,6 @@ final class Roles
         self::PLATFORM_SUPER_ADMIN,
         self::MERCHANT_OWNER,
         self::MERCHANT_ADMIN,
-        self::MERCHANT_STAFF,
         self::DRIVER,
     ];
 }

@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
-use App\Models\Product;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,17 +17,6 @@ class ConversationRbacTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
-    }
-
-    public function test_merchant_staff_can_simulate_conversations(): void
-    {
-        [$merchant, $staff] = $this->merchantWithUser(Roles::MERCHANT_STAFF);
-        Product::factory()->forMerchant($merchant)->create();
-        $token = $this->tokenFor($staff);
-
-        $this->withToken($token)->postJson('/api/v1/conversations', [
-            'phone' => '+96170888888',
-        ])->assertCreated();
     }
 
     public function test_platform_admin_without_tenant_cannot_start_tenant_conversation(): void

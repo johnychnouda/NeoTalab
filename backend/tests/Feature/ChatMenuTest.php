@@ -63,6 +63,37 @@ class ChatMenuTest extends TestCase
         return Conversation::query()->withoutGlobalScopes()->firstOrFail()->cart()->withoutGlobalScopes()->first()->items()->withoutGlobalScopes()->get();
     }
 
+    public function test_a_named_section_shows_its_items_not_the_list_of_sections_again(): void
+    {
+        $pizza = Category::factory()->forMerchant($this->merchant)->create(['name' => 'Pizza', 'sort_order' => 1]);
+        $burgers = Category::factory()->forMerchant($this->merchant)->create(['name' => 'Burgers', 'sort_order' => 2]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Margherita', 'price' => 8, 'category_id' => $pizza->id]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Pepperoni', 'price' => 10, 'category_id' => $pizza->id]);
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Classic burger', 'price' => 6, 'category_id' => $burgers->id]);
+
+        $this->say('menu pizza section please');
+
+        $text = $this->last()['text']['body'];
+        $this->assertStringContainsString('• Margherita — 8.00$', $text);
+        $this->assertStringContainsString('• Pepperoni — 10.00$', $text);
+        $this->assertStringNotContainsString('Burgers —', $text, 'the sections are not listed again');
+
+        $this->say('menu');
+        $this->assertStringContainsString('Burgers — 1 item', $this->last()['text']['body'], 'no section named: the list of sections');
+    }
+
+    public function test_the_cart_is_shown_with_prices_after_an_add(): void
+    {
+        Product::factory()->forMerchant($this->merchant)->create(['name' => 'Shawarma', 'price' => 5]);
+
+        $this->say('add 2 shawarma');
+
+        $text = $this->last()['text']['body'];
+        $this->assertStringContainsString('Your cart:', $text);
+        $this->assertStringContainsString('• 2× Shawarma — 10.00$', $text);
+        $this->assertStringContainsString('Subtotal: 10.00$', $text);
+    }
+
     public function test_greeting_comes_with_the_menu_in_words(): void
     {
         foreach (range(1, 12) as $n) {
@@ -76,19 +107,6 @@ class ChatMenuTest extends TestCase
         $this->assertStringContainsString('Cat 10', $this->last()['text']['body']);
         $this->assertStringNotContainsString('Cat 11', $this->last()['text']['body']);
         $this->assertStringContainsString('2 more', $this->last()['text']['body']);
-    }
-
-    public function test_a_salon_greeting_lists_its_services_with_minutes_and_prices(): void
-    {
-        $this->merchant->forceFill(['settings' => array_merge($this->merchant->settings, ['business_mode' => 'appointments'])])->save();
-        Product::factory()->forMerchant($this->merchant)->create(['name' => "Men's haircut", 'price' => 12, 'duration_mins' => 30]);
-
-        $this->say('hi');
-
-        $sent = $this->last();
-        $text = $sent['text']['body'] ?? $sent['interactive']['body']['text'] ?? '';
-        $this->assertStringContainsString("Men's haircut — 30 min", $text);
-        $this->assertStringContainsString('12.00$', $text);
     }
 
     public function test_sold_out_items_are_not_in_the_menu(): void
