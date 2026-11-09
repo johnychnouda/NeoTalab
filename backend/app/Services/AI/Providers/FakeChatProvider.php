@@ -49,12 +49,36 @@ class FakeChatProvider implements ChatProvider
             return $this->action($input, RecommendedAction::Handoff, ConversationIntent::Inquiry);
         }
 
+        if ($learned = $this->parseName($input)) {
+            return $learned;
+        }
+
         if ($this->isGreeting($text)) {
             return $this->greeting($input);
         }
 
         if ($this->isMenuRequest($text)) {
             return $this->menuInquiry($input);
+        }
+
+        if ($this->isShopLocationRequest($text)) {
+            $url = $input->shop['maps_url'] ?? null;
+            $address = $input->shop['pickup_address'] ?? ($input->shop['name'] ?? 'the shop');
+
+            return new StructuredTurnOutput(
+                intent: ConversationIntent::Inquiry,
+                confidence: 0.9,
+                entities: [],
+                cartActions: [],
+                conversationState: ['phase' => $input->conversationPhase],
+                missingFields: [],
+                recommendedAction: RecommendedAction::None,
+                assistantMessage: $url
+                    ? "📍 {$address}\n{$url}"
+                    : ($address !== '' && $address !== 'the shop'
+                        ? "📍 We’re at {$address}"
+                        : "I don’t have the shop map pin saved yet 🙏"),
+            );
         }
 
         if ($this->isClearCart($text)) {
@@ -77,7 +101,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => $input->conversationPhase],
             missingFields: [],
             recommendedAction: RecommendedAction::AskClarification,
-            assistantMessage: 'Sorry, I did not understand. Try "menu" or "add 2 ProductName".',
+            assistantMessage: "Hmm I didn't catch that 🙏 Try \"menu\" or something like \"add 2 ProductName\".",
         );
     }
 
@@ -98,7 +122,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => 'checkout'],
             missingFields: [],
             recommendedAction: RecommendedAction::PlaceOrder,
-            assistantMessage: 'Placing your order…',
+            assistantMessage: 'Perfect, let’s finish this 👍',
             checkout: [
                 'delivery_zone' => ($parts[0] ?? '') ?: null,
                 'delivery_address' => ($parts[1] ?? '') ?: null,
@@ -133,6 +157,14 @@ class FakeChatProvider implements ChatProvider
         return (bool) preg_match('/^(hi|hello|hey|marhaba|bonjour|salut)\b/u', $text);
     }
 
+    private function isShopLocationRequest(string $text): bool
+    {
+        return (bool) preg_match(
+            '/\b(where (are|is) (you|the shop)|your (location|address)|shop (location|address)|google maps|وين المحل|موقعكم|localisation|où êtes)\b/u',
+            $text,
+        );
+    }
+
     private function isMenuRequest(string $text): bool
     {
         return (bool) preg_match('/\b(menu|catalogue|قائمة|menu svp)\b/u', $text);
@@ -145,15 +177,53 @@ class FakeChatProvider implements ChatProvider
 
     private function greeting(ConversationTurnInput $input): StructuredTurnOutput
     {
+        $hello = $input->customerName
+            ? "Good day Mr/Ms {$input->customerName}! What can I get you today, please? 😊"
+            : 'Good day Sir/Ma’am! What can I get you today, please? 😊 May I have your name?';
+
         return new StructuredTurnOutput(
             intent: ConversationIntent::Greeting,
             confidence: 0.99,
             entities: [],
             cartActions: [],
-            conversationState: ['phase' => 'idle'],
+            conversationState: ['phase' => 'idle', 'language' => 'en'],
+            missingFields: $input->customerName ? [] : ['customer_name'],
+            recommendedAction: RecommendedAction::AwaitCustomer,
+            assistantMessage: $hello,
+        );
+    }
+
+    private function parseName(ConversationTurnInput $input): ?StructuredTurnOutput
+    {
+        if ($input->customerName) {
+            return null;
+        }
+        $text = trim($input->message);
+        $name = null;
+        if (preg_match('/^(?:my name is|i(?:\'| a)?m|i am|ana|أنا|اسمي|je m[\'’]appelle)\s+(.+)$/iu', $text, $m)) {
+            $name = trim($m[1], " \t.,!؟?");
+        } elseif (preg_match('/^[\p{L}][\p{L}\'’\-]{1,30}(?:\s+[\p{L}][\p{L}\'’\-]{1,30}){0,2}$/u', $text)
+            && ! preg_match('/\b(menu|hi|hello|hey|yes|no|ok)\b/iu', $text)) {
+            // Short name-only reply after we asked.
+            $asked = collect($input->history)->contains(fn ($m) => str_contains(mb_strtolower((string) ($m['content'] ?? '')), 'name'));
+            if ($asked) {
+                $name = $text;
+            }
+        }
+        if ($name === null || $name === '') {
+            return null;
+        }
+
+        return new StructuredTurnOutput(
+            intent: ConversationIntent::Inquiry,
+            confidence: 0.9,
+            entities: [],
+            cartActions: [],
+            conversationState: ['phase' => $input->conversationPhase, 'language' => 'en'],
             missingFields: [],
-            recommendedAction: RecommendedAction::ShowMenu,
-            assistantMessage: 'Hello! How can I help you order today?',
+            recommendedAction: RecommendedAction::AwaitCustomer,
+            assistantMessage: 'Pleasure to meet you! What would you like today, please? 😊',
+            customerName: $name,
         );
     }
 
@@ -169,7 +239,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => 'browsing'],
             missingFields: [],
             recommendedAction: RecommendedAction::ShowMenu,
-            assistantMessage: 'Here is what we have: '.implode(', ', $names ?: ['(nothing listed yet)']).'.',
+            assistantMessage: 'Sure — here’s the menu 👇',
         );
     }
 
@@ -183,7 +253,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => 'building_cart'],
             missingFields: [],
             recommendedAction: RecommendedAction::ShowMenu,
-            assistantMessage: 'Your cart has been cleared.',
+            assistantMessage: 'Done — cart’s empty. What would you like?',
         );
     }
 
@@ -214,7 +284,7 @@ class FakeChatProvider implements ChatProvider
                 conversationState: ['phase' => 'building_cart'],
                 missingFields: ['product'],
                 recommendedAction: RecommendedAction::AskClarification,
-                assistantMessage: "I couldn't find \"{$productQuery}\" on the menu.",
+                assistantMessage: "I don't see \"{$productQuery}\" on our menu — want something else?",
             );
         }
 
@@ -227,7 +297,7 @@ class FakeChatProvider implements ChatProvider
                 conversationState: ['phase' => 'building_cart'],
                 missingFields: [],
                 recommendedAction: RecommendedAction::AskClarification,
-                assistantMessage: "\"{$product->name}\" is not available right now.",
+                assistantMessage: "Sorry, {$product->name} isn’t available right now 🙏",
             );
         }
 
@@ -249,7 +319,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => 'building_cart'],
             missingFields: [],
             recommendedAction: RecommendedAction::ConfirmCart,
-            assistantMessage: "Added {$qty} × {$product->name} to your cart.",
+            assistantMessage: "Got it — {$qty} × {$product->name} 👍 Anything else?",
         );
     }
 
@@ -271,7 +341,7 @@ class FakeChatProvider implements ChatProvider
                 conversationState: ['phase' => 'building_cart'],
                 missingFields: [],
                 recommendedAction: RecommendedAction::AskClarification,
-                assistantMessage: "No cart line matching \"{$productQuery}\".",
+                assistantMessage: "I don't see \"{$productQuery}\" in your cart — want to add something?",
             );
         }
 
@@ -283,7 +353,7 @@ class FakeChatProvider implements ChatProvider
             conversationState: ['phase' => 'building_cart'],
             missingFields: [],
             recommendedAction: RecommendedAction::ConfirmCart,
-            assistantMessage: 'Removed that item from your cart.',
+            assistantMessage: 'Removed 👍 Anything else?',
         );
     }
 

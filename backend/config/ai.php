@@ -65,4 +65,20 @@ return [
         'reasoning_effort' => env('OPENAI_REASONING_EFFORT'),
     ],
 
+    /*
+    | Learning student: store short lessons (ratings, owner "remember:" notes) and inject them
+    | into every chat turn so the shop AI improves over time without fine-tuning.
+    */
+    'learning' => [
+        'enabled' => filter_var(env('AI_LEARNING', true), FILTER_VALIDATE_BOOL),
+        'max_per_turn' => (int) env('AI_LEARNING_MAX_PER_TURN', 20),
+    ],
+
+    /*
+    | True ChatGPT mode: the model owns customer wording (track, checkout questions, cancel ask).
+    | The server still validates prices, pin, payment and actually places/cancels orders.
+    | When false, checkout hands off to the scripted CheckoutFlow UI.
+    */
+    'true_chat' => filter_var(env('AI_TRUE_CHAT', true), FILTER_VALIDATE_BOOL),
+
 ];

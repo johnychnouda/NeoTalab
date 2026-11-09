@@ -17,6 +17,7 @@ final readonly class StructuredTurnOutput
      * @param  array<int, string>  $missingFields
      * @param  array<string, string|null>|null  $checkout  delivery_zone, delivery_address, payment_method, notes,
      *                                                     set only with place_order, after the customer confirmed
+     * @param  string|null  $customerName  Name the customer just gave, when we should save it
      */
     public function __construct(
         public ConversationIntent $intent,
@@ -28,6 +29,7 @@ final readonly class StructuredTurnOutput
         public RecommendedAction $recommendedAction,
         public string $assistantMessage,
         public ?array $checkout = null,
+        public ?string $customerName = null,
     ) {}
 
     public static function fromArray(array $data): self
@@ -36,6 +38,8 @@ final readonly class StructuredTurnOutput
             fn (array $a) => CartAction::fromArray($a),
             $data['cart_actions'] ?? [],
         );
+        $name = $data['customer_name'] ?? null;
+        $name = is_string($name) ? trim($name) : null;
 
         return new self(
             intent: ConversationIntent::tryFrom($data['intent'] ?? '') ?? ConversationIntent::Unknown,
@@ -47,6 +51,7 @@ final readonly class StructuredTurnOutput
             recommendedAction: RecommendedAction::tryFrom($data['recommended_action'] ?? '') ?? RecommendedAction::None,
             assistantMessage: (string) ($data['assistant_message'] ?? ''),
             checkout: is_array($data['checkout'] ?? null) ? $data['checkout'] : null,
+            customerName: ($name !== null && $name !== '') ? mb_substr($name, 0, 120) : null,
         );
     }
 
@@ -62,6 +67,7 @@ final readonly class StructuredTurnOutput
             'recommended_action' => $this->recommendedAction->value,
             'assistant_message' => $this->assistantMessage,
             'checkout' => $this->checkout,
+            'customer_name' => $this->customerName,
         ];
     }
 }

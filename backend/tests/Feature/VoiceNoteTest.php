@@ -107,7 +107,7 @@ class VoiceNoteTest extends TestCase
 
         $sent = $this->sent();
         $this->assertCount(1, $sent);
-        $this->assertSame('text', $sent[0]['type'], 'greeting comes with the menu written out, same as typing "marhaba"');
+        $this->assertSame('text', $sent[0]['type'], 'greeting is answered in words, same as typing "marhaba"');
         $this->assertSame('marhaba', WhatsAppMessage::query()->withoutGlobalScopes()->where('direction', 'inbound')->first()->payload['transcript']);
     }
 

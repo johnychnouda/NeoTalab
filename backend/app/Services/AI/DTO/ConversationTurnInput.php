@@ -12,6 +12,10 @@ final readonly class ConversationTurnInput
      * @param  array<int, CatalogProductSnapshot>  $catalog
      * @param  array<int, CartLineSnapshot>  $cartLines
      * @param  array<string, mixed>  $shop  Merchant context: name, currency, hours, delivery zones
+     * @param  list<string>  $memories  Lessons the student AI should follow this turn
+     * @param  array<string, mixed>|null  $openOrder  Latest order facts for track_order (server-truth)
+     * @param  array<string, mixed>  $checkoutDraft  Partial checkout the AI already collected
+     * @param  string|null  $customerName  Saved name, or null when still unknown
      */
     public function __construct(
         public string $message,
@@ -21,7 +25,11 @@ final readonly class ConversationTurnInput
         public array $cartLines,
         public string $conversationPhase = 'idle',
         public array $shop = [],
-        // Set when a first answer came back in another language than the customer's: en, fr, ar or arabizi.
+        // Any language/script code or label (en, fr, ar, arabizi, hy, es, …) when a first answer mismatched.
         public ?string $replyLanguage = null,
+        public array $memories = [],
+        public ?array $openOrder = null,
+        public array $checkoutDraft = [],
+        public ?string $customerName = null,
     ) {}
 }

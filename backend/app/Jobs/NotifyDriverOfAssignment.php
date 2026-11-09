@@ -36,17 +36,21 @@ class NotifyDriverOfAssignment implements ShouldQueue
         $body = __('whatsapp.driver.assigned', OrderMessage::forDriver($order, $merchant, $locale, $locale), $locale);
 
         try {
-            $this->sendMessageAs($merchant, $to, [
-                'type' => 'interactive',
-                'interactive' => [
-                    'type' => 'button',
-                    'body' => ['text' => mb_substr($body, 0, 1024)],
-                    'action' => ['buttons' => [
-                        ['type' => 'reply', 'reply' => ['id' => "drv:picked_up:{$order->id}", 'title' => __('whatsapp.driver.button_picked_up', [], $locale)]],
-                        ['type' => 'reply', 'reply' => ['id' => "drv:delivered:{$order->id}", 'title' => __('whatsapp.driver.button_delivered', [], $locale)]],
-                    ]],
-                ],
-            ]);
+            if (config('whatsapp.conversational', true)) {
+                $this->sendMessageAs($merchant, $to, ['type' => 'text', 'text' => $body]);
+            } else {
+                $this->sendMessageAs($merchant, $to, [
+                    'type' => 'interactive',
+                    'interactive' => [
+                        'type' => 'button',
+                        'body' => ['text' => mb_substr($body, 0, 1024)],
+                        'action' => ['buttons' => [
+                            ['type' => 'reply', 'reply' => ['id' => "drv:picked_up:{$order->id}", 'title' => __('whatsapp.driver.button_picked_up', [], $locale)]],
+                            ['type' => 'reply', 'reply' => ['id' => "drv:delivered:{$order->id}", 'title' => __('whatsapp.driver.button_delivered', [], $locale)]],
+                        ]],
+                    ],
+                ]);
+            }
 
             if ($location = OrderMessage::locationMessage($order)) {
                 $this->sendMessageAs($merchant, $to, $location);

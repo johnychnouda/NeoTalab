@@ -4,6 +4,7 @@ export const JOIN_BUSINESS_TYPES = [
   { value: "Restaurant / Café", labelKey: "join.btype.restaurant" },
   { value: "Bakery / Sweets", labelKey: "join.btype.bakery" },
   { value: "Supermarket / Grocery", labelKey: "join.btype.grocery" },
+  { value: "Butcher / Fruits & Vegetables", labelKey: "join.btype.butcher" },
   { value: "Online Shop / Retail", labelKey: "join.btype.online" },
 ];
 

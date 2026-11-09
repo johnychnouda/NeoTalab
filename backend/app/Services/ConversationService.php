@@ -10,6 +10,7 @@ use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ShopHour;
+use App\Services\AI\AiMemoryService;
 use App\Services\AI\CartEditsFromMessage;
 use App\Services\AI\CatalogResolver;
 use App\Services\AI\Contracts\ChatProvider;
@@ -48,6 +49,7 @@ class ConversationService
     public function __construct(
         protected ChatProvider $chatProvider,
         protected CartService $cartService,
+        protected AiMemoryService $memories,
         protected CatalogResolver $catalogResolver,
         protected QuantityFromMessage $quantities,
         protected CartEditsFromMessage $cartEdits,
@@ -147,6 +149,16 @@ class ConversationService
             array_slice($state['messages'] ?? [], -config('ai.conversation.history_turns', 20))
         );
 
+        $draft = (array) ($state['ai_checkout'] ?? []);
+        if ($location) {
+            $draft['location'] = $location;
+            if (($location['address'] ?? '') !== '') {
+                $draft['delivery_address'] = trim((string) (($draft['delivery_address'] ?? '').' '.$location['address']));
+            }
+        }
+
+        $knownName = filled($conversation->customer->name) ? (string) $conversation->customer->name : null;
+
         $input = new ConversationTurnInput(
             message: $message,
             locale: $conversation->customer->locale ?? 'en',
@@ -158,6 +170,10 @@ class ConversationService
             cartLines: $this->cartService->snapshotLines($cart)->all(),
             conversationPhase: $state['phase'] ?? 'idle',
             shop: $this->shopContext(),
+            memories: $this->memories->forTurn($conversation->customer),
+            openOrder: $this->openOrderFacts($conversation),
+            checkoutDraft: $draft,
+            customerName: $knownName,
         );
 
         $output = $this->chatProvider->processTurn($input);
@@ -168,9 +184,12 @@ class ConversationService
             $output = $this->chatProvider->processTurn(new ConversationTurnInput(
                 message: $input->message, locale: $input->locale, history: $input->history, catalog: $input->catalog,
                 cartLines: $input->cartLines, conversationPhase: $input->conversationPhase, shop: $input->shop,
-                replyLanguage: $language,
+                replyLanguage: $language, memories: $input->memories, openOrder: $input->openOrder, checkoutDraft: $input->checkoutDraft,
+                customerName: $input->customerName,
             ));
         }
+
+        $this->rememberCustomerName($conversation, $output, $message, $state);
 
         $actions = $this->withoutClearAfterAdd($output->cartActions);
         $actions = (new ExactItemFromMessage)->correct($message, $actions, $input->catalog);
@@ -179,13 +198,16 @@ class ConversationService
         $cartResult = $this->cartService->applyActions($cart, $actions);
 
         $this->rememberLanguage($conversation, $output, $language);
+        $draft = $this->mergeCheckoutDraft($draft, $output->checkout, $location);
 
         $this->fulfillmentMissing = false;
         $this->cancelAwaitingId = null;
+        $startCheckoutFlow = false;
         [$reply, $order] = match ($output->recommendedAction) {
-            RecommendedAction::PlaceOrder => $this->checkout($conversation, $output),
-            RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation), null],
-            RecommendedAction::TrackOrder => [$this->orderStatus($conversation), null],
+            RecommendedAction::PlaceOrder => $this->checkout($conversation, $output, $draft),
+            RecommendedAction::Checkout => $this->trueChatCheckout($conversation, $output, $draft, $startCheckoutFlow),
+            RecommendedAction::CancelOrder => [$this->cancelLatestOrder($conversation, $output->assistantMessage), null],
+            RecommendedAction::TrackOrder => [$this->orderStatus($conversation, $output->assistantMessage), null],
             RecommendedAction::Handoff => [$this->handoff($conversation), null],
             default => [$this->withoutMadeUpPrice(Money::fromAiText($output->assistantMessage), $message, $input, $cart, $language, $conversation), null],
         };
@@ -208,18 +230,28 @@ class ConversationService
             $reply = __('whatsapp.cart.rounded', ['item' => Quantity::line($line['quantity'], $line['unit'], $line['name'])], in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en'));
         }
 
+        $locale = in_array($language, ['en', 'fr', 'ar'], true) ? $language : ($conversation->customer->locale ?? 'en');
+        $reply = $this->withShopMapsLinkIfAsked($reply, $message, $locale, $output->recommendedAction);
+
         $now = now()->toIso8601String();
         $messages = $state['messages'] ?? [];
         $messages[] = ['role' => 'customer', 'content' => $message, 'at' => $now];
         $messages[] = ['role' => 'assistant', 'content' => $reply, 'at' => $now];
 
+        $phase = $order ? 'completed' : ($output->conversationState['phase'] ?? ($state['phase'] ?? 'idle'));
+        if (! $order && in_array($output->recommendedAction, [RecommendedAction::Checkout, RecommendedAction::PlaceOrder], true)) {
+            $phase = 'checkout';
+        }
+
         $conversation->update([
-            'state' => [
-                'location' => $state['location'] ?? null,
+            'state' => array_filter([
+                'location' => $state['location'] ?? ($draft['location'] ?? null),
+                'ai_checkout' => $order ? null : ($draft ?: null),
+                'asked_name' => ! empty($state['asked_name']) ? true : null,
                 'messages' => array_slice($messages, -config('ai.conversation.stored_messages', 100)),
-                'phase' => $order ? 'completed' : ($output->conversationState['phase'] ?? ($state['phase'] ?? 'idle')),
+                'phase' => $phase,
                 'last_ai_output' => $output->toArray(),
-            ],
+            ], fn ($v) => $v !== null),
             'last_message_at' => now(),
         ]);
 
@@ -231,16 +263,16 @@ class ConversationService
             'fulfillment_choice' => $this->fulfillmentMissing,
             // The order the customer must confirm cancelling (buttons are sent for it), or null.
             'cancel_confirm' => $this->cancelAwaitingId,
+            // True-chat owns checkout dialogue; legacy mode still opens CheckoutFlow.
+            'start_checkout_flow' => $startCheckoutFlow,
+            'need_location' => ! $order && ($draft['need_location'] ?? false),
             'cart_result' => $cartResult,
             'conversation' => $conversation,
             'reply' => $reply,
             'order' => $order,
-            // First answer in a conversation, or the customer asked for the menu: attach the menu list.
-            // The menu is written out for a greeting (the first words of a chat) or when the customer asks for it,
-            // never under a real answer such as a price.
-            'menu_link' => ! $order
-                && ($output->recommendedAction === RecommendedAction::ShowMenu
-                    || (($state['messages'] ?? []) === [] && $output->intent === ConversationIntent::Greeting)),
+            // Only when the customer asked for the menu (recommended_action show_menu). A plain greeting stays a
+            // short human hello from the assistant — no catalogue dump.
+            'menu_link' => ! $order && $output->recommendedAction === RecommendedAction::ShowMenu,
         ];
     }
 
@@ -304,22 +336,135 @@ class ConversationService
         return null;
     }
 
-    private function checkout(Conversation $conversation, StructuredTurnOutput $output): array
+    /**
+     * @param  array<string, mixed>  $draft
+     * @return array{0: string, 1: ?Order}
+     */
+    private function checkout(Conversation $conversation, StructuredTurnOutput $output, array $draft = []): array
     {
         $this->fulfillmentMissing = false;
-        $location = ($conversation->state ?? [])['location'] ?? null;
+        $details = array_merge($draft, array_filter($output->checkout ?? [], fn ($v) => $v !== null && $v !== ''));
+        $details['location'] = $details['location'] ?? (($conversation->state ?? [])['location'] ?? null);
 
-        $details = $output->checkout ?? [];
-        $details['location'] = $location ?? ($details['location'] ?? null);
+        [$reply, $order] = $this->placeOrderFromDetails($conversation, $this->draftToPlaceDetails($details));
 
-        [$reply, $order] = $this->placeOrderFromDetails($conversation, $details);
-
-        // A typed order is remembered like a button one, so the next checkout offers this address.
         if ($order && $order->fulfillment === 'delivery') {
-            $conversation->customer->rememberAddress((string) $order->delivery_zone_name, (string) $order->delivery_address, $location);
+            $conversation->customer->rememberAddress(
+                (string) $order->delivery_zone_name,
+                (string) $order->delivery_address,
+                $details['location'] ?? null,
+            );
         }
 
         return [$reply, $order];
+    }
+
+    /**
+     * True-chat: AI keeps asking in its own words; only open the legacy CheckoutFlow when true_chat is off.
+     *
+     * @param  array<string, mixed>  $draft
+     * @return array{0: string, 1: ?Order}
+     */
+    private function trueChatCheckout(Conversation $conversation, StructuredTurnOutput $output, array &$draft, bool &$startCheckoutFlow): array
+    {
+        if (! config('ai.true_chat', true)) {
+            $startCheckoutFlow = true;
+
+            return [Money::fromAiText($output->assistantMessage), null];
+        }
+
+        $startCheckoutFlow = false;
+        $fulfillment = $draft['fulfillment'] ?? null;
+        $payment = $draft['payment_method'] ?? null;
+        $hasPin = ! empty($draft['location']['lat'] ?? null);
+        $settings = ShopSettings::for(app(CurrentTenant::class)->get());
+
+        if ($fulfillment === null && $settings->fulfillment() !== 'both') {
+            $draft['fulfillment'] = $settings->fulfillment() === 'pickup' ? 'pickup' : 'delivery';
+            $fulfillment = $draft['fulfillment'];
+        }
+        if ($payment === null && $settings->whishNumber() === null) {
+            $draft['payment_method'] = 'cash';
+            $payment = 'cash';
+        }
+
+        if ($fulfillment === 'delivery' && ! $hasPin) {
+            $draft['need_location'] = true;
+        } else {
+            unset($draft['need_location']);
+        }
+
+        $msg = trim(Money::fromAiText($output->assistantMessage));
+        if ($msg === '') {
+            $msg = $fulfillment === null
+                ? 'Delivery or pickup?'
+                : ($fulfillment === 'delivery' && ! $hasPin
+                    ? 'Share your location pin here so I can check delivery 📍'
+                    : ($payment === null ? 'Cash, or Whish?' : 'Shall I place the order?'));
+        }
+
+        return [$msg, null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $draft
+     * @param  array<string, mixed>|null  $fromAi
+     * @param  array<string, mixed>|null  $location
+     * @return array<string, mixed>
+     */
+    private function mergeCheckoutDraft(array $draft, ?array $fromAi, ?array $location): array
+    {
+        foreach ($fromAi ?? [] as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $draft[$key] = $value;
+            }
+        }
+        if ($location) {
+            $draft['location'] = $location;
+        }
+        // Map AI checkout keys onto placeOrder details.
+        if (isset($draft['delivery_address']) && ! isset($draft['delivery_address_kept'])) {
+            // no-op marker
+        }
+
+        return $draft;
+    }
+
+    /**
+     * @param  array<string, mixed>  $draft
+     * @return array<string, mixed>
+     */
+    private function draftToPlaceDetails(array $draft): array
+    {
+        return [
+            'fulfillment' => $draft['fulfillment'] ?? null,
+            'delivery_zone' => $draft['delivery_zone'] ?? $draft['zone'] ?? null,
+            'delivery_address' => $draft['delivery_address'] ?? $draft['address'] ?? '',
+            'location' => $draft['location'] ?? null,
+            'payment_method' => $draft['payment_method'] ?? $draft['payment'] ?? 'cash',
+            'payment_currency' => $draft['payment_currency'] ?? $draft['currency'] ?? null,
+            'cash_main' => $draft['cash_main'] ?? null,
+            'notes' => $draft['notes'] ?? null,
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function openOrderFacts(Conversation $conversation): ?array
+    {
+        $order = Order::query()->where('customer_id', $conversation->customer_id)->latest()->first();
+        if (! $order) {
+            return null;
+        }
+        $order->loadMissing('driver');
+
+        return [
+            'number' => $order->number,
+            'status' => $order->status,
+            'fulfillment' => $order->fulfillment,
+            'eta_mins' => $order->eta_mins,
+            'driver' => $order->driver?->name,
+            'driver_phone' => $order->driver?->whatsapp_number ?: $order->driver?->phone,
+        ];
     }
 
     /**
@@ -383,35 +528,129 @@ class ConversationService
     }
 
     /**
-     * System messages (confirmations, status updates) follow the language the customer writes in.
+     * Save the customer's name when the AI learned it, or when they clearly answered after we asked.
+     *
+     * @param  array<string, mixed>  $state
+     */
+    private function rememberCustomerName(Conversation $conversation, StructuredTurnOutput $output, string $message, array &$state): void
+    {
+        $name = $output->customerName;
+        if ($name === null && blank($conversation->customer->name) && ! empty($state['asked_name'])) {
+            $name = $this->extractCustomerName($message);
+        }
+        if ($name === null || $name === '') {
+            if (blank($conversation->customer->name)
+                && preg_match('/\b(name|اسمك|اسم|prénom|prenom|comment tu t[\'’]appelles|who is this)\b/iu', $output->assistantMessage)) {
+                $state['asked_name'] = true;
+            }
+
+            return;
+        }
+        if (! $this->looksLikePersonName($name)) {
+            return;
+        }
+        $conversation->customer->forceFill(['name' => $name])->save();
+        unset($state['asked_name']);
+    }
+
+    private function extractCustomerName(string $message): ?string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $message) ?? '');
+        if (preg_match('/^(?:my name is|i(?:\'| a)?m|i am|ana|أنا|اسمي|je m[\'’]appelle|je suis|me llamo)\s+(.+)$/iu', $text, $m)) {
+            return trim($m[1], " \t.,!؟?");
+        }
+        if ($this->looksLikePersonName($text)) {
+            return $text;
+        }
+
+        return null;
+    }
+
+    private function looksLikePersonName(string $name): bool
+    {
+        $name = trim($name);
+        if ($name === '' || mb_strlen($name) > 60 || preg_match('/\d/u', $name)) {
+            return false;
+        }
+        // One to three words / tokens — not an order sentence.
+        $parts = preg_split('/\s+/u', $name) ?: [];
+        if (count($parts) < 1 || count($parts) > 3) {
+            return false;
+        }
+        $blocked = ['menu', 'delivery', 'pickup', 'cash', 'whish', 'yes', 'no', 'ok', 'okay', 'hi', 'hello', 'hey',
+            'توصيل', 'منيو', 'قائمة', 'نعم', 'لا', 'مرحبا', 'bonjour', 'salut'];
+
+        return ! in_array(mb_strtolower($parts[0]), $blocked, true);
+    }
+
+    /**
+     * System messages follow the language the customer writes in (any ISO code when possible).
      */
     private function rememberLanguage(Conversation $conversation, StructuredTurnOutput $output, ?string $detected = null): void
     {
-        // The language read from the customer's own words wins; the AI's guess covers the rest (Arabizi, unclear).
-        // Arabizi is written in Latin letters, so the bot's own buttons and messages are in English.
+        $fromAi = strtolower((string) ($output->conversationState['language'] ?? ''));
         $lang = match (true) {
             in_array($detected, ['en', 'ar', 'fr'], true) => $detected,
             $detected === 'arabizi' => 'en',
-            default => strtolower(substr((string) ($output->conversationState['language'] ?? ''), 0, 2)),
+            $detected !== null => $detected,
+            preg_match('/^[a-z]{2}$/', $fromAi) === 1 => $fromAi,
+            $fromAi === 'arabizi' => 'en',
+            default => null,
         };
-        if (in_array($lang, ['en', 'ar', 'fr'], true) && $conversation->customer->locale !== $lang) {
+        if ($lang && $conversation->customer->locale !== $lang) {
             $conversation->customer->forceFill(['locale' => $lang])->save();
         }
     }
 
-    /** "Where's my order?" asked in words: the real status of the customer's latest order (the assistant never guesses it). */
-    private function orderStatus(Conversation $conversation): string
+    /**
+     * "Where's my order?" — always ground on the database.
+     * True-chat may phrase the reply, but only when it matches the real order number and does not
+     * invent a closed/delivered state the order is not in; otherwise the server template wins.
+     */
+    private function orderStatus(Conversation $conversation, string $aiMessage = ''): string
     {
         $merchant = app(CurrentTenant::class)->get();
         $locale = $conversation->customer->locale ?? 'en';
         $order = Order::query()->where('customer_id', $conversation->customer_id)->latest()->first();
+        if (! $order) {
+            return __('whatsapp.track.none', [], $locale);
+        }
 
-        return $order
-            ? app(ChatMenu::class)->statusText($merchant, $order, $locale)
-            : __('whatsapp.track.none', [], $locale);
+        $truth = app(ChatMenu::class)->statusText($merchant, $order, $locale);
+        $aiMessage = trim(Money::fromAiText($aiMessage));
+        if (! config('ai.true_chat', true) || $aiMessage === '') {
+            return $truth;
+        }
+
+        return $this->trackReplyIsGrounded($aiMessage, $order) ? $aiMessage : $truth;
     }
 
-    private function cancelLatestOrder(Conversation $conversation): string
+    /** Reject track replies that invent another order number or a terminal status the order is not in. */
+    private function trackReplyIsGrounded(string $reply, Order $order): bool
+    {
+        $number = (string) $order->number;
+        if (preg_match_all('/#\s*(\d+)\b/', $reply, $m)) {
+            foreach ($m[1] as $found) {
+                if ($found !== $number) {
+                    return false;
+                }
+            }
+        }
+
+        $status = $order->status;
+        if (preg_match('/\b(delivered|livr[ée]e?|تم التوصيل|وصل(?:ت|ك)?)\b/iu', $reply)
+            && ! in_array($status, ['delivered'], true)) {
+            return false;
+        }
+        if (preg_match('/\b(cancelled|canceled|annul\w*|ملغ[يى]?|تم الإلغاء)\b/iu', $reply)
+            && ! in_array($status, ['cancelled', 'rejected'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function cancelLatestOrder(Conversation $conversation, string $aiMessage = ''): string
     {
         $merchant = app(CurrentTenant::class)->get();
         $locale = $conversation->customer->locale ?? 'en';
@@ -437,11 +676,13 @@ class ConversationService
             return __('whatsapp.checkout.cancel_ask_shop', ['number' => $order->number, 'shop' => $merchant->name], $locale);
         }
 
-        // The status notification job tells the customer "your order was cancelled".
-        // Confirmed by button, not by the assistant: its reading of "yes" is not reliable enough to cancel on.
+        // Still require an explicit yes/no on the next message (AI reading of "yes" alone is risky).
         $this->cancelAwaitingId = $order->id;
+        $aiMessage = trim(Money::fromAiText($aiMessage));
 
-        return __('whatsapp.checkout.cancel_confirm', ['number' => $order->number], $locale);
+        return $aiMessage !== '' && config('ai.true_chat', true)
+            ? $aiMessage
+            : __('whatsapp.checkout.cancel_confirm', ['number' => $order->number], $locale);
     }
 
     /**
@@ -493,6 +734,72 @@ class ConversationService
      * back (or the pause expires), the merchant sees the request in his WhatsApp Business app.
      */
     /**
+     * Customer asked where the shop is (pickup, visit, directions): ensure the real Google Maps
+     * link (or text address) is in the reply. Never invent a URL — only shop settings.
+     */
+    private function withShopMapsLinkIfAsked(string $reply, string $message, string $locale, RecommendedAction $action): string
+    {
+        if (in_array($action, [
+            RecommendedAction::PlaceOrder,
+            RecommendedAction::CancelOrder,
+            RecommendedAction::TrackOrder,
+            RecommendedAction::Handoff,
+        ], true)) {
+            return $reply;
+        }
+        if (! $this->asksForShopLocation($message)) {
+            return $reply;
+        }
+
+        $merchant = app(CurrentTenant::class)->get();
+        if (! $merchant) {
+            return $reply;
+        }
+        $settings = ShopSettings::for($merchant);
+        $url = $settings->mapsUrl();
+        $address = $settings->pickupAddress();
+
+        if ($url !== null) {
+            if (str_contains($reply, $url) || preg_match('~https://(?:www\.)?google\.[^\s]+/maps|https://maps\.app\.goo\.gl/~i', $reply)) {
+                return $reply;
+            }
+            $line = __('whatsapp.shop.maps_link', [
+                'url' => $url,
+                'address' => $address !== '' ? $address : $merchant->name,
+            ], $locale);
+
+            return trim($reply === '' ? $line : $reply."\n\n".$line);
+        }
+
+        if ($address !== '') {
+            if ($reply !== '' && str_contains($reply, $address)) {
+                return $reply;
+            }
+            $line = __('whatsapp.shop.address_only', ['address' => $address], $locale);
+
+            return trim($reply === '' ? $line : $reply."\n\n".$line);
+        }
+
+        return $reply !== '' ? $reply : __('whatsapp.shop.location_missing', ['shop' => $merchant->name], $locale);
+    }
+
+    /** True when they want the shop's place (not their own delivery pin). */
+    private function asksForShopLocation(string $message): bool
+    {
+        return (bool) preg_match(
+            '/\b('
+            .'where (?:are|is) (?:you|the shop|your shop)|your (?:location|address|shop)|'
+            .'shop(?:\'s)? (?:location|address)|(?:send|share|give)(?: me)? (?:your |the )?(?:location|address|pin|maps?(?: link)?)|'
+            .'directions(?: to (?:you|the shop|your shop))?|how (?:do i|to) (?:get|find) (?:you|there|the shop)|'
+            .'google maps|maps? link|pickup (?:address|location|spot)|where (?:do i|to) pick ?up|'
+            .'وين(?:كن| المحل| انتو| أنتو)|موقع(?:كم| المحل)|عنوان(?:كم| المحل)|فين المحل|'
+            .'localisation|où (?:êtes|est)(?:[- ]vous| le magasin)|adresse (?:du )?magasin'
+            .')\b/iu',
+            $message,
+        );
+    }
+
+    /**
      * The server ignores a price the customer made up, but the AI's reply could still say it was accepted.
      * Such a reply is replaced by the real cart.
      */
@@ -501,7 +808,9 @@ class ConversationService
         $items = $cart->items()->with('product')->get();
         $total = (float) $items->sum('line_total');
         $known = [json_decode(json_encode([$input->catalog, $input->cartLines, $input->shop]), true)];
-        if (! ReplyFigures::repeatsMadeUpAmount($reply, $message, $known, $total)) {
+        $bad = ReplyFigures::repeatsMadeUpAmount($reply, $message, $known, $total)
+            || ReplyFigures::statesUnknownUsdAmount($reply, $known, $total);
+        if (! $bad) {
             return $reply;
         }
 
@@ -578,6 +887,8 @@ class ConversationService
             'whish_enabled' => ShopSettings::for($merchant)->whishNumber() !== null,
             'now' => now()->setTimezone($merchant->timezone ?: config('app.timezone'))->format('Y-m-d H:i l'),
             'pickup_address' => ShopSettings::for($merchant)->pickupAddress(),
+            // Google Maps link for the shop pin (pickup / visit). Null when no pin was saved.
+            'maps_url' => ShopSettings::for($merchant)->mapsUrl(),
             'opening_hours_today' => $this->todaysHours($merchant),
             'opening_hours' => ShopHour::week()
                 ->map(fn (ShopHour $h) => [

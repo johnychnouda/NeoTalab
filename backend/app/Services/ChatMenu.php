@@ -130,7 +130,12 @@ class ChatMenu
             'pending_payment' => __('whatsapp.track.payment', ['number' => $order->number], $locale),
             'placed' => __('whatsapp.track.waiting', ['number' => $order->number, 'shop' => $merchant->name], $locale),
             'picked_up' => __('whatsapp.track.on_the_way', ['number' => $order->number, 'when' => $when,
-                'driver' => $order->driver ? "{$order->driver->name} · 📞 ".($order->driver->whatsapp_number ?: $order->driver->phone) : ''], $locale),
+                'driver' => $order->driver
+                    ? __('whatsapp.track.driver_line', [
+                        'name' => $order->driver->name,
+                        'phone' => $order->driver->whatsapp_number ?: $order->driver->phone,
+                    ], $locale)
+                    : ''], $locale),
             'delivered' => __('whatsapp.track.delivered', ['number' => $order->number], $locale),
             'cancelled', 'rejected' => __('whatsapp.track.closed', ['number' => $order->number], $locale),
             default => __('whatsapp.track.preparing', ['number' => $order->number, 'when' => $when], $locale),

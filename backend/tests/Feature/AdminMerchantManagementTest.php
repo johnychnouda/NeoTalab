@@ -239,7 +239,7 @@ class AdminMerchantManagementTest extends TestCase
             'shopName' => 'Rose Bakery', 'whatsappNumber' => '+96171112234', 'password' => '123456', 'businessType' => 'Bakery / Sweets',
         ])->assertCreated();
         $bakery = Merchant::query()->where('name', 'Rose Bakery')->sole();
-        $this->assertSame('restaurant', $bakery->settings['business_kind']);
+        $this->assertSame('bakery', $bakery->settings['business_kind']);
         $this->assertSame('auto', $bakery->settings['mode'], 'owner-portal settings are kept too');
 
         $request = OnboardingRequest::query()->forceCreate([
@@ -271,7 +271,7 @@ class AdminMerchantManagementTest extends TestCase
 
         (require database_path('migrations/2026_10_23_000000_fill_missing_business_kind_settings.php'))->up();
 
-        $this->assertSame('restaurant', $bakery->fresh()->settings['business_kind']);
+        $this->assertSame('bakery', $bakery->fresh()->settings['business_kind']);
         $this->assertSame('auto', $bakery->fresh()->settings['mode'], 'other settings are kept');
         $this->assertSame('hours', $shop->fresh()->settings['timing_unit'], "a shop's own choice is kept");
     }

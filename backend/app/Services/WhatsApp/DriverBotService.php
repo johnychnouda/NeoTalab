@@ -70,12 +70,46 @@ class DriverBotService
             return;
         }
 
+        // Plain-chat updates for the active delivery (no buttons required).
+        if ($driver->active_order_id && ($action = $this->typedDeliveryAction($text)) !== null) {
+            $this->reply($merchant, $to, $this->orderAction($merchant, $driver, $action, (string) $driver->active_order_id, $locale));
+
+            return;
+        }
+
         $reply = match (true) {
             in_array($text, ['stop', 'end', 'إنهاء', 'وقف', 'fin', 'terminer'], true) => $this->endShift($merchant, $driver, $locale),
             default => __('whatsapp.driver.help', [], $locale),
         };
 
         $this->reply($merchant, $to, $reply);
+    }
+
+    /** picked up / outside / delivered / failed in the driver's words. */
+    protected function typedDeliveryAction(string $text): ?string
+    {
+        foreach (['picked up', 'picked_up', 'pickup', 'استلمت', 'استلام', 'récupér', 'recuper'] as $word) {
+            if (str_contains($text, $word) || $text === 'picked') {
+                return 'picked_up';
+            }
+        }
+        foreach (['outside', 'arrived', 'here', 'devant', 'برا', 'برّا', 'وصلت', 'امام', 'أمام'] as $word) {
+            if (str_contains($text, $word) || $text === 'out') {
+                return 'outside';
+            }
+        }
+        foreach (['delivered', 'done', 'تم', 'وصّلت', 'وصلتله', 'livr'] as $word) {
+            if (str_contains($text, $word)) {
+                return 'delivered';
+            }
+        }
+        foreach (['failed', 'cannot', 'unable', 'فشل', 'ما قدرت', 'échec', 'echec'] as $word) {
+            if (str_contains($text, $word)) {
+                return 'failed';
+            }
+        }
+
+        return null;
     }
 
     protected function startShift(Driver $driver, string $locale): string
@@ -188,15 +222,18 @@ class DriverBotService
     {
         $body = __('whatsapp.driver.on_the_way', OrderMessage::forDriver($order, $merchant, $locale), $locale);
         try {
-            $this->whatsapp->sendToCustomer($merchant, $driver->whatsapp_number ?: $driver->phone, ['type' => 'interactive', 'interactive' => [
-                'type' => 'button',
-                'body' => ['text' => mb_substr($body, 0, 1024)],
-                'action' => ['buttons' => [
-                    ['type' => 'reply', 'reply' => ['id' => "drv:outside:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_outside', [], $locale), 0, 20)]],
-                    ['type' => 'reply', 'reply' => ['id' => "drv:delivered:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_delivered', [], $locale), 0, 20)]],
-                    ['type' => 'reply', 'reply' => ['id' => "drv:failed:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_failed', [], $locale), 0, 20)]],
-                ]],
-            ]]);
+            $message = config('whatsapp.conversational', true)
+                ? ['type' => 'text', 'text' => $body]
+                : ['type' => 'interactive', 'interactive' => [
+                    'type' => 'button',
+                    'body' => ['text' => mb_substr($body, 0, 1024)],
+                    'action' => ['buttons' => [
+                        ['type' => 'reply', 'reply' => ['id' => "drv:outside:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_outside', [], $locale), 0, 20)]],
+                        ['type' => 'reply', 'reply' => ['id' => "drv:delivered:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_delivered', [], $locale), 0, 20)]],
+                        ['type' => 'reply', 'reply' => ['id' => "drv:failed:{$order->id}", 'title' => mb_substr(__('whatsapp.driver.button_failed', [], $locale), 0, 20)]],
+                    ]],
+                ]];
+            $this->whatsapp->sendToCustomer($merchant, $driver->whatsapp_number ?: $driver->phone, $message);
         } catch (\Throwable $e) {
             Log::warning('Driver on-the-way card failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }

@@ -94,14 +94,14 @@ class ChatMenuTest extends TestCase
         $this->assertStringContainsString('Subtotal: 10.00$', $text);
     }
 
-    public function test_greeting_comes_with_the_menu_in_words(): void
+    public function test_asking_for_the_menu_lists_categories_in_words(): void
     {
         foreach (range(1, 12) as $n) {
             $c = Category::factory()->forMerchant($this->merchant)->create(['name' => "Cat {$n}", 'sort_order' => $n]);
             Product::factory()->forMerchant($this->merchant)->create(['name' => "Item {$n}", 'price' => 1, 'category_id' => $c->id]);
         }
 
-        $this->say('marhaba');
+        $this->say('menu');
 
         $this->assertSame('text', $this->last()['type']);
         $this->assertStringContainsString('Cat 10', $this->last()['text']['body']);
@@ -114,7 +114,7 @@ class ChatMenuTest extends TestCase
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Zaatar', 'price' => 1]);
 
-        $this->say('hello');
+        $this->say('menu');
 
         $this->assertStringContainsString('Zaatar', $this->last()['text']['body']);
         $this->assertStringNotContainsString('Lahm', $this->last()['text']['body']);
@@ -130,7 +130,7 @@ class ChatMenuTest extends TestCase
             'offer_percent' => 50, 'offer_ends_on' => now()->subDays(2)->toDateString()]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cola', 'price' => 1, 'category_id' => Category::query()->withoutGlobalScopes()->where('name', 'Drinks')->value('id')]);
 
-        $this->say('hello');
+        $this->say('menu');
         $lines = explode("\n", $this->last()['text']['body']);
         $menu = array_values(array_filter($lines, fn ($l) => str_starts_with($l, '•')));
         $this->assertSame('• 🔥 Offers — 1 item', $menu[0], 'expired offers do not count');

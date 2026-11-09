@@ -129,6 +129,22 @@ final class ShopSettings
     }
 
     /**
+     * Google Maps link for the shop pin (pickup / visit). Built from shop_location coordinates,
+     * else the saved Google URL from onboarding. Null when the merchant never set a pin.
+     */
+    public function mapsUrl(): ?string
+    {
+        $pin = trim((string) ($this->settings['shop_location'] ?? ''));
+        if ($pin !== '' && ($url = MapLocation::mapsUrl($pin))) {
+            return $url;
+        }
+
+        $saved = trim((string) ($this->settings['shop_location_url'] ?? ''));
+
+        return preg_match('~^https://~i', $saved) === 1 ? $saved : null;
+    }
+
+    /**
      * Shop-currency amount in LBP, rounded up to the nearest 1,000 (the smallest note in use).
      */
     public function toLbp(float $amount): ?int

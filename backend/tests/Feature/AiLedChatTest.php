@@ -67,7 +67,7 @@ class AiLedChatTest extends TestCase
         }
     }
 
-    public function test_the_greeting_is_plain_words_with_the_menu_written_out(): void
+    public function test_the_greeting_is_a_short_human_hello_without_the_menu(): void
     {
         $this->menu(3);
 
@@ -75,16 +75,16 @@ class AiLedChatTest extends TestCase
 
         $sent = $this->last();
         $this->assertSame('text', $sent['type']);
-        $this->assertStringContainsString('Cat 1', $sent['text']['body']);
-        $this->assertStringContainsString('Cat 3', $sent['text']['body']);
-        $this->assertStringContainsString('Tell me what you', $sent['text']['body']);
+        $this->assertStringContainsString('What can I get you', $sent['text']['body']);
+        $this->assertStringNotContainsString('Cat 1', $sent['text']['body']);
+        $this->assertStringNotContainsString('•', $sent['text']['body']);
     }
 
-    public function test_a_big_menu_lists_ten_categories_and_says_how_many_more(): void
+    public function test_asking_for_the_menu_lists_categories_in_words(): void
     {
         $this->menu(12);
 
-        $this->say('hello');
+        $this->say('show me the menu');
 
         $body = $this->last()['text']['body'];
         $this->assertStringContainsString('Cat 10', $body);
