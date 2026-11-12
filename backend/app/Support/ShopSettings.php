@@ -13,7 +13,6 @@ final class ShopSettings
     /** @var array<string, array{0: mixed, 1: string}> key => [default, type] */
     public const FIELDS = [
         'prep_time_mins' => [30, 'int'],      // ETA quoted when the bot confirms an order
-        'auto_accept' => [true, 'bool'],      // the assistant accepts every order itself; false = the shop types ✅ for each one
         'late_alert_mins' => [15, 'int'],     // extra minutes after the ETA before the "sorry for the delay" message; 0 = off
         'lbp_rate' => [null, 'float'],        // LBP per 1 unit of the shop currency; null = LBP not accepted
         'report_whatsapp' => ['', 'string'],  // owner's personal number for the nightly report; '' = off
@@ -52,12 +51,6 @@ final class ShopSettings
         $number = trim((string) ($this->settings['whish']['number'] ?? ''));
 
         return $number === '' ? null : $number;
-    }
-
-    /** True when the assistant accepts orders itself (the default); false when the shop answers each one from its phone. */
-    public function autoAccept(): bool
-    {
-        return (bool) $this->get('auto_accept');
     }
 
     public function prepTimeMins(): int
@@ -163,7 +156,6 @@ final class ShopSettings
     {
         return [
             'prep_time_mins' => ['sometimes', 'integer', 'min:1', 'max:240'],
-            'auto_accept' => ['sometimes', 'boolean'],
             'late_alert_mins' => ['sometimes', 'integer', 'min:0', 'max:240'],
             'lbp_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:10000000'],
             'report_whatsapp' => ['sometimes', 'nullable', 'string', 'max:30'],

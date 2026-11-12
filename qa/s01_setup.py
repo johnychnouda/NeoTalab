@@ -35,9 +35,6 @@ for key, name, btype, wa in SHOPS:
     m = b["data"]
     s["shops"][key] = {"id": m["id"], "name": name, "wa": wa, "pw": pw, "phone_id": f"PNID{wa[-6:]}", "raw": {k: m.get(k) for k in ("loginEmail", "email", "slug", "status")}}
     save_state(s)
-# The lab restaurant answers each order itself (auto accept off), so the typed shop commands are exercised.
-if "rest" in s["shops"]:
-    tinker('$m = App\\Models\\Merchant::find("' + s["shops"]["rest"]["id"] + '"); $m->forceFill(["settings" => array_merge($m->settings ?? [], ["auto_accept" => false])])->save();')
 print(json.dumps({k: v["raw"] for k, v in s["shops"].items()}, indent=1))
 
 # duplicate number refused

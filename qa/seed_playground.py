@@ -64,7 +64,6 @@ def ensure_zone_circle(key, name, fee, minimum, radius_m=4000, lat=33.8938, lng=
 # ── Restaurant: full ops surface (manual accept + Whish + LBP + both fulfillments) ──
 r = s["shops"]["rest"]
 set_settings(r["id"], {
-    "auto_accept": False,
     "fulfillment": "both",
     "pickup_address": "Hamra, main street — next to the pharmacy",
     "whish_number": "70123456",
@@ -72,15 +71,14 @@ set_settings(r["id"], {
     "timing_unit": "minutes",
     "prep_mins": 20,
 })
-check("rest settings for Whish/pickup/LBP/manual accept", True)
+check("rest settings for Whish/pickup/LBP", True)
 r["check_product"] = ensure_product("rest", "Arak Bottle", 12.0, staff_check=True)
 ensure_zone_circle("rest", "Hamra Circle", 1.5, 5.0)
 save_state(s)
 
-# ── Bakery: pickup-first, auto-accept ON (production default) ──
+# ── Bakery: pickup-first (shop ✅ then ready → done) ──
 b = s["shops"]["pharm"]
 set_settings(b["id"], {
-    "auto_accept": True,
     "fulfillment": "pickup",
     "pickup_address": "Achrafieh bakery counter",
     "whish_number": "70999888",
@@ -90,13 +88,12 @@ set_settings(b["id"], {
 })
 ensure_product("pharm", "Chocolate Croissant", 2.5)
 ensure_product("pharm", "Knefeh", 4.0)
-check("bakery pickup + auto-accept", True)
+check("bakery pickup", True)
 save_state(s)
 
-# ── Grocery: delivery, auto-accept, shop can self-deliver (driver exists but start optional) ──
+# ── Grocery: delivery; shop ✅ then self-deliver (driver exists but start optional) ──
 g = s["shops"]["grocer"]
 set_settings(g["id"], {
-    "auto_accept": True,
     "fulfillment": "both",
     "pickup_address": "Hamra supermarket door",
     "whish_number": "70111222",
@@ -119,7 +116,6 @@ save_state(s)
 # ── Retail: days timing + colors ──
 rt = s["shops"]["retail"]
 set_settings(rt["id"], {
-    "auto_accept": True,
     "fulfillment": "both",
     "pickup_address": "Online shop warehouse — Dora",
     "whish_number": "70333444",
@@ -142,7 +138,6 @@ save_state(s)
 # ── Produce / butcher: kg items, delivery ──
 w = s["shops"]["whole"]
 set_settings(w["id"], {
-    "auto_accept": True,
     "fulfillment": "delivery",
     "whish_number": "70555666",
     "lbp_rate": 89500,
@@ -174,8 +169,7 @@ s["playground_coverage"] = {
         "Staff-check item (Arak) wait for shop ✅",
     ],
     "shop": [
-        "Manual accept ✅ / reject ❌",
-        "Auto-accept (bakery/grocery/retail)",
+        "Accept ✅ / reject ❌ (every order)",
         "ready / out / done / delay / refunded",
         "Whish confirm ✅ / ❌ after I paid",
         "Pause ⏸ / resume ▶️",
@@ -189,7 +183,7 @@ s["playground_coverage"] = {
     ],
     "types": [
         "Restaurant / Café (mins, driver, Whish)",
-        "Bakery pickup + auto-accept",
+        "Bakery pickup",
         "Supermarket delivery/self-deliver",
         "Retail days timing",
         "Butcher / produce kg",

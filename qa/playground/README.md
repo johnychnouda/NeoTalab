@@ -11,14 +11,14 @@ cd qa
 ./start_playground.sh
 ```
 
-Seeds shops, menus, then `seed_playground.py` (Whish, LBP, pickup, auto-accept variants, staff-check, kg, retail days).
+Seeds shops, menus, then `seed_playground.py` (Whish, LBP, pickup, staff-check, kg, retail days).
 
 ## Scenarios (production paths)
 
 | Scenario | What it covers |
 |----------|----------------|
-| Restaurant — manual + driver + Whish | auto_accept OFF, sizes/extras, delivery/pickup, Whish, LBP, driver buttons, staff-check Arak, rating |
-| Bakery — pickup + auto-accept | production default auto_accept, pickup only, shop ready→done |
+| Restaurant — manual + driver + Whish | shop ✅, sizes/extras, delivery/pickup, Whish, LBP, driver, staff-check Arak, rating |
+| Bakery — pickup | shop ✅, pickup only, ready→done |
 | Grocery — self-deliver or driver | zones, kg items, shop out/done or driver start |
 | Retail — days timing | working-days ETA, color variants |
 | Butcher / produce | kg + hours timing, self-delivery |

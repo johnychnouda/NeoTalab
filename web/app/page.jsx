@@ -12,7 +12,7 @@ import { getPlan } from "@/lib/api";
 export function generateMetadata() {
   return pageMetadata("home", {
     description:
-      "NeoTalab turns your business WhatsApp into an AI sales assistant: customers order or book in any language, drivers and staff update orders with one tap, and you see everything in your WhatsApp Business app.",
+      "NeoTalab turns your business WhatsApp into an AI sales assistant: customers order in any language in a normal chat, drivers update trips in plain words with a Maps link, and you see everything in your WhatsApp Business app.",
     alternates: { canonical: "/" },
   });
 }

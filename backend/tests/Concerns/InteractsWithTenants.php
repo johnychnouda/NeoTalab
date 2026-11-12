@@ -33,8 +33,6 @@ trait InteractsWithTenants
      */
     protected function merchantWithUser(string $role = Roles::MERCHANT_OWNER, array $merchantAttrs = []): array
     {
-        // Most tests are about a shop that answers each order itself; auto accept is tested on its own.
-        $merchantAttrs['settings'] = ($merchantAttrs['settings'] ?? []) + ['auto_accept' => false];
         $merchant = Merchant::factory()->create($merchantAttrs);
         $user = User::factory()->forMerchant($merchant)->create();
         $user->assignRole($role);

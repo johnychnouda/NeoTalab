@@ -1,11 +1,11 @@
-// The homepage demo: real NeoTalab conversations for each kind of shop, on the phones of the
-// customer, the shop and the driver. The bot's messages are its real texts; each kind of shop
-// follows its own flow: food and groceries in minutes with a driver, online shops in days (the shop delivers itself).
+// The homepage demo: conversational WhatsApp orders (words + voice, no reply-button menus)
+// for each kind of shop, on the customer's, the shop's and the driver's phones.
+// Food/groceries: minutes + driver. Online shops: days (the shop delivers itself).
 //
 // A message is [chat, text, extras]:
-//   lower-case chat = sent by the shop's NeoTalab number, upper-case = sent by that phone's owner
+//   lower-case chat = sent by the shop's WhatsApp number, upper-case = typed by that phone's owner
 //   c / C  customer      s / S  shop owner or staff      d / D  driver
-// extras: buttons (WhatsApp reply buttons), voice ("0:07"), day (date chip: a new day starts).
+// extras: voice ("0:07"), day (date chip: a new day starts).
 
 const UI = {
   en: {
@@ -15,9 +15,9 @@ const UI = {
     modes: { delivery: "🛵 Delivery", pickup: "🏪 Pickup" }, pause: "Pause", play: "Play", replay: "Replay", prev: "Previous step", next: "Next step", prevShop: "Previous shop", nextShop: "Next shop", voice: "Voice message", sendLabel: "Send",
     who: { c: "Customer", s: "Shop owner", d: "Driver" },
     waiting: { s: "🔔 New orders arrive here", d: "🛵 Deliveries arrive here" },
-    bot: "NeoTalab",
+    bot: "",
     steps: { order: "Order", accept: "Shop accepts", whish: "Whish payment", delivery: "Delivery", pickup: "Pickup", rating: "Rating" },
-    captions: { order: "The customer orders on WhatsApp", accept: "The shop taps ✅ to accept", whish: "The customer pays with Whish", delivery: "The order is on its way", pickup: "The customer picks it up at the shop", rating: "The customer rates the order" },
+    captions: { order: "The customer orders in a normal chat", accept: "The shop replies ✅ to accept", whish: "The customer pays with Whish", delivery: "The driver updates the trip in words", pickup: "The customer picks it up at the shop", rating: "The customer rates the order" },
     choose: { shop: "Your business", mode: "Delivery or pickup", pay: "Payment" },
     pays: { whish: "💳 Whish", cash: "💵 Cash" },
   },
@@ -28,9 +28,9 @@ const UI = {
     modes: { delivery: "🛵 توصيل", pickup: "🏪 استلام من المحل" }, pause: "إيقاف", play: "تشغيل", replay: "إعادة", prev: "الخطوة السابقة", next: "الخطوة التالية", prevShop: "المحل السابق", nextShop: "المحل التالي", voice: "رسالة صوتية", sendLabel: "إرسال",
     who: { c: "الزبون", s: "صاحب المحل", d: "السائق" },
     waiting: { s: "🔔 تصل الطلبات الجديدة هنا", d: "🛵 تصل التوصيلات هنا" },
-    bot: "NeoTalab",
+    bot: "",
     steps: { order: "الطلب", accept: "المحل يقبل", whish: "دفع Whish", delivery: "التوصيل", pickup: "الاستلام", rating: "التقييم" },
-    captions: { order: "الزبون يطلب عبر واتساب", accept: "المحل يضغط ✅ لقبول الطلب", whish: "الزبون يدفع عبر Whish", delivery: "الطلب في الطريق", pickup: "الزبون يستلم طلبه من المحل", rating: "الزبون يقيّم الطلب" },
+    captions: { order: "الزبون يطلب بمحادثة عادية", accept: "المحل يرد ✅ لقبول الطلب", whish: "الزبون يدفع عبر Whish", delivery: "السائق يحدّث الرحلة بالكلمات", pickup: "الزبون يستلم طلبه من المحل", rating: "الزبون يقيّم الطلب" },
     choose: { shop: "نوع عملك", mode: "توصيل أو استلام", pay: "الدفع" },
     pays: { whish: "💳 Whish", cash: "💵 نقدًا" },
   },
@@ -41,9 +41,9 @@ const UI = {
     modes: { delivery: "🛵 Livraison", pickup: "🏪 À emporter" }, pause: "Pause", play: "Lecture", replay: "Rejouer", prev: "Étape précédente", next: "Étape suivante", prevShop: "Commerce précédent", nextShop: "Commerce suivant", voice: "Message vocal", sendLabel: "Envoyer",
     who: { c: "Client", s: "Commerçant", d: "Livreur" },
     waiting: { s: "🔔 Les nouvelles commandes arrivent ici", d: "🛵 Les livraisons arrivent ici" },
-    bot: "NeoTalab",
+    bot: "",
     steps: { order: "Commande", accept: "Le commerce accepte", whish: "Paiement Whish", delivery: "Livraison", pickup: "Retrait", rating: "Note" },
-    captions: { order: "Le client commande sur WhatsApp", accept: "Le commerce appuie sur ✅ pour accepter", whish: "Le client paie avec Whish", delivery: "La commande est en route", pickup: "Le client récupère sa commande", rating: "Le client note la commande" },
+    captions: { order: "Le client commande dans une discussion normale", accept: "Le commerce répond ✅ pour accepter", whish: "Le client paie avec Whish", delivery: "Le livreur met à jour le trajet en mots", pickup: "Le client récupère sa commande", rating: "Le client note la commande" },
     choose: { shop: "Votre commerce", mode: "Livraison ou retrait", pay: "Paiement" },
     pays: { whish: "💳 Whish", cash: "💵 Espèces" },
   },
@@ -110,138 +110,117 @@ const SHOPS = [
 const T = {
   en: {
     hi: "Hi 👋", driver: "Karim",
-    welcome: (shop, menu, item) => `Hi! 👋 Welcome to ${shop}. What would you like?
-
-${menu}
-
-Tell me what you would like, for example: 2 ${item}. You can also send a voice note.`,
+    welcome: (shop) => `Good evening! Welcome to ${shop} — what would you like today? 😊`,
     askSize: (item, opts) => `${item} comes in: ${opts}. Which one would you like?`,
-    sure: (recap) => `Sure! 🙂\n\n${recap}`,
+    sure: (recap) => `Certainly — noted 🙂\n\n${recap}\nAnything else?`,
     thatsAll: "That's all, thanks", typeReady: "ready", typeOut: "out", typeDone: "done",
-    yourCart: "Your cart:", changeHint: "To change your items, just write what you want.", btnAnother: "🕐 Another time", btnPaid: "✅ I paid",
-    checkingNow: (shop) => `Thank you! ${shop} is checking the payment now. We confirm your order as soon as it arrives.`,
-    how: "How would you like to get your order?", btnDelivery: "🛵 Delivery", btnPickup: "🏪 Pickup",
-    location: "📍 Tap the button to send your location. You can add the building and floor right after.",
-    pinShared: (town) => `📍 Location: ${town}`, details: "📍 Got your location. Add details for the driver (building, floor, landmark), or tap Skip.", btnSkip: "⏭️ Skip",
-    pay: "How would you like to pay?", btnCash: "💵 Cash on delivery", btnCashShop: "💵 Cash at the shop",
-    currency: (usd, lbp) => `Total: ${usd} = ${lbp}\nPay cash in dollars, in lira, or both?`, btnSplit: "🔀 $ + LBP",
+    yourCart: "Your cart:", changeHint: "To change your items, just write what you want.",
+    sayPaid: "I paid", checkingNow: (shop) => `Thank you! ${shop} is checking the payment now. We confirm your order as soon as it arrives.`,
+    how: "Would you like delivery or pickup?", sayDelivery: "Delivery please", sayPickup: "Pickup",
+    location: "Perfect — please share your location pin here (WhatsApp attachment 📍). You can add the building and floor right after.",
+    pinShared: (town) => `📍 Location: ${town}`, details: "Got your pin 🙂 Building, floor or a landmark for the driver?",
+    pay: "How would you like to pay — cash or Whish?", sayCash: "Cash", sayWhish: "Whish",
+    currency: (usd, lbp) => `Total: ${usd} = ${lbp}\nPay cash in dollars, in lira, or both?`, saySplit: "Both please",
     splitAsk: "How many dollars will you pay? Type the amount (for example 5). The rest is paid in lira at the shop's rate.", split: (p) => ` — you pay ${p}`,
     estDaysPickup: (r) => `Ready for pickup in ${r} working days`, yourOrder: "Your order", subtotal: "Subtotal", deliveryFee: () => "Delivery", total: "Total",
     pickupAt: (address) => `Pickup at ${address}`, cash: "Cash on delivery", cashShop: "Cash at the shop",
-    btnConfirm: "✅ Confirm order",  btnCancel: "❌ Cancel",
+    askConfirm: "Shall I place this order?", sayConfirm: "Yes please",
     estArrival: (d) => `Preparation ${d}. We will message you the arrival time when it is on its way.`, estReady: (d) => `Ready in ${d}`, estDays: (r) => `Delivered in ${r} working days`,
     aboutMins: (n) => `about ${n} min`, aboutHours: (n) => `about ${n} hours`,
     minsShort: (n) => `${n} min`, hoursShort: (n) => `${n} h`, daysShort: (r) => `${r} days`,
     arriving: (t) => `arriving around ${t}`, readyAround: (t) => `ready for pickup around ${t}`,
     byDate: (d) => `delivered by ${d}`, readyByDate: (d) => `ready for pickup on ${d}`,
     placed: (shop, total) => `🧾 Order #128 sent to ${shop}.\nTotal: ${total}\nYou will get a message as soon as the shop accepts it.`,
-    whishAfter: "💳 You will get the Whish payment link here as soon as the shop accepts your order.",
+    whishAfter: "💳 You will get the Whish payment details here as soon as the shop accepts your order.",
     payWhish: "💳 Whish", payCash: "💵 cash",
-    
-    whishAccepted: (shop, amount) => `✅ ${shop} accepted your order #128! Pay ${amount} to their Whish number, and write 128 in the note. Tap "I paid" when done. We start once ${shop} confirms the payment.`,
+    whishAccepted: (shop, amount) => `✅ ${shop} accepted your order #128! Pay ${amount} to their Whish number, and write 128 in the note. Reply “I paid” when done. We start once ${shop} confirms the payment.`,
     whishPaid: (when) => `✅ Payment received! Order #128 is confirmed — ${when}.`,
     confirmed: (shop, when) => `✅ ${shop} accepted your order #128 — ${when}.`,
-    
-    btnDelivered: "✅ Delivered", 
     drvNew: (shop) => `🛵 New delivery #128 — ${shop}`, customer: "📞 Customer: +961 71 234 567",
-    drvWay: "🛵 Delivery #128 — on the way", drvTap: "Tap “I'm outside” when you arrive.",
-    btnPickedUp: "🚀 Picked up", btnOutside: "📍 I'm outside", told: "👍 The customer was told you are outside.", drvDone: "✅ Delivery #128 completed. Thanks!",
+    drvWay: "🛵 Delivery #128 — on the way", drvHint: "Reply outside when you arrive, delivered when done.",
+    sayPickedUp: "picked up", sayOutside: "outside", sayDelivered: "delivered",
+    told: "👍 The customer was told you are outside.", drvDone: "✅ Delivery #128 completed. Thanks!",
     collectCash: (a) => `💵 Collect: ${a} (cash)`, paidWhish: "💳 Paid with Whish — collect nothing from the customer",
-    onWay: (d, when) => `🛵 Your order #128 is on its way with ${d} — ${when}.`, outside: (d) => `📍 ${d} is outside with your order #128! 📞 +961 70 111 222`,
+    onWay: (d, when) => `🛵 Hey! It’s ${d} — your order #128 is on the way. ${when}`, outside: (d) => `📍 ${d} is outside with your order #128! 📞 +961 70 111 222`,
     delivered: (shop) => `✅ Your order #128 was delivered. Thank you for ordering from ${shop}!`, outForDelivery: "🛵 Your order #128 is on its way!",
     readyPickup: (a) => `📦 Your order #128 is ready! You can pick it up now at ${a}.`, collected: (shop) => `✅ Thank you for picking up order #128 from ${shop}!`,
-    rateGreat: "👍 Great", rateOkay: "😐 Okay", rateBad: "👎 Bad",
-    qOrder: "How was your order?", rateThanks: "Thank you for your rating! 🙏",
+    sayGreat: "great", qOrder: "How was your order? Reply great, okay, or bad — or a number from 1 to 5.", rateThanks: "Thank you for your rating! 🙏",
   },
   ar: {
     hi: "مرحبا 👋", driver: "كريم",
-    welcome: (shop, menu, item) => `أهلا! 👋 أهلا وسهلا بـ ${shop}. شو بتحب تطلب؟
-
-${menu}
-
-اكتب لي شو بدك، مثلاً: ٢ ${item}. فيك كمان تبعت رسالة صوتية.`,
+    welcome: (shop) => `مساء الخير! أهلا في ${shop} — شو بتحب اليوم؟ 😊`,
     askSize: (item, opts) => `${item} متوفر بـ: ${opts}. أي واحد بتحب؟`,
-    sure: (recap) => `أكيد! 🙂\n\n${recap}`,
+    sure: (recap) => `حاضر 🙂\n\n${recap}\nبدك شي كمان؟`,
     thatsAll: "هيدا كل شي، شكراً", typeReady: "جاهز", typeOut: "طالع", typeDone: "تم",
-    yourCart: "سلّتك:", changeHint: "لتغيير الأصناف، اكتب ما تريده فقط.", btnAnother: "🕐 وقت آخر", btnPaid: "✅ دفعت",
-    checkingNow: (shop) => `شكراً! ${shop} يتحقق من الدفعة الآن. سنؤكد طلبك فور وصولها.`,
-    how: "كيف تريد استلام طلبك؟", btnDelivery: "🛵 توصيل", btnPickup: "🏪 استلام من المحل",
-    location: "📍 اضغط الزر لإرسال موقعك، وبعدها يمكنك إضافة البناية والطابق.",
-    pinShared: (town) => `📍 الموقع: ${town}`, details: "📍 وصلنا موقعك. أضف تفاصيل للسائق (البناية، الطابق، علامة مميزة)، أو اضغط تخطٍّ.", btnSkip: "⏭️ تخطٍّ",
-    pay: "كيف تريد أن تدفع؟", btnCash: "💵 نقدًا عند التسليم", btnCashShop: "💵 نقدًا في المحل",
-    currency: (usd, lbp) => `المجموع: ${usd} = ${lbp}\nتدفع نقدًا بالدولار أم بالليرة أم بالاثنين؟`, btnSplit: "🔀 دولار + ليرة",
+    yourCart: "سلّتك:", changeHint: "لتغيير الأصناف، اكتب ما تريده فقط.",
+    sayPaid: "دفعت", checkingNow: (shop) => `شكراً! ${shop} يتحقق من الدفعة الآن. سنؤكد طلبك فور وصولها.`,
+    how: "بدك توصيل ولا استلام من المحل؟", sayDelivery: "توصيل إذا بتريد", sayPickup: "استلام",
+    location: "تمام — ابعت موقعك من واتساب 📍 وبعدين فيك تكتب البناية والطابق.",
+    pinShared: (town) => `📍 الموقع: ${town}`, details: "وصل البين 🙂 فيك تكتب البناية أو الطابق أو علامة للسائق؟",
+    pay: "كيف بدك تدفع — كاش أو Whish؟", sayCash: "كاش", sayWhish: "Whish",
+    currency: (usd, lbp) => `المجموع: ${usd} = ${lbp}\nتدفع نقدًا بالدولار أم بالليرة أم بالاثنين؟`, saySplit: "الاتنين",
     splitAsk: "كم دولارًا ستدفع؟ اكتب المبلغ (مثلًا 5)، والباقي تدفعه بالليرة حسب سعر صرف المحل.", split: (p) => ` — تدفع ${p}`,
     estDaysPickup: (r) => `جاهز للاستلام خلال ${r} أيام عمل`, yourOrder: "طلبك", subtotal: "المجموع", deliveryFee: () => "التوصيل", total: "الإجمالي",
     pickupAt: (address) => `الاستلام من ${address}`, cash: "نقدًا عند التسليم", cashShop: "نقدًا في المحل",
-    btnConfirm: "✅ تأكيد الطلب",  btnCancel: "❌ إلغاء",
+    askConfirm: "ثبّت الطلب؟", sayConfirm: "إي تفضّل",
     estArrival: (d) => `التحضير ${d}. سنرسل لك وقت الوصول عندما يكون الطلب في الطريق.`, estReady: (d) => `جاهز خلال ${d}`, estDays: (r) => `التوصيل خلال ${r} أيام عمل`,
     aboutMins: (n) => `حوالي ${n} دقيقة`, aboutHours: (n) => `حوالي ${n} ساعات`,
     minsShort: (n) => `${n} د`, hoursShort: (n) => `${n} س`, daysShort: (r) => `${r} أيام`,
     arriving: (t) => `يصل حوالي ${t}`, readyAround: (t) => `جاهز للاستلام حوالي ${t}`,
     byDate: (d) => `يصل قبل ${d}`, readyByDate: (d) => `جاهز للاستلام يوم ${d}`,
     placed: (shop, total) => `🧾 تم إرسال الطلب رقم 128 إلى ${shop}.\nالمجموع: ${total}\nستصلك رسالة فور قبول المحل للطلب.`,
-    whishAfter: "💳 سيصلك رابط الدفع عبر Whish هنا فور قبول المحل لطلبك.",
+    whishAfter: "💳 بتوصلك تفاصيل دفع Whish هون فور قبول المحل لطلبك.",
     payWhish: "💳 Whish", payCash: "💵 كاش",
-    
-    whishAccepted: (shop, amount) => `✅ قبل ${shop} طلبك رقم 128! ادفع ${amount} إلى رقم Whish الخاص بالمحل، واكتب 128 في الملاحظة. اضغط «دفعت» عند الانتهاء. نبدأ فور تأكيد ${shop} للدفعة.`,
+    whishAccepted: (shop, amount) => `✅ قبل ${shop} طلبك رقم 128! ادفع ${amount} إلى رقم Whish الخاص بالمحل، واكتب 128 في الملاحظة. رد «دفعت» عند الانتهاء. نبدأ فور تأكيد ${shop} للدفعة.`,
     whishPaid: (when) => `✅ تم استلام الدفع! الطلب رقم 128 مؤكد — ${when}.`,
     confirmed: (shop, when) => `✅ قبل ${shop} طلبك رقم 128 — ${when}.`,
-    
-    btnDelivered: "✅ تم التوصيل", 
     drvNew: (shop) => `🛵 توصيل جديد رقم 128 — ${shop}`, customer: "📞 الزبون: +961 71 234 567",
-    drvWay: "🛵 التوصيل رقم 128 — في الطريق", drvTap: "اضغط «أنا في الخارج» عند الوصول.",
-    btnPickedUp: "🚀 تم الاستلام", btnOutside: "📍 أنا في الخارج", told: "👍 تم إبلاغ الزبون أنك في الخارج.", drvDone: "✅ تم التوصيل رقم 128. شكراً!",
+    drvWay: "🛵 التوصيل رقم 128 — في الطريق", drvHint: "اكتب outside لما توصل، وdelivered لما تخلّص.",
+    sayPickedUp: "picked up", sayOutside: "outside", sayDelivered: "delivered",
+    told: "👍 تم إبلاغ الزبون أنك في الخارج.", drvDone: "✅ تم التوصيل رقم 128. شكراً!",
     collectCash: (a) => `💵 المبلغ: ${a} (كاش)`, paidWhish: "💳 مدفوع عبر Whish — لا تأخذ أي مبلغ من الزبون",
-    onWay: (d, when) => `🛵 طلبك رقم 128 في الطريق مع ${d} — ${when}.`, outside: (d) => `📍 ${d} في الخارج مع طلبك رقم 128! 📞 +961 70 111 222`,
+    onWay: (d, when) => `🛵 هيدا ${d} — طلبك رقم 128 بالطريق. ${when}`, outside: (d) => `📍 ${d} في الخارج مع طلبك رقم 128! 📞 +961 70 111 222`,
     delivered: (shop) => `✅ تم توصيل طلبك رقم 128. شكراً لطلبك من ${shop}!`, outForDelivery: "🛵 طلبك رقم 128 في الطريق إليك!",
     readyPickup: (a) => `📦 طلبك رقم 128 جاهز! يمكنك استلامه الآن من ${a}.`, collected: (shop) => `✅ شكراً لاستلامك الطلب رقم 128 من ${shop}!`,
-    rateGreat: "👍 ممتاز", rateOkay: "😐 عادي", rateBad: "👎 سيء",
-    qOrder: "كيف كان طلبك؟", rateThanks: "شكراً على تقييمك! 🙏",
+    sayGreat: "ممتاز", qOrder: "كيف كان طلبك؟ رد ممتاز أو عادي أو سيء — أو رقم من 1 إلى 5.", rateThanks: "شكراً على تقييمك! 🙏",
   },
   fr: {
     hi: "Bonjour 👋", driver: "Karim",
-    welcome: (shop, menu, item) => `Bonjour ! 👋 Bienvenue chez ${shop}. Que souhaitez-vous ?
-
-${menu}
-
-Dites-moi ce que vous souhaitez, par exemple : 2 ${item}. Vous pouvez aussi envoyer un vocal.`,
+    welcome: (shop) => `Bonsoir ! Bienvenue chez ${shop} — que souhaitez-vous aujourd'hui ? 😊`,
     askSize: (item, opts) => `${item} existe en : ${opts}. Lequel souhaitez-vous ?`,
-    sure: (recap) => `Bien sûr ! 🙂\n\n${recap}`,
+    sure: (recap) => `Bien sûr 🙂\n\n${recap}\nAutre chose ?`,
     thatsAll: "C'est tout, merci", typeReady: "prêt", typeOut: "en route", typeDone: "livré",
-    yourCart: "Votre panier :", changeHint: "Pour changer vos articles, écrivez simplement ce que vous voulez.", btnAnother: "🕐 Autre heure", btnPaid: "✅ J'ai payé",
-    checkingNow: (shop) => `Merci ! ${shop} vérifie le paiement maintenant. Nous confirmons votre commande dès qu'il arrive.`,
-    how: "Comment souhaitez-vous recevoir votre commande ?", btnDelivery: "🛵 Livraison", btnPickup: "🏪 À emporter",
-    location: "📍 Touchez le bouton pour envoyer votre position. Vous pourrez ajouter l'immeuble et l'étage juste après.",
-    pinShared: (town) => `📍 Position : ${town}`, details: "📍 Position reçue. Ajoutez des détails pour le livreur (immeuble, étage, repère) ou touchez Passer.", btnSkip: "⏭️ Passer",
-    pay: "Comment souhaitez-vous payer ?", btnCash: "💵 À la livraison", btnCashShop: "💵 Au commerce",
-    currency: (usd, lbp) => `Total : ${usd} = ${lbp}\nPayer en dollars, en livres, ou les deux ?`, btnSplit: "🔀 $ + livres",
+    yourCart: "Votre panier :", changeHint: "Pour changer vos articles, écrivez simplement ce que vous voulez.",
+    sayPaid: "J'ai payé", checkingNow: (shop) => `Merci ! ${shop} vérifie le paiement maintenant. Nous confirmons votre commande dès qu'il arrive.`,
+    how: "Livraison ou à emporter ?", sayDelivery: "Livraison s'il vous plaît", sayPickup: "À emporter",
+    location: "Parfait — envoyez votre pin WhatsApp 📍. Vous pourrez ajouter l'immeuble et l'étage juste après.",
+    pinShared: (town) => `📍 Position : ${town}`, details: "Pin reçu 🙂 Immeuble, étage ou un repère pour le livreur ?",
+    pay: "Comment souhaitez-vous payer — espèces ou Whish ?", sayCash: "Espèces", sayWhish: "Whish",
+    currency: (usd, lbp) => `Total : ${usd} = ${lbp}\nPayer en dollars, en livres, ou les deux ?`, saySplit: "Les deux",
     splitAsk: "Combien de dollars payez-vous ? Écrivez le montant (par exemple 5), le reste en livres au taux du commerce.", split: (p) => ` — vous payez ${p}`,
     estDaysPickup: (r) => `Prête à emporter sous ${r} jours ouvrés`, yourOrder: "Votre commande", subtotal: "Sous-total", deliveryFee: () => "Livraison", total: "Total",
     pickupAt: (address) => `Retrait : ${address}`, cash: "Espèces à la livraison", cashShop: "Espèces au commerce",
-    btnConfirm: "✅ Confirmer",  btnCancel: "❌ Annuler",
+    askConfirm: "Je place la commande ?", sayConfirm: "Oui s'il vous plaît",
     estArrival: (d) => `Préparation : ${d}. Nous vous enverrons l'heure d'arrivée dès que la commande sera en route.`, estReady: (d) => `Prête dans ${d}`, estDays: (r) => `Livrée sous ${r} jours ouvrés`,
     aboutMins: (n) => `environ ${n} min`, aboutHours: (n) => `environ ${n} heures`,
     minsShort: (n) => `${n} min`, hoursShort: (n) => `${n} h`, daysShort: (r) => `${r} j`,
     arriving: (t) => `arrivée vers ${t}`, readyAround: (t) => `prête à emporter vers ${t}`,
     byDate: (d) => `livrée d'ici ${d}`, readyByDate: (d) => `prête à emporter le ${d}`,
     placed: (shop, total) => `🧾 Commande n° 128 envoyée à ${shop}.\nTotal : ${total}\nVous recevrez un message dès que le commerce l'accepte.`,
-    whishAfter: "💳 Vous recevrez ici le lien de paiement Whish dès que le commerce aura accepté votre commande.",
+    whishAfter: "💳 Vous recevrez ici les détails de paiement Whish dès que le commerce aura accepté votre commande.",
     payWhish: "💳 Whish", payCash: "💵 espèces",
-    
-    whishAccepted: (shop, amount) => `✅ ${shop} a accepté votre commande n° 128 ! Payez ${amount} au numéro Whish du commerce, en écrivant 128 dans la note. Appuyez sur « J'ai payé » ensuite. Nous commençons dès que ${shop} confirme le paiement.`,
+    whishAccepted: (shop, amount) => `✅ ${shop} a accepté votre commande n° 128 ! Payez ${amount} au numéro Whish du commerce, en écrivant 128 dans la note. Répondez « J'ai payé » ensuite. Nous commençons dès que ${shop} confirme le paiement.`,
     whishPaid: (when) => `✅ Paiement reçu ! Commande n° 128 confirmée — ${when}.`,
     confirmed: (shop, when) => `✅ ${shop} a accepté votre commande n° 128 — ${when}.`,
-    
-    btnDelivered: "✅ Livrée", 
     drvNew: (shop) => `🛵 Nouvelle livraison n° 128 — ${shop}`, customer: "📞 Client : +961 71 234 567",
-    drvWay: "🛵 Livraison n° 128 — en route", drvTap: "Touchez « Je suis devant » en arrivant.",
-    btnPickedUp: "🚀 Récupérée", btnOutside: "📍 Je suis devant", told: "👍 Le client a été prévenu que vous êtes devant.", drvDone: "✅ Livraison n° 128 terminée. Merci !",
+    drvWay: "🛵 Livraison n° 128 — en route", drvHint: "Répondez outside à l'arrivée, delivered une fois terminé.",
+    sayPickedUp: "picked up", sayOutside: "outside", sayDelivered: "delivered",
+    told: "👍 Le client a été prévenu que vous êtes devant.", drvDone: "✅ Livraison n° 128 terminée. Merci !",
     collectCash: (a) => `💵 À encaisser : ${a} (espèces)`, paidWhish: "💳 Payé avec Whish — rien à encaisser auprès du client",
-    onWay: (d, when) => `🛵 Votre commande n° 128 est en route avec ${d} — ${when}.`, outside: (d) => `📍 ${d} est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222`,
+    onWay: (d, when) => `🛵 C’est ${d} — votre commande n° 128 est en route. ${when}`, outside: (d) => `📍 ${d} est devant chez vous avec la commande n° 128 ! 📞 +961 70 111 222`,
     delivered: (shop) => `✅ Votre commande n° 128 a été livrée. Merci d'avoir commandé chez ${shop} !`, outForDelivery: "🛵 Votre commande n° 128 est en route !",
     readyPickup: (a) => `📦 Votre commande n° 128 est prête ! Vous pouvez la récupérer à ${a}.`, collected: (shop) => `✅ Merci d'avoir récupéré la commande n° 128 chez ${shop} !`,
-    rateGreat: "👍 Super", rateOkay: "😐 Correct", rateBad: "👎 Mauvais",
-    qOrder: "Comment était votre commande ?", rateThanks: "Merci pour votre note ! 🙏",
+    sayGreat: "super", qOrder: "Comment était votre commande ? Répondez super, correct ou mauvais — ou un chiffre de 1 à 5.", rateThanks: "Merci pour votre note ! 🙏",
   },
 };
 
@@ -295,10 +274,7 @@ function script(shop, lang, delivery, whish) {
   const total = subtotal + (delivery ? shop.fee : 0);
   const lines = shop.items.map((i) => `${item(i)} — ${money(lang, i[0] * i[1])}`).join("\n");
   const asked = shop.items.find((i) => i[3]); // a size or option the assistant asks for in words
-  const menuLines = shop.items.map((i) => `• ${name(i[2])} — ${money(lang, i[1])}`).join("\n");
   const bullets = shop.items.map((i) => `• ${item(i)}`).join("\n");
-  const payTag = whish ? t.payWhish : t.payCash;
-  const cashButton = delivery ? t.btnCash : t.btnCashShop;
   const mins = prepMins + (delivery ? shop.travel : 0);
   const duration = mins >= 90 ? t.aboutHours(Math.round(mins / 6) / 10) : t.aboutMins(mins);
   const prepDuration = prepMins >= 90 ? t.aboutHours(Math.round(prepMins / 6) / 10) : t.aboutMins(prepMins);
@@ -307,13 +283,12 @@ function script(shop, lang, delivery, whish) {
   const dollars = [Math.floor(total / 10) * 10, Math.floor(total), total - 5].find((d) => d > 0 && d < total);
   const paid = whish ? money(lang, total) : `${money(lang, dollars)} + ${lira(lang, total - dollars)}`;
   const colon = lang === "fr" ? " : " : ": "; // French puts a space before the colon
-  const rateButtons = { buttons: [t.rateGreat, t.rateOkay, t.rateBad] };
   const cartRecap = `${t.yourCart}\n${shop.items.map((i) => `• ${item(i)} — ${money(lang, i[0] * i[1])}`).join("\n")}\n${t.subtotal}${colon}${money(lang, subtotal)}`;
   const receipt = `🧾 *${t.yourOrder}*\n${lines}\n\n${t.subtotal}${colon}${money(lang, subtotal)}\n`
     + (delivery ? `${t.deliveryFee(town)}${colon}${money(lang, shop.fee)}\n` : "")
     + `*${t.total}${colon}${money(lang, total)}*${whish ? "" : ` (${lira(lang, total)})`}\n\n`
     + (delivery ? `🛵 ${address}` : `🏪 ${t.pickupAt(shopAddress)}`)
-    + `\n${whish ? "💳 Whish" : `💵 ${delivery ? t.cash : t.cashShop} · ${paid}`}\n⏱ ${estimate}\n\n${t.changeHint}`;
+    + `\n${whish ? "💳 Whish" : `💵 ${delivery ? t.cash : t.cashShop} · ${paid}`}\n⏱ ${estimate}\n\n${t.changeHint}\n\n${t.askConfirm}`;
 
   // Times of day in minutes: the shop accepts at 12:36, Whish is paid at 12:39.
   const accepted = 12 * 60 + 36;
@@ -324,26 +299,24 @@ function script(shop, lang, delivery, whish) {
   const when = days ? (delivery ? t.byDate(dueDay) : t.readyByDate(dueDay))
     : delivery ? t.arriving(clock(lang, arrive)) : t.readyAround(clock(lang, ready));
   const at = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-  const label = days ? t.daysShort(range) : hours ? t.hoursShort(shop.prep) : t.minsShort(shop.prep);
-  const where = delivery ? `📍 ${address}\n📍 https://www.google.com/maps?q=34.129,35.648\n📞 +961 71 234 567` : "📞 +961 71 234 567";
-  // The shop phone sees the customer's chat: what the bot says to the customer shows there too, and the shop types its answers.
+  // The shop phone sees the customer's chat: what the assistant says to the customer shows there too.
   const mirror = (text) => [["c", text], ["s", text]];
   const collect = whish ? t.paidWhish : t.collectCash(paid);
-  const assigned = ["d", `${t.drvNew(shopName)}\n${bullets}\n${collect}\n📍 ${address}\n${t.customer}`, { buttons: [t.btnPickedUp, t.btnDelivered] }];
+  const assigned = ["d", `${t.drvNew(shopName)}\n${bullets}\n${collect}\n📍 ${address}\n📍 https://www.google.com/maps?q=34.129,35.648\n${t.customer}\n\n${t.drvHint}`];
 
   // The order leaves the shop (or is ready), then reaches the customer (or is collected) later.
   const [leaves, arrives] = driver
     ? [[
-      ["D", t.btnPickedUp],
-      ["d", `${t.drvWay}\n📍 ${address}\n${t.customer}\n${collect}\n${t.drvTap}`, { buttons: [t.btnOutside, t.btnDelivered] }],
+      ["D", t.sayPickedUp],
+      ["d", `${t.drvWay}\n📍 ${address}\n${t.customer}\n${collect}\n${t.drvHint}`],
       ["c", t.onWay(t.driver, t.arriving(clock(lang, arrive)))],
     ], [
-      ["D", t.btnOutside],
+      ["D", t.sayOutside],
       ["d", t.told],
       ["c", t.outside(t.driver)],
-      ["D", t.btnDelivered],
+      ["D", t.sayDelivered],
       ["d", t.drvDone],
-      ["c", `${t.delivered(shopName)}\n\n${t.qOrder}`, rateButtons],
+      ["c", `${t.delivered(shopName)}\n\n${t.qOrder}`],
     ]]
     : delivery
       ? [[["S", t.typeOut], ...mirror(t.outForDelivery)], [["S", t.typeDone], ...mirror(`${t.delivered(shopName)}\n\n${t.qOrder}`)]]
@@ -354,7 +327,7 @@ function script(shop, lang, delivery, whish) {
   return [
     ["12:30", "order", [
       ["C", t.hi],
-      ["c", t.welcome(shopName, menuLines, name(shop.items[0][2]))],
+      ["c", t.welcome(shopName)],
       ["C", "", { voice: "0:07" }],
       ...(asked ? [
         ["c", t.askSize(name(asked[2]), name(asked[4]))],
@@ -363,26 +336,29 @@ function script(shop, lang, delivery, whish) {
       ["c", t.sure(cartRecap)],
       ["C", t.thatsAll],
       ...(delivery ? [
-        ["c", t.how, { buttons: [t.btnDelivery, t.btnPickup] }],
-        ["C", t.btnDelivery],
+        ["c", t.how],
+        ["C", t.sayDelivery],
         ["c", t.location],
         ["C", t.pinShared(name(shop.town))],
-        ["c", t.details, { buttons: [t.btnSkip] }],
+        ["c", t.details],
         ["C", name(shop.address)],
-      ] : []),
-      ["c", t.pay, { buttons: [cashButton, "💳 Whish"] }],
-      ["C", whish ? "💳 Whish" : cashButton],
-      ...(whish ? [
-        ["c", t.currency(money(lang, total), lira(lang, total)), { buttons: [`💵 ${money(lang, total)}`, `🇱🇧 ${lira(lang, total)}`] }],
-        ["C", `💵 ${money(lang, total)}`],
       ] : [
-        ["c", t.currency(money(lang, total), lira(lang, total)), { buttons: [`💵 ${money(lang, total)}`, `🇱🇧 ${lira(lang, total)}`, t.btnSplit] }],
-        ["C", t.btnSplit],
+        ["c", t.how],
+        ["C", t.sayPickup],
+      ]),
+      ["c", t.pay],
+      ["C", whish ? t.sayWhish : t.sayCash],
+      ...(whish ? [
+        ["c", t.currency(money(lang, total), lira(lang, total))],
+        ["C", money(lang, total)],
+      ] : [
+        ["c", t.currency(money(lang, total), lira(lang, total))],
+        ["C", t.saySplit],
         ["c", t.splitAsk],
         ["C", String(dollars)],
       ]),
-      ["c", receipt, { buttons: [t.btnConfirm, t.btnAnother, t.btnCancel] }],
-      ["C", t.btnConfirm],
+      ["c", receipt],
+      ["C", t.sayConfirm],
       ["c", t.placed(shopName, money(lang, total) + (whish ? "" : t.split(paid))) + (whish ? `\n${t.whishAfter}` : "")],
     ]],
     [at(accepted), "accept", [
@@ -390,12 +366,12 @@ function script(shop, lang, delivery, whish) {
       ["s", t.placed(shopName, money(lang, total) + (whish ? "" : t.split(paid))) + (whish ? `\n${t.whishAfter}` : "")],
       ["S", "✅"],
       ...(whish
-        ? [["c", t.whishAccepted(shopName, money(lang, total)), { buttons: [t.btnPaid] }], ["s", t.whishAccepted(shopName, money(lang, total))]]
+        ? [["c", t.whishAccepted(shopName, money(lang, total))], ["s", t.whishAccepted(shopName, money(lang, total))]]
         : [...mirror(t.confirmed(shopName, when)), ...(driver ? [assigned] : [])]),
     ]],
     ...(whish ? [[at(go), "whish", [
-      ["C", t.btnPaid],
-      ["s", t.btnPaid],
+      ["C", t.sayPaid],
+      ["s", t.sayPaid],
       ...mirror(t.checkingNow(shopName)),
       ["S", "✅"],
       ...mirror(t.whishPaid(when)),
@@ -404,7 +380,7 @@ function script(shop, lang, delivery, whish) {
     [at(leaveAt), delivery ? "delivery" : "pickup", leaves],
     [at(arriveAt), delivery ? "delivery" : "pickup", arrives],
     [at(arriveAt + 5), "rating", [
-      ["C", t.rateGreat],
+      ["C", t.sayGreat],
       ["c", t.rateThanks],
     ]],
   ];

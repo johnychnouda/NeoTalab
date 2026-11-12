@@ -398,7 +398,6 @@ Access** for `whatsapp_business_messaging` and `whatsapp_business_management` in
 - **The team is the delivery drivers only.** There are no staff members, staff buttons, staff templates or job steps. The shop
   answers from the shop phone by typing in the customer's chat: ✅ / ❌ (accept, or Whish money arrived), "ready", "out",
   "done", "delay", "refunded" (`ShopCommands`). The customer sees no prompts.
-- **Auto accept is on by default** (`auto_accept`, Settings): the assistant accepts every order itself, so the business runs even
-  when the shop is not watching. A shop that wants to answer each order switches it off. A Whish payment still needs the shop to
-  type ✅ once the money arrived, because only the shop can see its Whish account.
+- **No auto-accept.** Every order waits as `placed` until the shop types ✅ / ❌ in the customer's chat. The assistant never
+  accepts alone. A Whish payment still needs a second ✅ once the money arrived, because only the shop can see its Whish account.
 

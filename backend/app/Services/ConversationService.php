@@ -519,7 +519,7 @@ class ConversationService
         if ($order->payment_method === 'whish') {
             $body .= "\n".__('whatsapp.checkout.whish_after_accept', [], $locale);
         }
-        // Cue on the shop phone (same chat): type ✅ to accept when auto-accept is off.
+        // Cue on the shop phone (same chat): type ✅ to accept (every order waits for the shop).
         if ($order->status === 'placed') {
             $body .= "\n".__('whatsapp.checkout.shop_reply', ['shop' => $merchant->name], $locale);
         }

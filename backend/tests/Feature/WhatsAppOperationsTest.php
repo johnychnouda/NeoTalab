@@ -143,7 +143,7 @@ class WhatsAppOperationsTest extends TestCase
         return $msgs ? end($msgs)['text'] : '';
     }
 
-    // ── auto-accept + auto-dispatch ─────────────────────────────────────────
+    // ── accept + auto-dispatch ─────────────────────────────────────────────
 
     public function test_bot_accepts_and_assigns_a_free_driver(): void
     {

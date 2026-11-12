@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
+use App\Jobs\NotifyCustomerOfOrderStatus;
 use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -46,7 +47,10 @@ class CheckoutTest extends TestCase
         // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
         Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
-        config(['whatsapp.platform_access_token' => 'test-token']);
+        config([
+            'whatsapp.platform_access_token' => 'test-token',
+            'whatsapp.graph_api_base' => 'https://graph.facebook.com',
+        ]);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
         Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, \App\Jobs\NotifyShopOfOrder::class]);
 
@@ -90,29 +94,17 @@ class CheckoutTest extends TestCase
         return Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id);
     }
 
-    public function test_with_auto_accept_the_assistant_accepts_the_order_itself(): void
+    public function test_a_whish_order_waits_for_the_shop_before_payment_instructions(): void
     {
-        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true])]);
-        $this->zone('Hamra', 2);
-
-        $this->say('add 2 shawarma');
-        $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
-
-        $order = $this->orders()->sole();
-        $this->assertSame('confirmed', $order->status, 'nobody has to tap or type anything');
-        $this->assertNotNull($order->accepted_at);
-    }
-
-    public function test_with_auto_accept_a_whish_order_gets_its_payment_instructions_at_once(): void
-    {
-        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true, 'whish' => ['number' => '70123456']])]);
+        $this->merchant->update(['settings' => array_merge($this->merchant->settings ?? [], ['whish' => ['number' => '70123456']])]);
         $this->zone('Hamra', 2);
 
         $this->say('add 2 shawarma');
         $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | whish | USD');
 
         $order = $this->orders()->sole();
-        $this->assertSame('pending_payment', $order->status);
+        $this->assertSame('placed', $order->status, 'Whish orders wait for ✅ before payment details');
+        $this->assertNull($order->accepted_at);
         $this->assertStringNotContainsString('catch that', $this->lastReply(), 'no stray "not understood" after the order');
     }
 
@@ -122,7 +114,7 @@ class CheckoutTest extends TestCase
 
         $this->say('add 2 shawarma');
         $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
-        $this->assertSame('placed', $this->orders()->sole()->status, 'the shop accepts every order itself');
+        $this->assertSame('placed', $this->orders()->sole()->status, 'every order waits for the shop to type ✅');
         $this->shopTypes('96170123456', '✅');
 
         $order = $this->orders()->with('items')->sole();
@@ -137,8 +129,9 @@ class CheckoutTest extends TestCase
         $this->assertSame('Shawarma', $order->items->sole()->product_name);
         $this->assertSame(2, $order->items->sole()->quantity);
 
-        $this->assertStringContainsString('accepted your order #1 — preparing now, ready around', $this->lastReply());
-
+        // afterCommit notifications stay pending inside RefreshDatabase's transaction
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertStringContainsString('accepted order #1 — preparing now, ready around', $this->lastReply());
         $conversation = Conversation::query()->withoutGlobalScopes()->findOrFail($order->conversation_id);
         $this->assertSame(ConversationStatus::Closed, $conversation->status);
         $this->assertSame(CartStatus::Converted, Cart::query()->withoutGlobalScopes()->where('conversation_id', $conversation->id)->sole()->status);

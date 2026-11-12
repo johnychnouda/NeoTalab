@@ -60,19 +60,12 @@ function Text({ text }) {
 }
 
 /**
- * What the customer does next, so the visitor can do it: tap a button of the bot's last message
- * (a list button stands for the item picked in it), send a voice note, or send the typed text.
+ * What the customer does next: send a voice note, or type the next message
+ * (checkout is conversational — no reply-button menus).
  */
 function customerAction(messages, count) {
   const msg = messages[count];
   if (msg.voice) return { kind: "voice" };
-  let i = count - 1;
-  while (i >= 0 && messages[i].chat !== "c") i--;
-  const bot = messages[i];
-  if (bot && !bot.out && bot.buttons && !msg.photo) {
-    if (bot.buttons.includes(msg.text)) return { kind: "button", at: i, label: msg.text };
-    if (bot.buttons.length === 1) return { kind: "button", at: i, label: bot.buttons[0] };
-  }
   return { kind: "send", draft: msg.photo ? `${msg.photo} ${msg.text}` : msg.text };
 }
 
@@ -302,7 +295,7 @@ export default function OrderDemo({ demo }) {
                         <div className={`wa-msg ${m.out ? "out" : "in"}${first ? " tail" : ""}`}>
                           <div className={`wa-bubble${m.photo ? " wa-has-photo" : ""}`}>
                             {m.human && <span className="wa-human">{m.human}</span>}
-                            {!m.out && !m.human && first && <span className="wa-bot">🤖 {demo.bot}</span>}
+                            {!m.out && !m.human && first && demo.bot ? <span className="wa-bot">🤖 {demo.bot}</span> : null}
                             {m.photo && <span className="wa-photo" aria-hidden="true">{m.photo}</span>}
                             {m.voice ? (
                               <span className="wa-voice" aria-label={demo.voice}>
@@ -318,11 +311,6 @@ export default function OrderDemo({ demo }) {
                               {m.out && <Svg d={icons.ticks} size={16} box="0 0 16 11" />}
                             </span>
                           </div>
-                          {m.buttons?.map((b) => (action?.kind === "button" && action.at === m.i && action.label === b ? (
-                            <button key={b} type="button" className="wa-button wa-target" onClick={send}>{b === WHISH ? <Whish /> : b}</button>
-                          ) : (
-                            <span key={b} className="wa-button">{b === WHISH ? <Whish /> : b}</span>
-                          )))}
                         </div>
                       </div>
                     );

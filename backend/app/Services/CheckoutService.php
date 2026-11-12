@@ -32,7 +32,7 @@ class CheckoutService
     public const PAYMENT_METHODS = ['cash', 'whish'];
 
     /**
-     * Orders taken by the bot are accepted straight away ("confirmed") with the shop's prep time.
+     * Place an order as status "placed"; the shop must type ✅ / ❌ in the customer's chat to accept or refuse.
      *
      * @param  array<string, mixed>  $details  delivery_zone, delivery_address, payment_method, payment_currency,
      *                                         notes, location (['lat' => …, 'lng' => …] from a WhatsApp pin)
@@ -120,8 +120,8 @@ class CheckoutService
         $split = $payment === 'cash' && $currency === 'MIXED' && $lbpOk && $cashMain !== null && $cashMain > 0 && $cashMain < $total;
         $inLbp = $currency === 'LBP' && $lbpOk;
 
-        // The assistant accepts orders itself unless the shop chose to answer each one (✅ typed in the customer's chat).
-        $waitForShop = ! $shop->autoAccept();
+        // Every order waits for the shop to type ✅ / ❌ in the customer's chat (never auto-accepted).
+        // Whish payment instructions go out only after accept, so a refused order never needs a refund.
         $extra = [
             'delivery_lat' => $hasPin ? (float) $location['lat'] : null,
             'delivery_lng' => $hasPin ? (float) $location['lng'] : null,
@@ -129,12 +129,10 @@ class CheckoutService
             'cash_main' => $split ? $cashMain : null,
             'exchange_rate' => ($inLbp || $split) ? $shop->lbpRate() : null,
             'total_lbp' => $split ? $shop->toLbp($total - $cashMain) : ($inLbp ? $shop->toLbp($total) : null),
-            // A shop that answers each order gets it as 'placed'; a Whish order then gets its payment instructions
-            // only once accepted, so a refused order never has to be refunded. Otherwise the assistant accepts it now.
-            'status' => $waitForShop ? 'placed' : ($payment === 'whish' ? 'pending_payment' : 'confirmed'),
+            'status' => 'placed',
             'payment_status' => $payment === 'whish' ? 'pending' : 'cash',
             'fulfillment' => $fulfillment,
-            'accepted_at' => $payment === 'whish' || $waitForShop ? null : now(),
+            'accepted_at' => null,
             'eta_mins' => $shop->prepTimeMins(),
             'deliver_at' => $deliverAt?->copy()->utc(),
         ];

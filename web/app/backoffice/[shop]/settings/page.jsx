@@ -33,7 +33,7 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
 const GROUPS = {
   shop: (p) => ({ shopName: p.shop_name || "", opsWhatsapp: p.ops_whatsapp || "", defaultLocale: p.default_locale || "en" }),
   orders: (p) => ({
-    auto_accept: p.auto_accept !== false, fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
+    fulfillment: p.fulfillment || "delivery", pickup_address: p.pickup_address || null, shop_location: p.shop_location || null,
     region: p.region || null, city: p.city || null,
     prep_time_mins: num(p.prep_time_mins), prep_hours: num(p.prep_hours),
     delivery_days_min: num(p.delivery_days_min), delivery_days_max: num(p.delivery_days_max),
@@ -241,8 +241,6 @@ function Settings() {
             <Card title={t("ops.fulfillment")} desc={t("ops.fulfillmentDesc")}>
               <Segmented id="o-ful" cards aria-label={t("ops.fulfillment")} value={p.fulfillment || "delivery"} onChange={(v) => setP("fulfillment", v)}
                 options={["delivery", "pickup", "both"].map((f) => ({ value: f, icon: FULFILLMENT_ICONS[f], label: t(`ops.fs.${f}`), hint: t(`ops.fs.${f}Hint`) }))} />
-              <Switch checked={p.auto_accept !== false} onChange={(on) => setP("auto_accept", on)}
-                label={t("ops.autoAccept")} hint={t("ops.autoAcceptHint")} />
               {delivers && (
                 <button type="button" className="sset-next" onClick={() => setTab("areas")}>{t("ops.nextAreas")}</button>
               )}
