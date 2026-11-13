@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Category;
 use App\Models\Conversation;
 use App\Models\Merchant;
@@ -35,7 +36,7 @@ class ChatMenuTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'currency' => 'USD', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto']]);
     }
 
@@ -94,14 +95,14 @@ class ChatMenuTest extends TestCase
         $this->assertStringContainsString('Subtotal: 10.00$', $text);
     }
 
-    public function test_greeting_comes_with_the_menu_in_words(): void
+    public function test_asking_for_the_menu_lists_categories_in_words(): void
     {
         foreach (range(1, 12) as $n) {
             $c = Category::factory()->forMerchant($this->merchant)->create(['name' => "Cat {$n}", 'sort_order' => $n]);
             Product::factory()->forMerchant($this->merchant)->create(['name' => "Item {$n}", 'price' => 1, 'category_id' => $c->id]);
         }
 
-        $this->say('marhaba');
+        $this->say('menu');
 
         $this->assertSame('text', $this->last()['type']);
         $this->assertStringContainsString('Cat 10', $this->last()['text']['body']);
@@ -114,7 +115,7 @@ class ChatMenuTest extends TestCase
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Lahm', 'price' => 2, 'is_available' => false]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Zaatar', 'price' => 1]);
 
-        $this->say('hello');
+        $this->say('menu');
 
         $this->assertStringContainsString('Zaatar', $this->last()['text']['body']);
         $this->assertStringNotContainsString('Lahm', $this->last()['text']['body']);
@@ -130,7 +131,7 @@ class ChatMenuTest extends TestCase
             'offer_percent' => 50, 'offer_ends_on' => now()->subDays(2)->toDateString()]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Cola', 'price' => 1, 'category_id' => Category::query()->withoutGlobalScopes()->where('name', 'Drinks')->value('id')]);
 
-        $this->say('hello');
+        $this->say('menu');
         $lines = explode("\n", $this->last()['text']['body']);
         $menu = array_values(array_filter($lines, fn ($l) => str_starts_with($l, '•')));
         $this->assertSame('• 🔥 Offers — 1 item', $menu[0], 'expired offers do not count');
@@ -143,7 +144,7 @@ class ChatMenuTest extends TestCase
     {
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Tomatoes', 'price' => 1.5, 'unit' => 'kg']);
 
-        $this->say('hello');
+        $this->say('menu');
 
         $this->assertStringContainsString('Tomatoes — 1.50$ / kg', $this->last()['text']['body']);
     }

@@ -86,33 +86,34 @@ class ReportFiguresTest extends TestCase
         $this->assertSame('2026-10-20', $figures['date']);
     }
 
-    public function test_the_nightly_average_counts_the_order_the_service_and_the_delivery_person(): void
+    public function test_the_nightly_average_counts_one_rating_per_order(): void
     {
         $day = Carbon::parse('2026-10-20', 'Asia/Beirut');
         $noon = $day->copy()->setTime(12, 0);
+        // The old service and delivery answers on older orders are ignored.
         $this->order($this->shop, ['delivered_at' => $noon, 'rated_at' => $noon, 'rating' => 5, 'rating_service' => 3, 'rating_delivery' => 1]);
-        $this->order($this->shop, ['delivered_at' => $noon, 'rated_at' => $noon, 'rating' => 5, 'rating_service' => 5]); // a pickup: two answers
+        $this->order($this->shop, ['delivered_at' => $noon, 'rated_at' => $noon, 'rating' => 2, 'rating_service' => 5]);
 
         $figures = app(DailyReportService::class)->figures($this->shop, $day);
 
-        $this->assertSame('3.8 / 5', $figures['rating'], '(5 + 3 + 1 + 5 + 5) / 5');
+        $this->assertSame('3.5 / 5', $figures['rating'], '(5 + 2) / 2');
     }
 
-    public function test_the_dashboard_shows_each_average_and_the_orders_with_a_bad_answer(): void
+    public function test_the_dashboard_shows_the_average_and_the_orders_with_a_bad_rating(): void
     {
         [, $owner] = [null, $this->shop->users()->first()];
         $token = $this->tokenFor($owner);
         $now = now();
         $this->order($this->shop, ['number' => 41, 'delivered_at' => $now, 'rated_at' => $now, 'rating' => 5, 'rating_service' => 3, 'rating_delivery' => 1]);
-        $this->order($this->shop, ['number' => 42, 'delivered_at' => $now, 'rated_at' => $now, 'rating' => 5, 'rating_service' => 5]);
+        $this->order($this->shop, ['number' => 42, 'delivered_at' => $now, 'rated_at' => $now, 'rating' => 2, 'rating_service' => 5]);
 
         $ratings = $this->withToken($token)->getJson('/api/v1/analytics/dashboard?days=30')->assertOk()->json('ratings');
 
-        $this->assertSame(3.8, (float) $ratings['average'], '(5 + 3 + 1 + 5 + 5) / 5 answers');
+        $this->assertSame(3.5, (float) $ratings['average'], '(5 + 2) / 2: one rating per order');
         $this->assertSame(2, $ratings['count'], 'two orders');
-        $this->assertSame(['order' => 5.0, 'service' => 4.0, 'delivery' => 1.0], array_map('floatval', $ratings['by']));
-        $this->assertCount(1, $ratings['low'], 'only the order with a Bad answer');
-        $this->assertSame([41, 1, 'delivery'], [$ratings['low'][0]['number'], $ratings['low'][0]['rating'], $ratings['low'][0]['what']]);
+        $this->assertSame(['order' => 3.5], array_map('floatval', $ratings['by']));
+        $this->assertCount(1, $ratings['low'], 'only the order rated Bad');
+        $this->assertSame([42, 2, 'order'], [$ratings['low'][0]['number'], $ratings['low'][0]['rating'], $ratings['low'][0]['what']]);
     }
 
     public function test_a_quiet_day_says_none_instead_of_zero_ratings(): void

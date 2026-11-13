@@ -35,7 +35,7 @@ export default async function ContactPage() {
   const wa = company.whatsapp ? company.whatsapp.replace(/\D/g, "") : "";
 
   return (
-    <LegalPage title={t.title}>
+    <LegalPage title={t.title} dated={false}>
       <p>{t.reply}</p>
 
       <h2>{t.company}</h2>

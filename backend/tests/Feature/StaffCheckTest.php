@@ -121,7 +121,7 @@ class StaffCheckTest extends TestCase
         $this->say('add 1 Cigarettes');
 
         $this->assertSame(0, $this->cartCount(), 'never added without the team');
-        $this->assertStringContainsString('needs a check by our team', $this->body($this->lastTo(self::CUSTOMER)));
+        $this->assertStringContainsString('needs a quick check by the shop', $this->body($this->lastTo(self::CUSTOMER)));
         $this->assertSame((string) $this->antibiotic->id, $this->customer()->hasPendingCheck());
 
         // Ordinary items still go straight in.

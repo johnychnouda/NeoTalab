@@ -55,7 +55,9 @@ export default function TeamPage() {
                   </div>
                 </div>
                 <div className="tm-status">
-                  <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>{t(m.status === "on_duty" ? "db.team.onShift" : "db.team.offShift")}</span>
+                  <span className={`pill ${m.status === "on_duty" ? "pill-active" : ""}`}>
+                    {t(m.status === "on_duty" ? "db.team.onShift" : m.status === "on_break" || m.status === "paused" ? "db.team.onBreak" : "db.team.offShift")}
+                  </span>
                   {m.status === "on_duty" && m.availability === "busy" && <span className="pill pill-suspended">{t("db.team.onDelivery")}</span>}
                 </div>
                 <div className="mk-hint" style={{ marginBottom: 10 }}>{m.total_deliveries || 0} {t((m.total_deliveries || 0) === 1 ? "db.team.deliveryOne" : "db.team.deliveries")}</div>

@@ -81,7 +81,7 @@ try:
             ids = buttons(out)
             if "co:ok:" in ids:
                 break
-            pick = next((i for i in ids if i.startswith(("co:cur:USD", "co:pay:cash", "co:when:asap", "co:gift:no"))), None) or (ids[0] if ids else None)
+            pick = next((i for i in ids if i.startswith(("co:cur:USD", "co:pay:cash", "co:when:asap"))), None) or (ids[0] if ids else None)
             code, out, raw, _ = say(C, button=pick) if pick else (0, out, raw, None)
         receipt = " ".join(out)
         print(f"   [{lang}] receipt ->", receipt[-260:])

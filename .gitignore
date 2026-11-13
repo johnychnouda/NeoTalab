@@ -21,18 +21,14 @@ backend/.phpunit.cache
 backend/storage/*.key
 backend/public/hot
 backend/public/build
+backend/storage/logs/*.log
 
-# IDE
+# IDE / Claude Code leftovers
 .idea/
+.claude/
 *.swp
-
-# PHPUnit / caches
-*.cache
-
-# Local deploy secrets (never commit)
-deploy/secrets*.env
-deploy/*.local
 
 # QA lab (throwaway database, lab logins, results)
 qa/.lab/
 qa/__pycache__/
+qa/*.out

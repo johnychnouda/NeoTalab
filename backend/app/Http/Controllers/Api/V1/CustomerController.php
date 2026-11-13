@@ -37,4 +37,23 @@ class CustomerController extends Controller
 
         return response()->json(['customer' => $row, 'message' => 'Customer unblocked.']);
     }
+
+    public function paused(Request $request, CustomerService $customers): JsonResponse
+    {
+        return response()->json(['customers' => $customers->paused($request->user()->merchant)]);
+    }
+
+    public function resume(Request $request, CustomerService $customers, string $customer): JsonResponse
+    {
+        $row = $customers->resume($request->user()->merchant, $customer);
+
+        return response()->json(['customer' => $row, 'message' => 'Bot resumed for this chat.']);
+    }
+
+    public function anonymize(Request $request, CustomerService $customers, string $customer): JsonResponse
+    {
+        $row = $customers->anonymize($request->user()->merchant, $customer);
+
+        return response()->json(['customer' => $row, 'message' => 'Customer anonymized.']);
+    }
 }

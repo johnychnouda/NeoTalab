@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Merchant;
 use App\Models\Product;
 use App\Models\WhatsAppMessage;
@@ -32,7 +33,7 @@ class VoiceNoteTest extends TestCase
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'currency' => 'USD', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto']]);
         Product::factory()->forMerchant($this->merchant)->create(['name' => 'Chicken shawarma', 'price' => 5]);
     }
@@ -107,7 +108,7 @@ class VoiceNoteTest extends TestCase
 
         $sent = $this->sent();
         $this->assertCount(1, $sent);
-        $this->assertSame('text', $sent[0]['type'], 'greeting comes with the menu written out, same as typing "marhaba"');
+        $this->assertSame('text', $sent[0]['type'], 'greeting is answered in words, same as typing "marhaba"');
         $this->assertSame('marhaba', WhatsAppMessage::query()->withoutGlobalScopes()->where('direction', 'inbound')->first()->payload['transcript']);
     }
 

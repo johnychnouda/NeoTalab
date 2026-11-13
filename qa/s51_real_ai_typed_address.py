@@ -65,7 +65,7 @@ try:
             ids = [p.split("=")[0] for x in out for g in re.findall(r"\[(?:BTN|LIST) ([^\]]+)\]", x) for p in re.split(r" \| |,", g)]
             if "co:ok:" in ids:
                 break
-            pick = next((b for b in ids if b.startswith(("co:cur:USD", "co:pay:cash", "co:when:asap", "co:gift:no", "co:skip:"))), None)
+            pick = next((b for b in ids if b.startswith(("co:cur:USD", "co:pay:cash", "co:when:asap", "co:skip:"))), None)
             out, raw = say(C, button=pick) if pick else say(C, text="Nour building, 3rd floor")
         out, raw = say(C, button="co:ok:")
         o = orders(C)

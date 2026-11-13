@@ -26,10 +26,18 @@ export default function ShopHome() {
   const { t, locale } = useLang();
   const toast = useToast();
   const [setup, setSetup] = useState(null);
+  const [paused, setPaused] = useState([]);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    try { setSetup((await api("GET", "/settings/setup")).setup); } catch (e) { setError(e.message); }
+    try {
+      const [setupRes, pausedRes] = await Promise.all([
+        api("GET", "/settings/setup"),
+        api("GET", "/customers/paused").catch(() => ({ customers: [] })),
+      ]);
+      setSetup(setupRes.setup);
+      setPaused(pausedRes.customers || []);
+    } catch (e) { setError(e.message); }
   }, [api]);
 
   useEffect(() => { load(); }, [load]);
@@ -97,6 +105,16 @@ export default function ShopHome() {
         </section>
       )}
 
+      {paused.length > 0 && (
+        <section className="gs-banner" style={{ marginBottom: 16 }}>
+          <div>
+            <strong>{t("customers.pausedTitle", { n: paused.length })}</strong>
+            <p className="mk-hint" style={{ margin: "4px 0 8px" }}>{t("customers.pausedHint")}</p>
+            <Link className="btn-sm" href={`/backoffice/${shopSlug}/customers`}>{t("customers.open")}</Link>
+          </div>
+        </section>
+      )}
+
       <Plan sub={shop.subscription} shopName={shopName} t={t} locale={locale} />
       <MetaFees url={setup.meta_payment_url} t={t} />
 
@@ -140,15 +158,16 @@ function Plan({ sub, shopName, t, locale }) {
   const daysLeft = sub.renews_at ? daysUntil(sub.renews_at) : null;
   const fee = formatMoney(sub.fee);
   const per = t(sub.billing_cycle === "yearly" ? "db.sub.year" : "db.sub.month");
-  const due = sub.status === "pending" || (daysLeft !== null && daysLeft < 0);
+  const priced = Number(sub.fee) > 0;
+  // A free plan has nothing to pay, whatever its renewal date says.
+  const due = sub.status === "pending" || (daysLeft !== null && daysLeft < 0 && (priced || sub.status === "trial"));
   const trial = !due && sub.status === "trial";
 
   const title = due ? t("db.sub.due")
     : trial ? (daysLeft <= 1 ? t("db.sub.trialLast") : t("db.sub.trial", { n: daysLeft }))
     : t("db.sub.paid");
-  const priced = Number(sub.fee) > 0;
   const line = due ? t("db.sub.dueDesc") : [
-    sub.renews_at && t(trial ? "db.sub.trialEnds" : "db.sub.renews", { date: date(sub.renews_at) }),
+    sub.renews_at && daysLeft >= 0 && t(trial ? "db.sub.trialEnds" : "db.sub.renews", { date: date(sub.renews_at) }),
     priced && t(trial ? "db.sub.then" : "db.sub.price", { fee, per }),
   ].filter(Boolean).join(" ");
   const pay = company.supportWhatsapp

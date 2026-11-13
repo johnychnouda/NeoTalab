@@ -277,8 +277,8 @@ function LoginScreen({ onLoggedIn }) {
     try {
       const data = await api("POST", "/auth/login", { email: mail, password });
       setToken("owner", data.token);
-      if (data.merchant?.name) localStorage.setItem("nt_platform_name", data.merchant.name);
-      else if (data.user?.name) localStorage.setItem("nt_platform_name", data.user.name);
+      // The side menu shows the platform, like Settings does, not whoever signed in.
+      localStorage.setItem("nt_platform_name", "NeoTalab");
       onLoggedIn(data.user);
     } catch (err) {
       setError(err.message);

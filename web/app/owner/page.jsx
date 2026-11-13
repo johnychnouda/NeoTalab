@@ -376,7 +376,7 @@ function MerchantCard({ t, m, onClick }) {
       </div>
       <div className="card-footer">
         {statusPill}
-        {showBot && (
+        {showBot && !noBotWarning && (
           <span className="bot-indicator" style={{ color: botColor }}>
             <span className="bot-dot" style={{ background: botColor }} />
             {botLabel}

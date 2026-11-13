@@ -51,7 +51,8 @@ class SettingsController extends Controller
 
     public function updateMode(Request $request, MerchantSettingsService $settings): JsonResponse
     {
-        $request->validate(['mode' => ['required', 'string', 'in:auto,busy,manual,closed']]);
+        // busy was never wired in inbound (behaved like auto); keep auto / manual / closed only.
+        $request->validate(['mode' => ['required', 'string', 'in:auto,manual,closed']]);
         $merchant = $settings->updateMode($request->user()->merchant, $request->input('mode'));
 
         return response()->json([

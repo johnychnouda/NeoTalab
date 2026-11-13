@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Order;
 
 /**
- * The one question after an order, one tap: Great (5), Okay (3) or Bad (1). Okay and Bad ask the customer what went wrong
- * (typed or a voice note) and tell the shop; the message that follows reaches the shop.
+ * One question after an order: Great (5), Okay (3) or Bad (1). Default is conversational (words),
+ * with optional WhatsApp buttons when whatsapp.conversational is off. Okay/Bad ask what went wrong.
  */
 final class RatingFlow
 {
@@ -43,7 +43,36 @@ final class RatingFlow
     }
 
     /**
-     * The question as a WhatsApp message with Great / Okay / Bad. $lead is shown above it (the delivered message).
+     * Great / Okay / Bad from typed words (EN/AR/FR); null otherwise.
+     */
+    public static function typedScore(string $text): ?int
+    {
+        $t = mb_strtolower(trim($text));
+        if ($t === '') {
+            return null;
+        }
+        foreach (['great', 'excellent', 'amazing', 'perfect', 'super', 'ممتاز', 'رائع', 'تمام', 'parfait', 'génial', 'genial'] as $word) {
+            if ($t === $word || str_contains($t, $word)) {
+                return self::GREAT;
+            }
+        }
+        foreach (['okay', 'ok', 'fine', 'average', 'meh', 'عادي', 'وسط', 'moyen', 'correct'] as $word) {
+            if ($t === $word || str_contains($t, $word)) {
+                return self::OKAY;
+            }
+        }
+        foreach (['bad', 'terrible', 'awful', 'poor', 'سيء', 'سيئ', 'مش منيح', 'mauvais', 'nul'] as $word) {
+            if ($t === $word || str_contains($t, $word)) {
+                return self::BAD;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The question as WhatsApp text (conversational) or Great / Okay / Bad buttons.
+     * $lead is shown above it (the delivered message).
      *
      * @return array<string, mixed>
      */
@@ -56,11 +85,17 @@ final class RatingFlow
             'driver' => $order->driver?->name ?? '',
         ], $locale);
 
+        $body = mb_substr(($lead !== null && $lead !== '' ? $lead."\n\n" : '').$text, 0, 1024);
+
+        if (config('whatsapp.conversational', true)) {
+            return ['type' => 'text', 'text' => $body];
+        }
+
         $buttons = [self::GREAT => 'great', self::OKAY => 'okay', self::BAD => 'bad'];
 
         return ['type' => 'interactive', 'interactive' => [
             'type' => 'button',
-            'body' => ['text' => mb_substr(($lead !== null && $lead !== '' ? $lead."\n\n" : '').$text, 0, 1024)],
+            'body' => ['text' => $body],
             'action' => ['buttons' => array_map(
                 fn ($value, $key) => ['type' => 'reply', 'reply' => ['id' => "rt:{$order->id}:{$question}:{$value}", 'title' => mb_substr(__("whatsapp.rating.{$key}", [], $locale), 0, 20)]],
                 array_keys($buttons),

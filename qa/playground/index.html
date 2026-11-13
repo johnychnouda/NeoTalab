@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NeoTalab Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>NeoTalab <span>playground</span></h1>
+      <div id="health" class="meta">Checking lab…</div>
+    </div>
+    <div class="toolbar">
+      <label>
+        <span class="meta">Scenario (production path)</span><br />
+        <select id="scenario"></select>
+      </label>
+      <button type="button" id="new-customer" class="ghost" data-keep="1">New customer</button>
+      <button type="button" id="toggle-coverage" class="ghost" data-keep="1">Coverage</button>
+    </div>
+  </header>
+
+  <p id="blurb" class="blurb">Loading scenarios…</p>
+  <div class="status-line">
+    Customer: <strong id="customer-phone">—</strong> · <span id="status">Ready</span>
+    · Shop mode:
+    <button type="button" class="mode" data-mode="auto" data-keep="1">auto</button>
+    <button type="button" class="mode" data-mode="busy" data-keep="1">busy</button>
+    <button type="button" class="mode" data-mode="manual" data-keep="1">manual</button>
+    <button type="button" class="mode" data-mode="closed" data-keep="1">closed</button>
+  </div>
+
+  <aside id="coverage" class="coverage hidden">
+    <h2>Production WhatsApp coverage</h2>
+    <p class="meta">Everything NeoTalab can do on WhatsApp today — use the scenario + chips to exercise each path. Web dashboards are setup-only by design.</p>
+    <div id="coverage-body"></div>
+  </aside>
+
+  <main>
+    <section class="pane">
+      <div class="pane-head">
+        <strong>Customer WhatsApp</strong>
+        <small>Same surface as a real customer on the shop number</small>
+      </div>
+      <div id="customer-chips" class="hints"></div>
+      <div class="hints tools">
+        <button type="button" id="send-pin" data-keep="1">📍 Beirut pin</button>
+        <button type="button" id="send-out-pin" data-keep="1">📍 Out of zone</button>
+        <button type="button" id="send-photo" data-keep="1">📷 Photo</button>
+        <button type="button" id="send-voice" data-keep="1">🎤 Voice</button>
+        <button type="button" id="send-call" data-keep="1">📞 Call</button>
+        <button type="button" id="seed-cart" data-keep="1">🛒 Seed cart (skip Fake-AI size)</button>
+      </div>
+      <div id="customer-thread" class="thread"></div>
+      <form id="customer-form" class="composer">
+        <input id="customer-input" type="text" placeholder="Message as customer…" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </section>
+
+    <section class="pane">
+      <div class="pane-head">
+        <strong>Shop WhatsApp</strong>
+        <small>Typed ops on the shop phone (coexistence) — production has no order board</small>
+      </div>
+      <div id="shop-hints" class="hints"></div>
+      <div id="shop-thread" class="thread"></div>
+      <form id="shop-form" class="composer">
+        <input id="shop-input" type="text" placeholder="Message as shop phone…" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </section>
+
+    <section class="pane" id="driver-pane">
+      <div class="pane-head">
+        <strong>Driver WhatsApp</strong>
+        <small>start/stop + Picked up / Outside / Delivered / Failed</small>
+      </div>
+      <div id="driver-hints" class="hints"></div>
+      <div id="driver-thread" class="thread"></div>
+      <form id="driver-form" class="composer">
+        <input id="driver-input" type="text" placeholder="Message as driver…" autocomplete="off" />
+        <button id="driver-send" type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

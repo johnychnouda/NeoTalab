@@ -6,14 +6,14 @@ platform, many shops (restaurants, pharmacies, retail, services).
 
 - `backend/` Laravel 13 API and queue workers
 - `web/` Next.js 16 (owner portal, shop backoffice, public site)
-- `deploy/` Railway setup and secrets template
+- `deploy/` Railway setup guide
 - `docs/` architecture, decisions, WhatsApp setup, local testing
 
 ## Production
 
 Runs on [Railway](https://railway.app): web, API, queue and MySQL in one project.
-Setup steps are in [deploy/STEP-BY-STEP.md](deploy/STEP-BY-STEP.md). API secrets go in
-`deploy/secrets-for-railway.env` (copy the `.example` file; the real one is gitignored).
+Setup steps are in [deploy/STEP-BY-STEP.md](deploy/STEP-BY-STEP.md). Production env vars are listed in
+`backend/.env.production.example` (paste into Railway; never commit real secrets).
 
 More reading: [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md),
 [WhatsApp](docs/WHATSAPP.md).

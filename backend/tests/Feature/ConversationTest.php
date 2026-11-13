@@ -45,7 +45,7 @@ class ConversationTest extends TestCase
             'message' => 'hello',
         ])->assertOk()
             ->assertJsonPath('data.ai.intent', 'greeting')
-            ->assertJsonPath('data.ai.recommended_action', 'show_menu');
+            ->assertJsonPath('data.ai.recommended_action', 'await_customer');
 
         $this->withToken($token)->postJson("/api/v1/conversations/{$conversationId}/turns", [
             'message' => 'add 2 shawarma wrap',

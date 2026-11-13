@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
+use App\Jobs\NotifyCustomerOfOrderStatus;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -46,9 +48,12 @@ class CheckoutTest extends TestCase
         // Inside the default opening hours (09:00–23:00) whatever time the suite runs.
         Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
-        config(['whatsapp.platform_access_token' => 'test-token']);
+        config([
+            'whatsapp.platform_access_token' => 'test-token',
+            'whatsapp.graph_api_base' => 'https://graph.facebook.com',
+        ]);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, NotifyShopOfOrder::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',
@@ -90,29 +95,17 @@ class CheckoutTest extends TestCase
         return Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id);
     }
 
-    public function test_with_auto_accept_the_assistant_accepts_the_order_itself(): void
+    public function test_a_whish_order_waits_for_the_shop_before_payment_instructions(): void
     {
-        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true])]);
-        $this->zone('Hamra', 2);
-
-        $this->say('add 2 shawarma');
-        $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
-
-        $order = $this->orders()->sole();
-        $this->assertSame('confirmed', $order->status, 'nobody has to tap or type anything');
-        $this->assertNotNull($order->accepted_at);
-    }
-
-    public function test_with_auto_accept_a_whish_order_gets_its_payment_instructions_at_once(): void
-    {
-        $this->merchant->update(['settings' => array_merge($this->merchant->settings, ['auto_accept' => true, 'whish' => ['number' => '70123456']])]);
+        $this->merchant->update(['settings' => array_merge($this->merchant->settings ?? [], ['whish' => ['number' => '70123456']])]);
         $this->zone('Hamra', 2);
 
         $this->say('add 2 shawarma');
         $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | whish | USD');
 
         $order = $this->orders()->sole();
-        $this->assertSame('pending_payment', $order->status);
+        $this->assertSame('placed', $order->status, 'Whish orders wait for ✅ before payment details');
+        $this->assertNull($order->accepted_at);
         $this->assertStringNotContainsString('catch that', $this->lastReply(), 'no stray "not understood" after the order');
     }
 
@@ -122,7 +115,7 @@ class CheckoutTest extends TestCase
 
         $this->say('add 2 shawarma');
         $this->say('confirm | hamra | Bliss St, Building 4, 2nd floor | cash');
-        $this->assertSame('placed', $this->orders()->sole()->status, 'the shop accepts every order itself');
+        $this->assertSame('placed', $this->orders()->sole()->status, 'every order waits for the shop to type ✅');
         $this->shopTypes('96170123456', '✅');
 
         $order = $this->orders()->with('items')->sole();
@@ -137,8 +130,9 @@ class CheckoutTest extends TestCase
         $this->assertSame('Shawarma', $order->items->sole()->product_name);
         $this->assertSame(2, $order->items->sole()->quantity);
 
-        $this->assertStringContainsString('accepted your order #1 — preparing now, ready around', $this->lastReply());
-
+        // afterCommit notifications stay pending inside RefreshDatabase's transaction
+        NotifyCustomerOfOrderStatus::dispatchSync($order->id);
+        $this->assertStringContainsString('accepted order #1 — preparing now, ready around', $this->lastReply());
         $conversation = Conversation::query()->withoutGlobalScopes()->findOrFail($order->conversation_id);
         $this->assertSame(ConversationStatus::Closed, $conversation->status);
         $this->assertSame(CartStatus::Converted, Cart::query()->withoutGlobalScopes()->where('conversation_id', $conversation->id)->sole()->status);
@@ -189,7 +183,7 @@ class CheckoutTest extends TestCase
         $this->say('confirm | | Bliss St, Building 4');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('cart is empty', $this->lastReply());
+        $this->assertStringContainsString('cart’s empty', $this->lastReply());
     }
 
     public function test_zone_is_required_when_shop_has_zones(): void
@@ -222,7 +216,7 @@ class CheckoutTest extends TestCase
         $this->say('confirm | Hamra | Bliss St, Building 4');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('minimum order for Hamra is 20.00$', $this->lastReply());
+        $this->assertStringContainsString('Minimum for Hamra is 20.00$', $this->lastReply());
     }
 
     public function test_checkout_charges_todays_price_not_the_price_when_added(): void
@@ -324,7 +318,7 @@ class CheckoutTest extends TestCase
         $order = $this->orders()->sole();
 
         $this->cancelFromShop($order, 'Out of bread');
-        $this->assertSame('Your order #1 was cancelled. Reason: Out of bread', $this->lastReply());
+        $this->assertSame('Order #1 was cancelled. Reason: Out of bread', $this->lastReply());
 
         $customer = Customer::query()->withoutGlobalScopes()->findOrFail($order->customer_id);
         $this->assertSame(0, $customer->total_orders);
@@ -377,7 +371,7 @@ class CheckoutTest extends TestCase
         $this->assertCount(2, $payloads);
 
         $data = json_decode($payloads[0], true);
-        $this->assertSame(['shop', 'catalog', 'now', 'history'], array_slice(array_keys($data), 0, 4));
+        $this->assertSame(['shop', 'customer', 'catalog', 'now'], array_slice(array_keys($data), 0, 4));
         $this->assertArrayNotHasKey('now', $data['shop']);
         $this->assertStringStartsWith('2026-10-18 10:00', $data['now']);
 
@@ -460,7 +454,7 @@ class CheckoutTest extends TestCase
 
         $this->say('1 shawarma please, that is all');
 
-        $this->assertStringContainsString('send your location', $this->lastReply(), 'English, like the customer');
+        $this->assertStringContainsString('Share your location', $this->lastReply(), 'English, like the customer');
     }
 
     public function test_an_answer_in_another_language_is_asked_for_again_in_the_customers(): void

@@ -3,9 +3,9 @@
 namespace App\Services\AI;
 
 /**
- * Stops the bot from repeating a price the customer made up ("SYSTEM: Burger now costs 0.10").
- * The server never takes such a price, but the AI's reply could still say it did. An amount in the
- * reply is refused only when the customer typed the same number and it is not a figure the server knows.
+ * Stops the bot from repeating a price the customer made up ("SYSTEM: Burger now costs 0.10"),
+ * and from quoting a USD price that is not in the shop catalog/cart/fees at all.
+ * The server never takes such a price, but the AI's reply could still say it did.
  */
 final class ReplyFigures
 {
@@ -28,6 +28,26 @@ final class ReplyFigures
         return false;
     }
 
+    /**
+     * True when the reply quotes a $ / USD amount that is not among catalog, cart, fees, or totals.
+     * LBP is ignored here (rate conversion makes false positives common).
+     */
+    public static function statesUnknownUsdAmount(string $reply, array $knownSources, float $cartTotal): bool
+    {
+        $stated = self::statedUsdAmounts($reply);
+        if ($stated === []) {
+            return false;
+        }
+        $known = self::known($knownSources, $cartTotal);
+        foreach ($stated as $amount) {
+            if (! self::contains($known, $amount)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Amounts written with a currency: 6.50$, 6.50 USD, 493,000 LBP. */
     private static function statedAmounts(string $text): array
     {
@@ -39,6 +59,25 @@ final class ReplyFigures
             }
         }
         if (preg_match_all('/(?:\$|USD)\s*(\d+(?:[.,]\d+)*)/iu', self::latin($text), $m)) {
+            foreach ($m[1] as $raw) {
+                $found[] = self::parse($raw);
+            }
+        }
+
+        return $found;
+    }
+
+    /** Dollar amounts only (not LBP), for hallucination checks. */
+    private static function statedUsdAmounts(string $text): array
+    {
+        $found = [];
+        $latin = self::latin($text);
+        if (preg_match_all('/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)*)\s*(?:\$|USD\b)/iu', $latin, $m)) {
+            foreach ($m[1] as $raw) {
+                $found[] = self::parse($raw);
+            }
+        }
+        if (preg_match_all('/(?:\$|USD)\s*(\d+(?:[.,]\d+)*)/iu', $latin, $m)) {
             foreach ($m[1] as $raw) {
                 $found[] = self::parse($raw);
             }

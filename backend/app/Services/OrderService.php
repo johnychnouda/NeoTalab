@@ -212,17 +212,31 @@ class OrderService
             throw ValidationException::withMessages(['order' => ['Only an order on its way can be marked as not delivered.']]);
         }
 
-        $this->move($order, [
+        $changes = [
             'status' => 'failed',
             'cancel_reason' => trim((string) $reason) !== '' ? mb_substr(trim((string) $reason), 0, 200) : 'Customer not reachable',
             'cancelled_by' => 'driver',
             'cancelled_at' => now(),
-        ]);
+        ];
+        // Paid Whish that never arrived → shop must refund; surface it clearly.
+        if ($order->payment_method === 'whish' && in_array($order->payment_status, ['paid', 'awaiting_check'], true)) {
+            $changes['payment_status'] = 'refund_due';
+        }
+        $this->move($order, $changes);
         if ($order->driver_id) {
             $this->releaseDriver($order->driver_id);
         }
 
-        return $this->mapOrder($order->fresh(['customer', 'driver', 'items']));
+        $fresh = $order->fresh(['customer', 'driver', 'items']);
+        $merchant = Merchant::query()->find($order->merchant_id);
+        if ($merchant) {
+            app(ShopAlertService::class)->deliveryFailed($merchant, $fresh);
+            if (($fresh->payment_status ?? '') === 'refund_due') {
+                app(ShopAlertService::class)->refundDue($merchant, $fresh);
+            }
+        }
+
+        return $this->mapOrder($fresh);
     }
 
     protected function delivered(Order $order): array

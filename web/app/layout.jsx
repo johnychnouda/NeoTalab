@@ -1,11 +1,13 @@
 import "./globals.css";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans_Arabic, Inter } from "next/font/google";
 import { ToastProvider } from "@/components/ui";
 import { LangProvider } from "@/lib/i18n";
 import { company } from "@/lib/company";
 import { getSiteLang } from "@/lib/site-lang";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
+// Inter has no Arabic letters: without this, Arabic falls back to whatever the device ships (see globals.css).
+const arabic = IBM_Plex_Sans_Arabic({ subsets: ["arabic"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-arabic" });
 
 export const metadata = {
   metadataBase: new URL(company.siteUrl),
@@ -27,7 +29,7 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   const lang = await getSiteLang();
   return (
-    <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className={inter.variable}>
+    <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className={`${inter.variable} ${arabic.variable}`}>
       <body>
         <LangProvider>
           <ToastProvider>{children}</ToastProvider>

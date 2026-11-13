@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\CurrentTenant;
 use App\Support\Money;
 use Illuminate\Support\Collection;
 
@@ -130,7 +131,12 @@ class ChatMenu
             'pending_payment' => __('whatsapp.track.payment', ['number' => $order->number], $locale),
             'placed' => __('whatsapp.track.waiting', ['number' => $order->number, 'shop' => $merchant->name], $locale),
             'picked_up' => __('whatsapp.track.on_the_way', ['number' => $order->number, 'when' => $when,
-                'driver' => $order->driver ? "{$order->driver->name} · 📞 ".($order->driver->whatsapp_number ?: $order->driver->phone) : ''], $locale),
+                'driver' => $order->driver
+                    ? __('whatsapp.track.driver_line', [
+                        'name' => $order->driver->name,
+                        'phone' => $order->driver->whatsapp_number ?: $order->driver->phone,
+                    ], $locale)
+                    : ''], $locale),
             'delivered' => __('whatsapp.track.delivered', ['number' => $order->number], $locale),
             'cancelled', 'rejected' => __('whatsapp.track.closed', ['number' => $order->number], $locale),
             default => __('whatsapp.track.preparing', ['number' => $order->number, 'when' => $when], $locale),
@@ -153,6 +159,11 @@ class ChatMenu
             $customer->markCheck($product->id, false);
         }
 
+        $merchant = app(CurrentTenant::class)->get();
+        if ($merchant) {
+            app(ShopAlertService::class)->staffCheck($merchant, $customer, $product);
+        }
+
         return $this->text(__('whatsapp.check.ask', ['item' => $this->name($product, $locale)], $locale));
     }
 
@@ -165,7 +176,13 @@ class ChatMenu
 
     protected function name(object $model, string $locale): string
     {
-        return (string) $model->name;
+        $localized = match ($locale) {
+            'ar' => $model->name_ar ?? null,
+            'fr' => $model->name_fr ?? null,
+            default => null,
+        };
+
+        return (string) (is_string($localized) && trim($localized) !== '' ? $localized : $model->name);
     }
 
     protected function price(Merchant $merchant, Product $p, string $locale = 'en'): string

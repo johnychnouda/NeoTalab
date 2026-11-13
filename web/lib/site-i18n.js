@@ -17,7 +17,7 @@ export const SITE = {
     },
     home: {
       h1a: "Your WhatsApp, now an ", h1b: "AI sales assistant",
-      intro: "Customers order and pay on your WhatsApp, day and night. You just tap ✅.",
+      intro: "Customers order and pay in a normal WhatsApp chat, day and night. You stay in charge with ✅.",
       badge: "Official WhatsApp Business Platform",
       trust: ["Arabic, English and French", "{n}-day free trial"],
       trial: "Start your free trial", seeHow: "Watch the demo",
@@ -31,7 +31,7 @@ export const SITE = {
       features: [
         ["chat", "Answers day and night", "Orders any time, even in Arabizi and with typos."],
         ["store", "You stay in charge", "See every chat in your WhatsApp Business app and step in any time."],
-        ["scooter", "Drivers and staff, one tap", "Orders reach your team with a Maps link. Picked up, delivered: one tap."],
+        ["scooter", "Drivers and staff on WhatsApp", "Orders reach your team with a Maps link. Drivers update the trip in plain words."],
         ["cash", "Cash or Whish", "Cash on delivery or at the shop, in $, lira or both, or a secure Whish link."],
         ["tag", "Only your prices", "The assistant uses your menu, fees and minimum order. It can't invent prices."],
         ["shield", "Official and private", "Built on Meta's WhatsApp Business Platform. Customer data only serves your customers."],
@@ -72,7 +72,7 @@ export const SITE = {
     },
     home: {
       h1a: "واتساب الخاص بك، أصبح الآن ", h1b: "مساعد مبيعات ذكي",
-      intro: "يطلب زبائنك ويدفعون على واتساب محلك، ليلًا ونهارًا. وأنت تضغط ✅ فقط.",
+      intro: "يطلب زبائنك ويدفعون بمحادثة واتساب عادية، ليلًا ونهارًا. وأنت تبقى بالمسؤولية مع ✅.",
       badge: "منصّة واتساب للأعمال الرسمية",
       trust: ["العربية والإنجليزية والفرنسية", "تجربة مجانية لمدة {days}"],
       trial: "ابدأ تجربتك المجانية", seeHow: "شاهد العرض",
@@ -86,7 +86,7 @@ export const SITE = {
       features: [
         ["chat", "يردّ ليلًا ونهارًا", "طلبات في أي وقت، حتى بالعربيزي ومع الأخطاء."],
         ["store", "القرار لك", "ترى كل محادثة في تطبيق واتساب للأعمال وتتدخّل متى شئت."],
-        ["scooter", "السائقون والموظفون بضغطة", "تصل الطلبات إلى فريقك مع رابط الخريطة. تم الاستلام، تم التسليم: بضغطة واحدة."],
+        ["scooter", "السائقون والموظفون على واتساب", "تصل الطلبات إلى فريقك مع رابط الخريطة. والسائق يحدّث الرحلة بكلمات بسيطة."],
         ["cash", "نقدًا أو Whish", "نقدًا عند التسليم أو في المحل، بالدولار أو بالليرة أو بالاثنين معًا، أو رابط Whish آمن."],
         ["tag", "أسعارك فقط", "يستخدم المساعد قائمتك ورسومك والحد الأدنى للطلب، ولا يمكنه اختراع الأسعار."],
         ["shield", "رسمي وخاص", "مبني على منصّة واتساب للأعمال من Meta. بيانات الزبائن تُستخدم فقط لخدمتهم."],
@@ -127,7 +127,7 @@ export const SITE = {
     },
     home: {
       h1a: "Votre WhatsApp, désormais un ", h1b: "assistant de vente IA",
-      intro: "Vos clients commandent et paient sur votre WhatsApp, jour et nuit. Vous n'avez qu'à appuyer sur ✅.",
+      intro: "Vos clients commandent et paient dans une discussion WhatsApp normale, jour et nuit. Vous gardez la main avec ✅.",
       badge: "Plateforme officielle WhatsApp Business",
       trust: ["Arabe, anglais et français", "Essai gratuit de {n} jours"],
       trial: "Commencer l'essai gratuit", seeHow: "Voir la démo",
@@ -141,7 +141,7 @@ export const SITE = {
       features: [
         ["chat", "Répond jour et nuit", "Commandes à toute heure, même en arabizi et avec des fautes."],
         ["store", "Vous gardez la main", "Voyez chaque discussion dans WhatsApp Business et intervenez à tout moment."],
-        ["scooter", "Livreurs et équipe, un geste", "Les commandes arrivent avec un lien Maps. Récupérée, livrée : un seul geste."],
+        ["scooter", "Livreurs et équipe sur WhatsApp", "Les commandes arrivent avec un lien Maps. Les livreurs mettent à jour le trajet en mots."],
         ["cash", "Espèces ou Whish", "À la livraison ou au commerce, en $, en livres ou les deux, ou un lien Whish sécurisé."],
         ["tag", "Uniquement vos prix", "L'assistant utilise votre menu, vos frais et votre minimum. Il ne peut pas inventer de prix."],
         ["shield", "Officiel et confidentiel", "Basé sur la plateforme WhatsApp Business de Meta. Les données clients servent uniquement à les servir."],

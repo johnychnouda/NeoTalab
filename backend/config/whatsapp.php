@@ -35,4 +35,11 @@ return [
     'customer_limit_per_10_minutes' => (int) env('WHATSAPP_CUSTOMER_LIMIT_10MIN', 40),
     'customer_limit_per_day' => (int) env('WHATSAPP_CUSTOMER_LIMIT_DAY', 300),
 
+    /*
+    | Human chat (default on): checkout, rating and cancel ask in words — no WhatsApp button menus.
+    | Location pin still uses WhatsApp’s native “share location” (needed for delivery fees).
+    | Old button taps (co: / rt: / cx:) still work if a customer taps an older message.
+    */
+    'conversational' => filter_var(env('WHATSAPP_CONVERSATIONAL', true), FILTER_VALIDATE_BOOL),
+
 ];

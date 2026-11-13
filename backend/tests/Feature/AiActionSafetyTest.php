@@ -163,7 +163,7 @@ class AiActionSafetyTest extends TestCase
         $this->say('1 burger');
 
         $this->assertSame(0, $this->cart()->items()->count());
-        $this->assertStringContainsString('no longer available', collect($this->sentToCustomer())->last());
+        $this->assertStringContainsString('available anymore', collect($this->sentToCustomer())->last());
     }
 
     public function test_an_answer_with_real_shop_prices_or_a_harmless_customer_number_is_left_alone(): void
@@ -300,7 +300,8 @@ class AiActionSafetyTest extends TestCase
         $this->say('burger');
         $this->ai([], 'place_order', ['fulfillment' => 'pickup', 'delivery_zone' => null, 'delivery_address' => null,
             'payment_method' => 'cash', 'payment_currency' => null, 'cash_main' => null, 'notes' => null]);
-        $this->say('confirm');
+        $this->say('confirm'); // the summary
+        $this->say('confirm'); // and the order itself
         $order = Order::query()->withoutGlobalScopes()->sole();
         $status = $order->status;
 

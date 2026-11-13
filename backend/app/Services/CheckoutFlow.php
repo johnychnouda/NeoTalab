@@ -19,10 +19,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * Toters-style checkout on WhatsApp, driven by buttons instead of the AI: delivery or pickup →
- * saved address or area + location → cash or Whish → currency → receipt → confirm.
- * State lives in conversations.state['checkout']; any free-text message outside the address
- * step leaves the flow and goes back to the assistant.
+ * Checkout on WhatsApp. Default is conversational (human words, no button menus): delivery or
+ * pickup → location pin → cash or Whish → currency → receipt → confirm by typing.
+ * State lives in conversations.state['checkout']. Old co:* button taps still work.
  *
  * Every method returns the WhatsApp message to send (text or interactive), or null when the
  * message is not part of the flow.
@@ -30,6 +29,9 @@ use Illuminate\Support\Str;
 class CheckoutFlow
 {
     public const MAX_SAVED_ADDRESSES = Customer::MAX_SAVED_ADDRESSES;
+
+    /** Customer locale for conversational option hints (set for the duration of a turn). */
+    protected string $uiLocale = 'en';
 
     public function __construct(
         protected ConversationService $conversations,
@@ -48,6 +50,7 @@ class CheckoutFlow
      */
     public function start(Merchant $merchant, Conversation $conversation, string $locale, ?array $known = null): array
     {
+        $this->uiLocale = $locale;
         $conversation->load('cart.items');
         if (! $conversation->cart || $conversation->cart->items->isEmpty()) {
             return $this->menuMessage($merchant, $this->t('empty', $locale), $locale);
@@ -131,6 +134,7 @@ class CheckoutFlow
      */
     public function handle(Merchant $merchant, Conversation $conversation, string $locale, ?string $buttonId, ?string $text, ?array $location): ?array
     {
+        $this->uiLocale = $locale;
         $isFlowButton = $buttonId !== null && str_starts_with($buttonId, 'co:');
         if (! $isFlowButton && ! $this->active($conversation)) {
             return null;
@@ -142,6 +146,14 @@ class CheckoutFlow
 
         $state = ($conversation->state ?? [])['checkout'];
         $step = $state['step'] ?? null;
+
+        // Conversational lists: the customer replies "1" / "2" instead of tapping a row.
+        if (! $isFlowButton && $text !== null && ! empty($state['options']) && $location === null) {
+            if ($picked = $this->typedOption($text, $state['options'])) {
+                $buttonId = $picked;
+                $isFlowButton = true;
+            }
+        }
 
         if ($isFlowButton) {
             [$_, $kind, $value] = array_pad(explode(':', $buttonId, 3), 3, '');
@@ -223,10 +235,8 @@ class CheckoutFlow
             return $this->next($merchant, $conversation, $locale);
         }
 
-        // Waiting for Delivery or Pickup: a short typed answer works too ("delivery", "take away", "توصيل").
-        // Another short reply is asked again with the buttons; a long message (an order in one go) goes
-        // on to the assistant as before.
-        if ($step === 'fulfillment' && $text !== null && $location === null && mb_strlen(trim($text)) <= 30) {
+        // Waiting for Delivery or Pickup: typed answer ("delivery", "take away", "توصيل").
+        if ($step === 'fulfillment' && $text !== null && $location === null && mb_strlen(trim($text)) <= 40) {
             $typed = $this->typedFulfillment($text);
             if ($typed !== null) {
                 $state['fulfillment'] = $typed;
@@ -239,6 +249,60 @@ class CheckoutFlow
                 ['co:ful:delivery', $this->t('btn_delivery', $locale)],
                 ['co:ful:pickup', $this->t('btn_pickup', $locale)],
             ]));
+        }
+
+        // Payment / currency / confirm / skip — typed like a human reply (conversational checkout).
+        if ($text !== null && $location === null && mb_strlen(trim($text)) <= 60) {
+            if ($step === 'payment') {
+                if (($pay = $this->typedPayment($text)) !== null) {
+                    $state['payment'] = $pay;
+                    $this->save($conversation, $state);
+
+                    return $this->next($merchant, $conversation, $locale);
+                }
+
+                return $this->next($merchant, $conversation, $locale);
+            }
+            if ($step === 'currency') {
+                if (($cur = $this->typedCurrency($text, $merchant)) !== null) {
+                    $state['currency'] = $cur;
+                    unset($state['cash_main']);
+                    $this->save($conversation, $state);
+
+                    return $this->next($merchant, $conversation, $locale);
+                }
+
+                return $this->next($merchant, $conversation, $locale);
+            }
+            if ($step === 'details' && $this->typedSkip($text)) {
+                $state['address_done'] = true;
+                $this->save($conversation, $state);
+
+                return $this->next($merchant, $conversation, $locale);
+            }
+            if ($step === 'confirm') {
+                if ($this->typedConfirm($text)) {
+                    return $this->confirm($merchant, $conversation, $state, $locale);
+                }
+                if ($this->typedCancel($text)) {
+                    $this->exit($conversation);
+                    $conversation->cart?->items()->delete();
+                    $conversation->cart?->update(['subtotal' => 0]);
+
+                    return $this->text($this->t('cancelled', $locale));
+                }
+                if ($this->typedAsap($text)) {
+                    $state['when'] = 'asap';
+                    $this->save($conversation, $state);
+
+                    return $this->next($merchant, $conversation, $locale);
+                }
+                // "another time" / a clock time: fall through to typedTime below.
+            }
+            if (in_array($step, ['address', 'zone', 'when_list', 'when_time', 'when_day'], true) && ! empty($state['options'])) {
+                // Unrecognised number: show the list again instead of dumping to the AI.
+                return $this->next($merchant, $conversation, $locale);
+            }
         }
 
         // A change of mind ("actually make it 3") or a question ("what time do you close?") while we
@@ -273,7 +337,9 @@ class CheckoutFlow
                 $state['step'] = 'details';
                 $this->save($conversation, $state);
 
-                return $this->buttons($this->t('details', $locale), [['co:skip:', $this->t('btn_skip', $locale)]]);
+                return $this->conversational()
+                    ? $this->text($this->t('details', $locale))
+                    : $this->buttons($this->t('details', $locale), [['co:skip:', $this->t('btn_skip', $locale)]]);
             }
         } elseif ($step === 'details' && $text !== null && trim($text) !== '') {
             $state['address'] = trim(trim($state['address'] ?? '').' — '.trim($text), ' —');
@@ -320,6 +386,114 @@ class CheckoutFlow
         return null;
     }
 
+    /** cash / Whish in the customer's words; null otherwise. */
+    protected function typedPayment(string $text): ?string
+    {
+        $t = mb_strtolower(trim($text));
+        foreach (['whish', 'wish', 'ويش', 'ويش', 'بطاقة', 'card', 'carte'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'whish';
+            }
+        }
+        foreach (['cash', 'نقد', 'كاش', 'espece', 'espèce', 'especes', 'espèces', 'argent'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'cash';
+            }
+        }
+
+        return null;
+    }
+
+    /** dollars / lira / split; null otherwise. */
+    protected function typedCurrency(string $text, Merchant $merchant): ?string
+    {
+        $t = mb_strtolower(trim($text));
+        foreach (['split', 'both', 'mix', 'mixed', 'دولار و', 'و لير', '$ +', 'lbp +', 'les deux'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'MIXED';
+            }
+        }
+        foreach (['lbp', 'lira', 'llira', 'لير', 'ليرة', 'livres'] as $word) {
+            if (str_contains($t, $word)) {
+                return 'LBP';
+            }
+        }
+        $main = strtolower((string) $merchant->currency);
+        foreach (array_filter(['usd', 'dollar', 'dollars', '$', 'دولار', $main]) as $word) {
+            if ($word !== '' && str_contains($t, $word)) {
+                return $merchant->currency;
+            }
+        }
+
+        return null;
+    }
+
+    protected function typedSkip(string $text): bool
+    {
+        $t = mb_strtolower(trim($text));
+
+        return (bool) preg_match('/^(skip|passer|تخط|تخطي|لا|no|non|none|nothing|yalla|يلا|ok|okay|👍)$/u', $t)
+            || str_contains($t, 'skip') || str_contains($t, 'passer') || str_contains($t, 'تخط');
+    }
+
+    protected function typedConfirm(string $text): bool
+    {
+        $t = mb_strtolower(trim($text));
+
+        return (bool) preg_match('/^(yes|yep|yeah|ok|okay|confirm|confirmed|place|order|sure|yalla|يلا|تمام|أكد|تأكيد|اي|أي|اه|آه|oui|ouais|d\'accord|👍|✅)$/u', $t)
+            || str_contains($t, 'confirm') || str_contains($t, 'تأكيد') || str_contains($t, 'أكد');
+    }
+
+    protected function typedCancel(string $text): bool
+    {
+        $t = mb_strtolower(trim($text));
+
+        return (bool) preg_match('/^(cancel|stop|nevermind|never mind|الغ|الغاء|إلغاء|الغي|annuler|non)$/u', $t)
+            || str_contains($t, 'cancel') || str_contains($t, 'إلغاء') || str_contains($t, 'الغاء') || str_contains($t, 'annul');
+    }
+
+    protected function typedAsap(string $text): bool
+    {
+        $t = mb_strtolower(trim($text));
+
+        return (bool) preg_match('/^(asap|soon|soonest|now|الآن|هلأ|هلق|tout de suite|au plus vite)$/u', $t)
+            || str_contains($t, 'asap') || str_contains($t, 'soonest') || str_contains($t, 'بأسرع');
+    }
+
+    /**
+     * Numbered reply ("1", "2.") or fuzzy title match against the last conversational options list.
+     *
+     * @param  array<string, string>  $options  n => co:* id
+     */
+    protected function typedOption(string $text, array $options): ?string
+    {
+        $t = trim($text);
+        if ($t === '') {
+            return null;
+        }
+        if (preg_match('/^(\d+)\s*[.)]?$/u', $t, $m) && isset($options[$m[1]])) {
+            return $options[$m[1]];
+        }
+        $lower = mb_strtolower($t);
+        foreach ($options as $id) {
+            // Titles are not stored; matching by id slug fragments is enough for "new" / zone names typed loosely.
+            $slug = mb_strtolower((string) Str::afterLast($id, ':'));
+            if ($slug !== '' && $slug !== 'new' && (str_contains($lower, $slug) || $lower === $slug)) {
+                return $id;
+            }
+            if ($slug === 'new' && preg_match('/\b(new|nouveau|جديد|autre|other)\b/u', $lower)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    protected function conversational(): bool
+    {
+        return (bool) config('whatsapp.conversational', true);
+    }
+
     /**
      * Works out the next missing piece and asks for it.
      *
@@ -327,6 +501,7 @@ class CheckoutFlow
      */
     protected function next(Merchant $merchant, Conversation $conversation, string $locale): array
     {
+        $this->uiLocale = $locale;
         // Minimums and the receipt use today's prices, the same ones the order will be saved with.
         if ($cart = $conversation->cart()->first()) {
             app(CartService::class)->refreshPrices($cart);
@@ -346,6 +521,17 @@ class CheckoutFlow
         }
 
         if ($state['fulfillment'] === 'delivery' && empty($state['address_done'])) {
+            // A pin the customer already sent in this chat, before being asked, is the delivery location:
+            // it is taken exactly as if it arrived now, and never asked for a second time.
+            $earlier = ($conversation->state ?? [])['location'] ?? null;
+            if (empty($state['location']) && empty($state['pin_used']) && empty($state['new_address'])
+                && is_array($earlier) && isset($earlier['lat'], $earlier['lng'])) {
+                $this->save($conversation, ['step' => 'location', 'pin_used' => true] + $state);
+
+                return $this->handle($merchant, $conversation, $locale, null, null, $earlier)
+                    ?? $this->location($this->t('location_pin', $locale));
+            }
+
             $saved = array_values(array_filter($conversation->customer->addresses ?? [], fn ($a) => ! empty($a['location'])));
             if ($saved !== [] && empty($state['new_address'])) {
                 $rows = array_map(fn ($a) => [
@@ -435,8 +621,17 @@ class CheckoutFlow
         }
 
         $chosen = ($state['when'] ?? 'asap') !== 'asap' && empty($state['later_only']);
+        $receipt = $this->receipt($merchant, $conversation, $state, $locale)."\n\n".$this->t('change_items_hint', $locale);
 
-        return $this->ask($conversation, $state, 'confirm', $this->buttons($this->receipt($merchant, $conversation, $state, $locale)."\n\n".$this->t('change_items_hint', $locale), [
+        if ($this->conversational()) {
+            $hint = $chosen
+                ? $this->t('confirm_hint_asap', $locale)
+                : $this->t('confirm_hint', $locale);
+
+            return $this->ask($conversation, $state, 'confirm', $this->text($receipt."\n\n".$hint));
+        }
+
+        return $this->ask($conversation, $state, 'confirm', $this->buttons($receipt, [
             ['co:ok:', $this->t('btn_confirm', $locale)],
             $chosen ? ['co:when:asap', $this->t('btn_asap', $locale)] : ['co:time:', $this->t('btn_other_time', $locale)],
             ['co:cancel:', $this->t('btn_cancel', $locale)],
@@ -736,6 +931,12 @@ class CheckoutFlow
     protected function ask(Conversation $conversation, array $state, string $step, array $message): array
     {
         $state['step'] = $step;
+        if (isset($message['_co_options']) && is_array($message['_co_options'])) {
+            $state['options'] = $message['_co_options'];
+            unset($message['_co_options']);
+        } else {
+            unset($state['options']);
+        }
         $this->save($conversation, $state);
 
         return $message;
@@ -791,6 +992,17 @@ class CheckoutFlow
      */
     protected function buttons(string $body, array $buttons): array
     {
+        if ($this->conversational()) {
+            $lines = [rtrim($body), ''];
+            foreach ($buttons as $b) {
+                $lines[] = '• '.$b[1];
+            }
+            $lines[] = '';
+            $lines[] = $this->t('reply_option', $this->uiLocale);
+
+            return $this->text(implode("\n", $lines));
+        }
+
         return ['type' => 'interactive', 'interactive' => [
             'type' => 'button',
             'body' => ['text' => mb_substr($body, 0, 1024)],
@@ -804,6 +1016,24 @@ class CheckoutFlow
      */
     protected function list(string $body, string $button, array $rows): array
     {
+        if ($this->conversational()) {
+            $map = [];
+            $lines = [rtrim($body), ''];
+            foreach (array_values($rows) as $i => $r) {
+                $n = (string) ($i + 1);
+                $map[$n] = $r['id'];
+                $line = "{$n}. {$r['title']}";
+                if (($r['description'] ?? '') !== '') {
+                    $line .= ' — '.$r['description'];
+                }
+                $lines[] = $line;
+            }
+            $lines[] = '';
+            $lines[] = $this->t('reply_number', $this->uiLocale);
+
+            return ['_co_options' => $map] + $this->text(implode("\n", $lines));
+        }
+
         return ['type' => 'interactive', 'interactive' => [
             'type' => 'list',
             'body' => ['text' => mb_substr($body, 0, 1024)],

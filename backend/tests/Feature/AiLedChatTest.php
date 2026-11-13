@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Category;
 use App\Models\Merchant;
 use App\Models\Product;
@@ -40,7 +41,7 @@ class AiLedChatTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyStaffOfHandoff::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
         Cache::flush();
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'currency' => 'USD', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto']]);
     }
@@ -67,7 +68,7 @@ class AiLedChatTest extends TestCase
         }
     }
 
-    public function test_the_greeting_is_plain_words_with_the_menu_written_out(): void
+    public function test_the_greeting_is_a_short_human_hello_without_the_menu(): void
     {
         $this->menu(3);
 
@@ -75,16 +76,16 @@ class AiLedChatTest extends TestCase
 
         $sent = $this->last();
         $this->assertSame('text', $sent['type']);
-        $this->assertStringContainsString('Cat 1', $sent['text']['body']);
-        $this->assertStringContainsString('Cat 3', $sent['text']['body']);
-        $this->assertStringContainsString('Tell me what you', $sent['text']['body']);
+        $this->assertStringContainsString('What can I get you', $sent['text']['body']);
+        $this->assertStringNotContainsString('Cat 1', $sent['text']['body']);
+        $this->assertStringNotContainsString('•', $sent['text']['body']);
     }
 
-    public function test_a_big_menu_lists_ten_categories_and_says_how_many_more(): void
+    public function test_asking_for_the_menu_lists_categories_in_words(): void
     {
         $this->menu(12);
 
-        $this->say('hello');
+        $this->say('show me the menu');
 
         $body = $this->last()['text']['body'];
         $this->assertStringContainsString('Cat 10', $body);
@@ -108,7 +109,7 @@ class AiLedChatTest extends TestCase
         $this->say('hello?');
 
         $this->assertSame('text', $first['type']);
-        $this->assertStringContainsString('team member from Foren', $first['text']['body']);
+        $this->assertStringContainsString('Someone from Foren will reply here shortly', $first['text']['body']);
         $this->assertStringNotContainsString('Cat 1', $first['text']['body']);
     }
 }

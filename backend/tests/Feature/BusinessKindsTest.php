@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -39,7 +40,7 @@ class BusinessKindsTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-14 10:00', 'Asia/Beirut')); // Wednesday, open hours
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
     }
 
     protected function tearDown(): void

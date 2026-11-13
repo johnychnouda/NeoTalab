@@ -115,7 +115,8 @@ function InboxContent() {
       <PageHeader
         title={t("ow.nav.inbox")}
         subtitle={tab === "alerts"
-          ? (alerts.length ? t("ow.inbox.needAction", { n: alerts.length }) : t("ow.inbox.nothing"))
+          ? (alerts.length ? t("ow.inbox.needAction", { n: alerts.length })
+            : systemCount > 0 ? t("ow.inbox.systemOnly", { n: systemCount }) : t("ow.inbox.nothing"))
           : tab === "system" ? t("ow.sys.sub") : t("ow.inbox.historySub")}
       />
 

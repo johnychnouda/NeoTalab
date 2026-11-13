@@ -142,7 +142,7 @@ class ShopTicketTest extends TestCase
 
         $this->assertSame('confirmed', $order->fresh()->status);
         $customerLast = collect($this->messagesTo(self::CUSTOMER))->last()['text'] ?? '';
-        $this->assertStringContainsString('accepted your order', $customerLast);
+        $this->assertStringContainsString('accepted order', $customerLast);
     }
 
     public function test_customer_cannot_use_shop_accept_button(): void
@@ -188,5 +188,4 @@ class ShopTicketTest extends TestCase
         );
         $this->assertArrayHasKey('checkout', Conversation::query()->withoutGlobalScopes()->firstOrFail()->state ?? []);
     }
-
 }

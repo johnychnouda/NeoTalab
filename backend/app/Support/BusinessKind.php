@@ -7,23 +7,26 @@ use App\Models\Merchant;
 /**
  * What kind of business a shop is, and what that changes: the word customers see for the
  * menu, the options suggested for items, units, and the default way of counting time.
+ * Each sign-up type has its own kind — nothing is shared as “the same as” another type.
  */
 final class BusinessKind
 {
     /** kind => [menu word, timing unit, suggested option groups, units]; sizes have their own section, never an option group. */
     public const KINDS = [
         'restaurant' => ['menu', 'minutes', ['Extras'], []],
+        'bakery' => ['pastries', 'minutes', ['Topping', 'Filling'], ['piece', 'box']],
         'grocery' => ['products', 'minutes', [], ['piece', 'kg', 'pack']],
-        'retail' => ['catalogue', 'days', ['Color'], []],
+        'butcher' => ['fresh', 'minutes', ['Cut'], ['kg', 'piece']],
+        'retail' => ['catalogue', 'days', ['Color', 'Size'], []],
         'other' => ['products', 'minutes', [], []],
     ];
 
-    /** Business types offered at sign-up (stored in merchants.business_type) and their kind. */
+    /** Business types offered at sign-up (stored in merchants.business_type) and their kind — one type, one kind. */
     public const TYPES = [
         'Restaurant / Café' => 'restaurant',
-        'Bakery / Sweets' => 'restaurant',
+        'Bakery / Sweets' => 'bakery',
         'Supermarket / Grocery' => 'grocery',
-        'Butcher / Fruits & Vegetables' => 'grocery',
+        'Butcher / Fruits & Vegetables' => 'butcher',
         'Online Shop / Retail' => 'retail',
     ];
 
@@ -77,7 +80,7 @@ final class BusinessKind
     /** @return array{word: string, option_suggestions: list<string>, units: list<string>} */
     public static function profile(Merchant $merchant): array
     {
-        [$word, , $options, $units] = self::KINDS[self::of($merchant)];
+        [$word, , $options, $units] = self::KINDS[self::of($merchant)] ?? self::KINDS['other'];
 
         return ['word' => $word, 'option_suggestions' => $options, 'units' => $units];
     }

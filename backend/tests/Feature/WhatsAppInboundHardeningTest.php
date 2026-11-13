@@ -250,7 +250,7 @@ class WhatsAppInboundHardeningTest extends TestCase
 
         app(WhatsAppInboundService::class)->handle(['entry' => [['changes' => [$this->change('111', [$this->message('wamid.ERR')])]]]]);
 
-        $this->assertSame(["Sorry, I'm having trouble right now. A team member from ".$merchant->name.' will reply here shortly.'], $this->sentTexts());
+        $this->assertSame(["I'm having a moment 😅 Someone from ".$merchant->name.' will reply here shortly.'], $this->sentTexts());
     }
 
     public function test_idle_conversation_is_closed_and_a_new_one_started(): void

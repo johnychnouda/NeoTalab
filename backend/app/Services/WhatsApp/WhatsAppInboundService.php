@@ -10,12 +10,14 @@ use App\Models\Order;
 use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\WhatsAppMessage;
+use App\Services\AI\AiMemoryService;
 use App\Services\AI\Contracts\SpeechToText;
 use App\Services\ChatMenu;
 use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\RatingFlow;
+use App\Services\ShopAlertService;
 use App\Services\ShopCommands;
 use App\Services\SystemAlertService;
 use App\Support\Conversation\CartStatus;
@@ -242,7 +244,15 @@ class WhatsAppInboundService
         }
 
         if (Cache::add($key.':logged', true, 86400)) {
-            Log::warning('WhatsApp inbound: a number is flooding a shop, its messages get no reply for now', ['merchant_id' => $merchant->id]);
+            Log::warning('WhatsApp inbound: a number is flooding a shop, its messages get no reply for now', [
+                'merchant_id' => $merchant->id,
+                'phone' => $fromPhone,
+            ]);
+            app(SystemAlertService::class)->record('warning', sprintf(
+                'WhatsApp flood on %s from +%s — replies paused for that number today',
+                $merchant->name,
+                ltrim($fromPhone, '+'),
+            ), ['merchant_id' => $merchant->id, 'phone' => $fromPhone]);
         }
 
         return true;
@@ -326,6 +336,7 @@ class WhatsAppInboundService
         if (in_array($type, self::PHOTO_TYPES, true)) {
             $customer ??= Customer::query()->firstOrCreate(['phone' => $fromPhone], ['locale' => $locale]);
             $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
+            app(ShopAlertService::class)->photo($merchant, $customer);
             $this->reply($merchant, $fromPhone, $this->text('photo_received', $locale, $merchant->name));
 
             return;
@@ -397,7 +408,20 @@ class WhatsAppInboundService
             // "Where's my order?" under a status message.
             $step = $buttonId !== null ? $this->chatMenu->handle($merchant, $conversation, $locale, $buttonId) : null;
 
-            // Checkout runs on buttons, without the AI: Delivery/Pickup → address → payment → receipt.
+            // Conversational cancel: customer replied yes/no after we asked.
+            if ($text !== null && ($pending = ($conversation->state ?? [])['cancel_pending'] ?? null)) {
+                if (($answer = $this->typedCancelAnswer($text)) !== null) {
+                    $this->clearCancelPending($conversation);
+                    $reply = $this->conversations->resolveCancelButton($conversation, (string) $pending, $answer);
+                    if ($reply !== '') {
+                        $this->reply($merchant, $fromPhone, $reply);
+                    }
+
+                    return;
+                }
+            }
+
+            // Checkout in plain chat (or legacy buttons): Delivery/Pickup → address → payment → confirm.
             $step ??= $this->checkoutFlow->handle($merchant, $conversation, $locale, $buttonId, $text, $location);
 
             if ($step !== null) {
@@ -406,54 +430,82 @@ class WhatsAppInboundService
                 return;
             }
 
-            // A cancel request about an open order gets the Yes / No question directly, without the assistant.
+            // A cancel request about an open order gets a yes/no confirm directly, without the assistant.
             if ($text !== null && ($order = $this->conversations->openOrderToCancel($conversation, $text))) {
+                $this->rememberCancelPending($conversation, $order->id);
                 $this->send($merchant, $fromPhone, $this->cancelQuestion($merchant, $order->id, __('whatsapp.checkout.cancel_confirm', ['number' => $order->number], $locale), $locale));
 
                 return;
             }
 
-            // "كمل" / "done" / 👍 with items already in the cart: open the button checkout. The AI sometimes
-            // only says "we'll continue with pickup" and never returns recommended_action checkout.
+            // "كمل" / "done" / 👍 with items in cart: true-chat keeps the AI; legacy opens CheckoutFlow.
             if ($text !== null && ! $this->checkoutFlow->active($conversation)
                 && CheckoutFlow::looksLikeContinueCheckout($text)
                 && $conversation->cart?->items()->exists()) {
-                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $conversation, $locale));
+                if (config('ai.true_chat', true)) {
+                    $text = $text.' (customer wants to checkout / finish the order)';
+                } else {
+                    $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $conversation, $locale));
 
-                return;
+                    return;
+                }
             }
 
             $result = $this->conversations->processTurn($conversation, (string) $text, $location);
             $reply = trim($result['reply']);
-            // The assistant has just recognised the customer's language: the buttons that follow use it too.
+            // The assistant has just recognised the customer's language: checkout that follows uses it too.
             $locale = $result['conversation']->customer->locale ?? $locale;
 
-            // "Cancel order #N?" with Yes / No buttons: the customer's tap decides, not the assistant.
+            // "Cancel order #N?" — customer confirms with yes/no (words or legacy buttons).
             if ($result['cancel_confirm'] !== null) {
+                $this->rememberCancelPending($result['conversation'], $result['cancel_confirm']);
                 $this->send($merchant, $fromPhone, $this->cancelQuestion($merchant, $result['cancel_confirm'], $reply, $locale));
 
                 return;
             }
 
-            // Typed "checkout" without a delivery or pickup choice: the same buttons as the menu checkout.
-            if ($result['fulfillment_choice']) {
-                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
+            // True-chat: AI asked for a pin — send WhatsApp's location request with the AI's words.
+            if (! empty($result['need_location'])) {
+                $this->send($merchant, $fromPhone, [
+                    'type' => 'interactive',
+                    'interactive' => [
+                        'type' => 'location_request_message',
+                        'body' => ['text' => mb_substr($reply !== '' ? $reply : 'Share your location 📍', 0, 1024)],
+                        'action' => ['name' => 'send_location'],
+                    ],
+                ]);
 
                 return;
             }
 
-            // The assistant says the customer is done choosing: hand over to the button checkout.
-            if ($result['output']->recommendedAction === RecommendedAction::Checkout) {
+            // Legacy: typed checkout without fulfillment / recommended checkout → CheckoutFlow.
+            if (! empty($result['start_checkout_flow']) || $result['fulfillment_choice']) {
+                if ($reply !== '' && ! empty($result['start_checkout_flow'])) {
+                    $this->reply($merchant, $fromPhone, $reply);
+                }
+                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start(
+                    $merchant,
+                    $result['conversation'],
+                    $locale,
+                    $result['output']->checkout,
+                ));
+
+                return;
+            }
+
+            // True-chat checkout / place_order: AI already wrote the reply (and may have placed).
+            if (config('ai.true_chat', true)
+                && in_array($result['output']->recommendedAction, [RecommendedAction::Checkout, RecommendedAction::PlaceOrder], true)) {
                 if ($reply !== '') {
                     $this->reply($merchant, $fromPhone, $reply);
                 }
-                $this->sendUnlessRepeated($merchant, $fromPhone, $this->checkoutFlow->start($merchant, $result['conversation'], $locale, $result['output']->checkout));
 
                 return;
             }
 
-            // Safety net: AI said "we'll continue pickup/checkout" but forgot recommended_action checkout.
+            // Safety net (legacy): AI promised checkout in prose without the action.
             if ($reply !== ''
+                && ! config('ai.true_chat', true)
                 && ! $this->checkoutFlow->active($result['conversation'])
                 && $result['conversation']->cart?->items()->exists()
                 && $this->aiPromisedCheckoutWithoutAction($reply)) {
@@ -475,8 +527,7 @@ class WhatsAppInboundService
         }
 
         if ($reply !== '' && ($result['menu_link'] ?? false)) {
-            // The greeting (or "show me the menu") comes with the menu list right in the chat; a customer who named a
-            // section ("what's in the pizza section?") gets that section's items, not the list of sections again.
+            // "Show me the menu" attaches the written menu; a customer who named a section gets that section's items.
             $section = $text !== null ? $this->chatMenu->categoryNamed($text) : null;
             $this->send($merchant, $fromPhone, $section
                 ? $this->chatMenu->categoryMenu($merchant, $section, $locale, $reply)
@@ -489,9 +540,13 @@ class WhatsAppInboundService
         }
     }
 
-    /** "Cancel order #N?" with the two buttons, the buttons carry the order id. */
+    /** "Cancel order #N?" — words by default; optional Yes/No buttons when conversational is off. */
     protected function cancelQuestion(Merchant $merchant, string $orderId, string $body, string $locale): array
     {
+        if (config('whatsapp.conversational', true)) {
+            return ['type' => 'text', 'text' => mb_substr($body, 0, 4096)];
+        }
+
         return ['type' => 'interactive', 'interactive' => [
             'type' => 'button',
             'body' => ['text' => mb_substr($body, 0, 1024)],
@@ -500,6 +555,35 @@ class WhatsAppInboundService
                 ['type' => 'reply', 'reply' => ['id' => "cx:no:{$orderId}", 'title' => mb_substr(__('whatsapp.checkout.btn_cancel_no', [], $locale), 0, 20)]],
             ]],
         ]];
+    }
+
+    /** Remember which order a yes/no cancel reply is about (conversational path). */
+    protected function rememberCancelPending(Conversation $conversation, string $orderId): void
+    {
+        $state = $conversation->state ?? [];
+        $state['cancel_pending'] = $orderId;
+        $conversation->forceFill(['state' => $state])->save();
+    }
+
+    protected function clearCancelPending(Conversation $conversation): void
+    {
+        $state = $conversation->state ?? [];
+        unset($state['cancel_pending']);
+        $conversation->forceFill(['state' => $state])->save();
+    }
+
+    /** Typed yes / no / oui / لا under a pending cancel question. */
+    protected function typedCancelAnswer(string $text): ?bool
+    {
+        $t = mb_strtolower(trim($text));
+        if (preg_match('/^(yes|yep|yeah|y|oui|ok|okay|confirm|اي|أي|اه|آه|نعم|أجل|👍|✅)$/u', $t)) {
+            return true;
+        }
+        if (preg_match('/^(no|nope|n|non|لا|لأ|كلا|keep|❌)$/u', $t)) {
+            return false;
+        }
+
+        return null;
     }
 
     public const PAUSE_COMMANDS = ['⏸', '⏸️', '#pause', '#stop'];
@@ -537,24 +621,31 @@ class WhatsAppInboundService
         }
 
         $command = trim((string) ($echo['text']['body'] ?? ''));
+        $customer = Customer::query()->where('phone', $to)->first()
+            ?? Customer::query()->firstOrCreate(['phone' => $to], ['locale' => $merchant->locale ?? 'en']);
+
+        // Owner teaches the student AI: "remember: we close deliveries after 11"
+        if ($command !== '' && app(AiMemoryService::class)->learnFromOwnerText($command, $customer)) {
+            return;
+        }
 
         if (in_array($command, self::PAUSE_COMMANDS, true)) {
-            $customer = Customer::query()->firstOrCreate(['phone' => $to], ['locale' => $merchant->locale ?? 'en']);
             $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
         } elseif (in_array($command, self::RESUME_COMMANDS, true)) {
-            Customer::query()->where('phone', $to)->update(['bot_paused_until' => null]);
+            $customer->forceFill(['bot_paused_until' => null])->save();
         } else {
             app(ShopCommands::class)->handle($merchant, $to, $command);
         }
     }
 
     /**
-     * A lone 1–5 shortly after we asked for a rating. Returns true when the message was a rating.
+     * A lone 1–5 or great/okay/bad shortly after we asked for a rating. Returns true when it was a rating.
      */
     protected function handleRating(Merchant $merchant, Customer $customer, string $fromPhone, string $text, string $locale): bool
     {
         $digit = strtr(trim($text), ['١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5']);
-        if (! preg_match('/^[1-5]$/', $digit)) {
+        $score = preg_match('/^[1-5]$/', $digit) ? (int) $digit : RatingFlow::typedScore($text);
+        if ($score === null) {
             return false;
         }
 
@@ -577,9 +668,8 @@ class WhatsAppInboundService
             return false;
         }
 
-        $order->forceFill(['rating' => (int) $digit, 'rated_at' => now()])->save();
-        $key = (int) $digit > 3 ? 'thanks' : 'sorry';
-        $this->reply($merchant, $fromPhone, __("whatsapp.rating.{$key}", ['shop' => $merchant->name], $locale));
+        $question = app(RatingFlow::class)->next($order) ?? 'order';
+        $this->answerRating($merchant, $fromPhone, $order->id, $question, $score, $locale);
 
         return true;
     }
@@ -622,6 +712,8 @@ class WhatsAppInboundService
 
         $order->forceFill(['rating_issue' => mb_substr(trim($text), 0, 2000)])->save();
         $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
+        app(AiMemoryService::class)->learnFromRatingIssue($order->loadMissing('customer'), $text);
+        app(ShopAlertService::class)->handoff($merchant, $customer, 'rating');
 
         $this->reply($merchant, $fromPhone, __('whatsapp.rating.issue_received', ['shop' => $merchant->name], $locale));
 
