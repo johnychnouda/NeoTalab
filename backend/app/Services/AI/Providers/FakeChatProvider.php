@@ -77,7 +77,7 @@ class FakeChatProvider implements ChatProvider
                     ? "📍 {$address}\n{$url}"
                     : ($address !== '' && $address !== 'the shop'
                         ? "📍 We’re at {$address}"
-                        : "I don’t have the shop map pin saved yet 🙏"),
+                        : 'I don’t have the shop map pin saved yet 🙏'),
             );
         }
 

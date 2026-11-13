@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
+use App\Jobs\NotifyShopOfOrder;
 use App\Jobs\RemindShopOfWhishCheck;
 use App\Models\Driver;
 use App\Models\Merchant;
@@ -48,7 +49,7 @@ class WhishTransferTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-06 12:00', 'Asia/Beirut'));
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token', 'app.url' => 'https://api.test', 'app.frontend_url' => 'https://neotalab.com']);
-        Bus::fake([CheckUnacceptedOrder::class, CheckWhishTransfer::class, RemindShopOfWhishCheck::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckWhishTransfer::class, RemindShopOfWhishCheck::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
 
         Http::fake([
             'graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200),
@@ -269,7 +270,7 @@ class WhishTransferTest extends TestCase
         $order->refresh();
         $this->assertSame('cancelled', $order->status);
         $this->assertSame('failed', $order->payment_status);
-        $this->assertStringContainsString('could not find your Whish payment', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('find the Whish', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_only_a_payment_waiting_for_the_check_can_be_confirmed(): void
@@ -327,7 +328,7 @@ class WhishTransferTest extends TestCase
 
         $this->assertSame('cancelled', $order->fresh()->status);
         $this->assertSame('failed', $order->fresh()->payment_status);
-        $this->assertStringContainsString('did not receive', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('No Whish payment', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_an_order_already_waiting_for_the_check_is_not_cancelled_by_the_window(): void

@@ -17,6 +17,7 @@ use App\Services\CheckoutFlow;
 use App\Services\ConversationService;
 use App\Services\OrderConfirmation;
 use App\Services\RatingFlow;
+use App\Services\ShopAlertService;
 use App\Services\ShopCommands;
 use App\Services\SystemAlertService;
 use App\Support\Conversation\CartStatus;
@@ -243,7 +244,15 @@ class WhatsAppInboundService
         }
 
         if (Cache::add($key.':logged', true, 86400)) {
-            Log::warning('WhatsApp inbound: a number is flooding a shop, its messages get no reply for now', ['merchant_id' => $merchant->id]);
+            Log::warning('WhatsApp inbound: a number is flooding a shop, its messages get no reply for now', [
+                'merchant_id' => $merchant->id,
+                'phone' => $fromPhone,
+            ]);
+            app(SystemAlertService::class)->record('warning', sprintf(
+                'WhatsApp flood on %s from +%s — replies paused for that number today',
+                $merchant->name,
+                ltrim($fromPhone, '+'),
+            ), ['merchant_id' => $merchant->id, 'phone' => $fromPhone]);
         }
 
         return true;
@@ -327,6 +336,7 @@ class WhatsAppInboundService
         if (in_array($type, self::PHOTO_TYPES, true)) {
             $customer ??= Customer::query()->firstOrCreate(['phone' => $fromPhone], ['locale' => $locale]);
             $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
+            app(ShopAlertService::class)->photo($merchant, $customer);
             $this->reply($merchant, $fromPhone, $this->text('photo_received', $locale, $merchant->name));
 
             return;
@@ -703,6 +713,7 @@ class WhatsAppInboundService
         $order->forceFill(['rating_issue' => mb_substr(trim($text), 0, 2000)])->save();
         $customer->forceFill(['bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins())])->save();
         app(AiMemoryService::class)->learnFromRatingIssue($order->loadMissing('customer'), $text);
+        app(ShopAlertService::class)->handoff($merchant, $customer, 'rating');
 
         $this->reply($merchant, $fromPhone, __('whatsapp.rating.issue_received', ['shop' => $merchant->name], $locale));
 

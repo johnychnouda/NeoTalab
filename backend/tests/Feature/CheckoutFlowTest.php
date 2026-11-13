@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\DeliveryZone;
@@ -46,7 +47,7 @@ class CheckoutFlowTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token', 'app.frontend_url' => 'https://neotalab.com']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
 
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Foren', 'currency' => 'USD', 'timezone' => 'Asia/Beirut',
@@ -152,7 +153,7 @@ class CheckoutFlowTest extends TestCase
 
         $this->inbound(['type' => 'location', 'location' => ['latitude' => 33.8938, 'longitude' => 35.5018]]); // Beirut, far away
         $this->assertSame('location_request_message', $this->last()['interactive']['type'], 'asks for another location');
-        $this->assertStringContainsString("doesn't deliver to this location", $this->last()['interactive']['body']['text']);
+        $this->assertStringContainsString('deliver there yet', $this->last()['interactive']['body']['text']);
 
         $this->inbound(['type' => 'location', 'location' => ['latitude' => 34.1600, 'longitude' => 35.6480]]); // about 4 km
         $this->assertSame(['co:skip:'], $this->buttonIds(), 'inside the wider ring: on to the details');
@@ -299,7 +300,7 @@ class CheckoutFlowTest extends TestCase
         // 1 × $2 is under Jbeil's $3 minimum: refused as soon as the saved Jbeil address is picked.
         $this->pickRow("co:addr:{$saved}");
         $this->assertSame(1, Order::query()->withoutGlobalScopes()->count(), 'below minimum: no second order');
-        $this->assertStringContainsString('minimum order for Jbeil', $this->last()['text']['body']);
+        $this->assertStringContainsString('Minimum for Jbeil is 3.00$', $this->last()['text']['body']);
     }
 
     public function test_saved_address_goes_straight_to_payment(): void
@@ -323,7 +324,7 @@ class CheckoutFlowTest extends TestCase
         $this->pickRow("co:zone:{$this->jbeil->id}");
 
         $this->assertSame('text', $this->last()['type'], 'back to the menu, in words, to add more');
-        $this->assertStringContainsString('minimum order for Jbeil is 3.00', $this->last()['text']['body']);
+        $this->assertStringContainsString('Minimum for Jbeil is 3.00$', $this->last()['text']['body']);
     }
 
     public function test_whish_offers_dollars_and_lira_but_never_a_split(): void
@@ -370,7 +371,8 @@ class CheckoutFlowTest extends TestCase
         $this->menuOrder();
         $this->say('add 1 zaatar');
 
-        $this->assertStringContainsString('Added 1 × Zaatar', $this->last()['text']['body'] ?? $this->last()['interactive']['body']['text']);
+        $body = $this->last()['text']['body'] ?? $this->last()['interactive']['body']['text'] ?? '';
+        $this->assertStringContainsString('1 × Zaatar', $body);
         $this->assertSame(0, Order::query()->withoutGlobalScopes()->count());
     }
 

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Jobs\Concerns\SendsMerchantWhatsApp;
 use App\Services\OrderTiming;
+use App\Services\ShopAlertService;
 use App\Services\TravelTime;
 use App\Services\WhatsApp\CustomerTemplates;
 use App\Support\CurrentTenant;
@@ -29,7 +30,13 @@ class CheckLateOrder implements ShouldQueue
         [$order, $merchant] = $this->loadOrder($this->orderId) ?? [null, null];
         if (! $order || ! $order->customer?->phone || ! $order->promised_at
             || ! in_array($order->status, ['confirmed', 'preparing', 'ready', 'assigned'], true)
-            || $order->eta_updates >= OrderTiming::MAX_UPDATES || $timing->dueAt($order)->isFuture()) {
+            || $timing->dueAt($order)->isFuture()) {
+            return;
+        }
+
+        if ($order->eta_updates >= OrderTiming::MAX_UPDATES) {
+            app(ShopAlertService::class)->lateExhausted($merchant, $order);
+
             return;
         }
 

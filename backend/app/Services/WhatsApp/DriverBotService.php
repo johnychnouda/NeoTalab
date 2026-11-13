@@ -78,11 +78,38 @@ class DriverBotService
         }
 
         $reply = match (true) {
+            in_array($text, ['break', 'pause', 'استراحة', 'راحة'], true) => $this->startBreak($driver, $locale),
+            in_array($text, ['back', 'resume', 'رجوع', 'عودة', 'reprise', 'retour'], true) => $this->endBreak($merchant, $driver, $locale),
             in_array($text, ['stop', 'end', 'إنهاء', 'وقف', 'fin', 'terminer'], true) => $this->endShift($merchant, $driver, $locale),
             default => __('whatsapp.driver.help', [], $locale),
         };
 
         $this->reply($merchant, $to, $reply);
+    }
+
+    protected function startBreak(Driver $driver, string $locale): string
+    {
+        if ($driver->active_order_id) {
+            $order = Order::query()->find($driver->active_order_id);
+
+            return __('whatsapp.driver.shift_busy', ['number' => $order?->number ?? '—'], $locale);
+        }
+
+        $driver->forceFill(['status' => 'on_break', 'availability' => 'available'])->save();
+
+        return __('whatsapp.driver.on_break', [], $locale);
+    }
+
+    protected function endBreak(Merchant $merchant, Driver $driver, string $locale): string
+    {
+        if ($driver->status !== 'on_break' && $driver->status !== 'paused') {
+            return __('whatsapp.driver.not_on_break', [], $locale);
+        }
+
+        $driver->forceFill(['status' => 'on_duty', 'availability' => 'available'])->save();
+        $this->dispatcher->dispatchWaiting($merchant);
+
+        return __('whatsapp.driver.back_on', [], $locale);
     }
 
     /** picked up / outside / delivered / failed in the driver's words. */

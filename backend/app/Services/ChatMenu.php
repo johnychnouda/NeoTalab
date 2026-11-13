@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\CurrentTenant;
 use App\Support\Money;
 use Illuminate\Support\Collection;
 
@@ -158,6 +159,11 @@ class ChatMenu
             $customer->markCheck($product->id, false);
         }
 
+        $merchant = app(CurrentTenant::class)->get();
+        if ($merchant) {
+            app(ShopAlertService::class)->staffCheck($merchant, $customer, $product);
+        }
+
         return $this->text(__('whatsapp.check.ask', ['item' => $this->name($product, $locale)], $locale));
     }
 
@@ -170,7 +176,13 @@ class ChatMenu
 
     protected function name(object $model, string $locale): string
     {
-        return (string) $model->name;
+        $localized = match ($locale) {
+            'ar' => $model->name_ar ?? null,
+            'fr' => $model->name_fr ?? null,
+            default => null,
+        };
+
+        return (string) (is_string($localized) && trim($localized) !== '' ? $localized : $model->name);
     }
 
     protected function price(Merchant $merchant, Product $p, string $locale = 'en'): string

@@ -6,6 +6,7 @@ use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
 use App\Jobs\CheckWhishTransfer;
 use App\Jobs\NotifyCustomerOfOrderStatus;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Cart;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -52,7 +53,7 @@ class CheckoutTest extends TestCase
             'whatsapp.graph_api_base' => 'https://graph.facebook.com',
         ]);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, CheckWhishTransfer::class, NotifyShopOfOrder::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',
@@ -182,7 +183,7 @@ class CheckoutTest extends TestCase
         $this->say('confirm | | Bliss St, Building 4');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('cart is empty', $this->lastReply());
+        $this->assertStringContainsString('cart’s empty', $this->lastReply());
     }
 
     public function test_zone_is_required_when_shop_has_zones(): void
@@ -215,7 +216,7 @@ class CheckoutTest extends TestCase
         $this->say('confirm | Hamra | Bliss St, Building 4');
 
         $this->assertSame(0, $this->orders()->count());
-        $this->assertStringContainsString('minimum order for Hamra is 20.00$', $this->lastReply());
+        $this->assertStringContainsString('Minimum for Hamra is 20.00$', $this->lastReply());
     }
 
     public function test_checkout_charges_todays_price_not_the_price_when_added(): void
@@ -317,7 +318,7 @@ class CheckoutTest extends TestCase
         $order = $this->orders()->sole();
 
         $this->cancelFromShop($order, 'Out of bread');
-        $this->assertSame('Your order #1 was cancelled. Reason: Out of bread', $this->lastReply());
+        $this->assertSame('Order #1 was cancelled. Reason: Out of bread', $this->lastReply());
 
         $customer = Customer::query()->withoutGlobalScopes()->findOrFail($order->customer_id);
         $this->assertSame(0, $customer->total_orders);
@@ -370,7 +371,7 @@ class CheckoutTest extends TestCase
         $this->assertCount(2, $payloads);
 
         $data = json_decode($payloads[0], true);
-        $this->assertSame(['shop', 'catalog', 'now', 'history'], array_slice(array_keys($data), 0, 4));
+        $this->assertSame(['shop', 'customer', 'catalog', 'now'], array_slice(array_keys($data), 0, 4));
         $this->assertArrayNotHasKey('now', $data['shop']);
         $this->assertStringStartsWith('2026-10-18 10:00', $data['now']);
 
@@ -453,7 +454,7 @@ class CheckoutTest extends TestCase
 
         $this->say('1 shawarma please, that is all');
 
-        $this->assertStringContainsString('send your location', $this->lastReply(), 'English, like the customer');
+        $this->assertStringContainsString('Share your location', $this->lastReply(), 'English, like the customer');
     }
 
     public function test_an_answer_in_another_language_is_asked_for_again_in_the_customers(): void

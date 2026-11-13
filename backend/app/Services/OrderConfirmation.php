@@ -190,7 +190,9 @@ class OrderConfirmation
             if (! $this->claim($order, 'awaiting_check', 'cancelled', ['payment_status' => 'refund_due'])) {
                 return false;
             }
-            $this->tell($merchant, $order->fresh(), 'whish_late');
+            $fresh = $order->fresh(['customer']);
+            $this->tell($merchant, $fresh, 'whish_late');
+            app(ShopAlertService::class)->refundDue($merchant, $fresh);
 
             return true;
         }

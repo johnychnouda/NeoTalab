@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Jobs\StartScheduledOrder;
 use App\Models\Conversation;
 use App\Models\DeliveryZone;
@@ -51,7 +52,7 @@ class ChooseTimeTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
-        Bus::fake([StartScheduledOrder::class, CheckLateOrder::class, CheckUnacceptedOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([StartScheduledOrder::class, CheckLateOrder::class, CheckUnacceptedOrder::class, NotifyShopOfOrder::class]);
 
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Rose Garden', 'currency' => 'USD', 'timezone' => 'Asia/Beirut', 'business_type' => 'Flowers / Gifts',

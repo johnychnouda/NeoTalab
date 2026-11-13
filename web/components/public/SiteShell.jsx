@@ -83,7 +83,8 @@ function SiteFooter({ lang }) {
 }
 
 /** `title` and `children` may be objects keyed by language ({ en, ar, fr }). */
-export async function LegalPage({ title, children }) {
+/** `dated` is for the policies; a page like Contact has no "last updated" line. */
+export async function LegalPage({ title, children, dated = true }) {
   const lang = await getSiteLang();
   const pick = (v) => (v && typeof v === "object" && !Array.isArray(v) && ("en" in v) ? (v[lang] ?? v.en) : v);
 
@@ -91,7 +92,7 @@ export async function LegalPage({ title, children }) {
     <SiteShell>
       <article className="legal">
         <h1>{pick(title)}</h1>
-        <p className="legal-updated">{siteText(lang).footer.updated} {company.policiesUpdated}</p>
+        {dated && <p className="legal-updated">{siteText(lang).footer.updated} {company.policiesUpdated}</p>}
         {pick(children)}
       </article>
     </SiteShell>

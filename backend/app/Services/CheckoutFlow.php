@@ -521,6 +521,17 @@ class CheckoutFlow
         }
 
         if ($state['fulfillment'] === 'delivery' && empty($state['address_done'])) {
+            // A pin the customer already sent in this chat, before being asked, is the delivery location:
+            // it is taken exactly as if it arrived now, and never asked for a second time.
+            $earlier = ($conversation->state ?? [])['location'] ?? null;
+            if (empty($state['location']) && empty($state['pin_used']) && empty($state['new_address'])
+                && is_array($earlier) && isset($earlier['lat'], $earlier['lng'])) {
+                $this->save($conversation, ['step' => 'location', 'pin_used' => true] + $state);
+
+                return $this->handle($merchant, $conversation, $locale, null, null, $earlier)
+                    ?? $this->location($this->t('location_pin', $locale));
+            }
+
             $saved = array_values(array_filter($conversation->customer->addresses ?? [], fn ($a) => ! empty($a['location'])));
             if ($saved !== [] && empty($state['new_address'])) {
                 $rows = array_map(fn ($a) => [

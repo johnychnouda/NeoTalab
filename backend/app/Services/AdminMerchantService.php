@@ -287,7 +287,8 @@ class AdminMerchantService
     public const SHOP_TABLES = [
         'order_items', 'orders', 'cart_items', 'carts', 'conversations', 'whatsapp_messages',
         'customers', 'modifiers', 'modifier_groups', 'product_variants', 'products', 'categories',
-        'delivery_zones', 'shop_hours', 'drivers', 'ai_usage', 'onboarding_requests',
+        'delivery_zones', 'shop_hours', 'drivers', 'ai_usage', 'ai_memories', 'onboarding_requests',
+        'subscription_payments',
     ];
 
     /**

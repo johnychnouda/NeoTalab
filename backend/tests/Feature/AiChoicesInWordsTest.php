@@ -167,7 +167,7 @@ class AiChoicesInWordsTest extends TestCase
 
         $this->say('lahm');
 
-        $this->assertStringContainsString('no longer available', $this->last()['text']['body']);
+        $this->assertStringContainsString('available anymore', $this->last()['text']['body']);
         $this->assertSame(0, $this->cartCount());
     }
 }

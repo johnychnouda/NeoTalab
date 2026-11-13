@@ -22,7 +22,6 @@ use App\Services\AI\QuantityFromMessage;
 use App\Services\AI\ReplyFigures;
 use App\Support\CheckoutException;
 use App\Support\Conversation\CartStatus;
-use App\Support\Conversation\ConversationIntent;
 use App\Support\Conversation\ConversationStatus;
 use App\Support\Conversation\RecommendedAction;
 use App\Support\CurrentTenant;
@@ -852,6 +851,8 @@ class ConversationService
         $conversation->customer->forceFill([
             'bot_paused_until' => now()->addMinutes(ShopSettings::for($merchant)->botPauseMins()),
         ])->save();
+
+        app(ShopAlertService::class)->handoff($merchant, $conversation->customer);
 
         return __('whatsapp.checkout.handoff', ['shop' => $merchant->name], $conversation->customer->locale ?? 'en');
     }

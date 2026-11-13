@@ -34,6 +34,7 @@ class ShopCommands
     public function __construct(
         protected OrderConfirmation $confirmation,
         protected OrderService $orders,
+        protected DriverDispatcher $dispatcher,
         protected WhatsAppService $whatsapp,
     ) {}
 
@@ -80,6 +81,9 @@ class ShopCommands
 
         if (preg_match('/^(?:refunded|refund done|مسترد|remboursé|rembourse)\s*#?\s*(\d+)?$/iu', $text, $m)) {
             return $this->refunded($customer, isset($m[1]) ? (int) $m[1] : null);
+        }
+        if (preg_match('/^(?:retry|reassign|إعادة|اعادة|relancer)\s*#?\s*(\d+)?$/iu', $text, $m)) {
+            return $this->retryFailed($merchant, $customer, isset($m[1]) ? (int) $m[1] : null);
         }
         if (in_array($text, self::ACCEPT, true) || in_array($text, self::REFUSE, true)) {
             return $this->answer($merchant, $customer, in_array($text, self::ACCEPT, true));
@@ -155,6 +159,45 @@ class ShopCommands
         $order->forceFill(['payment_status' => 'refunded'])->save();
 
         return true;
+    }
+
+    /** After a failed delivery: put the order back to ready so another driver can take it. */
+    protected function retryFailed(Merchant $merchant, Customer $customer, ?int $number): bool
+    {
+        $order = Order::query()->where('customer_id', $customer->id)->where('status', 'failed')
+            ->when($number !== null, fn ($q) => $q->where('number', $number))->latest()->first();
+        if (! $order) {
+            $this->note($merchant, $customer, __('whatsapp.shop.retry_none', [], $merchant->locale ?? 'en'));
+
+            return true;
+        }
+
+        $order->forceFill([
+            'status' => 'ready',
+            // A paid Whish order was flagged for refund when the delivery failed: it is going out again, so nothing is owed.
+            'payment_status' => $order->payment_status === 'refund_due' ? 'paid' : $order->payment_status,
+            'driver_id' => null,
+            'picked_up_at' => null,
+            'cancel_reason' => null,
+            'cancelled_by' => null,
+            'cancelled_at' => null,
+        ])->save();
+
+        $this->dispatcher->dispatchWaiting($merchant);
+
+        $this->note($merchant, $customer, __('whatsapp.shop.retry_ok', ['number' => $order->number], $merchant->locale ?? 'en'));
+
+        return true;
+    }
+
+    /** A short answer to a shop command, in the chat where the shop typed it. */
+    protected function note(Merchant $merchant, Customer $customer, string $text): void
+    {
+        try {
+            $this->whatsapp->sendToCustomer($merchant, (string) $customer->phone, ['type' => 'text', 'text' => $text]);
+        } catch (\Throwable $e) {
+            Log::info('Shop command answer not delivered', ['customer_id' => $customer->id, 'error' => $e->getMessage()]);
+        }
     }
 
     /** The shop approved or refused an item for a customer: the customer is told (an approval lasts a day, for one order). */

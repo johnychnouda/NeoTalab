@@ -138,6 +138,10 @@ function normalizeResponse(method, path, raw) {
     if (route === "/settings/hours") return { hours: raw?.hours ?? unwrapList(data) };
     if (route === "/settings/zones") return { zones: raw?.zones ?? unwrapList(data) };
     if (route === "/drivers") return { drivers: raw?.drivers ?? unwrapList(data) };
+    if (route === "/customers" || route.startsWith("/customers?")) return { customers: raw?.customers ?? unwrapList(data) };
+    if (route === "/customers/paused") return { customers: raw?.customers ?? unwrapList(data) };
+    if (route === "/memories" || route.startsWith("/memories?")) return { memories: raw?.memories ?? unwrapList(data) };
+    if (route === "/analytics/dashboard" || route.startsWith("/analytics/dashboard?")) return raw?.data ?? raw ?? data;
     if (route === "/categories") return { categories: Array.isArray(data) ? data : [] };
   }
 

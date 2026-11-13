@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Admin\PlatformSettingsController;
 use App\Http\Controllers\Api\V1\Admin\SystemAlertController as AdminSystemAlertController;
 use App\Http\Controllers\Api\V1\Admin\UsageController as AdminUsageController;
 use App\Http\Controllers\Api\V1\Admin\WhatsAppEmbeddedSignupController;
+use App\Http\Controllers\Api\V1\AiMemoryController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoryController;
@@ -73,8 +74,18 @@ Route::prefix('v1')->group(function () {
         // ── Customers ─────────────────────────────────────────
         Route::middleware("role:{$merchantRoles}")->prefix('customers')->group(function () use ($managerRoles) {
             Route::get('/', [CustomerController::class, 'index']);
+            Route::get('paused', [CustomerController::class, 'paused']);
             Route::post('{customer}/block', [CustomerController::class, 'block'])->middleware("role:{$managerRoles}");
             Route::post('{customer}/unblock', [CustomerController::class, 'unblock'])->middleware("role:{$managerRoles}");
+            Route::post('{customer}/resume', [CustomerController::class, 'resume'])->middleware("role:{$managerRoles}");
+            Route::post('{customer}/anonymize', [CustomerController::class, 'anonymize'])->middleware("role:{$managerRoles}");
+        });
+
+        // ── AI memories (what the bot remembers) ───────────────
+        Route::middleware("role:{$managerRoles}")->prefix('memories')->group(function () {
+            Route::get('/', [AiMemoryController::class, 'index']);
+            Route::delete('/', [AiMemoryController::class, 'clear']);
+            Route::delete('{memory}', [AiMemoryController::class, 'destroy']);
         });
 
         // ── Drivers ───────────────────────────────────────────

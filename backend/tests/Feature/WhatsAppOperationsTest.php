@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Customer;
 use App\Models\Driver;
 use App\Models\Merchant;
@@ -56,7 +57,7 @@ class WhatsAppOperationsTest extends TestCase
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => fn () => Http::response(['messages' => [['id' => 'wamid.OUT'.uniqid()]]], 200)]);
         // Delayed jobs would run instantly on the sync queue; tests run them explicitly instead.
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
 
         [$this->merchant, $owner] = $this->merchantWithUser(Roles::MERCHANT_OWNER, [
             'name' => 'Beirut Bites',
@@ -153,7 +154,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertSame('confirmed', $order->status);
         $this->assertSame(25, $order->eta_mins);
         $this->assertSame($rami->id, $order->driver_id);
-        $this->assertStringContainsString('accepted your order #1 — preparing now, ready around', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('accepted order #1 — preparing now, ready around', $this->lastTo(self::CUSTOMER));
 
         $toRami = $this->sentTo($rami->whatsapp_number);
         $delivery = end($toRami);
@@ -183,11 +184,11 @@ class WhatsAppOperationsTest extends TestCase
 
         $this->tap("drv:picked_up:{$order->id}", $rami->whatsapp_number);
         $this->assertSame('picked_up', $order->fresh()->status);
-        $this->assertStringStartsWith('🛵 Your order #1 is on its way with Rami — arriving in about', $this->lastTo(self::CUSTOMER));
+        $this->assertStringStartsWith('🛵 Hey! It’s Rami — your order #1 is on the way', $this->lastTo(self::CUSTOMER));
 
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
         $this->assertSame('delivered', $order->fresh()->status);
-        $this->assertStringContainsString('was delivered', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('is with you', $this->lastTo(self::CUSTOMER));
         $this->assertStringContainsString('How was your order?', $this->lastTo(self::CUSTOMER), 'rating asked in the same message');
         $this->assertStringContainsString('Delivery #1 completed', $this->lastTo($rami->whatsapp_number));
 
@@ -375,6 +376,10 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('add 1 shawarma');
         $this->receive(['type' => 'location', 'location' => ['latitude' => 33.8959, 'longitude' => 35.4784, 'name' => 'AUB Main Gate']]);
         $this->say('confirm');
+        $this->assertStringContainsString('Got your pin', $this->lastTo(self::CUSTOMER), 'the pin sent before checkout is not asked for again');
+        foreach (['co:skip:', 'co:pay:cash', 'co:cur:USD', 'co:ok:'] as $step) {
+            $this->tap($step, self::CUSTOMER);
+        }
         $this->shopTypes(self::CUSTOMER, '✅');
 
         $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->sole();
@@ -396,7 +401,7 @@ class WhatsAppOperationsTest extends TestCase
         app()->call([new CheckLateOrder($order->id), 'handle']); // new time is in the future: nothing more
 
         $this->assertStringContainsString('new time: preparing now, ready around', $this->lastTo(self::CUSTOMER));
-        $apologies = array_filter($this->sentTo(self::CUSTOMER), fn ($m) => str_contains($m['text'], 'taking a little longer'));
+        $apologies = array_filter($this->sentTo(self::CUSTOMER), fn ($m) => str_contains($m['text'], 'taking a bit longer'));
         $this->assertCount(1, $apologies);
     }
 
@@ -434,7 +439,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('5');
 
         $this->assertSame(5, $order->fresh()->rating);
-        $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER));
+        $this->assertSame('Thanks for the rating! 🙏', $this->lastTo(self::CUSTOMER));
     }
 
     /** @return array{text: string, buttons: list<string>} */
@@ -452,12 +457,12 @@ class WhatsAppOperationsTest extends TestCase
         $this->tap("drv:delivered:{$order->id}", $rami->whatsapp_number);
 
         $msg = $this->lastMessageTo(self::CUSTOMER);
-        $this->assertStringContainsString('was delivered', $msg['text']);
+        $this->assertStringContainsString('is with you', $msg['text']);
         $this->assertStringContainsString('How was your order?', $msg['text']);
         $this->assertSame(["rt:{$order->id}:order:5", "rt:{$order->id}:order:3", "rt:{$order->id}:order:1"], $msg['buttons']);
 
         $this->tap("rt:{$order->id}:order:5", self::CUSTOMER);
-        $this->assertSame('Thank you for your rating! 🙏', $this->lastTo(self::CUSTOMER), 'Great is thanked and nothing more is asked');
+        $this->assertSame('Thanks for the rating! 🙏', $this->lastTo(self::CUSTOMER), 'Great is thanked and nothing more is asked');
         $this->assertSame(5, $order->fresh()->rating);
     }
 
@@ -483,7 +488,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('The fries were cold and it came late');
 
         $this->assertSame('The fries were cold and it came late', $order->fresh()->rating_issue);
-        $this->assertStringContainsString('has your message and will contact you', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('has your message and will reply here', $this->lastTo(self::CUSTOMER));
         $this->assertNotNull(Customer::query()->withoutGlobalScopes()->where('phone', self::CUSTOMER)->first()->bot_paused_until, 'the shop answers personally');
 
         $before = count($this->sentTo(self::CUSTOMER));
@@ -550,7 +555,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('٢');
 
         $this->assertSame(2, $order->fresh()->rating);
-        $this->assertStringContainsString('sorry it was not perfect', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString("Sorry it wasn't perfect", $this->lastTo(self::CUSTOMER));
     }
 
     public function test_a_number_is_not_a_rating_unless_one_was_asked_for(): void
@@ -582,7 +587,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->echo(self::CUSTOMER, '⏸');
         $this->say('can I get a discount?');
         $this->assertCount($before + 1, $this->sentTo(self::CUSTOMER), 'paused: one note from the team, the merchant answers');
-        $this->assertStringContainsString('team member', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('someone from Beirut Bites', $this->lastTo(self::CUSTOMER));
 
         $this->echo(self::CUSTOMER, '▶️');
         $this->say('ok thanks, add 1 shawarma');
@@ -624,13 +629,13 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('cancel order');
         $asked = $this->sentTo(self::CUSTOMER);
         $last = end($asked);
-        $this->assertStringContainsString("cancel order #{$order->number}", $last['text']);
+        $this->assertStringContainsString("Cancel order #{$order->number}", $last['text']);
         $this->assertSame(["cx:yes:{$order->id}", "cx:no:{$order->id}"], $last['buttons'], 'the buttons decide, not the assistant');
         $this->assertSame($before, $order->fresh()->status, 'nothing is cancelled until the customer taps Yes');
 
         $this->tap("cx:no:{$order->id}", self::CUSTOMER);
         $this->assertSame($before, $order->fresh()->status, 'No keeps the order');
-        $this->assertStringContainsString("#{$order->number} kept", $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString("Keeping order #{$order->number}", $this->lastTo(self::CUSTOMER));
     }
 
     public function test_any_wording_of_a_cancel_request_gets_the_yes_or_no_question(): void
@@ -686,7 +691,7 @@ class WhatsAppOperationsTest extends TestCase
     public function test_asking_for_a_human_pauses_the_bot_in_that_chat(): void
     {
         $this->say('I want to talk to a human');
-        $this->assertStringContainsString('team will reply to you here shortly', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('will reply here shortly', $this->lastTo(self::CUSTOMER));
         $before = count($this->sentTo(self::CUSTOMER));
 
         $this->say('hello?');
@@ -953,7 +958,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->shopSettings(['fulfillment' => 'pickup', 'pickup_address' => 'Hamra St, next to the bakery']);
         $rami = $this->driver();
 
-        $order = $this->order(confirm: 'confirm');
+        $order = $this->order(confirm: 'confirm | | | cash | USD');
 
         $this->assertSame('pickup', $order->fulfillment);
         $this->assertNull($order->driver_id, 'pickup orders never go to a driver');
@@ -976,22 +981,22 @@ class WhatsAppOperationsTest extends TestCase
     {
         $this->shopSettings(['fulfillment' => 'pickup', 'pickup_address' => 'Hamra St']);
         $this->say('add 2 shawarma');
-        $this->say('confirm');
+        $this->say('confirm | | | cash | USD');
         $order = Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->sole();
         $this->assertSame('placed', $order->status);
         $this->assertStringContainsString('sent to', $this->lastTo(self::CUSTOMER));
 
         $this->shopTypes(self::CUSTOMER, '✅');
         $this->assertSame('confirmed', $order->fresh()->status);
-        $this->assertStringContainsString('accepted your order #1 — ready for pickup around', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('accepted order #1 — ready for pickup around', $this->lastTo(self::CUSTOMER));
 
         $this->shopTypes(self::CUSTOMER, 'ready');
         $this->assertSame('ready', $order->fresh()->status);
-        $this->assertStringContainsString('ready! You can pick it up now at Hamra St', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('ready for pickup at Hamra St', $this->lastTo(self::CUSTOMER));
 
         $this->shopTypes(self::CUSTOMER, 'done');
         $this->assertSame('delivered', $order->fresh()->status);
-        $this->assertStringContainsString('Thank you for picking up order #1', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Thanks for picking up #1', $this->lastTo(self::CUSTOMER));
     }
 
     public function test_a_shop_delivering_itself_closes_orders_by_typing(): void
@@ -1000,7 +1005,7 @@ class WhatsAppOperationsTest extends TestCase
         $this->assertNull($order->fresh()->driver_id, 'no driver on the shift: the shop delivers itself');
 
         $this->shopTypes(self::CUSTOMER, 'out');
-        $this->assertSame('🛵 Your order #1 is on its way — arriving in about 15 min (around 12:15 PM).', $this->lastTo(self::CUSTOMER));
+        $this->assertSame('🛵 Order #1 is on its way — arriving in about 15 min (around 12:15 PM).', $this->lastTo(self::CUSTOMER));
 
         $this->shopTypes(self::CUSTOMER, 'done');
         $this->assertSame('delivered', $order->fresh()->status);
@@ -1023,10 +1028,12 @@ class WhatsAppOperationsTest extends TestCase
         $this->say('confirm');
         $asked = $this->sentTo(self::CUSTOMER);
         $ask = end($asked);
-        $this->assertStringContainsString('How would you like', $ask['text'], 'the buttons, not a plain question');
+        $this->assertStringContainsString('Delivery or pickup?', $ask['text'], 'the buttons, not a plain question');
         $this->assertSame(['co:ful:delivery', 'co:ful:pickup'], $ask['buttons']);
 
         $this->say('confirm | | | cash | | | pickup');
+        $this->tap('co:cur:USD', self::CUSTOMER); // the shop takes lira too: which money is asked next
+        $this->tap('co:ok:', self::CUSTOMER);
         $this->assertSame('pickup', Order::query()->withoutGlobalScopes()->where('merchant_id', $this->merchant->id)->sole()->fulfillment);
     }
 
@@ -1040,12 +1047,12 @@ class WhatsAppOperationsTest extends TestCase
         // A short answer the bot does not know gets the buttons again, not a dead end.
         $this->say('hmm maybe');
         $asked = $this->sentTo(self::CUSTOMER);
-        $this->assertStringContainsString('How would you like', end($asked)['text']);
+        $this->assertStringContainsString('Delivery or pickup?', end($asked)['text']);
         $this->assertSame(['co:ful:delivery', 'co:ful:pickup'], end($asked)['buttons']);
 
         // A typed "delivery" moves on to the next question (the address), without the assistant.
         $this->say('delivery');
         $this->assertStringNotContainsString('understand', $this->lastTo(self::CUSTOMER));
-        $this->assertStringContainsString('send your location', $this->lastTo(self::CUSTOMER));
+        $this->assertStringContainsString('Share your location', $this->lastTo(self::CUSTOMER));
     }
 }

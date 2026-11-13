@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\CheckLateOrder;
 use App\Jobs\CheckUnacceptedOrder;
+use App\Jobs\NotifyShopOfOrder;
 use App\Models\Category;
 use App\Models\Merchant;
 use App\Models\Product;
@@ -40,7 +41,7 @@ class AiLedChatTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
         config(['whatsapp.platform_access_token' => 'test-token']);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
-        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyStaffOfHandoff::class, \App\Jobs\NotifyShopOfOrder::class]);
+        Bus::fake([CheckUnacceptedOrder::class, CheckLateOrder::class, NotifyShopOfOrder::class]);
         Cache::flush();
         [$this->merchant] = $this->merchantWithUser(Roles::MERCHANT_OWNER, ['name' => 'Foren', 'currency' => 'USD', 'settings' => ['bot' => ['phone_id' => '555'], 'mode' => 'auto']]);
     }
@@ -108,7 +109,7 @@ class AiLedChatTest extends TestCase
         $this->say('hello?');
 
         $this->assertSame('text', $first['type']);
-        $this->assertStringContainsString('team member from Foren', $first['text']['body']);
+        $this->assertStringContainsString('Someone from Foren will reply here shortly', $first['text']['body']);
         $this->assertStringNotContainsString('Cat 1', $first['text']['body']);
     }
 }

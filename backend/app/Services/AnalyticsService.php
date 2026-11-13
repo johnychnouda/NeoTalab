@@ -99,36 +99,38 @@ class AnalyticsService
     }
 
     /**
-     * Average of every answer (order, service, delivery person), the average of each, and the latest orders with a
-     * bad answer (1 to 2 out of 5) so the merchant can follow up.
+     * Single-question ratings only (Great/Okay/Bad on the order). Old service/delivery
+     * columns may still exist on old rows but are ignored so new shops are not skewed.
      *
      * @return array{average: ?float, count: int, by: array<string, ?float>, low: list<array<string, mixed>>}
      */
     protected function ratings($since): array
     {
-        $rated = Order::query()->with('customer')->where('rated_at', '>=', $since)
-            ->where(fn ($q) => $q->whereNotNull('rating')->orWhereNotNull('rating_service')->orWhereNotNull('rating_delivery'))->get();
+        $rated = Order::query()->with('customer')
+            ->where('rated_at', '>=', $since)
+            ->whereNotNull('rating')
+            ->get();
 
-        $avg = fn (iterable $values) => ($v = collect($values)->filter(fn ($x) => $x !== null)->values())->isEmpty() ? null : round((float) $v->avg(), 1);
-        $answers = fn (Order $o) => array_filter(['order' => $o->rating, 'service' => $o->rating_service, 'delivery' => $o->rating_delivery], fn ($x) => $x !== null);
+        $avg = fn (iterable $values) => ($v = collect($values)->filter(fn ($x) => $x !== null)->values())->isEmpty()
+            ? null
+            : round((float) $v->avg(), 1);
 
         return [
-            'average' => $avg($rated->flatMap(fn (Order $o) => array_values($answers($o)))),
+            'average' => $avg($rated->pluck('rating')),
             'count' => $rated->count(),
-            'by' => ['order' => $avg($rated->pluck('rating')), 'service' => $avg($rated->pluck('rating_service')), 'delivery' => $avg($rated->pluck('rating_delivery'))],
-            'low' => $rated->filter(fn (Order $o) => $answers($o) !== [] && min($answers($o)) <= 2)->sortByDesc('rated_at')->take(20)->map(function (Order $o) use ($answers) {
-                $worst = $answers($o);
-                asort($worst);
-
-                return [
+            'by' => ['order' => $avg($rated->pluck('rating'))],
+            'low' => $rated->filter(fn (Order $o) => (int) $o->rating <= 2)
+                ->sortByDesc('rated_at')
+                ->take(20)
+                ->map(fn (Order $o) => [
                     'number' => $o->number,
-                    'rating' => (int) reset($worst),
-                    'what' => (string) array_key_first($worst),
+                    'rating' => (int) $o->rating,
+                    'what' => 'order',
+                    'issue' => $o->rating_issue,
                     'customer_name' => $o->customer?->name,
                     'customer_phone' => $o->customer?->phone,
                     'rated_at' => $o->rated_at?->toIso8601String(),
-                ];
-            })->values()->all(),
+                ])->values()->all(),
         ];
     }
 }

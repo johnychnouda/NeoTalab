@@ -238,7 +238,7 @@ class MerchantSettingsService
 
     public function updateMode(Merchant $merchant, string $mode): Merchant
     {
-        $valid = ['auto', 'busy', 'manual', 'closed'];
+        $valid = ['auto', 'manual', 'closed'];
         if (! in_array($mode, $valid, true)) {
             throw ValidationException::withMessages([
                 'mode' => ['Mode must be one of: '.implode(', ', $valid)],

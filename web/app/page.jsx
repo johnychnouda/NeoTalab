@@ -127,7 +127,8 @@ export default async function Home() {
           ))}
         </ol>
         <div className="hero-actions">
-          <Link href="/contact" className="btn-hero primary">{t.contactUs}<Icon name="arrow" size={18} /></Link>
+          <Link href="/join" className="btn-hero primary">{t.trial}<Icon name="arrow" size={18} /></Link>
+          <Link href="/contact" className="btn-hero ghost">{t.contactUs}</Link>
         </div>
       </section>
     </SiteShell>

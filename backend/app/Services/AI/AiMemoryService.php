@@ -129,4 +129,38 @@ class AiMemoryService
 
         return true;
     }
+
+    /**
+     * @return list<AiMemory>
+     */
+    public function list(?string $scope = null, int $limit = 100): array
+    {
+        $q = AiMemory::query()->with('customer:id,name,phone')->orderByDesc('updated_at')->limit($limit);
+        if ($scope === 'shop' || $scope === 'customer') {
+            $q->where('scope', $scope);
+        }
+
+        return $q->get()->all();
+    }
+
+    public function forget(string $id): bool
+    {
+        $row = AiMemory::query()->find($id);
+        if (! $row) {
+            return false;
+        }
+        $row->delete();
+
+        return true;
+    }
+
+    public function forgetAll(?string $scope = null): int
+    {
+        $q = AiMemory::query();
+        if ($scope === 'shop' || $scope === 'customer') {
+            $q->where('scope', $scope);
+        }
+
+        return $q->delete();
+    }
 }
