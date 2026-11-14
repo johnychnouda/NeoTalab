@@ -239,10 +239,11 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {error && <div style={{ color: "var(--red)" }}>{error}</div>}
+      {error && <div className="login-error" role="alert">{error}</div>}
       {categories === null && !error && <div className="loader">…</div>}
       {categories && categories.length === 0 && products.length === 0 && (
-        <EmptyState icon={EMPTY_ICONS.menu} title={t("mk.empty")} />
+        <EmptyState icon={EMPTY_ICONS.menu} title={t("mk.emptyTitle")} description={t("mk.empty")}
+          actionLabel={`+ ${t("mk.addCategory")}`} actionClassName="btn-primary" onAction={() => setModal({ type: "category" })} />
       )}
 
       {allSections.length > 0 && (

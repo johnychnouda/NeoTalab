@@ -75,8 +75,8 @@ export default function CustomersPage() {
         </section>
       )}
 
+      <div className="dash-toolbar">
       <Segmented
-        block
         value={tab}
         onChange={setTab}
         aria-label={t("customers.title")}
@@ -88,21 +88,22 @@ export default function CustomersPage() {
       />
 
       {tab !== "feedback" && (
-        <div className="field" style={{ marginTop: 16, maxWidth: 360 }}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("customers.search")}
-            dir="ltr"
-          />
-        </div>
+        <input
+          type="search"
+          className="search-input cust-search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("customers.search")}
+          aria-label={t("customers.search")}
+        />
       )}
+      </div>
 
       {rows === null && !error && <div className="loader">{t("db.loading")}</div>}
 
       {tab === "feedback" && (
         <div style={{ marginTop: 16 }}>
-          {low.length === 0 && <EmptyState icon={EMPTY_ICONS.team} title={t("customers.feedbackEmpty")} />}
+          {low.length === 0 && <EmptyState icon={EMPTY_ICONS.check} title={t("customers.feedbackEmpty")} />}
           {low.map((r) => (
             <div className="driver-card" key={`${r.number}-${r.rated_at}`} style={{ marginBottom: 10 }}>
               <div className="driver-name">#{r.number} · {r.rating}/5</div>
@@ -119,7 +120,7 @@ export default function CustomersPage() {
       )}
 
       {tab !== "feedback" && rows && rows.length === 0 && (
-        <EmptyState icon={EMPTY_ICONS.team} title={t("customers.empty")} />
+        <EmptyState icon={EMPTY_ICONS.team} title={t("customers.empty")} description={search ? undefined : t("customers.emptyDesc")} />
       )}
 
       {tab !== "feedback" && rows && rows.length > 0 && (
@@ -132,7 +133,7 @@ export default function CustomersPage() {
                 <div className="mk-hint" dir="ltr">{c.phone}</div>
                 <div className="tm-status" style={{ marginTop: 8 }}>
                   {c.is_blocked && <span className="pill pill-suspended">{t("customers.blocked")}</span>}
-                  {isPaused && <span className="pill">{t("customers.paused")}</span>}
+                  {isPaused && <span className="pill pill-pending">{t("customers.paused")}</span>}
                   <span className="pill">{c.total_orders || 0} {t("customers.orders")}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>

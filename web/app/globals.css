@@ -18,6 +18,40 @@
   --radius:    10px;
   --sidebar-w: 240px;
   --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Design tokens (see "DESIGN SYSTEM" at the end of this file) ── */
+  /* Surfaces, from the page up to raised controls */
+  --surface3:      #1d2f25;
+  --border-strong: #33503f;
+  /* Text */
+  --text-subtle:   #7c9086;
+  /* Brand */
+  --green-hover:   #3ee07c;
+  --green-border:  #25d36640;
+  --on-green:      #04220f;
+  /* Status, each with a tint for backgrounds and a line for borders */
+  --red-dim:       #ff4d4d18;
+  --red-border:    #ff4d4d44;
+  --orange-dim:    #f59e0b18;
+  --orange-border: #f59e0b44;
+  --blue-dim:      #3b82f61c;
+  --blue-border:   #3b82f650;
+  --purple-dim:    #818cf81c;
+  --purple-border: #818cf850;
+  /* Corners */
+  --r-xs: 6px;  --r-sm: 8px;  --r-md: 10px;  --r-lg: 14px;  --r-xl: 18px;  --r-pill: 999px;
+  /* Spacing: a 4px grid */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-5: 20px;  --sp-6: 24px;  --sp-7: 32px;  --sp-8: 48px;
+  /* Control heights: small (tables, toolbars), medium (forms), large (sign-in, phones) */
+  --h-sm: 32px;  --h-md: 40px;  --h-lg: 48px;
+  /* Type */
+  --fs-xs: 12px;  --fs-sm: 13px;  --fs-md: 14px;  --fs-lg: 16px;  --fs-xl: 18px;  --fs-2xl: 22px;  --fs-3xl: 26px;
+  /* Depth: lines first, shadows only for things that float */
+  --shadow-pop:   0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.5);
+  /* Focus and motion */
+  --ring: 0 0 0 3px #25d36633;
+  --dur:  0.15s;
 }
 
 body { font-family: var(--font-inter), system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -3179,3 +3213,200 @@ button.wa-mic { border: 0; cursor: pointer; }
 .set-tab-shell .set-tab-btn.active { background: var(--green-dim); color: var(--green); border-color: transparent; box-shadow: none; }
 /* Arabic pages put the Arabic font first: Inter's own fallback (Arial) has Arabic letters and would win otherwise. */
 html[lang="ar"] body { font-family: var(--font-arabic), var(--font-inter), system-ui, -apple-system, sans-serif; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM
+   One set of rules for every control, on top of the page layers above.
+   Change a component here, not in a page section. Values come from the tokens in :root.
+   Principles: lines before shadows, colour only where it means something, motion only as feedback.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Focus: one visible ring everywhere ── */
+:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* ── Motion: nothing moves for decoration ── */
+.main > *, .data-table tbody tr, .inbox-card, .alert-card, .empty-icon, .auth-card, .login-card { animation: none; }
+.stat-card:hover, .merchant-card:hover, .dash-body .merchant-card:hover, .nav-item:hover, [dir="rtl"] .nav-item:hover,
+.inbox-card:hover, [dir="rtl"] .inbox-card:hover, .alert-card:hover, [dir="rtl"] .alert-card:hover,
+.activity-item:hover, [dir="rtl"] .activity-item:hover { transform: none; }
+.btn-primary:active, .btn-danger:active, .btn-sm:active, .btn-outline-green:active, .btn-hero:active,
+.auth-submit:active:not(:disabled) { transform: none; }
+
+/* ── Type ── */
+.page-header h1, .dash-body .page-header h1 { font-size: var(--fs-3xl); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.page-header-sub, .dash-body .page-header-sub { font-size: var(--fs-md); font-weight: 400; color: var(--text-muted); }
+.stat-value, .dash-body .stat-value { font-weight: 700; letter-spacing: -0.02em; }
+.section-title { text-transform: none; letter-spacing: 0; font-size: var(--fs-sm); font-weight: 600; }
+
+/* ── Buttons: primary, danger, secondary (btn-sm), tinted (btn-outline-green) ── */
+.btn-primary, .btn-danger, .btn-sm, .btn-outline-green, .auth-submit {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  font-family: inherit; line-height: 1.2; text-decoration: none; box-shadow: none;
+  transition: background var(--dur), border-color var(--dur), color var(--dur), opacity var(--dur);
+}
+.btn-primary, .btn-danger { min-height: var(--h-md); padding: 0 18px; border-radius: var(--r-md); font-size: var(--fs-md); font-weight: 600; }
+.btn-primary { background: var(--green); color: var(--on-green); }
+.btn-primary:hover:not(:disabled) { background: var(--green-hover); filter: none; box-shadow: none; }
+.btn-danger { background: #e5484d; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #f0575c; filter: none; box-shadow: none; }
+.btn-primary:disabled, .btn-danger:disabled, .btn-sm:disabled, .btn-outline-green:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { min-height: var(--h-sm); padding: 0 12px; border-radius: var(--r-sm); font-size: var(--fs-sm); font-weight: 500; background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+.btn-sm:hover:not(:disabled) { background: var(--surface3); border-color: var(--border-strong); color: var(--text); }
+.btn-outline-green { min-height: var(--h-md); padding: 0 14px; border-radius: var(--r-md); font-size: var(--fs-md); font-weight: 600; border: 1px solid var(--green-border); background: var(--green-dim); color: var(--green); }
+.btn-outline-green:hover:not(:disabled) { border-color: var(--green); background: #25d36626; box-shadow: none; }
+.auth-submit:hover:not(:disabled) { background: var(--green-hover); filter: none; box-shadow: none; }
+.btn-hero { transition: background var(--dur), border-color var(--dur), color var(--dur); }
+
+/* ── Fields: one height, one corner, one focus state ── */
+.field label, .dash-body .field label { text-transform: none; letter-spacing: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+.field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), .field select,
+.search-input, .dash-body .search-input, .filter-select { min-height: var(--h-md); border-radius: var(--r-md); font-size: var(--fs-md); }
+.field textarea { border-radius: var(--r-md); font-size: var(--fs-md); line-height: 1.5; }
+.field input:hover, .field select:hover, .field textarea:hover, .search-input:hover, .filter-select:hover { border-color: var(--border-strong); }
+.field input:focus, .field select:focus, .field textarea:focus, .search-input:focus, .filter-select:focus { border-color: var(--green); box-shadow: var(--ring); outline: none; }
+.field input::placeholder, .field textarea::placeholder, .search-input::placeholder { color: var(--text-subtle); }
+.field.field-invalid input:focus, .field.field-invalid select:focus { box-shadow: 0 0 0 3px var(--red-dim); }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--green); }
+
+/* ── Filter pills: quiet when idle, tinted in their own colour when chosen ── */
+.pill-btn { display: inline-flex; align-items: center; gap: 6px; min-height: var(--h-sm); padding: 0 12px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 500; }
+.pill-btn .pill-count, [dir="rtl"] .pill-btn .pill-count { margin: 0; background: #ffffff12; color: inherit; font-weight: 600; }
+.pill-btn.active { font-weight: 600; box-shadow: none; }
+.pill-btn.pill-tone-neutral.active { background: var(--surface3); border-color: var(--border-strong); color: var(--text); box-shadow: none; }
+.pill-btn.pill-tone-green.active { background: var(--green-dim); border-color: var(--green-border); color: var(--green); box-shadow: none; font-weight: 600; }
+.pill-btn.pill-tone-blue.active { background: var(--blue-dim); border-color: var(--blue-border); color: #7fb0ff; box-shadow: none; }
+.pill-btn.pill-tone-indigo.active { background: var(--purple-dim); border-color: var(--purple-border); color: #a5adfb; box-shadow: none; }
+.pill-btn.pill-tone-orange.active { background: var(--orange-dim); border-color: var(--orange-border); color: var(--orange); box-shadow: none; }
+.pill-btn.pill-tone-red.active, .pill-btn.pill-tone-rose.active { background: var(--red-dim); border-color: var(--red-border); color: #ff7a7a; box-shadow: none; }
+.pill-btn.active .pill-count { background: #ffffff16; color: inherit; }
+
+/* ── Status badges ── */
+.pill { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600; line-height: 1.6; }
+
+/* ── Cards and tiles: a line, a corner, no lift ── */
+.stat-card, .dash-body .stat-card, .merchant-card, .sset-card, .set-card, .gs-step, .gs-banner, .gs-connect, .inbox-card, .alert-card, .dash-note { border-radius: var(--r-lg); }
+.stat-card:hover, .dash-body .stat-card:hover { border-color: var(--border); box-shadow: none; }
+.stat-card::before, .merchant-card::after, .set-card::before { display: none; }
+.merchant-card:hover, .dash-body .merchant-card:hover { border-color: var(--border-strong); box-shadow: none; }
+.set-card:hover { border-color: var(--border); box-shadow: none; }
+.inbox-card:hover, .alert-card:hover { border-color: var(--border-strong); box-shadow: none; }
+.card-warn { font-size: var(--fs-xs); border-radius: var(--r-sm); padding: 6px 10px; }
+
+/* ── Tables ── */
+.data-table, .dash-body .data-table, .table-scroll { border-radius: var(--r-lg); }
+.data-table th, .dash-body .data-table th { text-transform: none; letter-spacing: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); background: var(--surface); }
+.data-table td, .dash-body .data-table td { font-size: var(--fs-md); }
+.data-table tr:hover td { background: #ffffff05; }
+
+/* ── Tabs: every tab bar is the same quiet bar ── */
+.sset-tabs, .set-tab-shell { border-radius: var(--r-lg); }
+.sset-tab, .set-tab-shell .set-tab-btn { min-height: 36px; border-radius: var(--r-sm); font-size: var(--fs-sm); }
+
+/* ── Sidebar ── */
+.sidebar { background: var(--surface); }
+.nav-item, .dash-body .nav-item { min-height: var(--h-md); padding: 0 12px; border-radius: var(--r-sm); font-size: var(--fs-md); font-weight: 500; transition: background var(--dur), color var(--dur); }
+.nav-item.active { font-weight: 600; }
+.nav-item.active::before { box-shadow: none; }
+.nav-badge { font-variant-numeric: tabular-nums; }
+
+/* ── Dialogs and drawers: the only things with a shadow ── */
+.modal-overlay { background: rgba(3, 8, 5, 0.72); backdrop-filter: blur(2px); }
+.modal { border-radius: var(--r-xl); box-shadow: var(--shadow-float); }
+.modal-header h3 { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+.side-panel { box-shadow: var(--shadow-float); }
+
+/* ── Toasts ── */
+.toast { border-radius: var(--r-md); background: var(--surface3); border-color: var(--border-strong); box-shadow: var(--shadow-pop); font-size: var(--fs-md); max-width: 380px; }
+.toast .toast-icon { display: flex; color: var(--green); }
+.toast.error { background: #24130f; border-color: var(--red-border); }
+.toast.error .toast-icon { color: #ff7a7a; }
+
+/* ── Empty states ── */
+.empty-icon, .dash-body .empty-icon { width: 52px; height: 52px; border-radius: var(--r-lg); }
+
+/* ── Sign-in ── */
+.auth-card { box-shadow: var(--shadow-pop); border-radius: var(--r-xl); }
+.auth-input:hover { border-color: var(--border-strong); }
+.auth-input:focus-within { box-shadow: var(--ring); }
+
+/* ── Small screens: fingers need 44px ── */
+@media (max-width: 860px) {
+  .btn-primary, .btn-danger, .btn-outline-green { min-height: 44px; }
+  .btn-sm { min-height: 38px; }
+  .pill-btn { min-height: 36px; }
+  .nav-item, .dash-body .nav-item { min-height: 44px; }
+  .field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), .field select, .field textarea,
+  .search-input, .dash-body .search-input { min-height: 44px; font-size: 16px; } /* 16px stops iOS zooming on focus */
+}
+
+/* ── Labels are sentence case everywhere in the apps (all caps is kept only for tiny eyebrows on the public site) ── */
+.sidebar-role, .mode-label, .stat-label, .modal-otp-inline-label, .modal-section-label, .panel-section-label,
+.pcred-field label, .info-contact-label, .panel-group-title, .akpi-label, .achart-title, .set-field label,
+.set-kpi-label, .set-rule-label, .set-editor-label, .set-strength-label, .history-day-label, .activity-day-label,
+.cmdk-group, .gs-plan-label, .gs-h, .ie-side-title, .pc-title, .pc-k {
+  text-transform: none; letter-spacing: 0;
+}
+.panel-section-label, .pc-title, .ie-side-title, .gs-plan-label, .modal-section-label, .cmdk-group { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+.pc-k { font-size: var(--fs-sm); font-weight: 500; }
+
+/* ── Drawer: the close button sits beside the title instead of on an empty strip of its own ── */
+.side-panel { position: fixed; }
+.side-panel-header { position: absolute; top: 14px; inset-inline-end: 16px; z-index: 2; padding: 0; border: 0; }
+.panel-hero { padding-inline-end: 64px; padding-top: 22px; }
+.panel-hero-name { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.01em; }
+.pipeline-card:hover, .pipeline-card--compact:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+.pc, .info-contact-card { border-radius: var(--r-lg); }
+.pv-status { font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill); }
+.pcred-field input { min-height: var(--h-md); border-radius: var(--r-md); font-size: var(--fs-md); }
+.pcred-field input:focus { border-color: var(--green); box-shadow: var(--ring); }
+.paction-btn, .dash-body .paction-btn { min-height: var(--h-md); padding: 0 14px; border-radius: var(--r-md); font-size: var(--fs-md); font-weight: 600; }
+.paction-btn.paction-primary, .dash-body .paction-btn.paction-primary { color: var(--on-green); }
+.paction-btn.paction-primary:hover, .dash-body .paction-btn.paction-primary:hover { background: var(--green-hover); border-color: var(--green-hover); opacity: 1; filter: none; }
+
+/* A badge with no tone of its own is neutral */
+.pill:not([class*="pill-"]) { background: #ffffff0d; border: 1px solid var(--border); color: var(--text-muted); }
+/* Toolbar: tabs on one side, search on the other */
+.dash-toolbar { flex-wrap: wrap; }
+.dash-toolbar .search-input.cust-search { flex: 0 1 320px; min-width: 200px; }
+.empty-desc { max-width: 44ch; margin: 6px auto 0; color: var(--text-muted); font-size: var(--fs-md); line-height: 1.55; }
+.empty-text { font-size: var(--fs-lg); font-weight: 600; }
+.driver-card { border-radius: var(--r-lg); }
+
+/* ── Shop settings: the tab bar keeps one width on every tab; a single-card tab keeps a readable width ── */
+.sset { max-width: 1180px; }
+.sset:not(.sset-wide):not(.sset-cards) > .sset-card { max-width: 780px; }
+.sset-field input, .sset-field select, .sset-hours-times input { min-height: var(--h-md); border-radius: var(--r-md); font-size: var(--fs-md); }
+.sset-field textarea { border-radius: var(--r-md); font-size: var(--fs-md); }
+.sset-field input:hover, .sset-field select:hover, .sset-field textarea:hover, .sset-hours-times input:hover { border-color: var(--border-strong); }
+.sset-field input:focus, .sset-field select:focus, .sset-field textarea:focus, .sset-hours-times input:focus { border-color: var(--green); box-shadow: var(--ring); outline: none; }
+.sset-field input::placeholder { color: var(--text-subtle); }
+.sset-card > header h2, .set-card-title { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+.sset-badge { font-weight: 600; padding: 3px 10px; }
+/* Menu header: the three actions share one height */
+.menu-head-actions { align-items: center; }
+.menu-more > summary.btn-sm { display: inline-flex; }
+@media (max-width: 860px) { .sset-field input, .sset-field select, .sset-hours-times input { min-height: 44px; font-size: 16px; } }
+
+/* ── Dialogs: even spacing, and both footer buttons the same height ── */
+:root { color-scheme: dark; } /* native tick boxes, time fields and scrollbars follow the dark theme */
+.modal-compact .modal-body .field { margin-bottom: var(--sp-4); }
+.modal-compact .modal-body .field:last-child { margin-bottom: 0; }
+.modal-compact .modal-body .field label { font-size: var(--fs-sm); letter-spacing: 0; margin-bottom: 6px; }
+.modal-footer .btn-sm, .modal-footer .btn-primary, .modal-footer .btn-danger { min-height: var(--h-md); padding: 0 16px; font-size: var(--fs-md); border-radius: var(--r-md); }
+.modal-footer .btn-sm { font-weight: 500; }
+.modal-close { border-radius: var(--r-sm); }
+
+/* ── Public site ── */
+/* The section menu marks where you are with a tint; solid green is kept for the one call to action. */
+.site-links a.active { background: var(--green-dim); color: var(--green); }
+/* Waiting phones in the demo stay readable instead of fading to near-black. */
+@media (min-width: 821px) { .wa-col:not(.is-active) { opacity: 0.7; transform: scale(0.94); } }
+/* Pricing card: a line and a soft tint, no green halo. */
+.pricing-card { box-shadow: none; border-color: var(--green-border); background: linear-gradient(180deg, #25d36612, var(--site-card) 60%); border-radius: var(--r-xl); }
+.feature, .faq details, .step { border-radius: var(--r-lg); }
+.site-nav .site-nav-cta { font-weight: 600; }
+.btn-hero { font-weight: 600; }
+/* Join form */
+.jn-type { border-radius: var(--r-md); }
+/* A closed "More" menu is not there at all: its buttons are not focusable or announced until it opens. */
+.menu-more:not([open]) > .menu-more-pop { display: none; }

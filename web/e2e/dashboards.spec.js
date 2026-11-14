@@ -48,7 +48,7 @@ test.describe("shop dashboard", () => {
     });
   }
 
-  for (const tab of ["Shop & account", "Orders", "Delivery areas", "Opening hours", "Payments", "Reports & chats"]) {
+  for (const tab of ["Shop & account", "Orders", "Delivery areas", "Opening hours", "Payments", "Report & chats"]) {
     test(`shop settings tab "${tab}" opens`, async ({ page }) => {
       const problems = watchPage(page);
       await page.goto(`${base}/settings`);
@@ -81,7 +81,7 @@ test.describe("shop dashboard", () => {
     test("money settings are together: the lira switch is on Payments, not on Orders", async ({ page }) => {
       await open(page, "Payments");
       await expect(page.getByText(/Lebanese lira/i).first()).toBeVisible();
-      await expect(page.getByText("Whish Pay")).toBeVisible();
+      await expect(page.getByText("Whish transfer")).toBeVisible();
       await open(page, "Orders");
       await expect(page.getByText(/Lebanese lira/i)).toHaveCount(0);
     });
